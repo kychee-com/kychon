@@ -122,6 +122,7 @@ async function ensureMemberRecord() {
           apikey: window.__WILDLYCHEE_ANON_KEY,
           Authorization: 'Bearer ' + session.access_token,
         },
+        body: JSON.stringify({ email: session.user.email }),
       });
       if (res.ok) {
         // Refresh session data
@@ -172,12 +173,17 @@ export async function init() {
   // Load i18n
   await loadLocale();
 
-  // Build nav
+  // Ensure member record exists for authenticated users (must happen before nav build)
+  await ensureMemberRecord();
+
+  // Build nav (after member record is loaded so admin role is known)
   buildNav(siteConfig.nav);
   buildUserNav();
 
-  // Ensure member record exists for authenticated users
-  await ensureMemberRecord();
+  // Mobile nav toggle
+  document.getElementById('nav-toggle')?.addEventListener('click', () => {
+    document.getElementById('nav-links')?.classList.toggle('open');
+  });
 
   // Load admin editor if admin
   loadAdminEditor();

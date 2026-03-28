@@ -48,6 +48,7 @@ a:hover { color: var(--color-primary-hover); }
 .nav-link:hover { background: var(--color-surface); color: var(--color-text); }
 .nav-link.active { color: var(--color-primary); background: rgba(99, 102, 241, 0.08); }
 .nav-user { display: flex; align-items: center; gap: 0.5rem; margin-left: 0.5rem; }
+.nav-toggle { display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0.25rem; color: var(--color-text); }
 .nav-avatar { width: 2rem; height: 2rem; border-radius: 50%; object-fit: cover; }
 
 /* Buttons */
@@ -253,6 +254,8 @@ tr:hover td { background: var(--color-surface); }
   h1 { font-size: 1.75rem; }
   .section-hero { padding: 3rem 0; }
   .section-features .features-grid { grid-template-columns: 1fr; }
-  .nav-links { display: none; }
+  .nav-toggle { display: block; }
+  .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--color-bg); border-bottom: 1px solid var(--color-border); padding: 0.5rem 1.5rem; box-shadow: var(--shadow-md); }
+  .nav-links.open { display: flex; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }

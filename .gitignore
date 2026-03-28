@@ -3,3 +3,4 @@ app.json
 coverage/
 .env
 *.local
+.migrations.sql
