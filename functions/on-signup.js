@@ -1,5 +1,5 @@
 // schedule: none (triggered by client after auth callback)
-import { db, getUser } from '@run402/functions';
+import { db, getUser, email } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -29,8 +29,8 @@ export default async (req) => {
     if (authRes.ok) authUser = await authRes.json();
   } catch (e) { /* fall back */ }
 
-  const email = authUser.email || body.email || user.email || '';
-  const displayName = authUser.display_name || (email ? email.split('@')[0] : 'Member');
+  const memberEmail = authUser.email || body.email || user.email || '';
+  const displayName = authUser.display_name || (memberEmail ? memberEmail.split('@')[0] : 'Member');
   const avatarUrl = authUser.avatar_url || null;
 
   // Check if this is the first user (becomes admin)
@@ -47,7 +47,7 @@ export default async (req) => {
   // Create member record
   const created = await db.from('members').insert({
     user_id: user.id,
-    email,
+    email: memberEmail,
     display_name: displayName,
     avatar_url: avatarUrl,
     tier_id: tierId,
@@ -98,13 +98,14 @@ export default async (req) => {
           }
         } catch (e) { console.warn('AI onboarding failed:', e.message); }
 
-        // Send welcome email if mailbox configured
-        if (welcomeMsg && process.env.MAILBOX_ID && email) {
+        // Send welcome email
+        if (welcomeMsg && memberEmail) {
           try {
-            await fetch(`https://api.run402.com/mailboxes/v1/${process.env.MAILBOX_ID}/messages`, {
-              method: 'POST',
-              headers: { Authorization: 'Bearer ' + process.env.RUN402_SERVICE_KEY, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ template: 'notification', to: email, variables: { project_name: 'Wild Lychee Community', message: welcomeMsg.substring(0, 500) } }),
+            await email.send({
+              to: memberEmail,
+              subject: 'Welcome to Wild Lychee Community!',
+              html: `<p>${welcomeMsg.replace(/\n/g, '<br>')}</p>`,
+              from_name: 'Wild Lychee Community',
             });
           } catch (e) { console.warn('Welcome email failed:', e.message); }
         }
