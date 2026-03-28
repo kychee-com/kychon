@@ -1,5 +1,5 @@
 // schedule: "0 * * * *"
-import { db } from '@run402/functions';
+import { db, email } from '@run402/functions';
 
 export default async (req) => {
   const now = new Date();
@@ -22,23 +22,14 @@ export default async (req) => {
     const attendees = rsvps.rows || rsvps;
 
     for (const attendee of attendees) {
-      if (!attendee.email || !process.env.MAILBOX_ID) continue;
+      if (!attendee.email) continue;
       try {
         const time = new Date(event.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        await fetch(`https://api.run402.com/mailboxes/v1/${process.env.MAILBOX_ID}/messages`, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + process.env.RUN402_SERVICE_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            template: 'notification',
-            to: attendee.email,
-            variables: {
-              project_name: 'Wild Lychee Community',
-              message: `Reminder: "${event.title}" starts at ${time}${event.location ? ' at ' + event.location : ''}. See you there!`,
-            },
-          }),
+        await email.send({
+          to: attendee.email,
+          subject: `Reminder: ${event.title} starts soon`,
+          html: `<p>Hi ${attendee.display_name},</p><p><strong>${event.title}</strong> starts at ${time}${event.location ? ' at ' + event.location : ''}.</p><p>See you there!</p>`,
+          from_name: 'Wild Lychee Community',
         });
         sent++;
       } catch (e) {

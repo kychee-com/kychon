@@ -1,5 +1,5 @@
 // schedule: "0 8 * * *"
-import { db } from '@run402/functions';
+import { db, email } from '@run402/functions';
 
 export default async (req) => {
   const now = new Date().toISOString();
@@ -21,23 +21,13 @@ export default async (req) => {
       .lt('expires_at', nextDayStr);
 
     for (const member of expiring) {
-      // Send reminder via Run402 email notification (if mailbox configured)
-      if (process.env.MAILBOX_ID && member.email) {
+      if (member.email) {
         try {
-          await fetch(`https://api.run402.com/mailboxes/v1/${process.env.MAILBOX_ID}/messages`, {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer ' + process.env.RUN402_SERVICE_KEY,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              template: 'notification',
-              to: member.email,
-              variables: {
-                project_name: 'Wild Lychee Community',
-                message: `Hi ${member.display_name}, your membership expires in ${days} days. Please renew to keep your access.`,
-              },
-            }),
+          await email.send({
+            to: member.email,
+            subject: `Membership Renewal Reminder — ${days} days left`,
+            html: `<p>Hi ${member.display_name},</p><p>Your membership expires in <strong>${days} days</strong>. Please renew to keep your access to the community.</p>`,
+            from_name: 'Wild Lychee Community',
           });
           results.reminders_sent++;
         } catch (e) {

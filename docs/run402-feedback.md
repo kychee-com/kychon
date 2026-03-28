@@ -80,13 +80,15 @@ Built a complete community portal with 32 site files, 7 edge functions, 20 datab
 
 **Suggestion**: Add `on_signup` and `on_login` hook registration. Even a simple `POST /projects/v1/admin/:id/hooks` with `{ event: "signup", function: "on-signup" }` would be huge.
 
-### 9. Email templates too rigid
+### 9. ~~Email templates too rigid~~ (FIXED)
 
-**What happened**: Only 3 templates (`project_invite`, `magic_link`, `notification`). The `notification` template allows only a 500-character plain text `message`. Can't send HTML emails, can't customize the from name, can't include images or links in a structured way.
+**What happened**: Originally only 3 templates with a 500-char plain text `notification` template.
 
-**Impact**: Welcome emails, event reminders, and renewal notices all look like plain text blobs. Not acceptable for a user-facing community platform.
-
-**Suggestion**: Add a `raw_email` or `custom` template that accepts `subject` + `html_body` (with abuse guardrails like rate limits and domain verification). Or expand `notification` to support HTML and remove the 500-char limit.
+**Status**: Fixed. Run402 now supports:
+- **Raw HTML mode**: `--subject` + `--html` (up to 1MB) for arbitrary HTML emails
+- **`email.send()` helper** in `@run402/functions` with auto mailbox discovery
+- **`from_name`** for display name on From header
+- Team tier rate limit bumped to 500/day
 
 ### 10. `ON CONFLICT DO NOTHING` in seed SQL makes config updates on redeploy impossible
 
