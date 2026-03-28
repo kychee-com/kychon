@@ -30,16 +30,17 @@ ON CONFLICT (key) DO NOTHING;
 
 -- Feature flags
 INSERT INTO site_config (key, value, category) VALUES
-  ('feature_events', 'false', 'features'),
+  ('feature_events', 'true', 'features'),
   ('feature_forum', 'false', 'features'),
   ('feature_directory', 'true', 'features'),
-  ('feature_resources', 'false', 'features'),
+  ('feature_resources', 'true', 'features'),
   ('feature_blog', 'false', 'features'),
   ('feature_committees', 'false', 'features'),
   ('feature_ai_moderation', 'false', 'features'),
   ('feature_ai_translation', 'false', 'features'),
   ('feature_ai_newsletter', 'false', 'features'),
   ('feature_ai_insights', 'false', 'features'),
+  ('feature_ai_onboarding', 'false', 'features'),
   ('directory_public', 'false', 'features'),
   ('signup_mode', '"approved"', 'features')
 ON CONFLICT (key) DO NOTHING;
@@ -52,6 +53,7 @@ INSERT INTO site_config (key, value, category) VALUES
     {"label": "Events", "href": "/events.html", "icon": "calendar", "feature": "feature_events"},
     {"label": "Resources", "href": "/resources.html", "icon": "book-open", "feature": "feature_resources"},
     {"label": "Forum", "href": "/forum.html", "icon": "message-circle", "feature": "feature_forum"},
+    {"label": "Committees", "href": "/committees.html", "icon": "briefcase", "feature": "feature_committees"},
     {"label": "Dashboard", "href": "/admin.html", "icon": "bar-chart-2", "admin": true},
     {"label": "Members", "href": "/admin-members.html", "icon": "users", "admin": true},
     {"label": "Settings", "href": "/admin-settings.html", "icon": "settings", "admin": true}

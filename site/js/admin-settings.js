@@ -50,6 +50,9 @@ export async function initAdminSettings() {
   // Load tiers
   await loadTiers();
 
+  // AI settings
+  setupAISettings();
+
   // Save handlers
   document.getElementById('as-branding-form')?.addEventListener('submit', saveBranding);
   document.getElementById('as-theme-form')?.addEventListener('submit', saveTheme);
@@ -110,6 +113,76 @@ async function loadTiers() {
           <div class="text-sm text-muted">${esc(t.price_label || 'Free')} — ${(t.benefits || []).join(', ')}</div>
         </div>
       </div>`).join('');
+  } catch {}
+}
+
+function setupAISettings() {
+  // AI feature toggles
+  const toggleContainer = document.getElementById('as-ai-toggles');
+  if (toggleContainer) {
+    const aiFlags = ['feature_ai_moderation', 'feature_ai_translation', 'feature_ai_insights', 'feature_ai_onboarding'];
+    toggleContainer.innerHTML = aiFlags.map(key => {
+      const val = configMap[key];
+      const checked = val === true || val === 'true';
+      const label = key.replace('feature_ai_', '').replace(/_/g, ' ');
+      return `<label class="flex items-center gap-1" style="padding:0.375rem 0">
+        <input type="checkbox" class="ai-toggle" data-key="${key}" ${checked ? 'checked' : ''}>
+        <span>AI ${label}</span>
+      </label>`;
+    }).join('');
+
+    toggleContainer.querySelectorAll('.ai-toggle').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        await patchConfig(cb.dataset.key, cb.checked);
+      });
+    });
+  }
+
+  // Save AI key (via run402 secrets - but from frontend we can't set secrets directly)
+  // Instead, show instructions
+  document.getElementById('as-ai-save')?.addEventListener('click', () => {
+    const key = getVal('as-ai-key');
+    const provider = getVal('as-ai-provider');
+    if (!key) return;
+    const status = document.getElementById('as-ai-status');
+    if (status) {
+      status.textContent = `To set the API key, run: run402 secrets set <project_id> AI_API_KEY "${key}" && run402 secrets set <project_id> AI_PROVIDER "${provider}"`;
+    }
+  });
+
+  document.getElementById('as-ai-test')?.addEventListener('click', async () => {
+    const status = document.getElementById('as-ai-status');
+    if (status) status.textContent = 'Testing... (API key must be set as a project secret via CLI)';
+  });
+
+  // AI activity summary
+  loadAIActivity();
+}
+
+async function loadAIActivity() {
+  const container = document.getElementById('as-ai-activity');
+  if (!container) return;
+
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const since = sevenDaysAgo.toISOString();
+
+    const [modCount, transCount, insightCount] = await Promise.all([
+      get('moderation_log?created_at=gte.' + since + '&select=id').then(r => r.length).catch(() => 0),
+      get('content_translations?created_at=gte.' + since + '&select=id').then(r => r.length).catch(() => 0),
+      get('member_insights?created_at=gte.' + since + '&select=id').then(r => r.length).catch(() => 0),
+    ]);
+
+    if (modCount || transCount || insightCount) {
+      container.innerHTML = `
+        <h4 class="mb-1">AI Activity (last 7 days)</h4>
+        <div class="text-sm text-muted">
+          ${modCount ? `<div>${modCount} posts moderated</div>` : ''}
+          ${transCount ? `<div>${transCount} translations created</div>` : ''}
+          ${insightCount ? `<div>${insightCount} member insights generated</div>` : ''}
+        </div>`;
+    }
   } catch {}
 }
 

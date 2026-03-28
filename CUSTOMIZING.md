@@ -120,3 +120,89 @@ UPDATE site_config SET value = '[
 ```
 
 Nav item properties: `label`, `href`, `icon`, `public` (show to all), `auth` (show to logged-in), `admin` (show to admins), `feature` (show when flag is true).
+
+## Create an Event
+
+```sql
+INSERT INTO events (title, description, location, starts_at, ends_at, capacity, is_members_only, created_by)
+VALUES (
+  'Spring Networking Mixer',
+  'Join us for an evening of networking and refreshments.',
+  'Community Hall, 123 Main St',
+  '2026-05-15 18:00:00+00',
+  '2026-05-15 21:00:00+00',
+  50,
+  true,
+  (SELECT id FROM members WHERE email = 'admin@example.com')
+);
+```
+
+The event appears on `events.html` automatically when `feature_events` is enabled.
+Members RSVP via the event detail page (`event.html?id=UUID`).
+
+## Add a Forum Category
+
+```sql
+INSERT INTO forum_categories (name, description, position, is_members_only)
+VALUES ('General Discussion', 'Open conversation about anything community-related.', 1, false);
+```
+
+Categories appear on `forum.html` when `feature_forum` is enabled. Members can create topics within any category they have access to.
+
+## Configure AI Features
+
+1. Set the required secrets via the Run402 CLI:
+
+```sh
+run402 secrets set AI_API_KEY sk-your-api-key-here
+run402 secrets set AI_PROVIDER anthropic
+```
+
+2. Enable the AI feature flags you want:
+
+```sql
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_moderation';
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_translation';
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_newsletter';
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_insights';
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_onboarding';
+```
+
+Enable only the flags you need. Each AI feature works independently. The `moderate-content.js` edge function runs on a 15-minute schedule; `translate-content.js` runs on demand when content is created or updated.
+
+## Add a Resource Category
+
+Resources use a `category` text column directly on the `resources` table (no separate categories table). Just use a consistent category string when inserting resources:
+
+```sql
+INSERT INTO resources (title, description, file_url, file_type, category, is_members_only, uploaded_by)
+VALUES (
+  'New Member Handbook',
+  'Everything you need to know as a new member.',
+  '/uploads/handbook-2026.pdf',
+  'pdf',
+  'Onboarding',
+  false,
+  (SELECT id FROM members WHERE email = 'admin@example.com')
+);
+```
+
+To see all existing categories: `SELECT DISTINCT category FROM resources ORDER BY category;`
+
+## Create a Committee
+
+```sql
+INSERT INTO committees (name, description, is_active)
+VALUES ('Events Committee', 'Plans and coordinates all community events and social gatherings.', true);
+```
+
+Committees appear on `committees.html` when `feature_committees` is enabled. Committee members are managed through the `committee_members` join table:
+
+```sql
+INSERT INTO committee_members (committee_id, member_id, role)
+VALUES (
+  (SELECT id FROM committees WHERE name = 'Events Committee'),
+  (SELECT id FROM members WHERE email = 'member@example.com'),
+  'chair'
+);
+```

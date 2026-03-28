@@ -115,6 +115,30 @@
           <h3 class="mb-1">Membership Tiers</h3>
           <div id="as-tiers"></div>
         </div>
+
+        <!-- AI Features -->
+        <div class="card mb-2">
+          <h3 class="mb-1">AI Features</h3>
+          <p class="text-sm text-muted mb-2">Configure AI-powered features. Requires an API key from OpenAI or Anthropic.</p>
+          <div class="form-group">
+            <label class="form-label">AI Provider</label>
+            <select class="form-select" id="as-ai-provider">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <div class="flex gap-1">
+              <input class="form-input" id="as-ai-key" type="password" placeholder="sk-... or sk-ant-...">
+              <button class="btn btn-secondary btn-sm" id="as-ai-test">Test</button>
+              <button class="btn btn-primary btn-sm" id="as-ai-save">Save</button>
+            </div>
+            <p class="text-sm text-muted mt-1" id="as-ai-status"></p>
+          </div>
+          <div id="as-ai-toggles"></div>
+          <div class="mt-2" id="as-ai-activity"></div>
+        </div>
       </div>
     </main>
 

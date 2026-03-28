@@ -243,3 +243,13 @@ CREATE TABLE IF NOT EXISTS newsletter_drafts (
   sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- ============================================
+-- SECTION: Schema Migrations (safe column additions)
+-- ============================================
+
+DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN hidden BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN locked BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE forum_replies ADD COLUMN hidden BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN search_vector TSVECTOR; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_forum_topics_search ON forum_topics USING GIN (search_vector);
