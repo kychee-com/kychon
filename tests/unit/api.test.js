@@ -86,11 +86,10 @@ describe('api.js', () => {
     await expect(get('bad')).rejects.toThrow('API GET bad: 500');
   });
 
-  it('count parses Content-Range header', async () => {
-    mockFetch.mockResolvedValueOnce({
-      method: 'HEAD',
-      headers: { get: (h) => h === 'Content-Range' ? '0-9/42' : null },
-    });
+  it('count returns array length from GET', async () => {
+    // count() now does a GET with select=id and counts the array length
+    const fakeRows = Array.from({ length: 42 }, (_, i) => ({ id: i + 1 }));
+    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(JSON.stringify(fakeRows)) });
     const c = await count('members?status=eq.active');
     expect(c).toBe(42);
   });
