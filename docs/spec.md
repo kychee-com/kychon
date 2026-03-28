@@ -869,6 +869,30 @@ Fine for photos, PDFs, documents. Limits video and large presentations. Not bloc
 
 Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs or one edge function. Workable but inelegant.
 
+### Gap 6: `getUser(req)` Missing Email — IMPACT: MEDIUM (discovered during deploy)
+
+**Current state:** `getUser(req)` returns `{ id, role }` only. Password-auth users have no email in the JWT claims. The `/auth/v1/user` endpoint may not return email consistently for password users either.
+
+**What Wild Lychee needs:** Email is critical for the on-signup flow (creating member records, sending welcome emails, display name derivation).
+
+**Workaround:** Client-side JS passes the email (from the signup form or session) in the request body to the on-signup edge function. Works but requires trusting client-provided data.
+
+**What would help:** Include `email` in the `getUser()` response, or ensure `/auth/v1/user` always returns it.
+
+### Gap 7: SQL Pattern Filter Blocks `SET role` Column Name — IMPACT: LOW (discovered during deploy)
+
+**Current state:** `UPDATE members SET role = 'admin'` is blocked by the SQL injection filter `\bSET\s+(search_path|role)\b`. This is a false positive — `role` here is a column name, not a Postgres `SET ROLE` command.
+
+**Workaround:** Use `db.from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function, which bypasses the SQL filter. Or delete and re-insert the row.
+
+**What would help:** Smarter filter that distinguishes `SET ROLE` (Postgres command) from `SET role =` (column update in an UPDATE statement).
+
+### Gap 8: Static File Caching With No Cache Busting — IMPACT: LOW (discovered during deploy)
+
+**Current state:** Static files served with `cache-control: public, max-age=3600`. After redeploy, browsers serve stale CSS/JS for up to 1 hour. No built-in content-hash or version parameter mechanism.
+
+**What would help:** Either shorter max-age with ETag-based revalidation, or a deploy option that appends a content hash to file URLs (e.g., `styles.css?v=abc123`). Alternatively, `max-age=0, must-revalidate` with strong ETags would give instant cache invalidation while still allowing conditional requests.
+
 ---
 
 ## AI-Powered Features — The Moat

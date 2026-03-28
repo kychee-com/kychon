@@ -113,7 +113,16 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 
 ## Run402 Platform Gaps to Work Around
 
-- **Email**: Only 3 rigid templates; use edge functions calling external email APIs (Resend/SES) for rich emails
-- **No webhooks**: Client-side JS must call `on-signup` function after auth callback
-- **No batch REST**: Bulk operations require individual requests or edge functions
-- **10MB upload limit**: Fine for v1, limits large video/presentations
+### Confirmed gaps (from live deploy testing)
+
+- **`getUser(req)` returns `{ id, role }` only — no email**: Password-auth users have no email in the JWT claims or the `getUser` response. Workaround: client passes `email` in the request body to edge functions. Google OAuth users get email from `/auth/v1/user` endpoint.
+- **SQL `SET role` blocked by pattern filter**: `UPDATE members SET role = 'admin'` is blocked because the filter `\bSET\s+(search_path|role)\b` matches `role` as a column name. Workaround: delete and re-insert the row, or use `db.from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function (bypasses RLS and the SQL filter).
+- **Static file caching (`max-age=3600`) with no cache busting**: After redeploy, browsers serve stale CSS/JS for up to 1 hour. No content-hash or version query param in URLs. Workaround: manually append `?v=timestamp` to CSS/JS links in HTML, or tell users to hard-refresh.
+- **No webhooks / post-auth events**: No server-side hook for signup/login events. Workaround: client-side JS calls `on-signup` edge function after OAuth callback; `config.js` checks on every page load if the auth user has a member record (resilience against missed calls).
+- **Email templates too rigid**: Only 3 fixed templates (`project_invite`, `magic_link`, `notification`); `notification` allows only 500-char plain text. Workaround: use edge functions calling external email APIs (Resend/SES) for rich HTML emails.
+
+### Minor gaps
+
+- **No batch REST operations**: Approving 12 members = 12 PATCH requests. Workaround: use an edge function with `db.sql()` for bulk updates.
+- **10MB file upload limit**: Fine for photos/PDFs, limits large video/presentations.
+- **`/auth/v1/user` may not return email for password users**: The endpoint returns `display_name`, `avatar_url`, and linked identities, but email availability varies. Always pass email from the client as fallback.
