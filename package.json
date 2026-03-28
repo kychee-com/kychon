@@ -1,0 +1,23 @@
+{
+  "name": "wildlychee",
+  "version": "0.1.0",
+  "description": "AI-powered membership/community portal template for Run402",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "deploy": "node deploy.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kychee-com/wildlychee.git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "vitest": "^3.1.1",
+    "happy-dom": "^17.4.4",
+    "fast-check": "^4.1.1",
+    "@vitest/coverage-v8": "^3.1.1"
+  }
+}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Members</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2>Members</h2>
+          <button class="btn btn-secondary" id="am-export">Export CSV</button>
+        </div>
+
+        <div class="flex gap-1 mb-2" style="flex-wrap:wrap">
+          <input class="form-input" id="am-search" placeholder="Search members..." style="max-width:16rem">
+          <select class="form-select" id="am-status-filter" style="max-width:10rem">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="expired">Expired</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <select class="form-select" id="am-tier-filter" style="max-width:10rem">
+            <option value="">All Tiers</option>
+          </select>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Status</th>
+                  <th>Tier</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="am-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { init } from './js/config.js';
+    await init();
+    import { initAdminMembers } from './js/admin-members.js';
+    await initAdminMembers();
+  </script>
+</body>
+</html>

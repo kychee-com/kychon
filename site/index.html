@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <!-- NAV: Navigation -->
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <!-- CONTENT: Main content -->
+    <main class="page-content">
+      <div id="sections"></div>
+
+      <div class="container">
+        <section class="section" id="announcements-section">
+          <h2 id="announcements-title">Announcements</h2>
+          <div id="announcement-create" class="hidden mb-2"></div>
+          <div id="announcements-feed"></div>
+        </section>
+      </div>
+    </main>
+
+    <!-- FOOTER: Site footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a> on <a href="https://run402.com">Run402</a></p>
+      </div>
+    </footer>
+
+    <!-- Auth Modal -->
+    <div class="auth-modal hidden" id="auth-modal">
+      <div class="auth-panel">
+        <h3 id="auth-title">Sign In</h3>
+        <div id="auth-error" class="text-sm hidden" style="color:var(--color-danger);margin-bottom:1rem"></div>
+
+        <button class="btn-google" id="google-btn">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+          Sign in with Google
+        </button>
+
+        <div class="auth-divider">or</div>
+
+        <form id="auth-form">
+          <div class="form-group">
+            <label class="form-label" for="auth-email">Email</label>
+            <input class="form-input" type="email" id="auth-email" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="auth-password">Password</label>
+            <input class="form-input" type="password" id="auth-password" required minlength="6">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%" id="auth-submit-btn">Sign In</button>
+        </form>
+
+        <p class="text-sm text-muted mt-2 text-center">
+          <a href="#" id="auth-toggle">Don't have an account? Sign up</a>
+        </p>
+        <p class="text-sm text-muted mt-1 text-center">
+          <a href="#" id="auth-close">Close</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { init } from './js/config.js';
+    import { handleOAuthCallback, signInWithGoogle, signIn, signUp, isAuthenticated } from './js/auth.js';
+    import { get, post, patch, del } from './js/api.js';
+    import { isAdmin } from './js/auth.js';
+
+    // Handle OAuth callback
+    const session = await handleOAuthCallback();
+    if (session) window.location.reload();
+
+    // If hash is #signup, show modal
+    if (window.location.hash === '#signup') {
+      document.getElementById('auth-modal')?.classList.remove('hidden');
+    }
+
+    // Init config, nav, theme
+    const config = await init();
+
+    // --- Render homepage sections ---
+    async function renderSections() {
+      const container = document.getElementById('sections');
+      if (!container) return;
+      try {
+        const sections = await get('sections?page_slug=eq.index&visible=eq.true&order=position.asc');
+        for (const section of sections) {
+          container.appendChild(renderSection(section));
+        }
+      } catch (e) {
+        console.warn('Failed to load sections:', e);
+      }
+    }
+
+    function renderSection(section) {
+      const cfg = section.config;
+      const el = document.createElement('section');
+
+      switch (section.section_type) {
+        case 'hero':
+          el.className = 'section section-hero';
+          el.innerHTML = `
+            <div class="container">
+              <h1>${esc(cfg.heading || '')}</h1>
+              <p>${esc(cfg.subheading || '')}</p>
+              ${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg">${esc(cfg.cta_text)}</a>` : ''}
+            </div>`;
+          if (cfg.bg_image) el.style.backgroundImage = `url(${cfg.bg_image})`;
+          break;
+
+        case 'features':
+          el.className = 'section section-features';
+          const cols = cfg.columns || 3;
+          el.innerHTML = `
+            <div class="container">
+              <div class="features-grid" style="--cols:${cols}">
+                ${(cfg.items || []).map(item => `
+                  <div class="feature-card">
+                    <div class="feature-icon">${featureIcon(item.icon)}</div>
+                    <h3>${esc(item.title || '')}</h3>
+                    <p>${esc(item.desc || '')}</p>
+                  </div>`).join('')}
+              </div>
+            </div>`;
+          break;
+
+        case 'cta':
+          el.className = 'section section-cta';
+          el.innerHTML = `
+            <div class="container">
+              <h2>${esc(cfg.heading || '')}</h2>
+              <p class="text-muted mt-1">${esc(cfg.text || '')}</p>
+              ${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg mt-2">${esc(cfg.cta_text)}</a>` : ''}
+            </div>`;
+          break;
+
+        case 'stats':
+          el.className = 'section section-stats';
+          el.innerHTML = `
+            <div class="container">
+              <div class="stats-grid">
+                ${(cfg.items || []).map(s => `
+                  <div class="stat-card">
+                    <div class="stat-value">${esc(s.value || '')}</div>
+                    <div class="stat-label">${esc(s.label || '')}</div>
+                  </div>`).join('')}
+              </div>
+            </div>`;
+          break;
+
+        case 'testimonials':
+          el.className = 'section';
+          el.innerHTML = `
+            <div class="container">
+              <div class="card-grid">
+                ${(cfg.items || []).map(t => `
+                  <div class="card">
+                    <p style="font-style:italic">"${esc(t.quote || '')}"</p>
+                    <p class="text-sm text-muted mt-1">— ${esc(t.name || '')}${t.role ? ', ' + esc(t.role) : ''}</p>
+                  </div>`).join('')}
+              </div>
+            </div>`;
+          break;
+
+        case 'faq':
+          el.className = 'section';
+          el.innerHTML = `
+            <div class="container">
+              <h2 class="mb-2">FAQ</h2>
+              ${(cfg.items || []).map(f => `
+                <details class="card mb-1" style="cursor:pointer">
+                  <summary style="font-weight:600">${esc(f.q || '')}</summary>
+                  <p class="text-muted mt-1">${esc(f.a || '')}</p>
+                </details>`).join('')}
+            </div>`;
+          break;
+
+        default:
+          el.className = 'section';
+          if (cfg.html) el.innerHTML = `<div class="container">${cfg.html}</div>`;
+          break;
+      }
+      return el;
+    }
+
+    function featureIcon(name) {
+      const icons = {
+        users: '👥', calendar: '📅', 'book-open': '📖', 'message-circle': '💬',
+        home: '🏠', settings: '⚙️', 'bar-chart-2': '📊', shield: '🛡',
+      };
+      return icons[name] || '✦';
+    }
+
+    // --- Render announcements ---
+    async function renderAnnouncements() {
+      const feed = document.getElementById('announcements-feed');
+      if (!feed) return;
+      try {
+        const items = await get('announcements?order=is_pinned.desc,created_at.desc&limit=20');
+        if (items.length === 0) {
+          feed.innerHTML = '<p class="text-muted">No announcements yet.</p>';
+          return;
+        }
+        feed.innerHTML = items.map(a => `
+          <div class="announcement card mb-1 ${a.is_pinned ? 'pinned' : ''}" data-id="${a.id}">
+            <div class="announcement-title" data-editable="announcements.${a.id}.title">${esc(a.title)}</div>
+            <div class="announcement-body" data-editable-rich="announcements.${a.id}.body">${a.body}</div>
+            <div class="announcement-meta">
+              ${a.is_pinned ? '<span class="badge badge-primary">Pinned</span> ' : ''}
+              <span>${formatDate(a.created_at)}</span>
+            </div>
+            ${isAdmin() ? `
+              <div class="mt-1 flex gap-1">
+                <button class="btn btn-sm btn-secondary ann-pin" data-id="${a.id}" data-pinned="${a.is_pinned}">${a.is_pinned ? 'Unpin' : 'Pin'}</button>
+                <button class="btn btn-sm btn-danger ann-delete" data-id="${a.id}">Delete</button>
+              </div>` : ''}
+          </div>`).join('');
+
+        // Admin actions
+        feed.querySelectorAll('.ann-pin').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const pinned = btn.dataset.pinned === 'true';
+            await patch('announcements?id=eq.' + id, { is_pinned: !pinned });
+            renderAnnouncements();
+          });
+        });
+        feed.querySelectorAll('.ann-delete').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Delete this announcement?')) return;
+            await del('announcements?id=eq.' + btn.dataset.id);
+            renderAnnouncements();
+          });
+        });
+      } catch (e) {
+        feed.innerHTML = '<p class="text-muted">Could not load announcements.</p>';
+      }
+    }
+
+    // --- Admin: announcement creation ---
+    function setupAnnouncementCreate() {
+      if (!isAdmin()) return;
+      const container = document.getElementById('announcement-create');
+      if (!container) return;
+      container.classList.remove('hidden');
+      container.innerHTML = `
+        <div class="card">
+          <h4 class="mb-1">New Announcement</h4>
+          <div class="form-group">
+            <input class="form-input" id="ann-title" placeholder="Title">
+          </div>
+          <div class="form-group">
+            <textarea class="form-textarea" id="ann-body" placeholder="Write your announcement..."></textarea>
+          </div>
+          <button class="btn btn-primary" id="ann-post">Post</button>
+        </div>`;
+      document.getElementById('ann-post').addEventListener('click', async () => {
+        const title = document.getElementById('ann-title').value.trim();
+        const body = document.getElementById('ann-body').value.trim();
+        if (!title || !body) return;
+        const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
+        const memberId = session.user?.member?.id;
+        await post('announcements', { title, body, author_id: memberId });
+        // Log to activity
+        if (memberId) {
+          await post('activity_log', { member_id: memberId, action: 'announcement', metadata: { title } });
+        }
+        document.getElementById('ann-title').value = '';
+        document.getElementById('ann-body').value = '';
+        renderAnnouncements();
+      });
+    }
+
+    // --- Auth modal handlers ---
+    let isSignUp = false;
+    document.getElementById('google-btn')?.addEventListener('click', signInWithGoogle);
+    document.getElementById('auth-close')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('auth-modal')?.classList.add('hidden');
+    });
+    document.getElementById('auth-toggle')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      isSignUp = !isSignUp;
+      document.getElementById('auth-title').textContent = isSignUp ? 'Sign Up' : 'Sign In';
+      document.getElementById('auth-submit-btn').textContent = isSignUp ? 'Sign Up' : 'Sign In';
+      document.getElementById('auth-toggle').textContent = isSignUp
+        ? 'Already have an account? Sign in'
+        : "Don't have an account? Sign up";
+    });
+    document.getElementById('auth-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
+      const errEl = document.getElementById('auth-error');
+      errEl.classList.add('hidden');
+      try {
+        if (isSignUp) {
+          await signUp(email, password);
+          // Auto sign in after signup
+          await signIn(email, password);
+        } else {
+          await signIn(email, password);
+        }
+        window.location.reload();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
+    });
+
+    // --- Helpers ---
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // --- Boot ---
+    await renderSections();
+    await renderAnnouncements();
+    setupAnnouncementCreate();
+  </script>
+</body>
+</html>

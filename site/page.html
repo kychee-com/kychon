@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container">
+        <h1 id="page-title"></h1>
+        <div id="page-content" class="mt-2"></div>
+        <div id="page-sections" class="mt-2"></div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { init } from './js/config.js';
+    import { get } from './js/api.js';
+    import { isAuthenticated } from './js/auth.js';
+
+    await init();
+
+    const slug = new URLSearchParams(window.location.search).get('slug');
+    if (!slug) {
+      document.getElementById('page-title').textContent = 'Page not found';
+    } else {
+      try {
+        const pages = await get('pages?slug=eq.' + slug + '&published=eq.true&limit=1');
+        if (pages.length === 0) {
+          document.getElementById('page-title').textContent = 'Page not found';
+        } else {
+          const page = pages[0];
+
+          // Auth gate
+          if (page.requires_auth && !isAuthenticated()) {
+            window.location.href = '/';
+          }
+
+          document.title = page.title;
+          document.getElementById('page-title').textContent = page.title;
+          if (page.content) {
+            document.getElementById('page-content').innerHTML = page.content;
+          }
+
+          // Load sections
+          const sections = await get('sections?page_slug=eq.' + slug + '&visible=eq.true&order=position.asc');
+          const container = document.getElementById('page-sections');
+          // Reuse section renderer from index (simplified inline version)
+          for (const s of sections) {
+            const el = document.createElement('div');
+            el.className = 'section';
+            if (s.config?.html) {
+              el.innerHTML = s.config.html;
+            } else if (s.section_type === 'faq') {
+              el.innerHTML = (s.config.items || []).map(f =>
+                `<details class="card mb-1"><summary style="font-weight:600;cursor:pointer">${esc(f.q)}</summary><p class="text-muted mt-1">${esc(f.a)}</p></details>`
+              ).join('');
+            }
+            container.appendChild(el);
+          }
+        }
+      } catch (e) {
+        document.getElementById('page-title').textContent = 'Error loading page';
+      }
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  </script>
+</body>
+</html>

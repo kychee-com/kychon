@@ -1,0 +1,5 @@
+node_modules/
+app.json
+coverage/
+.env
+*.local

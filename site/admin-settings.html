@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Settings</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container" style="max-width:48rem">
+        <h2 class="mb-2">Site Settings</h2>
+
+        <!-- Branding -->
+        <div class="card mb-2">
+          <h3 class="mb-1">Branding</h3>
+          <form id="as-branding-form">
+            <div class="form-group">
+              <label class="form-label">Site Name</label>
+              <input class="form-input" id="as-site-name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tagline</label>
+              <input class="form-input" id="as-site-tagline">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea class="form-textarea" id="as-site-description" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Logo URL</label>
+              <input class="form-input" id="as-logo-url" type="url" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Favicon URL</label>
+              <input class="form-input" id="as-favicon-url" type="url" placeholder="https://...">
+            </div>
+            <button type="submit" class="btn btn-primary" id="as-branding-save">Save</button>
+          </form>
+        </div>
+
+        <!-- Theme -->
+        <div class="card mb-2">
+          <h3 class="mb-1">Theme</h3>
+          <form id="as-theme-form">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+              <div class="form-group">
+                <label class="form-label">Primary Color</label>
+                <input class="form-input" id="as-primary" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Primary Hover</label>
+                <input class="form-input" id="as-primary-hover" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Background</label>
+                <input class="form-input" id="as-bg" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Surface</label>
+                <input class="form-input" id="as-surface" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Text</label>
+                <input class="form-input" id="as-text" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Text Muted</label>
+                <input class="form-input" id="as-text-muted" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Border</label>
+                <input class="form-input" id="as-border" type="color">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Border Radius</label>
+                <input class="form-input" id="as-radius" placeholder="0.5rem">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Heading Font</label>
+                <input class="form-input" id="as-font-heading" placeholder="Inter">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Body Font</label>
+                <input class="form-input" id="as-font-body" placeholder="Inter">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="as-theme-save">Save</button>
+          </form>
+        </div>
+
+        <!-- Feature Flags -->
+        <div class="card mb-2">
+          <h3 class="mb-1">Features</h3>
+          <div id="as-features"></div>
+        </div>
+
+        <!-- Tiers -->
+        <div class="card mb-2">
+          <h3 class="mb-1">Membership Tiers</h3>
+          <div id="as-tiers"></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { init } from './js/config.js';
+    await init();
+    import { initAdminSettings } from './js/admin-settings.js';
+    await initAdminSettings();
+  </script>
+</body>
+</html>

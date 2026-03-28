@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container" style="max-width:36rem">
+        <h2 class="mb-2">Your Profile</h2>
+        <form id="profile-form">
+          <div class="text-center mb-2">
+            <label style="cursor:pointer">
+              <img id="profile-avatar-img" class="member-avatar" src="" alt="Avatar" style="width:5rem;height:5rem;margin:0 auto;display:block">
+              <input type="file" id="profile-avatar-upload" accept="image/*" class="hidden">
+              <span class="text-sm text-muted">Click to change</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="profile-name">Display Name</label>
+            <input class="form-input" id="profile-name" type="text" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="profile-bio">Bio</label>
+            <textarea class="form-textarea" id="profile-bio" rows="3"></textarea>
+          </div>
+          <div id="custom-fields"></div>
+          <button type="submit" class="btn btn-primary" id="profile-save">Save</button>
+        </form>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { init } from './js/config.js';
+    await init();
+    import { initProfile } from './js/profile.js';
+    await initProfile();
+  </script>
+</body>
+</html>
