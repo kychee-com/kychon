@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Committees</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand"><img src="" alt="" style="display:none"><span class="nav-brand-text">Wild Lychee</span></a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2>Committees</h2>
+          <button class="btn btn-primary hidden" id="committee-create-btn">Create Committee</button>
+        </div>
+        <div id="committees-content"></div>
+      </div>
+    </main>
+
+    <div class="auth-modal hidden" id="cm-form-modal">
+      <div class="auth-panel" style="max-width:28rem">
+        <h3 class="mb-1">Create Committee</h3>
+        <form id="cm-form">
+          <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="cmf-name" required></div>
+          <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="cmf-description" rows="2"></textarea></div>
+          <div class="flex gap-1">
+            <button type="submit" class="btn btn-primary">Create</button>
+            <button type="button" class="btn btn-secondary" id="cm-form-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="footer"><div class="container"><p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p></div></footer>
+  </div>
+
+  <script src="/js/env.js"></script>
+  <script type="module">
+    import { init } from './js/config.js';
+    await init();
+    import { initCommittees } from './js/committees.js';
+    await initCommittees();
+  </script>
+</body>
+</html>

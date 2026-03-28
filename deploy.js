@@ -103,6 +103,17 @@ const rls = {
     { table: 'announcements' },
     { table: 'activity_log' },
     { table: 'members' },
+    { table: 'events' },
+    { table: 'event_rsvps' },
+    { table: 'resources' },
+    { table: 'forum_categories' },
+    { table: 'forum_topics' },
+    { table: 'forum_replies' },
+    { table: 'committees' },
+    { table: 'committee_members' },
+    { table: 'content_translations' },
+    { table: 'moderation_log' },
+    { table: 'member_insights' },
   ],
 };
 

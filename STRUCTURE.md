@@ -1,6 +1,6 @@
 # Wild Lychee — AI-Readable Manifest
 
-**Version**: 0.1.0 (Phase 1 MVP)
+**Version**: 0.2.0 (Phase 2)
 **Platform**: Run402 (Postgres + static hosting + edge functions)
 **Deploy**: `node deploy.js` (assembles app.json, runs `run402 deploy`)
 
@@ -16,6 +16,11 @@ wild-lychee/
 │   ├── directory.html     # Member directory (search, filter, detail modal)
 │   ├── profile.html       # Profile editor (name, bio, avatar, custom fields)
 │   ├── page.html          # Generic page renderer (?slug=about)
+│   ├── events.html        # Events listing (upcoming, past, RSVP)
+│   ├── event.html         # Single event detail + RSVP (?id=UUID)
+│   ├── resources.html     # Resource library (browse, search, download)
+│   ├── forum.html         # Forum (categories, topics, replies)
+│   ├── committees.html    # Committees listing + detail
 │   ├── admin.html         # Admin dashboard (stats, activity feed, quick actions)
 │   ├── admin-members.html # Member management (approve, suspend, tier, role, CSV export)
 │   ├── admin-settings.html# Site settings (branding, theme, features, tiers)
@@ -30,6 +35,11 @@ wild-lychee/
 │   │   ├── profile.js     # Profile editor logic
 │   │   ├── directory.js   # Directory listing + search/filter
 │   │   ├── admin.js       # Dashboard stats + activity feed
+│   │   ├── events.js          # Events listing + RSVP logic
+│   │   ├── event.js           # Single event detail + RSVP
+│   │   ├── resources.js       # Resource library browse/search/download
+│   │   ├── forum.js           # Forum categories, topics, replies
+│   │   ├── committees.js      # Committees listing + detail
 │   │   ├── admin-members.js   # Member management table
 │   │   ├── admin-settings.js  # Settings panel logic
 │   │   └── admin-editor.js    # Inline editing (contenteditable + Tiptap + image upload)
@@ -37,7 +47,13 @@ wild-lychee/
 │       ├── brand.json     # Languages + default language
 │       └── strings/en.json# English UI strings (~130 keys)
 ├── functions/
-│   └── on-signup.js       # Post-auth: create member, first-user-admin
+│   ├── on-signup.js       # Post-auth: create member, first-user-admin
+│   ├── check-expirations.js   # schedule: "0 8 * * *" — expire lapsed memberships daily at 8 AM
+│   ├── event-reminders.js     # schedule: "0 * * * *" — send upcoming-event reminders hourly
+│   ├── moderate-content.js    # schedule: "*/15 * * * *" — AI content moderation every 15 min
+│   ├── translate-content.js   # On-demand AI translation edge function
+│   ├── upload-resource.js     # Handle resource file uploads
+│   └── export-csv.js          # Generate CSV exports for admin
 └── tests/
     ├── unit/              # Vitest + Node
     ├── integration/       # Vitest + happy-dom
@@ -70,10 +86,40 @@ wild-lychee/
 
 All boolean. Toggle with: `UPDATE site_config SET value = 'true' WHERE key = 'feature_events';`
 
-- `feature_events`, `feature_forum`, `feature_directory`, `feature_resources`
+- `feature_events` (default **true**), `feature_forum`, `feature_directory`, `feature_resources` (default **true**)
 - `feature_blog`, `feature_committees`
+- `feature_ai_onboarding` — AI-powered new-member onboarding flow
 - `feature_ai_moderation`, `feature_ai_translation`, `feature_ai_newsletter`, `feature_ai_insights`
 - `directory_public` (allow anonymous directory access)
+
+## AI Configuration
+
+AI features require two Run402 secrets:
+
+- `AI_API_KEY` — API key for the AI provider
+- `AI_PROVIDER` — Provider identifier (e.g., `anthropic`, `openai`)
+
+Set them via the CLI:
+
+```sh
+run402 secrets set AI_API_KEY sk-...
+run402 secrets set AI_PROVIDER anthropic
+```
+
+Each AI feature has its own toggle (`feature_ai_moderation`, `feature_ai_translation`, etc.) so you can enable AI capabilities individually after setting the secrets.
+
+## Schema Migrations
+
+Phase 2 tables are created with `CREATE TABLE IF NOT EXISTS` (safe to re-run). When adding columns to existing tables, use the safe ALTER pattern:
+
+```sql
+DO $$ BEGIN
+  ALTER TABLE members ADD COLUMN onboarding_complete BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+```
+
+This avoids errors on repeated deploys.
 
 ## Naming Conventions
 

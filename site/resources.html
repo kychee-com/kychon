@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resources</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand"><img src="" alt="" style="display:none"><span class="nav-brand-text">Wild Lychee</span></a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2>Resources</h2>
+          <button class="btn btn-primary hidden" id="res-upload-btn">Upload Resource</button>
+        </div>
+        <div class="mb-2">
+          <select class="form-select" id="res-category-filter" style="max-width:12rem">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        <div class="card-grid" id="resources-grid"></div>
+      </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <div class="auth-modal hidden" id="res-form-modal">
+      <div class="auth-panel" style="max-width:28rem">
+        <h3 class="mb-1">Upload Resource</h3>
+        <form id="res-form">
+          <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="rf-title" required></div>
+          <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="rf-description" rows="2"></textarea></div>
+          <div class="form-group"><label class="form-label">Category</label><input class="form-input" id="rf-category" placeholder="e.g. Guides, Templates"></div>
+          <div class="form-group">
+            <label class="form-label">Type</label>
+            <select class="form-select" id="rf-type">
+              <option value="pdf">PDF</option>
+              <option value="video">Video</option>
+              <option value="image">Image</option>
+              <option value="link">Link / URL</option>
+            </select>
+          </div>
+          <div class="form-group" id="rf-file-group"><label class="form-label">File</label><input class="form-input" id="rf-file" type="file"></div>
+          <div class="form-group hidden" id="rf-url-group"><label class="form-label">URL</label><input class="form-input" id="rf-url" type="url" placeholder="https://..."></div>
+          <label class="flex items-center gap-1 mb-2"><input type="checkbox" id="rf-members-only" checked> Members only</label>
+          <div class="flex gap-1">
+            <button type="submit" class="btn btn-primary">Upload</button>
+            <button type="button" class="btn btn-secondary" id="res-form-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="footer"><div class="container"><p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p></div></footer>
+  </div>
+
+  <script src="/js/env.js"></script>
+  <script type="module">
+    import { init } from './js/config.js';
+    await init();
+    import { initResources } from './js/resources.js';
+    await initResources();
+
+    // Toggle file/url input based on type
+    document.getElementById('rf-type')?.addEventListener('change', (e) => {
+      const isLink = e.target.value === 'link';
+      document.getElementById('rf-file-group').classList.toggle('hidden', isLink);
+      document.getElementById('rf-url-group').classList.toggle('hidden', !isLink);
+    });
+  </script>
+</body>
+</html>

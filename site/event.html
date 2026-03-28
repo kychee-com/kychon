@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-brand"><img src="" alt="" style="display:none"><span class="nav-brand-text">Wild Lychee</span></a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content">
+      <div class="container" style="max-width:48rem">
+        <p class="mb-2"><a href="/events.html">&larr; All Events</a></p>
+        <div id="event-detail"></div>
+      </div>
+    </main>
+
+    <footer class="footer"><div class="container"><p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p></div></footer>
+  </div>
+
+  <script src="/js/env.js"></script>
+  <script type="module">
+    import { init } from './js/config.js';
+    await init();
+    import { initEvent } from './js/event.js';
+    await initEvent();
+  </script>
+</body>
+</html>

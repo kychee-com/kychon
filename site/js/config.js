@@ -191,4 +191,16 @@ export async function init() {
   return siteConfig;
 }
 
+// Translation helper for user-generated content
+export async function getTranslatedContent(contentType, contentId, field) {
+  const locale = localStorage.getItem('wl_locale') || 'en';
+  if (locale === 'en') return null; // Original content is English
+  try {
+    const rows = await get(`content_translations?content_type=eq.${contentType}&content_id=eq.${contentId}&language=eq.${locale}&field=eq.${field}&limit=1`);
+    return rows.length > 0 ? rows[0].translated_text : null;
+  } catch {
+    return null;
+  }
+}
+
 export { siteConfig, features };
