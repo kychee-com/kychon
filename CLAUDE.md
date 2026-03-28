@@ -119,7 +119,7 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 - **SQL `SET role` blocked by pattern filter**: `UPDATE members SET role = 'admin'` is blocked because the filter `\bSET\s+(search_path|role)\b` matches `role` as a column name. Workaround: delete and re-insert the row, or use `db.from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function (bypasses RLS and the SQL filter).
 - **Static file caching (`max-age=3600`) with no cache busting**: After redeploy, browsers serve stale CSS/JS for up to 1 hour. No content-hash or version query param in URLs. Workaround: manually append `?v=timestamp` to CSS/JS links in HTML, or tell users to hard-refresh.
 - **No webhooks / post-auth events**: No server-side hook for signup/login events. Workaround: client-side JS calls `on-signup` edge function after OAuth callback; `config.js` checks on every page load if the auth user has a member record (resilience against missed calls).
-- **Email templates too rigid**: Only 3 fixed templates (`project_invite`, `magic_link`, `notification`); `notification` allows only 500-char plain text. Workaround: use edge functions calling external email APIs (Resend/SES) for rich HTML emails.
+- **~~Email templates too rigid~~** (FIXED): Run402 now supports raw HTML mode (`subject` + `html` up to 1MB) and an `email.send()` helper in `@run402/functions` with auto mailbox discovery. Use `import { email } from '@run402/functions'` then `await email.send({ to, subject, html, from_name })`.
 
 ### Minor gaps
 
