@@ -15,11 +15,9 @@ Built a complete community portal with 32 site files, 7 edge functions, 20 datab
 
 ## HIGH Friction
 
-### 1. No post-auth webhook/event system
+### ~~1. No post-auth webhook/event system~~ (FIXED)
 
-**What happened**: No way to run server-side code after a user signs up or logs in. Had to implement a fragile client-side workaround: `config.js` checks on every page load if the authenticated user has a member record; if not, calls the `on-signup` edge function. If the user closes the tab before the call completes, their member record is never created.
-
-**Suggestion**: Add `on_signup` and `on_login` hook registration. Even a simple `POST /projects/v1/admin/:id/hooks` with `{ event: "signup", function: "on-signup" }` would be huge.
+Run402 now has lifecycle hooks. If a function named `on-signup` is deployed, it's automatically invoked (fire-and-forget) after every first signup. The payload includes `{ user: { id, email, created_at } }` and an `x-run402-trigger: signup` header.
 
 ### 2. No recommended pattern for config updates on redeploy
 

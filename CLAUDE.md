@@ -113,7 +113,7 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 
 ## Run402 Platform Gaps to Work Around
 
-- **No webhooks / post-auth events**: No server-side hook for signup/login events. Workaround: client-side JS calls `on-signup` edge function after OAuth callback; `config.js` checks on every page load if the auth user has a member record (resilience against missed calls).
+- **~~No webhooks~~** (FIXED): Run402 now has lifecycle hooks. A deployed function named `on-signup` is automatically invoked after first signup with `{ user: { id, email, created_at } }` payload.
 - **No batch REST operations**: Approving 12 members = 12 PATCH requests. Workaround: use an edge function with `db.sql()` for bulk updates.
 - **10MB file upload limit**: Fine for photos/PDFs, limits large video/presentations.
 

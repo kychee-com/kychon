@@ -108,36 +108,21 @@ function buildUserNav() {
   }
 }
 
-async function ensureMemberRecord() {
+async function loadMemberRecord() {
   const session = getSession();
   if (!session) return;
   try {
     const members = await get('members?user_id=eq.' + session.user.id + '&limit=1');
-    if (!members || members.length === 0) {
-      // Call on-signup function to create member record
-      const res = await fetch(window.__WILDLYCHEE_API + '/functions/v1/on-signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: window.__WILDLYCHEE_ANON_KEY,
-          Authorization: 'Bearer ' + session.access_token,
-        },
-        body: JSON.stringify({ email: session.user.email }),
-      });
-      if (res.ok) {
-        // Refresh session data
-        const member = await get('members?user_id=eq.' + session.user.id + '&limit=1');
-        if (member && member[0]) {
-          session.user.member = member[0];
-          localStorage.setItem('wl_session', JSON.stringify(session));
-        }
-      }
-    } else {
+    if (members && members[0]) {
       session.user.member = members[0];
       localStorage.setItem('wl_session', JSON.stringify(session));
     }
+    // Note: on-signup is now called automatically by Run402 as a lifecycle hook.
+    // If the member record doesn't exist yet (race condition on first page load
+    // right after signup), the nav will render without admin controls and the
+    // next page load will pick it up.
   } catch (e) {
-    console.warn('ensureMemberRecord failed:', e);
+    console.warn('loadMemberRecord failed:', e);
   }
 }
 
@@ -173,8 +158,8 @@ export async function init() {
   // Load i18n
   await loadLocale();
 
-  // Ensure member record exists for authenticated users (must happen before nav build)
-  await ensureMemberRecord();
+  // Load member record for authenticated users (must happen before nav build)
+  await loadMemberRecord();
 
   // Build nav (after member record is loaded so admin role is known)
   buildNav(siteConfig.nav);

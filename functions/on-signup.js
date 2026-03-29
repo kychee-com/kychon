@@ -1,36 +1,56 @@
-// schedule: none (triggered by client after auth callback)
+// Lifecycle hook: called automatically by Run402 after first signup (fire-and-forget).
+// Also supports direct invocation with auth token for backward compatibility.
 import { db, getUser, email } from '@run402/functions';
 
 export default async (req) => {
-  const user = await getUser(req);
-  if (!user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  // Determine user identity from lifecycle hook payload or auth token
+  let userId, memberEmail;
+
+  const isLifecycleHook = req.headers.get('x-run402-trigger') === 'signup';
+
+  if (isLifecycleHook) {
+    // Lifecycle hook: user info in request body, no auth token
+    const body = await req.json();
+    userId = body.user?.id;
+    memberEmail = body.user?.email || '';
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Missing user.id in hook payload' }), { status: 400 });
+    }
+  } else {
+    // Direct invocation: use auth token
+    const user = await getUser(req);
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+    userId = user.id;
+    memberEmail = user.email || '';
+    // Fallback: try request body for email
+    if (!memberEmail) {
+      try { const body = await req.json(); memberEmail = body.email || ''; } catch {}
+    }
   }
 
   // Check if user already has a member record
-  const existing = await db.from('members').select('id,role,status').eq('user_id', user.id).limit(1);
+  const existing = await db.from('members').select('id,role,status').eq('user_id', userId).limit(1);
   if (existing.length > 0) {
     return new Response(JSON.stringify({
       status: 'exists', member_id: existing[0].id, role: existing[0].role,
     }));
   }
 
-  // Get request body (client passes email as fallback since getUser doesn't include it)
-  let body = {};
-  try { body = await req.json(); } catch (e) { /* no body */ }
-
-  // Get user details from auth endpoint
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+  // Get user details from auth endpoint (for display_name, avatar)
   let authUser = {};
-  try {
-    const authRes = await fetch('https://api.run402.com/auth/v1/user', {
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    if (authRes.ok) authUser = await authRes.json();
-  } catch (e) { /* fall back */ }
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+  if (token) {
+    try {
+      const authRes = await fetch('https://api.run402.com/auth/v1/user', {
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      if (authRes.ok) authUser = await authRes.json();
+    } catch {}
+  }
 
-  // getUser now returns email directly; fall back to auth endpoint and client body
-  const memberEmail = user.email || authUser.email || body.email || '';
+  if (!memberEmail) memberEmail = authUser.email || '';
   const displayName = authUser.display_name || (memberEmail ? memberEmail.split('@')[0] : 'Member');
   const avatarUrl = authUser.avatar_url || null;
 
@@ -47,7 +67,7 @@ export default async (req) => {
 
   // Create member record
   const created = await db.from('members').insert({
-    user_id: user.id,
+    user_id: userId,
     email: memberEmail,
     display_name: displayName,
     avatar_url: avatarUrl,
@@ -99,7 +119,6 @@ export default async (req) => {
           }
         } catch (e) { console.warn('AI onboarding failed:', e.message); }
 
-        // Send welcome email
         if (welcomeMsg && memberEmail) {
           try {
             await email.send({
