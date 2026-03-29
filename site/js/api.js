@@ -73,11 +73,18 @@ export function del(path) {
   return request('DELETE', path);
 }
 
-// Count via GET with select=id (Run402 doesn't expose Content-Range on HEAD)
+// Count via GET with Prefer: count=exact and Content-Range header
 export async function count(path) {
-  const sep = path.includes('?') ? '&' : '?';
-  const rows = await get(path + sep + 'select=id');
-  return Array.isArray(rows) ? rows.length : 0;
+  const url = API + '/rest/v1/' + path;
+  const res = await fetch(url, {
+    headers: { ...getAuthHeaders(), Prefer: 'count=exact' },
+  });
+  const range = res.headers.get('Content-Range');
+  if (range) {
+    const total = range.split('/')[1];
+    return total === '*' ? 0 : parseInt(total, 10);
+  }
+  return 0;
 }
 
 export { API, ANON_KEY, getAuthHeaders };
