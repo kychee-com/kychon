@@ -63,16 +63,13 @@ Built a complete community portal with 32 site files, 7 edge functions, 20 datab
 
 ## HIGH Friction (not blocking but painful)
 
-### 7. Static file caching with no cache busting
+### 7. ~~Static file caching with no cache busting~~ (FIXED)
 
-**What happened**: After every `run402 deploy`, CSS/JS files are served with `cache-control: public, max-age=3600` (1 hour). The browser shows stale code. During development, every code fix required waiting up to an hour or manually telling users to hard-refresh.
+**What happened**: Originally CSS/JS files were served with `max-age=3600` and no cache invalidation on deploy.
 
-**Impact**: This made iterative debugging extremely slow. I deployed 8+ times during testing — each time the browser served old JS and I couldn't tell if my fix worked.
+**Status**: Fixed. Files now served via CloudFront with `max-age=31536000, immutable` and the CDN cache is invalidated on every `run402 deploy`. Browser gets fresh content immediately after deploy (`x-cache: Miss from cloudfront`).
 
-**Suggestion** (pick one):
-- **Best**: Add a `--cache-bust` flag to `run402 deploy` that appends a content hash to file URLs (e.g., `styles.css?v=abc123`). The deploy response would include the hash for each file.
-- **Good**: Use `max-age=0, must-revalidate` with strong ETags. This gives instant invalidation while allowing conditional `304` responses.
-- **OK**: Reduce `max-age` to 60 seconds during prototype tier, keep 3600 for production.
+**Note**: `immutable` + long max-age means the *browser* disk cache won't revalidate for already-loaded files within the same session. A full page reload (Ctrl+Shift+R) may still be needed if the browser has the old file in its disk cache from a previous session. This is fine for production but can be confusing during rapid development — a new tab or incognito window always gets fresh content.
 
 ### 8. No post-auth webhook/event system
 
