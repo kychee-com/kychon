@@ -35,29 +35,23 @@ Built a complete community portal with 32 site files, 7 edge functions, 20 datab
 
 **Status**: Fixed. Full API now documented with examples for reads and writes.
 
-### 4. PostgREST `Content-Range` header not exposed on HEAD requests
+### 4. ~~PostgREST `Content-Range` header not exposed~~ (FIXED)
 
-**What happened**: Standard PostgREST count pattern (`HEAD` + `Prefer: count=exact` + read `Content-Range` header) doesn't work. The header is not returned. Had to rewrite `count()` to do a full GET with `select=id` and count the array length — inefficient for large tables.
+**What happened**: Standard PostgREST count via `Content-Range` header didn't work — the header wasn't exposed in CORS.
 
-**Workaround**: `GET /rest/v1/table?select=id&<filters>` and count `.length`. Works but fetches all matching IDs.
+**Status**: Fixed. `Content-Range` added to `Access-Control-Expose-Headers`. Standard count pattern now works.
 
-**Suggestion**: Either expose `Content-Range` on HEAD responses, or provide a `?count=true` query parameter that returns `{ count: N }` without row data. This is a standard PostgREST feature that's missing.
+### 5. ~~`getUser(req)` returns `{ id, role }` only — no email~~ (FIXED)
 
-### 5. `getUser(req)` returns `{ id, role }` only — no email
+**What happened**: Edge functions couldn't get the authenticated user's email.
 
-**What happened**: Edge functions need the user's email for member creation, welcome emails, etc. `getUser(req)` doesn't include it. The `/auth/v1/user` endpoint doesn't consistently return email for password-auth users either.
+**Status**: Fixed. `getUser(req)` now returns `{ id, role, email }`. Email included in JWT claims.
 
-**Workaround**: Client passes email in the request body. Works but requires trusting client-provided data.
+### 6. ~~SQL pattern filter blocks `SET role` column name~~ (FIXED)
 
-**Suggestion**: Include `email` in the `getUser()` response. It's in the JWT claims — just expose it.
+**What happened**: `UPDATE members SET role = 'admin'` was blocked by a SQL injection filter.
 
-### 6. SQL pattern filter blocks `SET role` as column name
-
-**What happened**: `UPDATE members SET role = 'admin' WHERE id = 1` is blocked by the filter `\bSET\s+(search_path|role)\b`. This is a false positive — `role` is a column name, not the Postgres `SET ROLE` command.
-
-**Workaround**: Use `db.from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function, or delete and re-insert the row.
-
-**Suggestion**: Make the filter smarter. `SET ROLE` (no `=`) is the Postgres command. `SET role =` (with `=`) is a column update. A regex like `\bSET\s+ROLE\s+(?!=)` would catch the command without blocking column updates.
+**Status**: Fixed. `role` removed from the SET blocklist — it's valid DML, not a security risk.
 
 ---
 

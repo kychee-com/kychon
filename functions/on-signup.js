@@ -29,7 +29,8 @@ export default async (req) => {
     if (authRes.ok) authUser = await authRes.json();
   } catch (e) { /* fall back */ }
 
-  const memberEmail = authUser.email || body.email || user.email || '';
+  // getUser now returns email directly; fall back to auth endpoint and client body
+  const memberEmail = user.email || authUser.email || body.email || '';
   const displayName = authUser.display_name || (memberEmail ? memberEmail.split('@')[0] : 'Member');
   const avatarUrl = authUser.avatar_url || null;
 
