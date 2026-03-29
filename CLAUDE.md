@@ -117,7 +117,7 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 
 - **`getUser(req)` returns `{ id, role }` only — no email**: Password-auth users have no email in the JWT claims or the `getUser` response. Workaround: client passes `email` in the request body to edge functions. Google OAuth users get email from `/auth/v1/user` endpoint.
 - **SQL `SET role` blocked by pattern filter**: `UPDATE members SET role = 'admin'` is blocked because the filter `\bSET\s+(search_path|role)\b` matches `role` as a column name. Workaround: delete and re-insert the row, or use `db.from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function (bypasses RLS and the SQL filter).
-- **Static file caching (`max-age=3600`) with no cache busting**: After redeploy, browsers serve stale CSS/JS for up to 1 hour. No content-hash or version query param in URLs. Workaround: manually append `?v=timestamp` to CSS/JS links in HTML, or tell users to hard-refresh.
+- **~~Static file caching~~** (FIXED): Files now served via CloudFront with `max-age=31536000, immutable` and CDN cache invalidated on every deploy. Fresh content served immediately after deploy.
 - **No webhooks / post-auth events**: No server-side hook for signup/login events. Workaround: client-side JS calls `on-signup` edge function after OAuth callback; `config.js` checks on every page load if the auth user has a member record (resilience against missed calls).
 - **~~Email templates too rigid~~** (FIXED): Run402 now supports raw HTML mode (`subject` + `html` up to 1MB) and an `email.send()` helper in `@run402/functions` with auto mailbox discovery. Use `import { email } from '@run402/functions'` then `await email.send({ to, subject, html, from_name })`.
 
