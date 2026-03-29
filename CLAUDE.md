@@ -113,16 +113,8 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 
 ## Run402 Platform Gaps to Work Around
 
-### Confirmed gaps (from live deploy testing)
-
-- **~~`getUser(req)` missing email~~** (FIXED): `getUser(req)` now returns `{ id, role, email }`.
-- **~~SQL `SET role` blocked~~** (FIXED): `role` removed from SQL blocklist. `UPDATE ... SET role =` works now.
-- **~~Static file caching~~** (FIXED): Files now served via CloudFront with `max-age=31536000, immutable` and CDN cache invalidated on every deploy. Fresh content served immediately after deploy.
 - **No webhooks / post-auth events**: No server-side hook for signup/login events. Workaround: client-side JS calls `on-signup` edge function after OAuth callback; `config.js` checks on every page load if the auth user has a member record (resilience against missed calls).
-- **~~Email templates too rigid~~** (FIXED): Run402 now supports raw HTML mode (`subject` + `html` up to 1MB) and an `email.send()` helper in `@run402/functions` with auto mailbox discovery. Use `import { email } from '@run402/functions'` then `await email.send({ to, subject, html, from_name })`.
-
-### Minor gaps
-
 - **No batch REST operations**: Approving 12 members = 12 PATCH requests. Workaround: use an edge function with `db.sql()` for bulk updates.
 - **10MB file upload limit**: Fine for photos/PDFs, limits large video/presentations.
-- **`/auth/v1/user` may not return email for password users**: The endpoint returns `display_name`, `avatar_url`, and linked identities, but email availability varies. Always pass email from the client as fallback.
+
+See `docs/run402-feedback.md` for the full list (14 items) with suggestions.
