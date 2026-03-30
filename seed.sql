@@ -43,7 +43,9 @@ INSERT INTO site_config (key, value, category) VALUES
   ('feature_ai_onboarding', 'false', 'features'),
   ('feature_ai_event_recaps', 'false', 'features'),
   ('directory_public', 'false', 'features'),
-  ('signup_mode', '"approved"', 'features')
+  ('signup_mode', '"approved"', 'features'),
+  ('feature_activity_feed', 'true', 'features'),
+  ('feature_reactions', 'true', 'features')
 ON CONFLICT (key) DO NOTHING;
 
 -- Navigation
@@ -99,3 +101,9 @@ SELECT 'index', 'cta', '{
   "cta_href": "#signup"
 }', 3, true
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'cta');
+
+INSERT INTO sections (page_slug, section_type, config, position, visible)
+SELECT 'index', 'activity_feed', '{
+  "limit": 15
+}', 4, true
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'activity_feed');

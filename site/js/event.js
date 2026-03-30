@@ -117,6 +117,10 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
       } else {
         await post('event_rsvps', { event_id: eventId, member_id: memberId, status: action });
       }
+      // Log RSVP activity (only for going/maybe, not cancel)
+      if (action !== 'cancel' && memberId) {
+        await post('activity_log', { member_id: memberId, action: 'rsvp', metadata: { event_title: event.title, event_id: eventId } });
+      }
       // Reload
       await initEvent();
     });

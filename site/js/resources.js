@@ -126,6 +126,12 @@ function setupUpload() {
       }
     }
 
+    // Log resource upload activity
+    const uploaderId = session.user?.member?.id;
+    if (uploaderId) {
+      await post('activity_log', { member_id: uploaderId, action: 'resource_upload', metadata: { title: data.title } });
+    }
+
     document.getElementById('res-form-modal')?.classList.add('hidden');
     document.getElementById('res-form')?.reset();
     allResources = await get('resources?order=created_at.desc');

@@ -192,6 +192,9 @@ async function renderTopicListing(root, categoryId) {
           category_id: categoryId,
         });
 
+        // Log forum post activity
+        await post('activity_log', { member_id: memberId, action: 'forum_post', metadata: { title } });
+
         // Reload the topic listing
         await renderTopicListing(root, categoryId);
       } catch (e) {

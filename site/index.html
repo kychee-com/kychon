@@ -80,10 +80,10 @@
 
   <script src="/js/env.js"></script>
   <script type="module">
-    import { init } from './js/config.js';
+    import { init, isFeatureEnabled } from './js/config.js';
     import { handleOAuthCallback, signInWithGoogle, signIn, signUp, isAuthenticated } from './js/auth.js';
     import { get, post, patch, del } from './js/api.js';
-    import { isAdmin } from './js/auth.js';
+    import { isAdmin, getSession } from './js/auth.js';
 
     // Handle OAuth callback
     const session = await handleOAuthCallback();
@@ -194,6 +194,20 @@
             </div>`;
           break;
 
+        case 'activity_feed':
+          if (!isFeatureEnabled('feature_activity_feed')) { el.style.display = 'none'; break; }
+          el.className = 'section section-activity-feed';
+          el.innerHTML = `
+            <div class="container">
+              <h2 class="mb-2">Recent Activity</h2>
+              <div class="activity-feed" id="activity-feed">
+                <p class="text-muted">Loading activity...</p>
+              </div>
+            </div>`;
+          // Defer loading until section is in DOM
+          requestAnimationFrame(() => loadActivityFeed(cfg.limit || 20));
+          break;
+
         default:
           el.className = 'section';
           if (cfg.html) el.innerHTML = `<div class="container">${cfg.html}</div>`;
@@ -210,6 +224,113 @@
       return icons[name] || '✦';
     }
 
+    // --- Activity feed ---
+    const ACTION_TEMPLATES = {
+      member_join: (m) => `<strong>${esc(m.name)}</strong> joined the community`,
+      announcement: (m) => `<strong>${esc(m.name)}</strong> posted an announcement: ${esc(m.meta.title || '')}`,
+      rsvp: (m) => `<strong>${esc(m.name)}</strong> is going to <strong>${esc(m.meta.event_title || '')}</strong>`,
+      resource_upload: (m) => `<strong>${esc(m.name)}</strong> shared a resource: ${esc(m.meta.title || '')}`,
+      forum_post: (m) => `<strong>${esc(m.name)}</strong> started a discussion: ${esc(m.meta.title || '')}`,
+      reaction: (m) => `<strong>${esc(m.name)}</strong> reacted to ${esc(m.meta.content_type || 'a post')}`,
+    };
+
+    function renderActivityEntry(entry, member) {
+      const name = member ? member.display_name : 'Former member';
+      const avatar = member && member.avatar_url
+        ? `<img class="activity-avatar" src="${member.avatar_url}" alt="">`
+        : `<div class="activity-avatar activity-avatar-fallback">${(name[0] || '?').toUpperCase()}</div>`;
+      const meta = entry.metadata || {};
+      const tmpl = ACTION_TEMPLATES[entry.action];
+      const desc = tmpl ? tmpl({ name, meta }) : `<strong>${esc(name)}</strong> was active`;
+      return `
+        <div class="activity-entry">
+          ${avatar}
+          <div class="activity-entry-content">
+            <div class="activity-entry-text">${desc}</div>
+            <div class="activity-entry-time">${timeAgo(entry.created_at)}</div>
+          </div>
+        </div>`;
+    }
+
+    function timeAgo(iso) {
+      const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return minutes + 'm ago';
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return hours + 'h ago';
+      const days = Math.floor(hours / 24);
+      if (days < 30) return days + 'd ago';
+      return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    async function loadActivityFeed(limit) {
+      const feed = document.getElementById('activity-feed');
+      if (!feed) return;
+      try {
+        const entries = await get(`activity_log?order=created_at.desc&limit=${limit}`);
+        if (entries.length === 0) {
+          feed.innerHTML = '<p class="text-muted">No recent activity yet.</p>';
+          return;
+        }
+        // Collect unique member IDs and fetch members
+        const memberIds = [...new Set(entries.map(e => e.member_id).filter(Boolean))];
+        let membersMap = {};
+        if (memberIds.length > 0) {
+          const members = await get('members?id=in.(' + memberIds.join(',') + ')');
+          for (const m of members) membersMap[m.id] = m;
+        }
+        feed.innerHTML = entries.map(e => renderActivityEntry(e, membersMap[e.member_id])).join('');
+      } catch (e) {
+        feed.innerHTML = '<p class="text-muted">Could not load activity.</p>';
+      }
+    }
+
+    // --- Reactions ---
+    const EMOJI_MAP = { like: '\u{1F44D}', heart: '\u2764\uFE0F', celebrate: '\u{1F389}', laugh: '\u{1F604}', think: '\u{1F914}' };
+    const EMOJI_CODES = Object.keys(EMOJI_MAP);
+
+    function renderReactionBar(announcementId, reactionCounts, myReactions) {
+      const reactionsEnabled = isFeatureEnabled('feature_reactions');
+      if (!reactionsEnabled) return '';
+
+      const badges = Object.entries(reactionCounts)
+        .filter(([, count]) => count > 0)
+        .map(([emoji, count]) => {
+          const isActive = myReactions.has(emoji);
+          return `<button class="reaction-badge${isActive ? ' active' : ''}" data-ann-id="${announcementId}" data-emoji="${emoji}">${EMOJI_MAP[emoji]} <span class="reaction-count">${count}</span></button>`;
+        }).join('');
+
+      const session = getSession();
+      const picker = session ? `
+        <div class="reaction-picker">
+          <button class="reaction-picker-btn" data-picker-for="${announcementId}" title="Add reaction">+</button>
+          <div class="reaction-picker-dropdown" id="picker-${announcementId}">
+            ${EMOJI_CODES.map(code => `<button data-ann-id="${announcementId}" data-emoji="${code}" title="${code}">${EMOJI_MAP[code]}</button>`).join('')}
+          </div>
+        </div>` : '';
+
+      return `<div class="reaction-bar">${badges}${picker}</div>`;
+    }
+
+    async function toggleReaction(announcementId, emoji) {
+      const session = getSession();
+      if (!session) return;
+      const memberId = session.user?.member?.id;
+      if (!memberId) return;
+
+      // Check if already reacted
+      const existing = await get(`reactions?content_type=eq.announcement&content_id=eq.${announcementId}&member_id=eq.${memberId}&emoji=eq.${emoji}`);
+      if (existing.length > 0) {
+        await del(`reactions?id=eq.${existing[0].id}`);
+      } else {
+        await post('reactions', { content_type: 'announcement', content_id: announcementId, member_id: memberId, emoji });
+        // Log activity
+        await post('activity_log', { member_id: memberId, action: 'reaction', metadata: { content_type: 'announcement', content_id: announcementId, emoji } });
+      }
+      renderAnnouncements();
+    }
+
     // --- Render announcements ---
     async function renderAnnouncements() {
       const feed = document.getElementById('announcements-feed');
@@ -220,6 +341,26 @@
           feed.innerHTML = '<p class="text-muted">No announcements yet.</p>';
           return;
         }
+
+        // Fetch reactions for all announcements in batch
+        const annIds = items.map(a => a.id);
+        let reactionsByAnn = {};
+        let myReactionsByAnn = {};
+        const reactionsEnabled = isFeatureEnabled('feature_reactions');
+        if (reactionsEnabled && annIds.length > 0) {
+          const allReactions = await get('reactions?content_type=eq.announcement&content_id=in.(' + annIds.join(',') + ')');
+          const session = getSession();
+          const myId = session?.user?.member?.id;
+          for (const r of allReactions) {
+            if (!reactionsByAnn[r.content_id]) reactionsByAnn[r.content_id] = {};
+            reactionsByAnn[r.content_id][r.emoji] = (reactionsByAnn[r.content_id][r.emoji] || 0) + 1;
+            if (myId && r.member_id === myId) {
+              if (!myReactionsByAnn[r.content_id]) myReactionsByAnn[r.content_id] = new Set();
+              myReactionsByAnn[r.content_id].add(r.emoji);
+            }
+          }
+        }
+
         feed.innerHTML = items.map(a => `
           <div class="announcement card mb-1 ${a.is_pinned ? 'pinned' : ''}" data-id="${a.id}">
             <div class="announcement-title" data-editable="announcements.${a.id}.title">${esc(a.title)}</div>
@@ -228,12 +369,36 @@
               ${a.is_pinned ? '<span class="badge badge-primary">Pinned</span> ' : ''}
               <span>${formatDate(a.created_at)}</span>
             </div>
+            ${renderReactionBar(a.id, reactionsByAnn[a.id] || {}, myReactionsByAnn[a.id] || new Set())}
             ${isAdmin() ? `
               <div class="mt-1 flex gap-1">
                 <button class="btn btn-sm btn-secondary ann-pin" data-id="${a.id}" data-pinned="${a.is_pinned}">${a.is_pinned ? 'Unpin' : 'Pin'}</button>
                 <button class="btn btn-sm btn-danger ann-delete" data-id="${a.id}">Delete</button>
               </div>` : ''}
           </div>`).join('');
+
+        // Reaction click handlers
+        feed.querySelectorAll('.reaction-badge[data-ann-id]').forEach(btn => {
+          btn.addEventListener('click', () => toggleReaction(parseInt(btn.dataset.annId), btn.dataset.emoji));
+        });
+        feed.querySelectorAll('.reaction-picker-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dropdown = document.getElementById('picker-' + btn.dataset.pickerFor);
+            document.querySelectorAll('.reaction-picker-dropdown.open').forEach(d => { if (d !== dropdown) d.classList.remove('open'); });
+            dropdown?.classList.toggle('open');
+          });
+        });
+        feed.querySelectorAll('.reaction-picker-dropdown button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            btn.closest('.reaction-picker-dropdown')?.classList.remove('open');
+            toggleReaction(parseInt(btn.dataset.annId), btn.dataset.emoji);
+          });
+        });
+        // Close picker on outside click
+        document.addEventListener('click', () => {
+          document.querySelectorAll('.reaction-picker-dropdown.open').forEach(d => d.classList.remove('open'));
+        }, { once: true });
 
         // Admin actions
         feed.querySelectorAll('.ann-pin').forEach(btn => {

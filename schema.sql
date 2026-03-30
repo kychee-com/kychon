@@ -186,6 +186,20 @@ CREATE TABLE IF NOT EXISTS announcements (
 );
 
 -- ============================================
+-- SECTION: Reactions
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS reactions (
+  id SERIAL PRIMARY KEY,
+  content_type TEXT NOT NULL,
+  content_id INT NOT NULL,
+  member_id INT REFERENCES members(id),
+  emoji TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(content_type, content_id, member_id, emoji)
+);
+
+-- ============================================
 -- SECTION: Activity Log
 -- ============================================
 
