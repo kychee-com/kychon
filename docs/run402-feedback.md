@@ -1,15 +1,15 @@
 # Run402 Developer Feedback — Wild Lychee Build
 
-**Date**: 2026-03-29
-**Project**: Wild Lychee community portal (Phase 1 MVP + Phase 2 modules)
-**Scope**: Full-stack app with auth, CRUD pages, scheduled functions, AI features
+**Date**: 2026-03-30
+**Project**: Wild Lychee community portal (Phases 1-3)
+**Scope**: Full-stack app with auth, CRUD pages, scheduled functions, AI features, marketing site
 **Deploy method**: `run402 deploy --manifest app.json` via `deploy.js` script
 
 ---
 
 ## Summary
 
-Built a complete community portal with 32 site files, 7 edge functions, 20 database tables, and deployed it to `wildlychee.run402.com`. The platform is solid for building real apps. Below are the remaining friction points, from high-impact to nice-to-haves.
+Built a complete community portal with 39 site files, 8 edge functions, 20 database tables, a marketing site with 5 pages, and deployed it to `wildlychee.run402.com`. The platform is solid for building real apps. Below are the remaining friction points, from high-impact to nice-to-haves.
 
 ---
 
@@ -62,6 +62,32 @@ Run402 now has lifecycle hooks. If a function named `on-signup` is deployed, it'
 **What happened**: Deployed a function with a syntax error in the SQL parameterization. The deploy succeeded — the error only surfaced when the function was invoked. No way to catch it before deployment.
 
 **Suggestion**: Add a `--validate` flag or basic syntax check during `run402 functions deploy`. Even just `node --check <file>` would catch syntax errors.
+
+---
+
+### 15. Deploy doesn't remove stale functions
+
+**What happened**: Had `generate-newsletter.js` and `generate-recap.js` deployed, then merged them into `ai-content.js` and removed the old files. Deploy succeeded (adding `ai-content`) but the old `generate-newsletter` function remained on the server, counting against the function limit. Had to manually run `run402 functions delete prj_... generate-newsletter` to clean up.
+
+**Suggestion**: Deploy should diff the manifest's function list against deployed functions and remove stale ones. Or at least warn: "Function 'generate-newsletter' is deployed but not in your manifest. Delete it?"
+
+### 16. Function limit (8) is tight for real apps
+
+**What happened**: With 7 existing functions (check-expirations, event-reminders, export-csv, moderate-content, on-signup, translate-content, upload-resource) adding newsletter + recap exceeded the 8-function limit. Had to merge two logically separate functions into one `ai-content.js` with request-body routing.
+
+**Suggestion**: Consider 10-12 functions for the base tier, or allow unlimited on-demand (non-scheduled) functions. The limit mainly hurts apps with many features, which is exactly who you want on the platform.
+
+### 17. Confusing CLI error when argument order is wrong
+
+**What happened**: `run402 functions delete generate-newsletter prj_...` gave "Project generate-newsletter not found in local registry." The actual syntax is `run402 functions delete <project_id> <name>`, but the error message doesn't hint at the correct order.
+
+**Suggestion**: Use named flags (`--project`, `--name`) or improve the error: "Unknown project 'generate-newsletter'. Did you mean: run402 functions delete <project_id> generate-newsletter?"
+
+### 18. Scheduled function limit (1) on prototype tier — no warning at deploy
+
+**What happened**: Deployed multiple functions with `// schedule: "..."` comments. The first deploy with 2+ scheduled functions fails with a 403 error. No pre-deploy validation or warning.
+
+**Suggestion**: During deploy, warn early: "Your manifest has 3 scheduled functions but your tier allows 1. Only the first will be scheduled." Or surface this in `run402 tier status`.
 
 ---
 
