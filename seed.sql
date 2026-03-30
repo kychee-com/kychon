@@ -41,6 +41,7 @@ INSERT INTO site_config (key, value, category) VALUES
   ('feature_ai_newsletter', 'false', 'features'),
   ('feature_ai_insights', 'false', 'features'),
   ('feature_ai_onboarding', 'false', 'features'),
+  ('feature_ai_event_recaps', 'false', 'features'),
   ('directory_public', 'false', 'features'),
   ('signup_mode', '"approved"', 'features')
 ON CONFLICT (key) DO NOTHING;

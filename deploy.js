@@ -114,6 +114,7 @@ const rls = {
     { table: 'content_translations' },
     { table: 'moderation_log' },
     { table: 'member_insights' },
+    { table: 'newsletter_drafts' },
   ],
 };
 

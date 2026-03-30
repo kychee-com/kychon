@@ -1,8 +1,9 @@
 // admin.js — Admin dashboard logic
 
-import { get, count, patch } from './api.js';
+import { get, post, count, patch } from './api.js';
 import { requireAdmin } from './auth.js';
 import { getConfig, isFeatureEnabled } from './config.js';
+import { getAuthHeaders, API } from './api.js';
 
 export async function initDashboard() {
   if (!requireAdmin()) return;
@@ -59,6 +60,11 @@ export async function initDashboard() {
   // AI Moderation queue
   if (isFeatureEnabled('feature_ai_moderation')) {
     await loadModerationQueue();
+  }
+
+  // Newsletter drafts
+  if (isFeatureEnabled('feature_ai_newsletter')) {
+    await loadNewsletterDrafts();
   }
 }
 
@@ -161,6 +167,126 @@ async function loadModerationQueue() {
       });
     });
   } catch {}
+}
+
+// --- Newsletter Drafts ---
+
+let tiptapEditor = null;
+let currentDraftId = null;
+
+async function loadNewsletterDrafts() {
+  const container = document.getElementById('newsletter-section');
+  if (!container) return;
+  container.classList.remove('hidden');
+
+  try {
+    const drafts = await get('newsletter_drafts?order=created_at.desc&limit=10');
+    const list = document.getElementById('newsletter-list');
+    if (!list) return;
+
+    if (drafts.length === 0) {
+      list.innerHTML = '<p class="text-muted">No newsletter drafts yet. Drafts are generated weekly on Mondays.</p>';
+      return;
+    }
+
+    list.innerHTML = drafts.map(d => `
+      <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
+        <div style="flex:1">
+          <strong>${esc(d.subject)}</strong>
+          <div class="text-sm text-muted">${formatDate(d.period_start)} — ${formatDate(d.period_end)}</div>
+        </div>
+        <span class="badge badge-${d.status === 'sent' ? 'primary' : 'warning'}">${esc(d.status)}</span>
+        ${d.status !== 'sent' ? `<button class="btn btn-sm btn-primary newsletter-edit" data-id="${d.id}">Edit</button>` : ''}
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.newsletter-edit').forEach(btn => {
+      btn.addEventListener('click', () => openNewsletterEditor(btn.dataset.id));
+    });
+  } catch {}
+}
+
+async function openNewsletterEditor(draftId) {
+  currentDraftId = draftId;
+  const drafts = await get('newsletter_drafts?id=eq.' + draftId);
+  if (!drafts.length) return;
+  const draft = drafts[0];
+
+  document.getElementById('newsletter-list').classList.add('hidden');
+  const editorSection = document.getElementById('newsletter-editor');
+  editorSection.classList.remove('hidden');
+  document.getElementById('newsletter-subject').value = draft.subject;
+
+  const bodyEl = document.getElementById('newsletter-body');
+
+  // Load Tiptap for rich editing
+  try {
+    const core = await import('https://esm.sh/@tiptap/core@2');
+    const starter = await import('https://esm.sh/@tiptap/starter-kit@2');
+    const Editor = core.Editor;
+    const StarterKit = starter.default || starter.StarterKit;
+
+    if (tiptapEditor) tiptapEditor.destroy();
+    tiptapEditor = new Editor({
+      element: bodyEl,
+      extensions: [StarterKit],
+      content: draft.body,
+    });
+  } catch (e) {
+    // Fallback to plain HTML editing
+    bodyEl.contentEditable = 'true';
+    bodyEl.innerHTML = draft.body;
+  }
+
+  // Wire buttons
+  document.getElementById('newsletter-send').onclick = async () => {
+    const body = tiptapEditor ? tiptapEditor.getHTML() : bodyEl.innerHTML;
+    const subject = document.getElementById('newsletter-subject').value;
+    await patch('newsletter_drafts?id=eq.' + draftId, {
+      subject,
+      body,
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+    closeNewsletterEditor();
+    loadNewsletterDrafts();
+  };
+
+  document.getElementById('newsletter-regenerate').onclick = async () => {
+    const btn = document.getElementById('newsletter-regenerate');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    try {
+      const res = await fetch(API + '/functions/v1/ai-content', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        closeNewsletterEditor();
+        loadNewsletterDrafts();
+      }
+    } catch (e) {
+      console.error('Regenerate failed:', e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Regenerate';
+    }
+  };
+
+  document.getElementById('newsletter-back').onclick = () => {
+    closeNewsletterEditor();
+  };
+}
+
+function closeNewsletterEditor() {
+  if (tiptapEditor) {
+    tiptapEditor.destroy();
+    tiptapEditor = null;
+  }
+  currentDraftId = null;
+  document.getElementById('newsletter-editor').classList.add('hidden');
+  document.getElementById('newsletter-list').classList.remove('hidden');
+  document.getElementById('newsletter-body').innerHTML = '';
 }
 
 function statCard(value, label) {

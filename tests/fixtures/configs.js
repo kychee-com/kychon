@@ -22,6 +22,8 @@ export const defaultConfig = [
   { key: 'feature_ai_translation', value: false, category: 'features' },
   { key: 'feature_ai_newsletter', value: false, category: 'features' },
   { key: 'feature_ai_insights', value: false, category: 'features' },
+  { key: 'feature_ai_onboarding', value: false, category: 'features' },
+  { key: 'feature_ai_event_recaps', value: false, category: 'features' },
   { key: 'directory_public', value: false, category: 'features' },
   { key: 'nav', value: [
     { label: 'Home', href: '/', icon: 'home', public: true },
@@ -47,4 +49,5 @@ export const featureFlags = [
   'feature_events', 'feature_forum', 'feature_directory', 'feature_resources',
   'feature_blog', 'feature_committees', 'feature_ai_moderation',
   'feature_ai_translation', 'feature_ai_newsletter', 'feature_ai_insights',
+  'feature_ai_onboarding', 'feature_ai_event_recaps',
 ];
