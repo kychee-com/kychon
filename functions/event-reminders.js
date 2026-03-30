@@ -1,4 +1,4 @@
-// schedule: "0 * * * *"
+// prototype-schedule: "0 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
 import { db, email } from '@run402/functions';
 
 export default async (req) => {
