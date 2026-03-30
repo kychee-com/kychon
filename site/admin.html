@@ -57,6 +57,20 @@
           <div id="moderation-list"></div>
         </div>
 
+        <div class="card mb-2 hidden" id="newsletter-section">
+          <h3 class="mb-1">Newsletter Drafts</h3>
+          <div id="newsletter-list"></div>
+          <div id="newsletter-editor" class="hidden" style="margin-top:1rem">
+            <input type="text" id="newsletter-subject" class="input mb-1" placeholder="Subject">
+            <div id="newsletter-body" style="min-height:200px;border:1px solid var(--color-border);border-radius:var(--radius);padding:1rem"></div>
+            <div class="flex gap-1 mt-1">
+              <button class="btn btn-primary" id="newsletter-send">Approve &amp; Send</button>
+              <button class="btn btn-secondary" id="newsletter-regenerate">Regenerate</button>
+              <button class="btn btn-secondary" id="newsletter-back">Back</button>
+            </div>
+          </div>
+        </div>
+
         <div class="card mb-2">
           <h3 class="mb-1">Quick Actions</h3>
           <div class="flex gap-1" style="flex-wrap:wrap">
