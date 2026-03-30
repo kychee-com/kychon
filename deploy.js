@@ -115,6 +115,7 @@ const rls = {
     { table: 'moderation_log' },
     { table: 'member_insights' },
     { table: 'newsletter_drafts' },
+    { table: 'reactions' },
   ],
 };
 

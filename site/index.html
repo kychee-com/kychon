@@ -204,8 +204,7 @@
                 <p class="text-muted">Loading activity...</p>
               </div>
             </div>`;
-          // Defer loading until section is in DOM
-          requestAnimationFrame(() => loadActivityFeed(cfg.limit || 20));
+          // loadActivityFeed is called from boot sequence after sections are in DOM
           break;
 
         default:
@@ -228,7 +227,7 @@
     const ACTION_TEMPLATES = {
       member_join: (m) => `<strong>${esc(m.name)}</strong> joined the community`,
       announcement: (m) => `<strong>${esc(m.name)}</strong> posted an announcement: ${esc(m.meta.title || '')}`,
-      rsvp: (m) => `<strong>${esc(m.name)}</strong> is going to <strong>${esc(m.meta.event_title || '')}</strong>`,
+      rsvp: (m) => `<strong>${esc(m.name)}</strong> is going to <strong>${esc(m.meta.event_title || m.meta.event || '')}</strong>`,
       resource_upload: (m) => `<strong>${esc(m.name)}</strong> shared a resource: ${esc(m.meta.title || '')}`,
       forum_post: (m) => `<strong>${esc(m.name)}</strong> started a discussion: ${esc(m.meta.title || '')}`,
       reaction: (m) => `<strong>${esc(m.name)}</strong> reacted to ${esc(m.meta.content_type || 'a post')}`,
@@ -504,6 +503,7 @@
 
     // --- Boot ---
     await renderSections();
+    loadActivityFeed(15);
     await renderAnnouncements();
     setupAnnouncementCreate();
   </script>
