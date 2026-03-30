@@ -32,3 +32,31 @@ The system SHALL use `DO $$ BEGIN ALTER TABLE ... ADD COLUMN ...; EXCEPTION WHEN
 #### Scenario: Adding a column to an existing table
 - **WHEN** a new column is added to `schema.sql` and re-deployed
 - **THEN** the column is added without error if it doesn't exist, and ignored if it already exists
+
+<!-- Phase 2 additions -->
+## ADDED Requirements
+
+### Requirement: Forum tables support moderation columns
+
+The schema SHALL add `hidden` and `locked` boolean columns to `forum_topics` and a `hidden` column to `forum_replies` using safe ALTER migrations (DO block with EXCEPTION WHEN duplicate_column).
+
+#### Scenario: Hidden column added to forum_topics
+- **WHEN** schema migrations run
+- **THEN** `forum_topics` has a `hidden BOOLEAN DEFAULT false` column
+- **THEN** `forum_topics` has a `locked BOOLEAN DEFAULT false` column
+
+#### Scenario: Hidden column added to forum_replies
+- **WHEN** schema migrations run
+- **THEN** `forum_replies` has a `hidden BOOLEAN DEFAULT false` column
+
+#### Scenario: Migration is idempotent
+- **WHEN** migrations run on a database that already has these columns
+- **THEN** no errors occur
+
+### Requirement: Full-text search index on forum
+
+The schema SHALL add a `search_vector` tsvector column to `forum_topics` and a GIN index for full-text search.
+
+#### Scenario: Search vector column exists
+- **WHEN** schema migrations run
+- **THEN** `forum_topics` has a `search_vector TSVECTOR` column with a GIN index
