@@ -35,8 +35,9 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 #### Portal (community template)
 - **Project:** `REDACTED_PROJECT_ID`
 - **Subdomain:** `eagles.run402.com`
-- **Command:** `node deploy.js`
+- **Command:** `RUN402_PROJECT_ID=REDACTED_PROJECT_ID SUBDOMAIN=eagles node deploy.js`
 - **Includes:** schema.sql + seed.sql, site files, edge functions, RLS
+- **IMPORTANT:** Always pass explicit project ID and subdomain — do NOT rely on the active project, which may have changed
 
 #### Marketing (wildlychee.com)
 - **Project:** `REDACTED_PROJECT_ID`
