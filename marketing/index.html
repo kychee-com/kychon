@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wild Lychee — AI-Powered Community Portals</title>
-  <meta name="description" content="Open-source membership portal with AI features. Member directory, events, forum, newsletters — $5-20/mo. Own your data.">
+  <title>Wild Lychee — Own Your Member Portal</title>
+  <meta name="description" content="Open-source membership portal with AI features. Member directory, events, forum, newsletters — $5-20/mo. Own your data, own your platform.">
   <link rel="stylesheet" href="/css/marketing.css">
 </head>
 <body>
@@ -18,64 +18,155 @@
       </a>
       <button class="nav__toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
       <div class="nav__links" id="nav-links">
+        <a href="#showcase" class="nav__link">Demo</a>
         <a href="#features" class="nav__link">Features</a>
-        <a href="#showcase" class="nav__link">Showcase</a>
         <a href="#pricing" class="nav__link">Pricing</a>
         <a href="#niches" class="nav__link">Who It's For</a>
         <a href="https://github.com/kychee-com/wildlychee" class="nav__link" target="_blank">GitHub</a>
-        <a href="#demo-placeholder" class="btn btn--primary btn--lg nav__cta">Try the Demo</a>
+        <a href="https://eagles.run402.com" class="btn btn--primary btn--lg nav__cta" target="_blank">Explore Live Demo</a>
       </div>
     </div>
   </nav>
 
   <!-- ======== HERO ======== -->
   <section class="hero section section--cream section--dotted">
-    <div class="container hero__content">
+    <div class="container" style="text-align:center">
       <p class="t-overline mb-2">Open Source Community Platform</p>
-      <h1 class="t-display t-display--xl hero__headline">
-        Your community deserves better than <em>Wild Apricot</em>.
+      <h1 class="t-display t-display--xl hero__headline" style="max-width:44rem;margin:0 auto 1.5rem">
+        Own your <em>member portal</em>.
       </h1>
-      <p class="t-body--lg hero__sub">
-        Wild Lychee is an AI-powered membership portal you actually own. Member directory, events, forum, announcements, newsletters &mdash; all for <strong style="color:var(--ink)">$5&ndash;20/mo</strong> on your own infrastructure. No per-member fees. No lock-in. No surprise price hikes.
+      <p class="t-body--lg hero__sub" style="max-width:38rem;margin:0 auto 2.5rem">
+        Wild Lychee gives associations, clubs, churches, and HOAs a complete portal &mdash; member directory, events, forum, announcements, and resources &mdash; on software you control, for <strong style="color:var(--ink)">$5&ndash;20/mo</strong>.
       </p>
-      <div class="hero__ctas">
-        <a href="#demo-placeholder" class="btn btn--primary btn--lg">Try the Demo &rarr;</a>
-        <a href="#showcase" class="btn btn--outline btn--lg">See It Live</a>
-        <a href="https://github.com/kychee-com/wildlychee" class="btn btn--ghost btn--lg" target="_blank">Fork on GitHub</a>
+      <div class="hero__ctas" style="justify-content:center">
+        <a href="https://eagles.run402.com" class="btn btn--primary btn--lg" target="_blank">Explore Live Demo &rarr;</a>
+        <a href="#pricing" class="btn btn--outline btn--lg">Get a Custom Build &mdash; $29</a>
+        <a href="https://github.com/kychee-com/wildlychee" class="btn btn--ghost btn--lg" target="_blank">View on GitHub</a>
+      </div>
+      <p class="t-body--sm mt-2" style="color:var(--ink-subtle)">No signup required &middot; Real portal, sample content</p>
+
+      <div class="browser-mockup">
+        <div class="browser-mockup__chrome">
+          <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+          <div class="browser-mockup__url">eagles.run402.com</div>
+        </div>
+        <img src="/assets/screenshot-eagles.png" alt="Eagles community portal — a fully populated Wild Lychee demo">
+      </div>
+
+      <div class="hero__stats">
+        <span class="hero__stat"><span class="hero__stat-dot"></span> 25 members</span>
+        <span class="hero__stat"><span class="hero__stat-dot"></span> 10 events</span>
+        <span class="hero__stat"><span class="hero__stat-dot"></span> Active forum</span>
       </div>
     </div>
-    <div class="hero__aside" aria-hidden="true"></div>
   </section>
 
-  <!-- ======== THE PROBLEM ======== -->
+  <!-- ======== PRODUCT TOUR ======== -->
+  <section class="section section--white" id="showcase">
+    <div class="container">
+      <div class="section-header section-header--center">
+        <p class="t-overline">See It Live</p>
+        <h2 class="t-display t-display--lg">Tour a real portal.</h2>
+        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">Browse a fully populated demo &mdash; members, events, forum, announcements, reactions, activity feed. No signup required.</p>
+      </div>
+
+      <div class="tour-grid">
+        <a href="https://eagles.run402.com" target="_blank" class="tour-tile">
+          <div class="tour-tile__img">
+            <img src="/assets/screenshot-eagles.png" alt="Eagles homepage">
+          </div>
+          <div class="tour-tile__body">
+            <span class="tour-tile__name">Homepage &amp; Activity Feed</span>
+            <span class="tour-tile__link">Browse &rarr;</span>
+          </div>
+        </a>
+        <a href="https://eagles.run402.com/directory.html" target="_blank" class="tour-tile">
+          <div class="tour-tile__img">
+            <img src="/assets/screenshot-eagles-directory.png" alt="Member directory">
+          </div>
+          <div class="tour-tile__body">
+            <span class="tour-tile__name">Member Directory</span>
+            <span class="tour-tile__link">Browse &rarr;</span>
+          </div>
+        </a>
+        <a href="https://eagles.run402.com/events.html" target="_blank" class="tour-tile">
+          <div class="tour-tile__img">
+            <img src="/assets/screenshot-eagles-events.png" alt="Events and RSVP">
+          </div>
+          <div class="tour-tile__body">
+            <span class="tour-tile__name">Events &amp; RSVP</span>
+            <span class="tour-tile__link">Browse &rarr;</span>
+          </div>
+        </a>
+        <a href="https://eagles.run402.com/forum.html" target="_blank" class="tour-tile">
+          <div class="tour-tile__img">
+            <img src="/assets/screenshot-eagles-forum.png" alt="Forum discussions">
+          </div>
+          <div class="tour-tile__body">
+            <span class="tour-tile__name">Forum Discussions</span>
+            <span class="tour-tile__link">Browse &rarr;</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== BENEFITS ======== -->
+  <section class="section section--cream">
+    <div class="container">
+      <div class="section-header section-header--center">
+        <p class="t-overline">Why Wild Lychee</p>
+        <h2 class="t-display t-display--lg">Why organizations choose Wild Lychee.</h2>
+      </div>
+
+      <div class="benefits-grid">
+        <div class="benefit-card">
+          <div class="benefit-card__icon">&#128176;</div>
+          <div class="benefit-card__title">Predictable cost</div>
+          <div class="benefit-card__desc">No per-member fees. $5&ndash;20/mo flat, whether you have 50 members or 5,000. The price scales with your hosting tier, not your headcount.</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-card__icon">&#128274;</div>
+          <div class="benefit-card__title">You own everything</div>
+          <div class="benefit-card__desc">Your data, your branding, your domain. Open source &mdash; fork it, modify it, it's yours. No lock-in, no export fees, no surprises.</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-card__icon">&#129302;</div>
+          <div class="benefit-card__title">AI does the work</div>
+          <div class="benefit-card__desc">Studio builds your portal in 5 minutes. Pro keeps it evolving with ongoing AI customization. Or customize it yourself &mdash; it's just HTML and SQL.</div>
+        </div>
+      </div>
+
+      <div class="compare-link">
+        Switching from Wild Apricot, Circle, or Bettermode? <a href="/compare.html">See the full comparison.</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== HOW IT WORKS ======== -->
   <section class="section section--white">
     <div class="container">
       <div class="section-header section-header--center">
-        <p class="t-overline">The Problem</p>
-        <h2 class="t-display t-display--lg">Community software is a racket.</h2>
+        <p class="t-overline">Get Started</p>
+        <h2 class="t-display t-display--lg">How it works.</h2>
       </div>
 
-      <div class="problem-grid">
-        <div class="problem-card">
-          <div class="problem-card__name">Wild Apricot</div>
-          <div class="problem-card__price">$530/mo</div>
-          <div class="problem-card__desc">At 2,000 members. For a glorified spreadsheet with a 2008 UI.</div>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-card__number">1</div>
+          <div class="step-card__title">Pick a template</div>
+          <div class="step-card__desc">Choose your community type &mdash; church, HOA, sports league, association &mdash; or start with the default.</div>
         </div>
-        <div class="problem-card">
-          <div class="problem-card__name">Circle</div>
-          <div class="problem-card__price">$89/mo + fees</div>
-          <div class="problem-card__desc">Per-seat pricing. And they just raised prices. Again.</div>
+        <div class="step-card">
+          <div class="step-card__number">2</div>
+          <div class="step-card__title">AI builds your portal</div>
+          <div class="step-card__desc">Studio investigates your existing site, asks a few questions, and generates a custom portal in minutes.</div>
         </div>
-        <div class="problem-card">
-          <div class="problem-card__name">Bettermode</div>
-          <div class="problem-card__price">Price hikes yearly</div>
-          <div class="problem-card__desc">Your data locked behind their API. Good luck migrating.</div>
+        <div class="step-card">
+          <div class="step-card__number">3</div>
+          <div class="step-card__title">Launch and customize</div>
+          <div class="step-card__desc">Deploy to your domain. Edit content inline. Toggle features on and off. It's yours.</div>
         </div>
-      </div>
-
-      <div class="problem-transition">
-        <p class="problem-transition__what-if">What if you could just&hellip; own it?</p>
-        <p class="t-body">An open-source portal that runs on your infrastructure, costs a flat $5&ndash;20/mo regardless of member count, and lets an AI agent customize it for you. That's Wild Lychee.</p>
       </div>
     </div>
   </section>
@@ -182,46 +273,36 @@
     </div>
   </section>
 
-  <!-- ======== SHOWCASE ======== -->
-  <section class="section section--cream section--dotted" id="showcase">
+  <!-- ======== WHO IT'S FOR ======== -->
+  <section class="section section--cream" id="niches">
     <div class="container">
       <div class="section-header section-header--center">
-        <p class="t-overline">See It Live</p>
-        <h2 class="t-display t-display--lg">Real communities. Real content.</h2>
-        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">Browse these showcase communities to see what a Wild Lychee portal looks and feels like with real (AI-generated) content.</p>
+        <p class="t-overline">Who It's For</p>
+        <h2 class="t-display t-display--lg">Built for communities of every kind.</h2>
+        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">Wild Lychee adapts to your community type with niche-specific templates, features, and seed data.</p>
       </div>
 
-      <div class="showcase-grid">
-        <a href="https://eagles.run402.com" target="_blank" class="showcase-card">
-          <div class="showcase-card__preview showcase-card__preview--eagles">
-            <img src="/assets/screenshot-eagles.png" alt="The Eagles community portal" style="width:100%;height:100%;object-fit:cover;object-position:top;">
-          </div>
-          <div class="showcase-card__body">
-            <div class="showcase-card__name">The Eagles &mdash; Good Samaritans of Wichita</div>
-            <div class="showcase-card__niche">Charity &amp; Volunteers</div>
-            <span class="showcase-card__link">Browse &rarr;</span>
-          </div>
+      <div class="niche-grid">
+        <a href="/churches.html" class="niche-card">
+          <div class="niche-card__icon">&#9961;</div>
+          <div class="niche-card__name">Churches &amp; Religious Orgs</div>
+          <div class="niche-card__sub">Sermons, prayer requests, small groups</div>
         </a>
-        <div class="showcase-card">
-          <div class="showcase-card__preview showcase-card__preview--yoga">
-            <span class="showcase-card__coming">Coming Soon</span>
-            Sunrise Yoga
-          </div>
-          <div class="showcase-card__body">
-            <div class="showcase-card__name">Sunrise Yoga Collective</div>
-            <div class="showcase-card__niche">Wellness &amp; Fitness Studio</div>
-          </div>
-        </div>
-        <div class="showcase-card">
-          <div class="showcase-card__preview showcase-card__preview--bookclub">
-            <span class="showcase-card__coming">Coming Soon</span>
-            Page Turners
-          </div>
-          <div class="showcase-card__body">
-            <div class="showcase-card__name">Page Turners Book Club</div>
-            <div class="showcase-card__niche">Social &amp; Reading Group</div>
-          </div>
-        </div>
+        <a href="/associations.html" class="niche-card">
+          <div class="niche-card__icon">&#127970;</div>
+          <div class="niche-card__name">Professional Associations</div>
+          <div class="niche-card__sub">Directory, committees, conferences</div>
+        </a>
+        <a href="/sports.html" class="niche-card">
+          <div class="niche-card__icon">&#9917;</div>
+          <div class="niche-card__name">Sports Leagues &amp; Clubs</div>
+          <div class="niche-card__sub">Rosters, schedules, standings</div>
+        </a>
+        <a href="/hoa.html" class="niche-card">
+          <div class="niche-card__icon">&#127968;</div>
+          <div class="niche-card__name">HOAs &amp; Condos</div>
+          <div class="niche-card__sub">Maintenance, documents, voting</div>
+        </a>
       </div>
     </div>
   </section>
@@ -231,50 +312,9 @@
     <div class="container">
       <div class="section-header section-header--center">
         <p class="t-overline">Pricing</p>
-        <h2 class="t-display t-display--lg">Flat pricing. No per-member fees. Ever.</h2>
+        <h2 class="t-display t-display--lg">Simple, transparent pricing.</h2>
       </div>
 
-      <!-- Competitor comparison -->
-      <div class="pricing-comparison mb-6">
-        <table class="pricing-table">
-          <thead>
-            <tr>
-              <th>Members</th>
-              <th>Wild Apricot</th>
-              <th>Circle</th>
-              <th>Wild Lychee</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>100</td>
-              <td class="pricing-table__muted">$100/mo</td>
-              <td class="pricing-table__muted">$89/mo</td>
-              <td class="pricing-table__highlight">$5/mo</td>
-            </tr>
-            <tr>
-              <td>500</td>
-              <td class="pricing-table__muted">$200/mo</td>
-              <td class="pricing-table__muted">$89/mo</td>
-              <td class="pricing-table__highlight">$5/mo</td>
-            </tr>
-            <tr>
-              <td>2,000</td>
-              <td class="pricing-table__muted">$530/mo</td>
-              <td class="pricing-table__muted">$219/mo</td>
-              <td class="pricing-table__highlight">$10/mo</td>
-            </tr>
-            <tr>
-              <td>5,000</td>
-              <td class="pricing-table__muted">$900/mo</td>
-              <td class="pricing-table__muted">$399/mo</td>
-              <td class="pricing-table__highlight">$20/mo</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Plans -->
       <div class="plans-grid">
         <div class="plan-card">
           <div class="plan-card__name">DIY Template</div>
@@ -302,7 +342,7 @@
             <li>Multi-language translation</li>
             <li>Chrome-verified deployment</li>
           </ul>
-          <a href="#demo-placeholder" class="btn btn--primary">Build My Portal &rarr;</a>
+          <a href="https://eagles.run402.com" class="btn btn--primary" target="_blank">See a Demo First &rarr;</a>
         </div>
 
         <div class="plan-card">
@@ -316,62 +356,45 @@
             <li>Priority support</li>
             <li>Advanced analytics</li>
           </ul>
-          <a href="#demo-placeholder" class="btn btn--outline">Learn More</a>
+          <a href="https://eagles.run402.com" class="btn btn--outline" target="_blank">Explore Demo</a>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ======== WHO IT'S FOR ======== -->
-  <section class="section section--cream" id="niches">
+  <!-- ======== FAQ ======== -->
+  <section class="section section--cream" id="faq">
     <div class="container">
       <div class="section-header section-header--center">
-        <p class="t-overline">Who It's For</p>
-        <h2 class="t-display t-display--lg">Built for communities of every kind.</h2>
-        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">Wild Lychee adapts to your community type with niche-specific configurations, seed data, and features.</p>
+        <p class="t-overline">FAQ</p>
+        <h2 class="t-display t-display--lg">Questions? We've got answers.</h2>
       </div>
 
-      <div class="niche-grid">
-        <a href="/churches.html" class="niche-card">
-          <div class="niche-card__icon">&#9961;</div>
-          <div class="niche-card__name">Churches &amp; Religious Orgs</div>
-          <div class="niche-card__sub">Sermons, prayer requests, small groups</div>
-        </a>
-        <a href="/associations.html" class="niche-card">
-          <div class="niche-card__icon">&#127970;</div>
-          <div class="niche-card__name">Professional Associations</div>
-          <div class="niche-card__sub">Directory, committees, conferences</div>
-        </a>
-        <a href="/sports.html" class="niche-card">
-          <div class="niche-card__icon">&#9917;</div>
-          <div class="niche-card__name">Sports Leagues &amp; Clubs</div>
-          <div class="niche-card__sub">Rosters, schedules, standings</div>
-        </a>
-        <a href="/hoa.html" class="niche-card">
-          <div class="niche-card__icon">&#127968;</div>
-          <div class="niche-card__name">HOAs &amp; Condos</div>
-          <div class="niche-card__sub">Maintenance, documents, voting</div>
-        </a>
-        <div class="niche-card niche-card--disabled">
-          <div class="niche-card__icon">&#129309;</div>
-          <div class="niche-card__name">Nonprofits &amp; Charities</div>
-          <div class="niche-card__sub">Coming soon</div>
-        </div>
-        <div class="niche-card niche-card--disabled">
-          <div class="niche-card__icon">&#128188;</div>
-          <div class="niche-card__name">Coworking Spaces</div>
-          <div class="niche-card__sub">Coming soon</div>
-        </div>
-        <div class="niche-card niche-card--disabled">
-          <div class="niche-card__icon">&#127891;</div>
-          <div class="niche-card__name">Alumni Networks</div>
-          <div class="niche-card__sub">Coming soon</div>
-        </div>
-        <div class="niche-card niche-card--disabled">
-          <div class="niche-card__icon">&#128640;</div>
-          <div class="niche-card__name">Your Community</div>
-          <div class="niche-card__sub">Fork &amp; customize</div>
-        </div>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>Is it really $5&ndash;20/mo?</summary>
+          <p>Yes. Wild Lychee is open-source software. The $5&ndash;20/mo covers Run402 hosting (database, file storage, edge functions, subdomain). There are no per-member fees, no usage charges, and no hidden costs. The price scales with your hosting tier, not your member count.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Do I need technical skills?</summary>
+          <p>Not with Studio. Tell us about your community, and AI builds your portal in minutes. For the DIY template, basic comfort with deploying web apps is helpful &mdash; but AI agents can handle that too.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Who owns the data?</summary>
+          <p>You do. Wild Lychee runs on your own Run402 project with your own database. You can export, migrate, or delete at any time. We never touch your data.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Can I migrate from Wild Apricot or Circle?</summary>
+          <p>Yes. Studio can investigate your existing site and migrate your branding, colors, and content structure. Member data can be imported via CSV. See our <a href="/compare.html">comparison page</a> for details.</p>
+        </details>
+        <details class="faq-item">
+          <summary>What does &ldquo;AI-powered&rdquo; actually mean?</summary>
+          <p>Six optional AI features run on your own API key (OpenAI or Anthropic): content moderation, auto-translation, newsletter drafts, smart onboarding, member insights, and event recaps. You control what runs, when, and at what cost.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Why is it so affordable?</summary>
+          <p>Because Wild Lychee is open source and runs on Run402's serverless infrastructure. There's no sales team, no enterprise licensing, and no per-seat revenue model. You pay for hosting, not for software.</p>
+        </details>
       </div>
     </div>
   </section>
@@ -379,11 +402,11 @@
   <!-- ======== FINAL CTA ======== -->
   <section class="section section--indigo final-cta">
     <div class="container">
-      <h2 class="t-display t-display--lg">Ready to ditch the subscription trap?</h2>
+      <h2 class="t-display t-display--lg">Own your member portal.</h2>
       <p class="t-body--lg">Open source. Flat pricing. AI-powered. Yours forever.</p>
       <div class="final-cta__buttons">
-        <a href="#demo-placeholder" class="btn btn--white btn--lg">Try the Demo &rarr;</a>
-        <a href="https://github.com/kychee-com/wildlychee" class="btn btn--outline btn--lg" style="border-color:#fff;color:#fff" target="_blank">Fork on GitHub</a>
+        <a href="https://eagles.run402.com" class="btn btn--white btn--lg" target="_blank">Explore Live Demo &rarr;</a>
+        <a href="https://github.com/kychee-com/wildlychee" class="btn btn--outline btn--lg" style="border-color:#fff;color:#fff" target="_blank">View on GitHub</a>
       </div>
     </div>
   </section>
@@ -397,6 +420,8 @@
         <a href="https://github.com/kychee-com/wildlychee" target="_blank">GitHub</a>
         &ensp;&middot;&ensp;
         <a href="https://eagles.run402.com" target="_blank">Eagles Demo</a>
+        &ensp;&middot;&ensp;
+        <a href="/compare.html">Compare</a>
       </p>
     </div>
   </footer>

@@ -7,12 +7,14 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/a11y.css">
   <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
 </head>
 <body>
+  <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
   <div class="page">
     <!-- NAV: Navigation -->
-    <nav class="nav">
+    <nav class="nav" aria-label="Primary navigation">
       <div class="container">
         <a href="/" class="nav-brand">
           <img src="" alt="" style="display:none">
@@ -25,7 +27,7 @@
     </nav>
 
     <!-- CONTENT: Main content -->
-    <main class="page-content">
+    <main class="page-content" id="main-content">
       <div id="sections">
         <div class="section section-visible" id="sections-skeleton" style="padding:2rem 0">
           <div class="container"><div class="skeleton skeleton-card mb-1"></div><div class="skeleton skeleton-card mb-1"></div></div>
@@ -45,7 +47,7 @@
     </main>
 
     <!-- FOOTER: Site footer -->
-    <footer class="footer">
+    <footer class="footer" aria-label="Site footer">
       <div class="container">
         <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a> on <a href="https://run402.com">Run402</a></p>
       </div>
@@ -89,6 +91,7 @@
   <script src="/js/animations.js"></script>
   <script src="/js/env.js"></script>
   <script type="module">
+    import { announce, releaseFocus, trapFocus } from './js/accessibility.js';
     import { del, get, patch, post } from './js/api.js';
     import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js';
     import { init, isFeatureEnabled } from './js/config.js';
@@ -100,7 +103,9 @@
 
     // If hash is #signup, show modal
     if (window.location.hash === '#signup') {
-      document.getElementById('auth-modal')?.classList.remove('hidden');
+      const modal = document.getElementById('auth-modal');
+      modal?.classList.remove('hidden');
+      if (modal) trapFocus(modal.querySelector('.auth-panel'));
     }
 
     // Init config, nav, theme
@@ -545,6 +550,7 @@
         document.getElementById('ann-body').value = '';
         renderAnnouncements();
         showToast('Announcement posted', 'info');
+        announce('Announcement posted successfully');
       });
     }
 
@@ -554,6 +560,7 @@
     document.getElementById('auth-close')?.addEventListener('click', (e) => {
       e.preventDefault();
       document.getElementById('auth-modal')?.classList.add('hidden');
+      releaseFocus();
     });
     document.getElementById('auth-toggle')?.addEventListener('click', (e) => {
       e.preventDefault();
@@ -601,5 +608,6 @@
     await renderAnnouncements();
     setupAnnouncementCreate();
   </script>
+  <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

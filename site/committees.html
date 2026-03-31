@@ -7,11 +7,13 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/a11y.css">
   <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
 </head>
 <body>
+  <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
   <div class="page">
-    <nav class="nav">
+    <nav class="nav" aria-label="Primary navigation">
       <div class="container">
         <a href="/" class="nav-brand"><img src="" alt="" style="display:none"><span class="nav-brand-text">Wild Lychee</span></a>
         <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
@@ -20,7 +22,7 @@
       </div>
     </nav>
 
-    <main class="page-content">
+    <main class="page-content" id="main-content">
       <div class="container">
         <div class="flex justify-between items-center mb-2">
           <h2>Committees</h2>
@@ -44,7 +46,7 @@
       </div>
     </div>
 
-    <footer class="footer"><div class="container"><p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p></div></footer>
+    <footer class="footer" aria-label="Site footer"><div class="container"><p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p></div></footer>
   </div>
 
   <script src="/js/env.js"></script>
@@ -57,5 +59,6 @@
 
     await initCommittees();
   </script>
+  <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

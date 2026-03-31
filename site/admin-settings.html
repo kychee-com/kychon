@@ -7,11 +7,13 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/a11y.css">
   <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
 </head>
 <body>
+  <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
   <div class="page">
-    <nav class="nav">
+    <nav class="nav" aria-label="Primary navigation">
       <div class="container">
         <a href="/" class="nav-brand">
           <img src="" alt="" style="display:none">
@@ -23,7 +25,7 @@
       </div>
     </nav>
 
-    <main class="page-content">
+    <main class="page-content" id="main-content">
       <div class="container" style="max-width:48rem">
         <h2 class="mb-2">Site Settings</h2>
 
@@ -143,7 +145,7 @@
       </div>
     </main>
 
-    <footer class="footer">
+    <footer class="footer" aria-label="Site footer">
       <div class="container">
         <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p>
       </div>
@@ -160,5 +162,6 @@
 
     await initAdminSettings();
   </script>
+  <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

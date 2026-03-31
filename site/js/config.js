@@ -1,9 +1,13 @@
 // @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
+import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js';
 import { get } from './api.js';
 import { getRole, getSession, isAdmin } from './auth.js';
 import { loadLocale } from './i18n.js';
+
+// Apply a11y preferences immediately (before config fetch) to prevent flash
+applyA11yPrefs();
 
 const siteConfig = {};
 const features = {};
@@ -114,7 +118,9 @@ function buildUserNav() {
   if (!session) {
     userEl.innerHTML = '<button class="btn btn-primary btn-sm" id="login-btn">Sign In</button>';
     document.getElementById('login-btn')?.addEventListener('click', () => {
-      document.getElementById('auth-modal')?.classList.remove('hidden');
+      const modal = document.getElementById('auth-modal');
+      modal?.classList.remove('hidden');
+      if (modal) trapFocus(modal.querySelector('.auth-panel'));
     });
   } else {
     const user = session.user || {};
@@ -190,6 +196,7 @@ export async function init() {
   // Build nav (after member record is loaded so admin role is known)
   buildNav(siteConfig.nav);
   buildUserNav();
+  buildA11yToolbar();
 
   // Mobile nav toggle
   document.getElementById('nav-toggle')?.addEventListener('click', () => {

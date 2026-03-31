@@ -26,10 +26,19 @@ function collectFiles(dir, base = dir) {
     if (entry.isDirectory()) {
       files.push(...collectFiles(full, base));
     } else {
-      files.push({
-        file: relative(base, full),
-        data: readFileSync(full, 'utf-8'),
-      });
+      const isBinary = /\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|svg)$/i.test(entry.name);
+      if (isBinary) {
+        files.push({
+          file: relative(base, full),
+          data: readFileSync(full).toString('base64'),
+          encoding: 'base64',
+        });
+      } else {
+        files.push({
+          file: relative(base, full),
+          data: readFileSync(full, 'utf-8'),
+        });
+      }
     }
   }
   return files;
