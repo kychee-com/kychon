@@ -369,90 +369,104 @@ ON CONFLICT DO NOTHING;
 -- ============================================
 
 -- Upcoming events
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Morning Tai Chi with George',
   'Start your day with gentle movement and deep breathing. All levels welcome — George adapts every pose. Wear comfortable clothes and flat shoes. Meet in the main hall.',
   now() + interval '1 day' + time '09:00', now() + interval '1 day' + time '10:00',
-  'Main Hall', (SELECT id FROM members WHERE email = 'george.nakamura@gmail.com')
+  'Main Hall', '/assets/event-tai-chi.jpg', (SELECT id FROM members WHERE email = 'george.nakamura@gmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Morning Tai Chi with George' AND starts_at > now());
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Watercolor Wednesday',
   'This week: painting autumn leaves! Margaret supplies all materials. Beginners especially welcome — we learn by doing, not by being perfect. Bring a smock or old shirt.',
   now() + interval '3 days' + time '14:00', now() + interval '3 days' + time '16:00',
-  'Art Room', (SELECT id FROM members WHERE email = 'margaret.johnson@hotmail.com')
+  'Art Room', '/assets/event-watercolor.jpg', (SELECT id FROM members WHERE email = 'margaret.johnson@hotmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Watercolor Wednesday' AND starts_at > now());
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Tech Help Desk — Drop In',
   'Bring your tablet, phone, laptop, or questions! Our Tech Buddies volunteers offer patient, friendly one-on-one help. This week: setting up video calls with family.',
   now() + interval '5 days' + time '10:00', now() + interval '5 days' + time '12:00',
-  'Computer Room', (SELECT id FROM members WHERE email = 'robert.chen@gmail.com')
+  'Computer Room', '/assets/event-tech-help.jpg', (SELECT id FROM members WHERE email = 'robert.chen@gmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Tech Help Desk — Drop In' AND starts_at > now());
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Thursday Book Club',
   'We''re reading "Demon Copperhead" by Barbara Kingsolver — perfect for our mountain setting! Evelyn leads the discussion. New readers always welcome. Coffee and cookies provided.',
   now() + interval '7 days' + time '15:00', now() + interval '7 days' + time '16:30',
-  'Reading Room', (SELECT id FROM members WHERE email = 'evelyn.wright@yahoo.com')
+  'Reading Room', '/assets/event-book-club.jpg', (SELECT id FROM members WHERE email = 'evelyn.wright@yahoo.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Thursday Book Club' AND starts_at > now());
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Medicare Open Enrollment Info Session',
   'Confused about Medicare options? Our guest speaker from the NC Department of Insurance will explain your choices and answer questions. Bring your current plan documents.',
   now() + interval '10 days' + time '13:00', now() + interval '10 days' + time '14:30',
-  'Main Hall', (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org')
+  'Main Hall', '/assets/event-medicare.jpg', (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Medicare Open Enrollment Info Session' AND starts_at > now());
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Friday Movie Night: "The Best Exotic Marigold Hotel"',
   'Popcorn, lemonade, and a feel-good film on the big screen! Shirley picked this month''s movie. Bring a blanket if you like — the air conditioning is strong!',
   now() + interval '12 days' + time '18:30', now() + interval '12 days' + time '20:30',
-  'Main Hall', (SELECT id FROM members WHERE email = 'shirley.davis@yahoo.com')
+  'Main Hall', '/assets/event-movie-night.jpg', (SELECT id FROM members WHERE email = 'shirley.davis@yahoo.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title LIKE 'Friday Movie Night%' AND starts_at > now());
 
 -- Past events
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Spring Garden Party',
   'What a beautiful day! We planted marigolds, shared seedlings, and Betty''s strawberry shortcake was the talk of the afternoon. 40+ members attended!',
   now() - interval '14 days' + time '10:00', now() - interval '14 days' + time '13:00',
-  'Garden & Patio', (SELECT id FROM members WHERE email = 'dorothy.banks@yahoo.com')
+  'Garden & Patio', '/assets/event-garden.jpg', (SELECT id FROM members WHERE email = 'dorothy.banks@yahoo.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Spring Garden Party');
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Annual Health Fair',
   'Free blood pressure checks, hearing tests, fall risk assessments, and flu shots. Thanks to our partners at Mission Hospital and the Wellness Committee for organizing!',
   now() - interval '21 days' + time '09:00', now() - interval '21 days' + time '15:00',
-  'Main Hall', (SELECT id FROM members WHERE email = 'rosa.martinez@outlook.com')
+  'Main Hall', '/assets/event-health-fair.jpg', (SELECT id FROM members WHERE email = 'rosa.martinez@outlook.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Annual Health Fair');
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Holiday Potluck & Sing-Along',
   'Our biggest event of the season! 60+ members brought dishes from around the world. Shirley led carols and George surprised us with a harmonica solo.',
   now() - interval '35 days' + time '17:00', now() - interval '35 days' + time '20:00',
-  'Main Hall & Patio', (SELECT id FROM members WHERE email = 'shirley.davis@yahoo.com')
+  'Main Hall & Patio', '/assets/event-potluck.jpg', (SELECT id FROM members WHERE email = 'shirley.davis@yahoo.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Holiday Potluck & Sing-Along');
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Blue Ridge Nature Walk',
   'A gentle 2-mile walk on the Botanical Gardens trail. Harold pointed out every bird species and Thomas told stories about the old fire lookout. Perfect fall weather.',
   now() - interval '42 days' + time '10:00', now() - interval '42 days' + time '12:00',
-  'NC Arboretum (carpool)', (SELECT id FROM members WHERE email = 'thomas.brown@gmail.com')
+  'NC Arboretum (carpool)', '/assets/event-nature-walk.jpg', (SELECT id FROM members WHERE email = 'thomas.brown@gmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Blue Ridge Nature Walk');
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Craft Fair & Bake Sale',
   'Members sold handmade quilts, birdhouses, paintings, and baked goods. We raised $840 for the Transportation Fund! Thank you to everyone who contributed.',
   now() - interval '50 days' + time '10:00', now() - interval '50 days' + time '15:00',
-  'Main Hall', (SELECT id FROM members WHERE email = 'betty.williams@outlook.com')
+  'Main Hall', '/assets/event-craft-fair.jpg', (SELECT id FROM members WHERE email = 'betty.williams@outlook.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Craft Fair & Bake Sale');
 
-INSERT INTO events (title, description, starts_at, ends_at, location, created_by)
+INSERT INTO events (title, description, starts_at, ends_at, location, image_url, created_by)
 SELECT 'Volunteer Appreciation Luncheon',
   'Honoring our amazing volunteers! Helen presented certificates and Frank surprised everyone with his famous cornbread. You all make Silver Pines what it is.',
   now() - interval '60 days' + time '12:00', now() - interval '60 days' + time '14:00',
-  'Main Hall', (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org')
+  'Main Hall', '/assets/event-volunteer.jpg', (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Volunteer Appreciation Luncheon');
+
+-- Backfill image_url on existing events (idempotent)
+UPDATE events SET image_url = '/assets/event-tai-chi.jpg' WHERE title = 'Morning Tai Chi with George' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-watercolor.jpg' WHERE title = 'Watercolor Wednesday' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-tech-help.jpg' WHERE title LIKE 'Tech Help Desk%' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-book-club.jpg' WHERE title = 'Thursday Book Club' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-movie-night.jpg' WHERE title LIKE 'Friday Movie Night%' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-garden.jpg' WHERE title = 'Spring Garden Party' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-potluck.jpg' WHERE title = 'Holiday Potluck & Sing-Along' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-nature-walk.jpg' WHERE title = 'Blue Ridge Nature Walk' AND image_url IS NULL;
+UPDATE events SET image_url = '/assets/event-volunteer.jpg' WHERE title = 'Volunteer Appreciation Luncheon';
+UPDATE events SET image_url = '/assets/event-medicare.jpg' WHERE title = 'Medicare Open Enrollment Info Session';
+UPDATE events SET image_url = '/assets/event-health-fair.jpg' WHERE title = 'Annual Health Fair';
+UPDATE events SET image_url = '/assets/event-craft-fair.jpg' WHERE title = 'Craft Fair & Bake Sale';
 
 -- ============================================
 -- 7. RESOURCES
@@ -802,10 +816,10 @@ DELETE FROM sections WHERE page_slug IN ('getting-here', 'daily-schedule');
 
 INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
   ('getting-here', 'custom', '{
-    "html": "<h2>Getting to Silver Pines</h2><p><strong>Address:</strong> 142 Pine Street, Asheville, NC 28801</p><h3>By Car</h3><p>From I-240, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left. <strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible spaces by the front entrance.</p><h3>Silver Pines Shuttle</h3><p>Our free shuttle runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville. <a href=''/resources.html''>Download the shuttle schedule</a> or call Frank at 828-555-0106 to arrange a ride.</p><h3>Volunteer Driver Program</h3><p>Need a ride to a medical appointment? Our volunteer drivers are happy to help. Call the center at 828-555-0100 at least 24 hours in advance.</p><h3>Public Transit</h3><p>ART Bus Route 170 stops at Pine & Merrimon (2 minute walk). Route runs every 30 minutes.</p><h3>Accessibility</h3><p>The center is fully wheelchair accessible. We have a ramp at the main entrance, wide doorways throughout, accessible restrooms on both floors, and an elevator to the second floor. Service animals welcome.</p>"
+    "html": "<div style=\"max-width:52rem\"><p style=\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style=\"margin:1rem 0 1rem 1.5rem\"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href=''/resources.html''>download the full schedule</a>.</p></div><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class=\"card mb-2\" style=\"padding:2rem;border-left:4px solid var(--color-primary)\"><h3 style=\"margin-bottom:1rem\">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style=\"margin:1rem 0 0 1.5rem\"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>"
   }', 1, true),
   ('daily-schedule', 'custom', '{
-    "html": "<h2>Weekly Schedule</h2><p>Drop in anytime! All classes and activities are free for members unless noted.</p><table class=''table-wrap''><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td>Tai Chi (George)</td><td>Chair Yoga</td><td>Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td>Tech Help Desk</td><td>Open Craft Room</td><td>Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch Program ($3)</td><td>—</td><td>Lunch Program ($3)</td><td>—</td><td>Lunch Program ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge & Cards</td><td>Piano Basics (Mary)</td><td>Bridge & Cards</td><td>Cooking Class (Nancy)</td><td>Bridge & Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td>Garden Hours</td><td>Garden Hours</td><td>Watercolor (Margaret)</td><td>Garden Hours</td><td>Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td>Movie Night (2nd & 4th Fri)</td></tr></tbody></table>"
+    "html": "<div style=\"max-width:60rem\"><p style=\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\">Drop in anytime! All classes and activities are free for members unless noted.</p><div class=\"table-wrap\"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tai Chi (George)</td><td>Chair Yoga</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tech Help Desk</td><td>Open Craft Room</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Watercolor (Margaret)</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style=\"border-top:2px solid var(--color-border)\"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class=\"card mt-2\" style=\"padding:1.5rem;border-left:4px solid var(--color-primary)\"><p style=\"margin:0\"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>"
   }', 1, true)
 ON CONFLICT DO NOTHING;
 

@@ -21,28 +21,33 @@ window.__WILDLYCHEE_API = 'https://api.run402.com';
 window.__WILDLYCHEE_ANON_KEY = '${ANON_KEY}';
 ENVEOF
 
-# 3. Combine schema + silver pines seed into migrations file
+# 3. Combine schema + silver pines seed
 echo "Preparing migrations (schema + silver-pines seed)..."
 cat "$ROOT/schema.sql" "$ROOT/demo/silver-pines/seed.sql" > "$ROOT/.migrations-silver-pines.sql"
 
-# 4. Upload images to storage
-echo "Uploading images to storage..."
-ASSETS_DIR="$ROOT/demo/silver-pines/assets"
-for img in "$ASSETS_DIR"/*; do
-  fname=$(basename "$img")
-  echo "  upload: assets/$fname"
-  run402 storage upload "$PROJECT_ID" public "assets/$fname" --file "$img" 2>/dev/null || true
+# 4. Resize images to web-friendly sizes in a temp directory (keep originals untouched)
+echo "Preparing web-sized images..."
+WEB_ASSETS=$(mktemp -d)
+trap "rm -rf $WEB_ASSETS" EXIT
+for f in "$ROOT/demo/silver-pines/assets"/avatar-*.jpg; do
+  sips -Z 400 "$f" --out "$WEB_ASSETS/$(basename "$f")" >/dev/null 2>&1
 done
+for f in "$ROOT/demo/silver-pines/assets"/event-*.jpg "$ROOT/demo/silver-pines/assets"/hero.jpg; do
+  [ -f "$f" ] && sips -Z 1200 "$f" --out "$WEB_ASSETS/$(basename "$f")" >/dev/null 2>&1
+done
+for f in "$ROOT/demo/silver-pines/assets"/logo.png; do
+  [ -f "$f" ] && sips -Z 400 "$f" --out "$WEB_ASSETS/$(basename "$f")" >/dev/null 2>&1
+done
+echo "  $(ls "$WEB_ASSETS" | wc -l | tr -d ' ') images ($(du -sh "$WEB_ASSETS" | cut -f1) web-optimized)"
+export WEB_ASSETS
 
-# 5. Generate manifest using node (reuse file-collection logic)
+# 5. Build manifest — site files + web-sized demo assets mapped as assets/*
 echo "Building manifest..."
-node --input-type=module <<'SCRIPT'
+node --input-type=module <<SCRIPT
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const ROOT = process.env.ROOT;
-const projectId = process.env.PROJECT_ID;
-const subdomain = process.env.SUBDOMAIN;
+const ROOT = '${ROOT}';
 
 function collectFiles(dir, base = dir) {
   const files = [];
@@ -50,11 +55,8 @@ function collectFiles(dir, base = dir) {
   if (!existsSync(abs)) return files;
   for (const entry of readdirSync(abs, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...collectFiles(full, base));
-    } else {
-      files.push({ file: relative(base, full), path: './' + full });
-    }
+    if (entry.isDirectory()) files.push(...collectFiles(full, base));
+    else files.push({ file: relative(base, full), path: './' + full });
   }
   return files;
 }
@@ -62,19 +64,27 @@ function collectFiles(dir, base = dir) {
 function collectFunctions(dir) {
   const abs = join(ROOT, dir);
   if (!existsSync(abs)) return [];
-  return readdirSync(abs)
-    .filter(f => f.endsWith('.js'))
-    .map(f => {
-      const name = f.replace('.js', '');
-      const code = readFileSync(join(abs, f), 'utf-8');
-      const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
-      const fn = { name, code };
-      if (scheduleMatch) fn.schedule = scheduleMatch[1];
-      return fn;
-    });
+  return readdirSync(abs).filter(f => f.endsWith('.js')).map(f => {
+    const name = f.replace('.js', '');
+    const code = readFileSync(join(abs, f), 'utf-8');
+    const m = code.match(/\\/\\/\\s*schedule:\\s*"([^"]+)"/);
+    const fn = { name, code };
+    if (m) fn.schedule = m[1];
+    return fn;
+  });
 }
 
+// Site files (template)
 const siteFiles = collectFiles('site', 'site');
+
+// Demo assets — web-optimized images from temp dir, mapped as assets/*
+const webAssets = process.env.WEB_ASSETS;
+if (webAssets && existsSync(webAssets)) {
+  for (const f of readdirSync(webAssets)) {
+    siteFiles.push({ file: 'assets/' + f, path: join(webAssets, f) });
+  }
+}
+
 const functions = collectFunctions('functions');
 
 const rls = {
@@ -94,23 +104,22 @@ const rls = {
 };
 
 const manifest = {
-  project_id: projectId,
+  project_id: '${PROJECT_ID}',
   migrations_file: '.migrations-silver-pines.sql',
   rls,
   files: siteFiles,
-  subdomain,
+  subdomain: '${SUBDOMAIN}',
 };
 if (functions.length > 0) manifest.functions = functions;
 
 const path = join(ROOT, 'app-silver-pines.json');
 writeFileSync(path, JSON.stringify(manifest, null, 2));
-console.log(`  ${siteFiles.length} site files, ${functions.length} functions`);
+console.log('  ' + siteFiles.length + ' site files (' + siteFiles.filter(f => f.file.startsWith('assets/')).length + ' demo assets), ' + functions.length + ' functions');
 SCRIPT
 
-# 6. Deploy
-echo "Deploying..."
-RESULT=$(run402 deploy --manifest "$ROOT/app-silver-pines.json" 2>&1)
-echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
+# 5. Deploy with explicit project ID
+echo "Deploying to $PROJECT_ID..."
+run402 deploy --manifest "$ROOT/app-silver-pines.json" --project "$PROJECT_ID" 2>&1 | tee /dev/stderr | jq -r '.deployment_id // empty'
 
 echo ""
 echo "=== Done! ==="

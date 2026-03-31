@@ -94,7 +94,8 @@
     import { announce, releaseFocus, trapFocus } from './js/accessibility.js?v=3';
     import { del, get, patch, post } from './js/api.js?v=3';
     import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js?v=3';
-    import { init, isFeatureEnabled } from './js/config.js?v=3';
+    import { init, isFeatureEnabled, getTranslatedContent } from './js/config.js?v=3';
+    import { getLocale } from './js/i18n.js?v=3';
     import { showToast } from './js/toast.js?v=3';
 
     // Handle OAuth callback
@@ -112,6 +113,16 @@
     const config = await init();
 
     // --- Render homepage sections ---
+    async function translateSectionConfig(section) {
+      const locale = getLocale();
+      if (!locale || locale === (config.default_language || 'en')) return section;
+      const translated = await getTranslatedContent('section', section.id, 'config');
+      if (translated) {
+        try { section.config = JSON.parse(translated); } catch {}
+      }
+      return section;
+    }
+
     async function renderSections() {
       const container = document.getElementById('sections');
       if (!container) return;
@@ -121,6 +132,7 @@
         const skel = document.getElementById('sections-skeleton');
         if (skel) skel.remove();
         for (const section of sections) {
+          await translateSectionConfig(section);
           container.appendChild(renderSection(section));
         }
       } catch (e) {
