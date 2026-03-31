@@ -82,6 +82,29 @@ function buildNav(navItems) {
   }
 }
 
+function buildThemeToggle() {
+  const userEl = document.getElementById('nav-user');
+  if (!userEl) return;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-sm btn-secondary';
+  btn.id = 'theme-toggle';
+  btn.setAttribute('aria-label', 'Toggle dark mode');
+  btn.textContent = isDark ? '\u2600\uFE0F' : '\uD83C\uDF19';
+  btn.addEventListener('click', () => {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const next = dark ? 'light' : 'dark';
+    if (next === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('wl_theme', next);
+    btn.textContent = next === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+  });
+  userEl.prepend(btn);
+}
+
 function buildUserNav() {
   const userEl = document.getElementById('nav-user');
   if (!userEl) return;
@@ -106,6 +129,8 @@ function buildUserNav() {
       window.location.href = '/';
     });
   }
+  // Add theme toggle after user nav is built
+  buildThemeToggle();
 }
 
 async function loadMemberRecord() {
