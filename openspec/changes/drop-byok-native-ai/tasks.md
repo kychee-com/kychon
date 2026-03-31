@@ -32,5 +32,5 @@
 ## 6. Verify and deploy
 
 - [x] 6.1 Run existing tests — ensure no regressions from removed code
-- [ ] 6.2 Deploy updated functions (`moderate-content.js`, `translate-content.js`, `on-signup.js`) and site files
-- [ ] 6.3 Verify admin settings page in Chrome — confirm only moderation and translation toggles visible, no API key section
+- [x] 6.2 Deploy updated functions (`moderate-content.js`, `translate-content.js`, `on-signup.js`) and site files
+- [x] 6.3 Verify admin settings page in Chrome — confirm only moderation and translation toggles visible, no API key section
