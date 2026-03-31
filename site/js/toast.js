@@ -1,5 +1,5 @@
 // toast.js — Lightweight toast notification system
-// Usage: import { showToast } from './toast.js?v=8';
+// Usage: import { showToast } from './toast.js?v=9';
 //        showToast('You are going!', 'success');
 
 const ICONS = {

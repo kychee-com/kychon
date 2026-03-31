@@ -69,7 +69,7 @@ async function fetchLocale(lang) {
     cache[lang] = cached;
     // Background refresh if stale
     if (!isLocaleCacheFresh(lang)) {
-      fetch(`/custom/strings/${lang}.json?v=8`)
+      fetch(`/custom/strings/${lang}.json?v=9`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data) {
@@ -84,7 +84,7 @@ async function fetchLocale(lang) {
 
   // No cache — fetch and store
   try {
-    const res = await fetch(`/custom/strings/${lang}.json?v=8`);
+    const res = await fetch(`/custom/strings/${lang}.json?v=9`);
     if (!res.ok) return {};
     const data = await res.json();
     cache[lang] = data;

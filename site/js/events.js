@@ -1,8 +1,8 @@
 // events.js — Event listing and RSVP logic
 
-import { get, post } from './api.js?v=8';
-import { getSession, isAdmin } from './auth.js?v=8';
-import { translateItems } from './config.js?v=8';
+import { get, post } from './api.js?v=9';
+import { getSession, isAdmin } from './auth.js?v=9';
+import { translateItems } from './config.js?v=9';
 
 let allEvents = [];
 

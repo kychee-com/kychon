@@ -6,7 +6,7 @@
   <title>Home</title>
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
-  <link rel="stylesheet" href="/css/styles.css?v=8">
+  <link rel="stylesheet" href="/css/styles.css?v=9">
   <link rel="stylesheet" href="/css/a11y.css?v=2">
   <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
 </head>
@@ -91,12 +91,12 @@
   <script src="/js/animations.js?v=2"></script>
   <script src="/js/env.js"></script>
   <script type="module">
-    import { announce, releaseFocus, trapFocus } from './js/accessibility.js?v=8';
-    import { del, get, patch, post } from './js/api.js?v=8';
-    import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js?v=8';
-    import { init, isFeatureEnabled, getTranslatedContent, translateItems } from './js/config.js?v=8';
-    import { getLocale } from './js/i18n.js?v=8';
-    import { showToast } from './js/toast.js?v=8';
+    import { announce, releaseFocus, trapFocus } from './js/accessibility.js?v=9';
+    import { del, get, patch, post } from './js/api.js?v=9';
+    import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js?v=9';
+    import { init, isFeatureEnabled, getTranslatedContent, translateItems } from './js/config.js?v=9';
+    import { getLocale } from './js/i18n.js?v=9';
+    import { showToast } from './js/toast.js?v=9';
 
     // Handle OAuth callback
     const session = await handleOAuthCallback();

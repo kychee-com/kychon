@@ -1,8 +1,8 @@
 // resources.js — Resource library logic
 
-import { del, get, post } from './api.js?v=8';
-import { isAdmin, isAuthenticated } from './auth.js?v=8';
-import { translateItems } from './config.js?v=8';
+import { del, get, post } from './api.js?v=9';
+import { isAdmin, isAuthenticated } from './auth.js?v=9';
+import { translateItems } from './config.js?v=9';
 
 let allResources = [];
 
