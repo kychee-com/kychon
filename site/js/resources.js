@@ -1,13 +1,15 @@
 // resources.js — Resource library logic
 
-import { del, get, post } from './api.js?v=5';
-import { isAdmin, isAuthenticated } from './auth.js?v=5';
+import { del, get, post } from './api.js?v=6';
+import { isAdmin, isAuthenticated } from './auth.js?v=6';
+import { translateItems } from './config.js?v=6';
 
 let allResources = [];
 
 export async function initResources() {
   try {
     allResources = await get('resources?order=created_at.desc');
+    await translateItems('resource', allResources, ['title', 'description']);
     renderResources(allResources);
   } catch (e) {
     console.warn('Failed to load resources:', e);

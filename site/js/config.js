@@ -1,10 +1,10 @@
 // @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
-import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=5';
-import { get } from './api.js?v=5';
-import { getRole, getSession, isAdmin } from './auth.js?v=5';
-import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=5';
+import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=6';
+import { get } from './api.js?v=6';
+import { getRole, getSession, isAdmin } from './auth.js?v=6';
+import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=6';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
@@ -282,6 +282,40 @@ export async function getTranslatedContent(contentType, contentId, field) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Batch-translate an array of DB items. Fetches all translations for the content type
+ * in one query, then patches each item's fields in-place.
+ * @param {string} contentType - e.g. 'announcement', 'event', 'resource', 'page'
+ * @param {Array} items - array of objects with `id` and text fields
+ * @param {string[]} fields - which fields to translate, e.g. ['title', 'body']
+ * @returns {Promise<Array>} the same items array, mutated with translations
+ */
+export async function translateItems(contentType, items, fields) {
+  const locale = localStorage.getItem('wl_locale') || siteConfig.default_language || 'en';
+  const defaultLang = siteConfig.default_language || 'en';
+  if (locale === defaultLang || !items.length) return items;
+  try {
+    const ids = items.map((i) => i.id);
+    const rows = await get(
+      `content_translations?content_type=eq.${contentType}&language=eq.${locale}&content_id=in.(${ids.join(',')})`,
+    );
+    const map = {};
+    for (const r of rows) {
+      const key = `${r.content_id}:${r.field}`;
+      map[key] = r.translated_text;
+    }
+    for (const item of items) {
+      for (const field of fields) {
+        const val = map[`${item.id}:${field}`];
+        if (val) item[field] = val;
+      }
+    }
+  } catch {
+    // translation fetch failed, use originals
+  }
+  return items;
 }
 
 export { features, siteConfig };

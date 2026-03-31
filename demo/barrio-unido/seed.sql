@@ -985,6 +985,43 @@ SELECT 'section', id, 'en', 'config', '{"heading":"The barrio needs you — and 
 FROM sections WHERE page_slug = 'index' AND section_type = 'cta'
 ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
 
+-- Committee name/description translations
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'committee', id, 'en', 'name', CASE name
+  WHEN 'Clínica Legal' THEN 'Legal Clinic'
+  WHEN 'Clases de Inglés (ESL)' THEN 'ESL Classes'
+  WHEN 'Preparación Ciudadanía' THEN 'Citizenship Prep'
+  WHEN 'Despensa Comunitaria' THEN 'Community Food Pantry'
+  WHEN 'Jóvenes Unidos' THEN 'Youth United'
+  WHEN 'Cultura y Fiestas' THEN 'Culture & Celebrations'
+END
+FROM committees WHERE name IN ('Clínica Legal','Clases de Inglés (ESL)','Preparación Ciudadanía','Despensa Comunitaria','Jóvenes Unidos','Cultura y Fiestas')
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'committee', id, 'en', 'description', CASE name
+  WHEN 'Clínica Legal' THEN 'Free immigration legal consultations: DACA, work permits, asylum, and labor rights. In partnership with volunteer attorneys.'
+  WHEN 'Clases de Inglés (ESL)' THEN 'English as a Second Language classes for adults, beginner to advanced. Conversation on Wednesdays, grammar on Saturdays.'
+  WHEN 'Preparación Ciudadanía' THEN 'Monthly citizenship exam prep workshops. Mock interviews, civics study, and form assistance.'
+  WHEN 'Despensa Comunitaria' THEN 'Weekly fresh and non-perishable food distribution for neighborhood families. Thursdays 4-7 PM at the center.'
+  WHEN 'Jóvenes Unidos' THEN 'Mentoring and activities for youth ages 12-18. Tutoring, art, sports, and leadership development.'
+  WHEN 'Cultura y Fiestas' THEN 'Cultural event planning: Day of the Dead, Christmas Posada, Cinco de Mayo, markets, and community movie nights.'
+END
+FROM committees WHERE name IN ('Clínica Legal','Clases de Inglés (ESL)','Preparación Ciudadanía','Despensa Comunitaria','Jóvenes Unidos','Cultura y Fiestas')
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
+-- Forum category translations
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'forum_category', id, 'en', 'name', CASE name
+  WHEN 'Preguntas y Respuestas' THEN 'Questions & Answers'
+  WHEN 'Recursos Compartidos' THEN 'Shared Resources'
+  WHEN 'Empleos y Oportunidades' THEN 'Jobs & Opportunities'
+  WHEN 'Historias de Éxito' THEN 'Success Stories'
+  WHEN 'Avisos del Barrio' THEN 'Neighborhood Notices'
+END
+FROM forum_categories
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
 -- ============================================
 -- 15. FORUM TOPICS (15 topics)
 -- ============================================

@@ -1,8 +1,9 @@
 // event.js — Single event detail page with RSVP
 
-import { del, get, patch, post } from './api.js?v=5';
-import { getSession, isAdmin, isAuthenticated } from './auth.js?v=5';
-import { showToast } from './toast.js?v=5';
+import { del, get, patch, post } from './api.js?v=6';
+import { getSession, isAdmin, isAuthenticated } from './auth.js?v=6';
+import { translateItems } from './config.js?v=6';
+import { showToast } from './toast.js?v=6';
 
 export async function initEvent() {
   const id = new URLSearchParams(window.location.search).get('id');
@@ -18,6 +19,7 @@ export async function initEvent() {
       return;
     }
     const event = events[0];
+    await translateItems('event', [event], ['title', 'description']);
 
     // Check members-only access
     if (event.is_members_only && !isAuthenticated()) {
