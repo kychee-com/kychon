@@ -9,6 +9,8 @@
   "nav.profile": "Profile",
   "nav.sign_in": "Sign in",
   "nav.sign_out": "Sign out",
+  "nav.about": "About Us",
+  "nav.committees": "Programs",
 
   "auth.sign_in_title": "Welcome back",
   "auth.sign_up_title": "Create your account",

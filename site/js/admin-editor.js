@@ -1,7 +1,7 @@
 // admin-editor.js — Inline editing for admins
 // Loaded dynamically only when user role is admin
 
-import { patch } from './api.js?v=3';
+import { patch } from './api.js?v=5';
 
 const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
 const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';

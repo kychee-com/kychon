@@ -1,7 +1,7 @@
 // resources.js — Resource library logic
 
-import { del, get, post } from './api.js?v=3';
-import { isAdmin, isAuthenticated } from './auth.js?v=3';
+import { del, get, post } from './api.js?v=5';
+import { isAdmin, isAuthenticated } from './auth.js?v=5';
 
 let allResources = [];
 

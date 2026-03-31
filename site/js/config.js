@@ -1,10 +1,10 @@
 // @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
-import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=3';
-import { get } from './api.js?v=3';
-import { getRole, getSession, isAdmin } from './auth.js?v=3';
-import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=3';
+import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=5';
+import { get } from './api.js?v=5';
+import { getRole, getSession, isAdmin } from './auth.js?v=5';
+import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=5';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
@@ -91,6 +91,8 @@ const NAV_LABEL_KEYS = {
   Dashboard: 'nav.dashboard', Panel: 'nav.dashboard',
   Settings: 'nav.settings', 'Configuración': 'nav.settings',
   Profile: 'nav.profile', Perfil: 'nav.profile',
+  'About Us': 'nav.about', Nosotros: 'nav.about',
+  Committees: 'nav.committees', Programas: 'nav.committees', Ministries: 'nav.committees',
 };
 
 function buildNav(navItems) {
@@ -269,8 +271,9 @@ export async function init() {
 
 // Translation helper for user-generated content
 export async function getTranslatedContent(contentType, contentId, field) {
-  const locale = localStorage.getItem('wl_locale') || 'en';
-  if (locale === 'en') return null; // Original content is English
+  const locale = localStorage.getItem('wl_locale') || siteConfig.default_language || 'en';
+  const defaultLang = siteConfig.default_language || 'en';
+  if (locale === defaultLang) return null; // Already in the base language
   try {
     const rows = await get(
       `content_translations?content_type=eq.${contentType}&content_id=eq.${contentId}&language=eq.${locale}&field=eq.${field}&limit=1`,

@@ -1,8 +1,8 @@
 // event.js — Single event detail page with RSVP
 
-import { del, get, patch, post } from './api.js?v=3';
-import { getSession, isAdmin, isAuthenticated } from './auth.js?v=3';
-import { showToast } from './toast.js?v=3';
+import { del, get, patch, post } from './api.js?v=5';
+import { getSession, isAdmin, isAuthenticated } from './auth.js?v=5';
+import { showToast } from './toast.js?v=5';
 
 export async function initEvent() {
   const id = new URLSearchParams(window.location.search).get('id');

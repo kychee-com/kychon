@@ -1,7 +1,7 @@
 // forum.js — Forum categories, topics, and replies
 
-import { del, get, patch, post } from './api.js?v=3';
-import { getSession, isAdmin, isAuthenticated } from './auth.js?v=3';
+import { del, get, patch, post } from './api.js?v=5';
+import { getSession, isAdmin, isAuthenticated } from './auth.js?v=5';
 
 function esc(s) {
   const d = document.createElement('div');

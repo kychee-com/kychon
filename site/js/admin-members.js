@@ -1,7 +1,7 @@
 // admin-members.js — Member management
 
-import { get, patch } from './api.js?v=3';
-import { requireAdmin } from './auth.js?v=3';
+import { get, patch } from './api.js?v=5';
+import { requireAdmin } from './auth.js?v=5';
 
 let allMembers = [];
 let tiers = [];

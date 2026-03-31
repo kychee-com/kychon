@@ -959,6 +959,32 @@ INSERT INTO content_translations (content_type, content_id, language, field, tra
 SELECT 'page', id, 'en', 'content', '<img src="/assets/about.jpg" alt="Barrio Unido Community" style="width:100%;border-radius:0.75rem;margin-bottom:2rem"><h2>Our Story</h2><p>Barrio Unido was born in 2018 when a group of Boyle Heights neighbors decided our community deserved a space of its own — a place where anyone could find help, learn, connect, and celebrate.</p><p>What started as a table with coffee and immigration forms in Lucía Ramírez''s garage is now a community center serving over 2,400 families per year.</p><h2>Our Mission</h2><p>To empower immigrant and Latinx families in East Los Angeles by providing legal services, education, food, and cultural spaces — all free, all with dignity.</p><h2>How to Get Involved</h2><p>It doesn''t matter if you speak Spanish, English, or both. It doesn''t matter what your immigration status is. It doesn''t matter how long you''ve been in the neighborhood. <strong>There''s a place for you here.</strong></p><ul><li>Come to an event and meet the community</li><li>Sign up as a volunteer</li><li>Donate to our food pantry</li><li>Share our resources with someone who needs them</li></ul>' FROM pages WHERE slug = 'nosotros'
 ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
 
+-- Section config translations (full JSON config in English)
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'section', id, 'en', 'config', '{"heading":"Welcome to Barrio Unido","subheading":"Your community center in the heart of Boyle Heights. ESL classes, legal clinic, food pantry, cultural events, and more — all free, all for you.","cta_text":"Join the community","cta_href":"/page.html?slug=nosotros","bg_image":"/assets/hero.jpg"}'
+FROM sections WHERE page_slug = 'index' AND section_type = 'hero'
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'section', id, 'en', 'config', '{"items":[{"value":"2,400+","label":"Families served"},{"value":"850+","label":"ESL classes completed"},{"value":"340+","label":"Legal consultations"},{"value":"60+","label":"Events per year"}]}'
+FROM sections WHERE page_slug = 'index' AND section_type = 'stats'
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'section', id, 'en', 'config', '{"columns":3,"items":[{"icon":"shield","title":"Legal Clinic","desc":"Free consultations with immigration attorneys. DACA, work permits, asylum, citizenship."},{"icon":"book-open","title":"ESL Classes","desc":"English classes for adults, from beginner to advanced. Conversation and grammar classes."},{"icon":"file-text","title":"Citizenship","desc":"Monthly exam prep workshops. Mock interviews and help with forms."},{"icon":"heart","title":"Food Pantry","desc":"Weekly fresh food distribution for neighborhood families. Tuesdays and Thursdays, 4-7 PM."},{"icon":"users","title":"Youth United","desc":"Mentoring, tutoring, art, and sports for youth ages 12-18."},{"icon":"calendar","title":"Culture & Celebrations","desc":"Day of the Dead, Christmas Posada, markets, movie nights, and more."}]}'
+FROM sections WHERE page_slug = 'index' AND section_type = 'features'
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'section', id, 'en', 'config', '{"items":[{"quote":"Barrio Unido helped me get my citizenship after 18 years in this country. I have no words to thank Lucía and Ana.","name":"María Elena Ríos","role":"Promotora"},{"quote":"My kids found a second family in the youth program. Adriana and Óscar have been incredible mentors. This place changes lives.","name":"Jennifer Tran","role":"Social Worker & Volunteer"},{"quote":"I arrived without speaking a word of English. Now I can talk to the doctor, my kids'' teacher, my boss. Thank you, Professor Carlos.","name":"Pedro Gutiérrez","role":"Construction Volunteer"}]}'
+FROM sections WHERE page_slug = 'index' AND section_type = 'testimonials'
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
+INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
+SELECT 'section', id, 'en', 'config', '{"heading":"The barrio needs you — and you need us","text":"Whether you''re new to the neighborhood or have lived here your whole life, there''s a place for you at Barrio Unido. Come meet us.","cta_text":"Become a volunteer","cta_href":"/page.html?slug=nosotros"}'
+FROM sections WHERE page_slug = 'index' AND section_type = 'cta'
+ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
+
 -- ============================================
 -- 15. FORUM TOPICS (15 topics)
 -- ============================================
