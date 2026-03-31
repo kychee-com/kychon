@@ -78,6 +78,7 @@
     </div>
   </div>
 
+  <script src="/js/animations.js"></script>
   <script src="/js/env.js"></script>
   <script type="module">
     import { init, isFeatureEnabled } from './js/config.js';
@@ -194,6 +195,13 @@
             </div>`;
           break;
 
+        case 'event-countdown':
+          if (!isFeatureEnabled('feature_events')) { el.style.display = 'none'; break; }
+          el.className = 'section section-event-countdown';
+          el.innerHTML = `<div class="container" id="event-countdown-inner"><p class="text-muted">Loading...</p></div>`;
+          loadEventCountdown(el.querySelector('#event-countdown-inner'));
+          break;
+
         case 'activity_feed':
           if (!isFeatureEnabled('feature_activity_feed')) { el.style.display = 'none'; break; }
           el.className = 'section section-activity-feed';
@@ -285,6 +293,48 @@
       }
     }
 
+    // --- Event countdown ---
+    async function loadEventCountdown(container) {
+      if (!container) return;
+      try {
+        const now = new Date().toISOString();
+        const events = await get(`events?start_date=gt.${now}&order=start_date.asc&limit=1`);
+        if (events.length === 0) {
+          container.closest('.section').style.display = 'none';
+          return;
+        }
+        const evt = events[0];
+        const targetDate = new Date(evt.start_date);
+
+        function renderCountdown() {
+          const diff = targetDate.getTime() - Date.now();
+          if (diff <= 0) {
+            container.innerHTML = `
+              <h3 class="countdown-event-title"><a href="event.html?id=${evt.id}">${esc(evt.title)}</a></h3>
+              <p class="text-muted mt-1">Happening now!</p>`;
+            return;
+          }
+          const days = Math.floor(diff / 86400000);
+          const hours = Math.floor((diff % 86400000) / 3600000);
+          const minutes = Math.floor((diff % 3600000) / 60000);
+          container.innerHTML = `
+            <p class="text-muted text-sm" style="text-transform:uppercase;letter-spacing:0.05em">Coming up</p>
+            <h3 class="countdown-event-title mt-1"><a href="event.html?id=${evt.id}">${esc(evt.title)}</a></h3>
+            <div class="countdown-digits">
+              <div class="countdown-unit"><span class="countdown-value">${days}</span><span class="countdown-label">days</span></div>
+              <div class="countdown-unit"><span class="countdown-value">${hours}</span><span class="countdown-label">hours</span></div>
+              <div class="countdown-unit"><span class="countdown-value">${minutes}</span><span class="countdown-label">min</span></div>
+            </div>
+            <a href="event.html?id=${evt.id}" class="btn btn-primary">View Event</a>`;
+        }
+
+        renderCountdown();
+        setInterval(renderCountdown, 60000);
+      } catch (e) {
+        container.closest('.section').style.display = 'none';
+      }
+    }
+
     // --- Reactions ---
     const EMOJI_MAP = { like: '\u{1F44D}', heart: '\u2764\uFE0F', celebrate: '\u{1F389}', laugh: '\u{1F604}', think: '\u{1F914}' };
     const EMOJI_CODES = Object.keys(EMOJI_MAP);
@@ -312,22 +362,51 @@
       return `<div class="reaction-bar">${badges}${picker}</div>`;
     }
 
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function animateReaction(badge, emoji) {
+      if (reducedMotion) return;
+      // Pop animation on badge
+      badge.classList.remove('pop');
+      void badge.offsetWidth; // force reflow to restart animation
+      badge.classList.add('pop');
+      badge.addEventListener('animationend', () => badge.classList.remove('pop'), { once: true });
+
+      // Floating emoji
+      const rect = badge.getBoundingClientRect();
+      const floater = document.createElement('span');
+      floater.className = 'reaction-float-emoji';
+      floater.textContent = EMOJI_MAP[emoji] || emoji;
+      floater.style.left = rect.left + rect.width / 2 - 10 + 'px';
+      floater.style.top = rect.top - 10 + window.scrollY + 'px';
+      floater.style.position = 'absolute';
+      document.body.appendChild(floater);
+      floater.addEventListener('animationend', () => floater.remove(), { once: true });
+    }
+
     async function toggleReaction(announcementId, emoji) {
       const session = getSession();
       if (!session) return;
       const memberId = session.user?.member?.id;
       if (!memberId) return;
 
-      // Check if already reacted
       const existing = await get(`reactions?content_type=eq.announcement&content_id=eq.${announcementId}&member_id=eq.${memberId}&emoji=eq.${emoji}`);
-      if (existing.length > 0) {
+      const isAdding = existing.length === 0;
+
+      if (!isAdding) {
         await del(`reactions?id=eq.${existing[0].id}`);
       } else {
         await post('reactions', { content_type: 'announcement', content_id: announcementId, member_id: memberId, emoji });
         // Log activity
         await post('activity_log', { member_id: memberId, action: 'reaction', metadata: { content_type: 'announcement', content_id: announcementId, emoji } });
       }
-      renderAnnouncements();
+      await renderAnnouncements();
+
+      // Animate the newly rendered badge if it was an add
+      if (isAdding) {
+        const badge = document.querySelector(`.reaction-badge[data-ann-id="${announcementId}"][data-emoji="${emoji}"]`);
+        if (badge) animateReaction(badge, emoji);
+      }
     }
 
     // --- Render announcements ---
