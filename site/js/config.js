@@ -1,13 +1,54 @@
 // @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
-import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=6';
-import { get } from './api.js?v=6';
-import { getRole, getSession, isAdmin } from './auth.js?v=6';
-import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=6';
+import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=8';
+import { get } from './api.js?v=8';
+import { getRole, getSession, isAdmin } from './auth.js?v=8';
+import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=8';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
+
+// --- Cache layer (stale-while-revalidate) ---
+const WL_CACHE_CONFIG = 'wl_cache_site_config';
+const WL_CACHE_MEMBER_PREFIX = 'wl_cache_member_';
+const CONFIG_TTL = 5 * 60 * 1000; // 5 minutes
+const MEMBER_TTL = 10 * 60 * 1000; // 10 minutes
+
+function readCache(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.data ?? null;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function writeCache(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
+  } catch {
+    // QuotaExceededError or disabled — skip silently
+  }
+}
+
+function isFresh(key, ttlMs) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+    const { ts } = JSON.parse(raw);
+    return typeof ts === 'number' && ts + ttlMs > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+export function clearCache(key) {
+  localStorage.removeItem(key);
+}
 
 const siteConfig = {};
 const features = {};
@@ -199,19 +240,43 @@ function buildLanguageSwitcher() {
   userEl.prepend(btn);
 }
 
+function applyMemberToSession(member) {
+  const session = getSession();
+  if (!session) return;
+  session.user.member = member;
+  localStorage.setItem('wl_session', JSON.stringify(session));
+}
+
 async function loadMemberRecord() {
   const session = getSession();
   if (!session) return;
+
+  const cacheKey = WL_CACHE_MEMBER_PREFIX + session.user.id;
+  const cached = readCache(cacheKey);
+  if (cached) {
+    applyMemberToSession(cached);
+    // Background refresh if stale
+    if (!isFresh(cacheKey, MEMBER_TTL)) {
+      get(`members?user_id=eq.${session.user.id}&limit=1`).then((members) => {
+        if (members?.[0]) {
+          writeCache(cacheKey, members[0]);
+          if (JSON.stringify(members[0]) !== JSON.stringify(cached)) {
+            applyMemberToSession(members[0]);
+            buildUserNav();
+          }
+        }
+      }).catch(() => {});
+    }
+    return;
+  }
+
+  // Cache miss — blocking fetch (first visit)
   try {
     const members = await get(`members?user_id=eq.${session.user.id}&limit=1`);
     if (members?.[0]) {
-      session.user.member = members[0];
-      localStorage.setItem('wl_session', JSON.stringify(session));
+      applyMemberToSession(members[0]);
+      writeCache(cacheKey, members[0]);
     }
-    // Note: on-signup is now called automatically by Run402 as a lifecycle hook.
-    // If the member record doesn't exist yet (race condition on first page load
-    // right after signup), the nav will render without admin controls and the
-    // next page load will pick it up.
   } catch (e) {
     console.warn('loadMemberRecord failed:', e);
   }
@@ -226,37 +291,75 @@ async function loadAdminEditor() {
   document.head.appendChild(script);
 }
 
-export async function init() {
-  // Load site config
-  try {
-    const rows = await get('site_config');
-    for (const row of rows) {
-      siteConfig[row.key] = row.value;
-      if (row.key.startsWith('feature_') || row.key === 'directory_public') {
-        features[row.key] = row.value === true || row.value === 'true';
-      }
+function populateConfigFromRows(rows) {
+  for (const row of rows) {
+    siteConfig[row.key] = row.value;
+    if (row.key.startsWith('feature_') || row.key === 'directory_public') {
+      features[row.key] = row.value === true || row.value === 'true';
     }
-  } catch (e) {
-    console.warn('Failed to load site_config:', e);
   }
+}
 
-  // Apply theme
-  applyTheme(siteConfig.theme);
+const ADMIN_PATHS = ['/admin.html', '/admin-members.html', '/admin-settings.html'];
 
-  // Apply branding
-  applyBranding(siteConfig);
+export async function init() {
+  const isAdminPage = ADMIN_PATHS.includes(window.location.pathname);
 
-  // Load i18n — pass DB languages if available
-  if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
-  await loadLocale(null, siteConfig.default_language);
+  // Try cache first (skip on admin pages — admins need fresh data)
+  const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG) : null;
 
-  // Load member record for authenticated users (must happen before nav build)
-  await loadMemberRecord();
+  if (cached) {
+    // Cache hit — render immediately from cached data
+    populateConfigFromRows(cached);
+    applyTheme(siteConfig.theme);
+    applyBranding(siteConfig);
 
-  // Build nav (after member record is loaded so admin role is known)
-  buildNav(siteConfig.nav);
-  buildUserNav();
-  buildA11yToolbar();
+    if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
+    await loadLocale(null, siteConfig.default_language);
+
+    await loadMemberRecord();
+
+    buildNav(siteConfig.nav);
+    buildUserNav();
+    buildA11yToolbar();
+
+    // Background refresh if stale
+    if (!isFresh(WL_CACHE_CONFIG, CONFIG_TTL)) {
+      get('site_config').then((rows) => {
+        writeCache(WL_CACHE_CONFIG, rows);
+        if (JSON.stringify(rows) !== JSON.stringify(cached)) {
+          // Clear and re-populate with fresh data
+          for (const key of Object.keys(siteConfig)) delete siteConfig[key];
+          for (const key of Object.keys(features)) delete features[key];
+          populateConfigFromRows(rows);
+          applyTheme(siteConfig.theme);
+          applyBranding(siteConfig);
+          buildNav(siteConfig.nav);
+        }
+      }).catch(() => {});
+    }
+  } else {
+    // Cache miss (first visit or admin page) — blocking fetch
+    try {
+      const rows = await get('site_config');
+      populateConfigFromRows(rows);
+      writeCache(WL_CACHE_CONFIG, rows);
+    } catch (e) {
+      console.warn('Failed to load site_config:', e);
+    }
+
+    applyTheme(siteConfig.theme);
+    applyBranding(siteConfig);
+
+    if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
+    await loadLocale(null, siteConfig.default_language);
+
+    await loadMemberRecord();
+
+    buildNav(siteConfig.nav);
+    buildUserNav();
+    buildA11yToolbar();
+  }
 
   // Mobile nav toggle
   document.getElementById('nav-toggle')?.addEventListener('click', () => {
@@ -316,6 +419,51 @@ export async function translateItems(contentType, items, fields) {
     // translation fetch failed, use originals
   }
   return items;
+}
+
+/**
+ * Add a Twitter-style "Translate" link to a DOM element containing user-generated content.
+ * When clicked, calls the AI translation function and shows the result inline.
+ * @param {HTMLElement} el - the element containing the original text
+ * @param {string} text - the original text to translate
+ */
+export function addTranslateButton(el, text) {
+  if (!text || text.length < 10) return;
+  const locale = localStorage.getItem('wl_locale') || siteConfig.default_language || 'en';
+  const defaultLang = siteConfig.default_language || 'en';
+  // Only show translate button when the user's locale differs from the content's base language
+  if (locale === defaultLang) return;
+
+  const link = document.createElement('button');
+  link.className = 'translate-link';
+  link.textContent = t('common.translate') || 'Translate';
+  link.addEventListener('click', async () => {
+    link.textContent = t('common.translating') || 'Translating...';
+    link.disabled = true;
+    try {
+      const res = await fetch(`${window.__WILDLYCHEE_API}/functions/v1/translate-text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${window.__WILDLYCHEE_ANON_KEY}`,
+          apikey: window.__WILDLYCHEE_ANON_KEY,
+        },
+        body: JSON.stringify({ text, target_lang: locale }),
+      });
+      const data = await res.json();
+      if (data.translated) {
+        const translatedEl = document.createElement('div');
+        translatedEl.className = 'translated-content';
+        translatedEl.innerHTML = `<div class="translated-text">${data.translated}</div><span class="translated-label">${t('common.translated_by_ai') || 'Translated by AI'}</span>`;
+        link.replaceWith(translatedEl);
+      } else {
+        link.textContent = t('common.translation_failed') || 'Translation unavailable';
+      }
+    } catch {
+      link.textContent = t('common.translation_failed') || 'Translation unavailable';
+    }
+  });
+  el.after(link);
 }
 
 export { features, siteConfig };

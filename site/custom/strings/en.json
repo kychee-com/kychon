@@ -122,5 +122,10 @@
   "common.actions": "Actions",
 
   "members.count_one": "{{count}} member",
-  "members.count": "{{count}} members"
+  "members.count": "{{count}} members",
+
+  "common.translate": "Translate",
+  "common.translating": "Translating...",
+  "common.translated_by_ai": "Translated by AI",
+  "common.translation_failed": "Translation unavailable"
 }

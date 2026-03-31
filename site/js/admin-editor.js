@@ -1,7 +1,8 @@
 // admin-editor.js — Inline editing for admins
 // Loaded dynamically only when user role is admin
 
-import { patch } from './api.js?v=6';
+import { patch } from './api.js?v=8';
+import { clearCache } from './config.js?v=8';
 
 const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
 const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
@@ -20,6 +21,7 @@ function initEditableText() {
       if (!table || !id || !field) return;
       try {
         await patch(`${table}?id=eq.${id}`, { [field]: el.textContent.trim() });
+        if (table === 'site_config') clearCache('wl_cache_site_config');
       } catch (e) {
         console.error('Save failed:', e);
       }
@@ -71,6 +73,7 @@ function initEditableRich() {
           const html = editor.getHTML();
           try {
             await patch(`${table}?id=eq.${id}`, { [field]: html });
+            if (table === 'site_config') clearCache('wl_cache_site_config');
           } catch (e) {
             console.error('Rich text save failed:', e);
           }

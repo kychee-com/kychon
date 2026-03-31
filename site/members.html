@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Our Members</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css?v=8">
+  <link rel="stylesheet" href="/css/a11y.css?v=2">
+  <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
+  <style>
+    .members-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .member-profile {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      transition: transform 200ms ease, box-shadow 200ms ease;
+    }
+    .member-profile:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .member-profile-avatar {
+      width: 6rem;
+      height: 6rem;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 1rem;
+      display: block;
+      border: 3px solid var(--color-surface);
+    }
+    .member-profile-fallback {
+      width: 6rem;
+      height: 6rem;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-primary);
+      color: white;
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+    .member-profile-name {
+      font-family: var(--font-heading);
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .member-profile-role {
+      font-size: 0.8125rem;
+      color: var(--color-primary);
+      font-weight: 500;
+      margin-bottom: 0.75rem;
+    }
+    .member-profile-bio {
+      font-size: 0.9375rem;
+      color: var(--color-text-muted);
+      line-height: 1.6;
+      font-style: italic;
+    }
+    .members-intro {
+      text-align: center;
+      max-width: 40rem;
+      margin: 0 auto 2.5rem;
+    }
+    .members-intro p {
+      font-size: 1.125rem;
+      color: var(--color-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
+  <div class="page">
+    <nav class="nav" aria-label="Primary navigation">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content" id="main-content">
+      <div class="container">
+        <div class="members-intro">
+          <h1 class="mb-2">Our Community</h1>
+          <p>The people who make Silver Pines feel like home. From retired teachers to master gardeners, tech helpers to tai chi instructors — meet your neighbors.</p>
+        </div>
+        <div class="members-grid" id="members-grid">
+          <div class="card"><div class="skeleton skeleton-card"></div></div>
+          <div class="card"><div class="skeleton skeleton-card"></div></div>
+          <div class="card"><div class="skeleton skeleton-card"></div></div>
+          <div class="card"><div class="skeleton skeleton-card"></div></div>
+          <div class="card"><div class="skeleton skeleton-card"></div></div>
+          <div class="card"><div class="skeleton skeleton-card"></div></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer" aria-label="Site footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a></p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/js/animations.js?v=2"></script>
+  <script src="/js/env.js"></script>
+  <script type="module">
+    import { get } from './js/api.js?v=8';
+    import { init } from './js/config.js?v=8';
+
+    await init();
+
+    try {
+      const [members, tiers] = await Promise.all([
+        get('members?status=eq.active&order=joined_at.asc'),
+        get('membership_tiers?order=position.asc'),
+      ]);
+      const tierMap = Object.fromEntries(tiers.map(t => [t.id, t.name]));
+
+      const grid = document.getElementById('members-grid');
+      grid.innerHTML = members.map(m => `
+        <div class="member-profile">
+          ${m.avatar_url
+            ? `<img class="member-profile-avatar" src="${esc(m.avatar_url)}" alt="${esc(m.display_name)}">`
+            : `<div class="member-profile-fallback">${(m.display_name || '?')[0].toUpperCase()}</div>`}
+          <div class="member-profile-name">${esc(m.display_name)}</div>
+          <div class="member-profile-role">${esc(tierMap[m.tier_id] || 'Member')}</div>
+          ${m.bio ? `<p class="member-profile-bio">"${esc(m.bio)}"</p>` : ''}
+        </div>
+      `).join('');
+    } catch (e) {
+      document.getElementById('members-grid').innerHTML = '<p class="text-muted">Could not load members.</p>';
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  </script>
+  <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
