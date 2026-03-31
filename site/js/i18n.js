@@ -30,7 +30,7 @@ export function t(key, vars = {}) {
 async function fetchLocale(lang) {
   if (cache[lang]) return cache[lang];
   try {
-    const res = await fetch(`/custom/strings/${lang}.json?v=5`);
+    const res = await fetch(`/custom/strings/${lang}.json?v=6`);
     if (!res.ok) return {};
     const data = await res.json();
     cache[lang] = data;

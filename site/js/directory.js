@@ -1,8 +1,8 @@
 // directory.js — Member directory logic
 
-import { get } from './api.js?v=5';
-import { requireAuth } from './auth.js?v=5';
-import { getConfig } from './config.js?v=5';
+import { get } from './api.js?v=6';
+import { requireAuth } from './auth.js?v=6';
+import { getConfig } from './config.js?v=6';
 
 let allMembers = [];
 let tiers = [];

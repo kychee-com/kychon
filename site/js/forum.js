@@ -1,7 +1,8 @@
 // forum.js — Forum categories, topics, and replies
 
-import { del, get, patch, post } from './api.js?v=5';
-import { getSession, isAdmin, isAuthenticated } from './auth.js?v=5';
+import { del, get, patch, post } from './api.js?v=6';
+import { getSession, isAdmin, isAuthenticated } from './auth.js?v=6';
+import { translateItems } from './config.js?v=6';
 
 function esc(s) {
   const d = document.createElement('div');
@@ -42,6 +43,7 @@ async function renderCategoryListing(root) {
   let categories = [];
   try {
     categories = await get('forum_categories?order=position.asc');
+    await translateItems('forum_category', categories, ['name', 'description']);
   } catch (e) {
     console.warn('Failed to load forum categories:', e);
     root.innerHTML = '<p class="text-muted">Could not load forum categories.</p>';

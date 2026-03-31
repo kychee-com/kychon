@@ -1,7 +1,8 @@
 // committees.js — Committee listing and detail
 
-import { del, get, post } from './api.js?v=5';
-import { isAdmin } from './auth.js?v=5';
+import { del, get, post } from './api.js?v=6';
+import { isAdmin } from './auth.js?v=6';
+import { translateItems } from './config.js?v=6';
 
 export async function initCommittees() {
   const id = new URLSearchParams(window.location.search).get('id');
@@ -18,6 +19,7 @@ async function renderCommitteeList() {
 
   try {
     const committees = await get('committees?order=name.asc');
+    await translateItems('committee', committees, ['name', 'description']);
     // Get member counts
     const members = await get('committee_members?select=committee_id');
     const countMap = {};
@@ -64,6 +66,7 @@ async function renderCommitteeDetail(id) {
       return;
     }
     const committee = committees[0];
+    await translateItems('committee', [committee], ['name', 'description']);
     const members = await get(`committee_members?committee_id=eq.${id}&select=*,members(display_name,avatar_url)`);
     const allMembers = isAdmin() ? await get('members?status=eq.active&order=display_name.asc') : [];
 

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Us</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css?v=6">
+  <link rel="stylesheet" href="/css/a11y.css?v=2">
+  <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
+  <style>
+    .join-page { max-width: 40rem; margin: 0 auto; padding: 3rem 1.5rem; }
+    .join-header { text-align: center; margin-bottom: 2.5rem; }
+    .join-header p { color: var(--color-text-muted); font-size: 1.1rem; margin-top: 0.75rem; }
+    .join-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .join-form .form-hint { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.25rem; }
+    .join-form fieldset { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .join-form legend { font-weight: 600; padding: 0 0.5rem; font-size: 0.95rem; }
+    .join-form .tier-options { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+    .join-form .tier-option { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius); cursor: pointer; transition: border-color var(--transition), background var(--transition); }
+    .join-form .tier-option:hover { border-color: var(--color-primary); }
+    .join-form .tier-option input[type="radio"] { margin-top: 0.25rem; }
+    .join-form .tier-option .tier-name { font-weight: 600; }
+    .join-form .tier-option .tier-price { font-size: 0.85rem; color: var(--color-text-muted); }
+    .join-form .tier-option .tier-desc { font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.25rem; }
+    .join-success { text-align: center; padding: 3rem 1.5rem; display: none; }
+    .join-success .checkmark { font-size: 3rem; margin-bottom: 1rem; }
+    .join-success h2 { margin-bottom: 0.75rem; }
+    .join-success p { color: var(--color-text-muted); max-width: 28rem; margin: 0 auto; }
+    @media (max-width: 600px) { .join-form .form-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
+  <div class="page">
+    <nav class="nav" aria-label="Primary navigation">
+      <div class="container">
+        <a href="/" class="nav-brand">
+          <img src="" alt="" style="display:none">
+          <span class="nav-brand-text">Wild Lychee</span>
+        </a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+
+    <main class="page-content" id="main-content">
+      <div class="join-page" id="join-page">
+        <div class="join-header">
+          <h1 id="join-title">Join Us</h1>
+          <p id="join-subtitle">Fill out the form below and we'll get back to you within 48 hours.</p>
+        </div>
+
+        <form class="join-form" id="join-form" novalidate>
+          <fieldset>
+            <legend>About You</legend>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="first-name">First Name *</label>
+                <input class="form-input" type="text" id="first-name" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="last-name">Last Name *</label>
+                <input class="form-input" type="text" id="last-name" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="email">Email *</label>
+              <input class="form-input" type="email" id="email" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="phone">Phone</label>
+              <input class="form-input" type="tel" id="phone" placeholder="(316) 555-1234">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="address">Neighborhood / Area</label>
+              <input class="form-input" type="text" id="address" placeholder="e.g. Riverside, College Hill, Downtown">
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Membership Tier</legend>
+            <div class="tier-options" id="tier-options">
+              <label class="tier-option">
+                <input type="radio" name="tier" value="volunteer" checked>
+                <div>
+                  <div class="tier-name">Volunteer</div>
+                  <div class="tier-price">Free</div>
+                  <div class="tier-desc">Event sign-ups, forum access, and announcements.</div>
+                </div>
+              </label>
+              <label class="tier-option">
+                <input type="radio" name="tier" value="supporter">
+                <div>
+                  <div class="tier-name">Supporter</div>
+                  <div class="tier-price">$25 / year</div>
+                  <div class="tier-desc">Everything in Volunteer plus committee membership and voting rights.</div>
+                </div>
+              </label>
+              <label class="tier-option">
+                <input type="radio" name="tier" value="champion">
+                <div>
+                  <div class="tier-name">Champion</div>
+                  <div class="tier-price">$100 / year</div>
+                  <div class="tier-desc">All benefits plus recognition at events and annual gala invitation.</div>
+                </div>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Interests</legend>
+            <div class="form-group">
+              <label class="form-label" for="interests">What areas interest you most?</label>
+              <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem" id="interest-chips">
+                <label style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;border:1px solid var(--color-border);border-radius:2rem;font-size:0.85rem;cursor:pointer;transition:all 150ms ease">
+                  <input type="checkbox" name="interests" value="food-drives" style="display:none"> Food Drives
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;border:1px solid var(--color-border);border-radius:2rem;font-size:0.85rem;cursor:pointer;transition:all 150ms ease">
+                  <input type="checkbox" name="interests" value="habitat" style="display:none"> Habitat Builds
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;border:1px solid var(--color-border);border-radius:2rem;font-size:0.85rem;cursor:pointer;transition:all 150ms ease">
+                  <input type="checkbox" name="interests" value="youth" style="display:none"> Youth Mentoring
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;border:1px solid var(--color-border);border-radius:2rem;font-size:0.85rem;cursor:pointer;transition:all 150ms ease">
+                  <input type="checkbox" name="interests" value="parks" style="display:none"> Park Cleanups
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;border:1px solid var(--color-border);border-radius:2rem;font-size:0.85rem;cursor:pointer;transition:all 150ms ease">
+                  <input type="checkbox" name="interests" value="meals" style="display:none"> Community Meals
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;border:1px solid var(--color-border);border-radius:2rem;font-size:0.85rem;cursor:pointer;transition:all 150ms ease">
+                  <input type="checkbox" name="interests" value="fundraising" style="display:none"> Fundraising
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="message">Anything else you'd like us to know?</label>
+              <textarea class="form-textarea" id="message" rows="3" placeholder="Skills, availability, how you heard about us..."></textarea>
+            </div>
+          </fieldset>
+
+          <button type="submit" class="btn btn-primary btn-lg" style="width:100%">Submit Application</button>
+        </form>
+
+        <div class="join-success" id="join-success">
+          <div class="checkmark">&#10003;</div>
+          <h2>Application Received!</h2>
+          <p>Thanks for your interest in joining. A board member will review your application and reach out within 48 hours. In the meantime, feel free to browse our upcoming events.</p>
+          <a href="/events.html" class="btn btn-primary mt-2">Browse Events</a>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer" aria-label="Site footer">
+      <div class="container">
+        <p>Powered by <a href="https://wildlychee.com">Wild Lychee</a> on <a href="https://run402.com">Run402</a></p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/js/env.js"></script>
+  <script type="module">
+    import { init } from './js/config.js?v=6';
+    await init();
+
+    // Interest chip toggle styling
+    document.querySelectorAll('#interest-chips label').forEach(label => {
+      const cb = label.querySelector('input[type="checkbox"]');
+      cb.addEventListener('change', () => {
+        label.style.background = cb.checked ? 'var(--color-primary)' : '';
+        label.style.color = cb.checked ? '#fff' : '';
+        label.style.borderColor = cb.checked ? 'var(--color-primary)' : 'var(--color-border)';
+      });
+    });
+
+    // Form submission (demo: just show success)
+    document.getElementById('join-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.target;
+      // Basic validation
+      const firstName = document.getElementById('first-name').value.trim();
+      const lastName = document.getElementById('last-name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      if (!firstName || !lastName || !email) {
+        const first = form.querySelector(':invalid');
+        if (first) first.focus();
+        return;
+      }
+      // Show success
+      document.getElementById('join-page').querySelector('.join-form').style.display = 'none';
+      document.getElementById('join-page').querySelector('.join-header').style.display = 'none';
+      document.getElementById('join-success').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+  <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

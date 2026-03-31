@@ -1,7 +1,8 @@
 // events.js — Event listing and RSVP logic
 
-import { get, post } from './api.js?v=5';
-import { getSession, isAdmin } from './auth.js?v=5';
+import { get, post } from './api.js?v=6';
+import { getSession, isAdmin } from './auth.js?v=6';
+import { translateItems } from './config.js?v=6';
 
 let allEvents = [];
 
@@ -16,6 +17,7 @@ export async function initEvents() {
 async function loadEvents() {
   try {
     allEvents = await get('events?order=starts_at.asc');
+    await translateItems('event', allEvents, ['title', 'description']);
     renderEvents();
   } catch (e) {
     console.warn('Failed to load events:', e);
