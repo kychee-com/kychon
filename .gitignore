@@ -3,5 +3,7 @@ app.json
 coverage/
 .env
 *.local
-.migrations.sql
+.migrations*.sql
+app-*.json
 demo/*/assets/
+marketing/.marketing-manifest.json
