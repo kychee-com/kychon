@@ -378,10 +378,9 @@ a:hover {
   inset: 0;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-primary) 60%, #000) 0%,
-    color-mix(in srgb, var(--color-primary) 40%, #000) 100%
+    color-mix(in srgb, var(--color-primary) 80%, transparent) 0%,
+    color-mix(in srgb, var(--color-primary) 60%, transparent) 100%
   );
-  opacity: 0.85;
 }
 .section-hero[style*="background-image"] .container {
   position: relative;
