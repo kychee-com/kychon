@@ -1,6 +1,4 @@
-(function () {
-  'use strict';
-
+(() => {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   if (prefersReducedMotion) return;
@@ -8,35 +6,40 @@
   // --- Scroll fade-in ---
   let staggerIndex = 0;
 
-  const observer = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (!entry.isIntersecting) return;
-      const el = entry.target;
-      el.style.transitionDelay = (staggerIndex * 100) + 'ms';
-      staggerIndex++;
-      el.classList.add('section-visible');
-      observer.unobserve(el);
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        el.style.transitionDelay = `${staggerIndex * 100}ms`;
+        staggerIndex++;
+        el.classList.add('section-visible');
+        observer.unobserve(el);
 
-      // Trigger stat counters if this is a stats section
-      if (el.classList.contains('section-stats')) {
-        animateStatCounters(el);
-      }
-    });
-    // Reset stagger after batch
-    setTimeout(function () { staggerIndex = 0; }, 50);
-  }, { threshold: 0.15 });
+        // Trigger stat counters if this is a stats section
+        if (el.classList.contains('section-stats')) {
+          animateStatCounters(el);
+        }
+      });
+      // Reset stagger after batch
+      setTimeout(() => {
+        staggerIndex = 0;
+      }, 50);
+    },
+    { threshold: 0.15 },
+  );
 
   // Observe sections once DOM is ready
   function observeSections() {
-    document.querySelectorAll('.section').forEach(function (el) {
+    document.querySelectorAll('.section').forEach((el) => {
       observer.observe(el);
     });
   }
 
   // MutationObserver to catch dynamically added sections
-  const mutObs = new MutationObserver(function (mutations) {
-    mutations.forEach(function (m) {
-      m.addedNodes.forEach(function (node) {
+  const mutObs = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+      m.addedNodes.forEach((node) => {
         if (node.nodeType === 1 && node.classList && node.classList.contains('section')) {
           observer.observe(node);
         }
@@ -53,11 +56,11 @@
 
   // --- Stat counter animation ---
   function easeOutExpo(t) {
-    return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+    return t >= 1 ? 1 : 1 - 2 ** (-10 * t);
   }
 
   function animateStatCounters(section) {
-    section.querySelectorAll('.stat-value').forEach(function (el) {
+    section.querySelectorAll('.stat-value').forEach((el) => {
       var text = el.textContent.trim();
       // Extract prefix (e.g. "$"), number, suffix (e.g. "+", "%")
       var match = text.match(/^([^\d]*?)([\d,]+(?:\.\d+)?)(.*)$/);
@@ -94,7 +97,7 @@
 
     function findHero() {
       var hero = document.querySelector('.section-hero');
-      if (hero && hero.style.backgroundImage) {
+      if (hero?.style.backgroundImage) {
         heroEl = hero;
         hero.style.backgroundSize = 'cover';
         hero.style.backgroundPosition = 'center';
@@ -106,19 +109,19 @@
     function onScroll() {
       if (!heroEl || ticking) return;
       ticking = true;
-      requestAnimationFrame(function () {
+      requestAnimationFrame(() => {
         var rect = heroEl.getBoundingClientRect();
         // Only apply parallax when hero is visible
         if (rect.bottom > 0 && rect.top < window.innerHeight) {
           var offset = window.scrollY * 0.3;
-          heroEl.style.backgroundPosition = 'center ' + (-offset) + 'px';
+          heroEl.style.backgroundPosition = `center ${-offset}px`;
         }
         ticking = false;
       });
     }
 
     // Wait for hero to be rendered
-    var heroCheck = new MutationObserver(function () {
+    var heroCheck = new MutationObserver(() => {
       findHero();
       if (heroEl) {
         heroCheck.disconnect();

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 // Pure logic extracted from index.html activity feed renderer
 
@@ -21,11 +21,11 @@ function timeAgo(iso) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return 'just now';
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + 'm ago';
+  if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours + 'h ago';
+  if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return days + 'd ago';
+  if (days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
@@ -57,7 +57,11 @@ describe('activity feed rendering', () => {
     });
 
     it('renders reaction action', () => {
-      const text = renderActivityText('reaction', 'Frank', { content_type: 'announcement', content_id: 1, emoji: 'heart' });
+      const text = renderActivityText('reaction', 'Frank', {
+        content_type: 'announcement',
+        content_id: 1,
+        emoji: 'heart',
+      });
       expect(text).toBe('Frank reacted to announcement');
     });
 

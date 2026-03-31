@@ -1,9 +1,8 @@
 // admin.js — Admin dashboard logic
 
-import { get, post, count, patch } from './api.js';
+import { API, count, get, getAuthHeaders, patch } from './api.js';
 import { requireAdmin } from './auth.js';
-import { getConfig, isFeatureEnabled } from './config.js';
-import { getAuthHeaders, API } from './api.js';
+import { isFeatureEnabled } from './config.js';
 
 export async function initDashboard() {
   if (!requireAdmin()) return;
@@ -13,9 +12,10 @@ export async function initDashboard() {
     count('members?status=eq.active').catch(() => 0),
     count('members?status=eq.pending').catch(() => 0),
     count('announcements').catch(() => 0),
-    count('members?status=eq.active&expires_at=lt.' + thirtyDaysFromNow()).catch(() => 0),
+    count(`members?status=eq.active&expires_at=lt.${thirtyDaysFromNow()}`).catch(() => 0),
   ];
-  if (isFeatureEnabled('feature_events')) statPromises.push(count('events?starts_at=gte.' + new Date().toISOString()).catch(() => 0));
+  if (isFeatureEnabled('feature_events'))
+    statPromises.push(count(`events?starts_at=gte.${new Date().toISOString()}`).catch(() => 0));
   if (isFeatureEnabled('feature_resources')) statPromises.push(count('resources').catch(() => 0));
   if (isFeatureEnabled('feature_forum')) statPromises.push(count('forum_topics').catch(() => 0));
 
@@ -30,9 +30,15 @@ export async function initDashboard() {
   if (extraStats) {
     let html = '';
     let i = 4;
-    if (isFeatureEnabled('feature_events')) { html += statCard(stats[i++], 'Upcoming Events'); }
-    if (isFeatureEnabled('feature_resources')) { html += statCard(stats[i++], 'Resources'); }
-    if (isFeatureEnabled('feature_forum')) { html += statCard(stats[i++], 'Forum Topics'); }
+    if (isFeatureEnabled('feature_events')) {
+      html += statCard(stats[i++], 'Upcoming Events');
+    }
+    if (isFeatureEnabled('feature_resources')) {
+      html += statCard(stats[i++], 'Resources');
+    }
+    if (isFeatureEnabled('feature_forum')) {
+      html += statCard(stats[i++], 'Forum Topics');
+    }
     extraStats.innerHTML = html;
   }
 
@@ -41,12 +47,16 @@ export async function initDashboard() {
     const activities = await get('activity_log?order=created_at.desc&limit=20&select=*,members(display_name)');
     const feed = document.getElementById('activity-feed');
     if (feed && activities.length > 0) {
-      feed.innerHTML = activities.map(a => `
+      feed.innerHTML = activities
+        .map(
+          (a) => `
         <div class="flex items-center gap-1" style="padding:0.5rem 0;border-bottom:1px solid var(--color-border)">
           <span class="badge badge-primary">${esc(a.action)}</span>
           <span>${esc(a.members?.display_name || 'Unknown')}</span>
           <span class="text-muted text-sm" style="margin-left:auto">${formatDate(a.created_at)}</span>
-        </div>`).join('');
+        </div>`,
+        )
+        .join('');
     } else if (feed) {
       feed.innerHTML = '<p class="text-muted">No activity yet.</p>';
     }
@@ -74,7 +84,9 @@ async function loadInsights() {
   container.classList.remove('hidden');
 
   try {
-    const insights = await get('member_insights?status=eq.pending&order=priority.desc,created_at.desc&limit=10&select=*,members(display_name)');
+    const insights = await get(
+      'member_insights?status=eq.pending&order=priority.desc,created_at.desc&limit=10&select=*,members(display_name)',
+    );
     const list = document.getElementById('insights-list');
     if (!list) return;
 
@@ -83,7 +95,9 @@ async function loadInsights() {
       return;
     }
 
-    list.innerHTML = insights.map(i => `
+    list.innerHTML = insights
+      .map(
+        (i) => `
       <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
         <span class="badge badge-${i.priority === 'high' ? 'danger' : 'warning'}">${esc(i.insight_type)}</span>
         <div style="flex:1">
@@ -95,11 +109,13 @@ async function loadInsights() {
           <button class="btn btn-sm btn-secondary insight-action" data-id="${i.id}" data-action="dismissed">Dismiss</button>
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
-    list.querySelectorAll('.insight-action').forEach(btn => {
+    list.querySelectorAll('.insight-action').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        await patch('member_insights?id=eq.' + btn.dataset.id, { status: btn.dataset.action });
+        await patch(`member_insights?id=eq.${btn.dataset.id}`, { status: btn.dataset.action });
         loadInsights();
       });
     });
@@ -126,16 +142,18 @@ async function loadModerationQueue() {
     for (const f of flagged) {
       let preview = '';
       if (f.content_type === 'forum_topic') {
-        const topics = await get('forum_topics?id=eq.' + f.content_id + '&select=title,body&limit=1');
-        preview = topics[0]?.title || 'Topic #' + f.content_id;
+        const topics = await get(`forum_topics?id=eq.${f.content_id}&select=title,body&limit=1`);
+        preview = topics[0]?.title || `Topic #${f.content_id}`;
       } else if (f.content_type === 'forum_reply') {
-        const replies = await get('forum_replies?id=eq.' + f.content_id + '&select=body&limit=1');
+        const replies = await get(`forum_replies?id=eq.${f.content_id}&select=body&limit=1`);
         preview = (replies[0]?.body || '').substring(0, 100);
       }
       items.push({ ...f, preview });
     }
 
-    list.innerHTML = items.map(i => `
+    list.innerHTML = items
+      .map(
+        (i) => `
       <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
         <div style="flex:1">
           <span class="badge badge-danger">${esc(i.content_type)}</span>
@@ -147,21 +165,23 @@ async function loadModerationQueue() {
           <button class="btn btn-sm btn-danger mod-action" data-id="${i.id}" data-content-type="${i.content_type}" data-content-id="${i.content_id}" data-action="reject">Reject</button>
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
     const memberId = session.user?.member?.id;
 
-    list.querySelectorAll('.mod-action').forEach(btn => {
+    list.querySelectorAll('.mod-action').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const action = btn.dataset.action;
         if (action === 'approve') {
           // Unhide the content
           const table = btn.dataset.contentType === 'forum_topic' ? 'forum_topics' : 'forum_replies';
-          await patch(table + '?id=eq.' + btn.dataset.contentId, { hidden: false });
-          await patch('moderation_log?id=eq.' + btn.dataset.id, { action: 'approved', reviewed_by: memberId });
+          await patch(`${table}?id=eq.${btn.dataset.contentId}`, { hidden: false });
+          await patch(`moderation_log?id=eq.${btn.dataset.id}`, { action: 'approved', reviewed_by: memberId });
         } else {
-          await patch('moderation_log?id=eq.' + btn.dataset.id, { action: 'hidden', reviewed_by: memberId });
+          await patch(`moderation_log?id=eq.${btn.dataset.id}`, { action: 'hidden', reviewed_by: memberId });
         }
         loadModerationQueue();
       });
@@ -172,7 +192,7 @@ async function loadModerationQueue() {
 // --- Newsletter Drafts ---
 
 let tiptapEditor = null;
-let currentDraftId = null;
+let _currentDraftId = null;
 
 async function loadNewsletterDrafts() {
   const container = document.getElementById('newsletter-section');
@@ -189,7 +209,9 @@ async function loadNewsletterDrafts() {
       return;
     }
 
-    list.innerHTML = drafts.map(d => `
+    list.innerHTML = drafts
+      .map(
+        (d) => `
       <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
         <div style="flex:1">
           <strong>${esc(d.subject)}</strong>
@@ -198,17 +220,19 @@ async function loadNewsletterDrafts() {
         <span class="badge badge-${d.status === 'sent' ? 'primary' : 'warning'}">${esc(d.status)}</span>
         ${d.status !== 'sent' ? `<button class="btn btn-sm btn-primary newsletter-edit" data-id="${d.id}">Edit</button>` : ''}
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
-    list.querySelectorAll('.newsletter-edit').forEach(btn => {
+    list.querySelectorAll('.newsletter-edit').forEach((btn) => {
       btn.addEventListener('click', () => openNewsletterEditor(btn.dataset.id));
     });
   } catch {}
 }
 
 async function openNewsletterEditor(draftId) {
-  currentDraftId = draftId;
-  const drafts = await get('newsletter_drafts?id=eq.' + draftId);
+  _currentDraftId = draftId;
+  const drafts = await get(`newsletter_drafts?id=eq.${draftId}`);
   if (!drafts.length) return;
   const draft = drafts[0];
 
@@ -232,7 +256,7 @@ async function openNewsletterEditor(draftId) {
       extensions: [StarterKit],
       content: draft.body,
     });
-  } catch (e) {
+  } catch (_e) {
     // Fallback to plain HTML editing
     bodyEl.contentEditable = 'true';
     bodyEl.innerHTML = draft.body;
@@ -242,7 +266,7 @@ async function openNewsletterEditor(draftId) {
   document.getElementById('newsletter-send').onclick = async () => {
     const body = tiptapEditor ? tiptapEditor.getHTML() : bodyEl.innerHTML;
     const subject = document.getElementById('newsletter-subject').value;
-    await patch('newsletter_drafts?id=eq.' + draftId, {
+    await patch(`newsletter_drafts?id=eq.${draftId}`, {
       subject,
       body,
       status: 'sent',
@@ -257,7 +281,7 @@ async function openNewsletterEditor(draftId) {
     btn.disabled = true;
     btn.textContent = 'Generating...';
     try {
-      const res = await fetch(API + '/functions/v1/ai-content', {
+      const res = await fetch(`${API}/functions/v1/ai-content`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
@@ -283,7 +307,7 @@ function closeNewsletterEditor() {
     tiptapEditor.destroy();
     tiptapEditor = null;
   }
-  currentDraftId = null;
+  _currentDraftId = null;
   document.getElementById('newsletter-editor').classList.add('hidden');
   document.getElementById('newsletter-list').classList.remove('hidden');
   document.getElementById('newsletter-body').innerHTML = '';
@@ -306,7 +330,12 @@ function setText(id, val) {
 
 function formatDate(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function esc(s) {

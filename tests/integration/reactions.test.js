@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Integration tests for reaction CRUD via API
 // Tests the API call patterns used by the reaction UI
@@ -14,11 +14,12 @@ describe('reactions API integration', () => {
     mockPost = vi.fn(async (endpoint, data) => {
       if (endpoint === 'reactions') {
         // Check unique constraint
-        const exists = reactionsStore.find(r =>
-          r.content_type === data.content_type &&
-          r.content_id === data.content_id &&
-          r.member_id === data.member_id &&
-          r.emoji === data.emoji
+        const exists = reactionsStore.find(
+          (r) =>
+            r.content_type === data.content_type &&
+            r.content_id === data.content_id &&
+            r.member_id === data.member_id &&
+            r.emoji === data.emoji,
         );
         if (exists) throw new Error('unique constraint violation');
         const row = { id: nextId++, ...data, created_at: new Date().toISOString() };
@@ -34,10 +35,10 @@ describe('reactions API integration', () => {
         const idMatch = endpoint.match(/content_id=eq\.(\d+)/);
         const memberMatch = endpoint.match(/member_id=eq\.(\d+)/);
         const emojiMatch = endpoint.match(/emoji=eq\.(\w+)/);
-        return reactionsStore.filter(r => {
+        return reactionsStore.filter((r) => {
           if (typeMatch && r.content_type !== typeMatch[1]) return false;
-          if (idMatch && r.content_id !== parseInt(idMatch[1])) return false;
-          if (memberMatch && r.member_id !== parseInt(memberMatch[1])) return false;
+          if (idMatch && r.content_id !== parseInt(idMatch[1], 10)) return false;
+          if (memberMatch && r.member_id !== parseInt(memberMatch[1], 10)) return false;
           if (emojiMatch && r.emoji !== emojiMatch[1]) return false;
           return true;
         });
@@ -48,7 +49,7 @@ describe('reactions API integration', () => {
     mockDel = vi.fn(async (endpoint) => {
       const idMatch = endpoint.match(/id=eq\.(\d+)/);
       if (idMatch) {
-        const idx = reactionsStore.findIndex(r => r.id === parseInt(idMatch[1]));
+        const idx = reactionsStore.findIndex((r) => r.id === parseInt(idMatch[1], 10));
         if (idx >= 0) reactionsStore.splice(idx, 1);
       }
     });
@@ -84,7 +85,7 @@ describe('reactions API integration', () => {
     let reactions = await mockGet('reactions?content_type=eq.announcement&content_id=eq.1');
     expect(reactions).toHaveLength(1);
 
-    await mockDel('reactions?id=eq.' + reactions[0].id);
+    await mockDel(`reactions?id=eq.${reactions[0].id}`);
     reactions = await mockGet('reactions?content_type=eq.announcement&content_id=eq.1');
     expect(reactions).toHaveLength(0);
   });
@@ -92,7 +93,7 @@ describe('reactions API integration', () => {
   it('prevents duplicate reactions (unique constraint)', async () => {
     await mockPost('reactions', { content_type: 'announcement', content_id: 1, member_id: 5, emoji: 'like' });
     await expect(
-      mockPost('reactions', { content_type: 'announcement', content_id: 1, member_id: 5, emoji: 'like' })
+      mockPost('reactions', { content_type: 'announcement', content_id: 1, member_id: 5, emoji: 'like' }),
     ).rejects.toThrow('unique constraint');
   });
 
@@ -109,16 +110,22 @@ describe('reactions API integration', () => {
     const emoji = 'like';
 
     // Toggle ON
-    let existing = await mockGet(`reactions?content_type=eq.announcement&content_id=eq.${contentId}&member_id=eq.${memberId}&emoji=eq.${emoji}`);
+    let existing = await mockGet(
+      `reactions?content_type=eq.announcement&content_id=eq.${contentId}&member_id=eq.${memberId}&emoji=eq.${emoji}`,
+    );
     expect(existing).toHaveLength(0);
     await mockPost('reactions', { content_type: 'announcement', content_id: contentId, member_id: memberId, emoji });
 
     // Toggle OFF
-    existing = await mockGet(`reactions?content_type=eq.announcement&content_id=eq.${contentId}&member_id=eq.${memberId}&emoji=eq.${emoji}`);
+    existing = await mockGet(
+      `reactions?content_type=eq.announcement&content_id=eq.${contentId}&member_id=eq.${memberId}&emoji=eq.${emoji}`,
+    );
     expect(existing).toHaveLength(1);
-    await mockDel('reactions?id=eq.' + existing[0].id);
+    await mockDel(`reactions?id=eq.${existing[0].id}`);
 
-    existing = await mockGet(`reactions?content_type=eq.announcement&content_id=eq.${contentId}&member_id=eq.${memberId}&emoji=eq.${emoji}`);
+    existing = await mockGet(
+      `reactions?content_type=eq.announcement&content_id=eq.${contentId}&member_id=eq.${memberId}&emoji=eq.${emoji}`,
+    );
     expect(existing).toHaveLength(0);
   });
 });

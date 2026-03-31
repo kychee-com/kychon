@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('forum logic', () => {
   const topics = [
@@ -15,11 +15,11 @@ describe('forum logic', () => {
   ];
 
   function visibleTopics(topics, isAdmin) {
-    return topics.filter(t => isAdmin || !t.hidden);
+    return topics.filter((t) => isAdmin || !t.hidden);
   }
 
   function visibleReplies(replies, isAdmin) {
-    return replies.filter(r => isAdmin || !r.hidden);
+    return replies.filter((r) => isAdmin || !r.hidden);
   }
 
   function sortTopics(topics) {
@@ -30,13 +30,13 @@ describe('forum logic', () => {
   }
 
   function topicCountByCategory(topics, catId) {
-    return topics.filter(t => t.category_id === catId && !t.hidden).length;
+    return topics.filter((t) => t.category_id === catId && !t.hidden).length;
   }
 
   it('hides hidden topics from members', () => {
     const visible = visibleTopics(topics, false);
     expect(visible.length).toBe(3);
-    expect(visible.find(t => t.title === 'Spam Post')).toBeUndefined();
+    expect(visible.find((t) => t.title === 'Spam Post')).toBeUndefined();
   });
 
   it('shows hidden topics to admins', () => {
@@ -66,7 +66,7 @@ describe('forum logic', () => {
   });
 
   it('locked topic prevents new replies', () => {
-    const topic = topics.find(t => t.id === 4);
+    const topic = topics.find((t) => t.id === 4);
     expect(topic.locked).toBe(true);
   });
 });

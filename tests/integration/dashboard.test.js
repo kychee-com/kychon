@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { allMembers, sampleActivity } from '../fixtures/members.js';
 
 describe('dashboard rendering', () => {
   function renderStats(members) {
     const stats = {
-      active: members.filter(m => m.status === 'active').length,
-      pending: members.filter(m => m.status === 'pending').length,
-      expired: members.filter(m => m.status === 'expired').length,
-      suspended: members.filter(m => m.status === 'suspended').length,
+      active: members.filter((m) => m.status === 'active').length,
+      pending: members.filter((m) => m.status === 'pending').length,
+      expired: members.filter((m) => m.status === 'expired').length,
+      suspended: members.filter((m) => m.status === 'suspended').length,
     };
 
     const grid = document.createElement('div');
@@ -44,7 +44,7 @@ describe('dashboard rendering', () => {
 
   it('renders stat cards', () => {
     const { grid } = renderStats(allMembers);
-    const values = [...grid.querySelectorAll('.stat-value')].map(el => el.textContent);
+    const values = [...grid.querySelectorAll('.stat-value')].map((el) => el.textContent);
     expect(values).toContain('2'); // active
     expect(values).toContain('1'); // pending
   });
@@ -52,7 +52,7 @@ describe('dashboard rendering', () => {
   it('renders activity feed entries', () => {
     const feed = renderActivityFeed(sampleActivity);
     expect(feed.children.length).toBe(3);
-    const badges = [...feed.querySelectorAll('.badge')].map(el => el.textContent);
+    const badges = [...feed.querySelectorAll('.badge')].map((el) => el.textContent);
     expect(badges).toContain('signup');
     expect(badges).toContain('announcement');
   });

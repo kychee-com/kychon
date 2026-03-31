@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { writeFileSync } from 'fs';
-import { join, relative } from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 const ROOT = new URL('.', import.meta.url).pathname;
 
@@ -31,8 +30,8 @@ function collectFiles(dir, base = dir) {
 function collectFunctions(dir) {
   if (!existsSync(join(ROOT, dir))) return [];
   return readdirSync(join(ROOT, dir))
-    .filter(f => f.endsWith('.js'))
-    .map(f => {
+    .filter((f) => f.endsWith('.js'))
+    .map((f) => {
       const name = f.replace('.js', '');
       const code = readText(join(dir, f));
       const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
@@ -43,17 +42,21 @@ function collectFunctions(dir) {
 }
 
 // Resolve project ID
-const projectId = process.env.RUN402_PROJECT_ID || (() => {
-  try {
-    const out = execSync('run402 projects list', { encoding: 'utf-8' });
-    const projects = JSON.parse(out);
-    const active = projects.find(p => p.active);
-    if (active) return active.project_id;
-    if (projects.length > 0) return projects[0].project_id;
-  } catch { /* fall through */ }
-  console.error('No RUN402_PROJECT_ID set and no active run402 project found.');
-  process.exit(1);
-})();
+const projectId =
+  process.env.RUN402_PROJECT_ID ||
+  (() => {
+    try {
+      const out = execSync('run402 projects list', { encoding: 'utf-8' });
+      const projects = JSON.parse(out);
+      const active = projects.find((p) => p.active);
+      if (active) return active.project_id;
+      if (projects.length > 0) return projects[0].project_id;
+    } catch {
+      /* fall through */
+    }
+    console.error('No RUN402_PROJECT_ID set and no active run402 project found.');
+    process.exit(1);
+  })();
 
 const subdomain = process.env.SUBDOMAIN || 'wildlychee';
 
@@ -79,7 +82,7 @@ writeFileSync(envJsPath, envJsContent);
 // Read schema + seed as combined migrations
 const schema = readText('schema.sql');
 const seed = readText('seed.sql');
-const migrations = schema + '\n\n' + seed;
+const migrations = `${schema}\n\n${seed}`;
 
 // Write migrations to temp file (migrations_file approach avoids JSON escaping)
 const migrationsPath = join(ROOT, '.migrations.sql');

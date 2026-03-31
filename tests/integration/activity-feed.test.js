@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 // Integration tests for activity feed data fetching
 
@@ -10,10 +10,28 @@ describe('activity feed data fetching', () => {
   ];
 
   const mockActivityLog = [
-    { id: 10, member_id: 1, action: 'announcement', metadata: { title: 'Welcome!' }, created_at: '2026-03-30T10:00:00Z' },
-    { id: 9, member_id: 2, action: 'rsvp', metadata: { event_title: 'Spring Mixer', event_id: 1 }, created_at: '2026-03-29T15:00:00Z' },
+    {
+      id: 10,
+      member_id: 1,
+      action: 'announcement',
+      metadata: { title: 'Welcome!' },
+      created_at: '2026-03-30T10:00:00Z',
+    },
+    {
+      id: 9,
+      member_id: 2,
+      action: 'rsvp',
+      metadata: { event_title: 'Spring Mixer', event_id: 1 },
+      created_at: '2026-03-29T15:00:00Z',
+    },
     { id: 8, member_id: 3, action: 'member_join', metadata: {}, created_at: '2026-03-28T09:00:00Z' },
-    { id: 7, member_id: 1, action: 'resource_upload', metadata: { title: 'Handbook.pdf' }, created_at: '2026-03-27T14:00:00Z' },
+    {
+      id: 7,
+      member_id: 1,
+      action: 'resource_upload',
+      metadata: { title: 'Handbook.pdf' },
+      created_at: '2026-03-27T14:00:00Z',
+    },
     { id: 6, member_id: 999, action: 'member_join', metadata: {}, created_at: '2026-03-26T08:00:00Z' }, // deleted member
   ];
 
@@ -25,7 +43,7 @@ describe('activity feed data fetching', () => {
 
   it('joins activity entries with member data', () => {
     const membersMap = buildMemberMap(mockMembers);
-    const enriched = mockActivityLog.map(entry => ({
+    const enriched = mockActivityLog.map((entry) => ({
       ...entry,
       member: membersMap[entry.member_id] || null,
     }));
@@ -36,7 +54,7 @@ describe('activity feed data fetching', () => {
   });
 
   it('collects unique member IDs from entries', () => {
-    const ids = [...new Set(mockActivityLog.map(e => e.member_id).filter(Boolean))];
+    const ids = [...new Set(mockActivityLog.map((e) => e.member_id).filter(Boolean))];
     expect(ids).toContain(1);
     expect(ids).toContain(2);
     expect(ids).toContain(3);
@@ -52,7 +70,7 @@ describe('activity feed data fetching', () => {
   });
 
   it('entries are ordered by created_at descending', () => {
-    const dates = mockActivityLog.map(e => new Date(e.created_at).getTime());
+    const dates = mockActivityLog.map((e) => new Date(e.created_at).getTime());
     for (let i = 1; i < dates.length; i++) {
       expect(dates[i]).toBeLessThanOrEqual(dates[i - 1]);
     }
@@ -83,7 +101,7 @@ describe('activity feed data fetching', () => {
     };
 
     const membersMap = buildMemberMap(mockMembers);
-    const results = mockActivityLog.map(entry => {
+    const results = mockActivityLog.map((entry) => {
       const member = membersMap[entry.member_id];
       const name = member ? member.display_name : 'Former member';
       const meta = entry.metadata || {};

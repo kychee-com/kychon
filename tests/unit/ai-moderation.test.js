@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('AI moderation logic', () => {
   function classifyResult(response) {
@@ -6,7 +6,7 @@ describe('AI moderation logic', () => {
       const parsed = JSON.parse(response);
       return {
         classification: parsed.classification || 'appropriate',
-        confidence: parsed.classification === 'appropriate' ? 0 : (parsed.confidence || 0.5),
+        confidence: parsed.classification === 'appropriate' ? 0 : parsed.confidence || 0.5,
         reason: parsed.reason || 'No reason provided',
       };
     } catch {

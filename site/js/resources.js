@@ -1,6 +1,6 @@
 // resources.js — Resource library logic
 
-import { get, post, del } from './api.js';
+import { del, get, post } from './api.js';
 import { isAdmin, isAuthenticated } from './auth.js';
 
 let allResources = [];
@@ -20,7 +20,7 @@ export async function initResources() {
 
 function applyFilter() {
   const cat = document.getElementById('res-category-filter')?.value;
-  const filtered = cat ? allResources.filter(r => r.category === cat) : allResources;
+  const filtered = cat ? allResources.filter((r) => r.category === cat) : allResources;
   renderResources(filtered);
 }
 
@@ -29,11 +29,12 @@ function renderResources(resources) {
   if (!grid) return;
 
   // Populate category filter
-  const cats = [...new Set(allResources.map(r => r.category).filter(Boolean))];
+  const cats = [...new Set(allResources.map((r) => r.category).filter(Boolean))];
   const filter = document.getElementById('res-category-filter');
   if (filter && filter.children.length <= 1) {
-    filter.innerHTML = '<option value="">All Categories</option>' +
-      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    filter.innerHTML =
+      '<option value="">All Categories</option>' +
+      cats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   }
 
   if (resources.length === 0) {
@@ -41,11 +42,12 @@ function renderResources(resources) {
     return;
   }
 
-  grid.innerHTML = resources.map(r => {
-    // Hide members-only from anonymous
-    if (r.is_members_only && !isAuthenticated()) return '';
-    const icon = fileTypeIcon(r.file_type);
-    return `
+  grid.innerHTML = resources
+    .map((r) => {
+      // Hide members-only from anonymous
+      if (r.is_members_only && !isAuthenticated()) return '';
+      const icon = fileTypeIcon(r.file_type);
+      return `
       <div class="card">
         <div class="flex items-center gap-1 mb-1">
           <span style="font-size:1.5rem">${icon}</span>
@@ -61,13 +63,14 @@ function renderResources(resources) {
           ${isAdmin() ? `<button class="btn btn-sm btn-danger res-delete" data-id="${r.id}">Delete</button>` : ''}
         </div>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
-  grid.querySelectorAll('.res-delete').forEach(btn => {
+  grid.querySelectorAll('.res-delete').forEach((btn) => {
     btn.addEventListener('click', async () => {
       if (!confirm('Delete this resource?')) return;
-      await del('resources?id=eq.' + btn.dataset.id);
-      allResources = allResources.filter(r => r.id !== parseInt(btn.dataset.id));
+      await del(`resources?id=eq.${btn.dataset.id}`);
+      allResources = allResources.filter((r) => r.id !== parseInt(btn.dataset.id, 10));
       renderResources(allResources);
     });
   });
@@ -111,11 +114,11 @@ function setupUpload() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('metadata', JSON.stringify(data));
-        const res = await fetch(window.__WILDLYCHEE_API + '/functions/v1/upload-resource', {
+        const res = await fetch(`${window.__WILDLYCHEE_API}/functions/v1/upload-resource`, {
           method: 'POST',
           headers: {
             apikey: window.__WILDLYCHEE_ANON_KEY,
-            Authorization: 'Bearer ' + session.access_token,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: formData,
         });
@@ -144,4 +147,8 @@ function fileTypeIcon(type) {
   return icons[type] || '📁';
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}

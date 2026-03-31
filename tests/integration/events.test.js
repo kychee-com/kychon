@@ -1,10 +1,31 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('events rendering', () => {
   const events = [
-    { id: 1, title: 'Summer BBQ', starts_at: '2027-07-15T18:00:00Z', location: 'Park', capacity: 50, is_members_only: false },
-    { id: 2, title: 'Members Workshop', starts_at: '2027-08-01T10:00:00Z', location: 'Office', capacity: 20, is_members_only: true },
-    { id: 3, title: 'Past Meetup', starts_at: '2020-01-01T18:00:00Z', location: null, capacity: null, is_members_only: false },
+    {
+      id: 1,
+      title: 'Summer BBQ',
+      starts_at: '2027-07-15T18:00:00Z',
+      location: 'Park',
+      capacity: 50,
+      is_members_only: false,
+    },
+    {
+      id: 2,
+      title: 'Members Workshop',
+      starts_at: '2027-08-01T10:00:00Z',
+      location: 'Office',
+      capacity: 20,
+      is_members_only: true,
+    },
+    {
+      id: 3,
+      title: 'Past Meetup',
+      starts_at: '2020-01-01T18:00:00Z',
+      location: null,
+      capacity: null,
+      is_members_only: false,
+    },
   ];
 
   function renderEventCard(event) {

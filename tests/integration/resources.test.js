@@ -1,10 +1,31 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('resources rendering', () => {
   const resources = [
-    { id: 1, title: 'User Guide', category: 'Guides', file_type: 'pdf', file_url: '/storage/guide.pdf', is_members_only: true },
-    { id: 2, title: 'Intro Video', category: 'Videos', file_type: 'video', file_url: 'https://example.com/video', is_members_only: false },
-    { id: 3, title: 'Logo Pack', category: 'Guides', file_type: 'image', file_url: '/storage/logo.zip', is_members_only: true },
+    {
+      id: 1,
+      title: 'User Guide',
+      category: 'Guides',
+      file_type: 'pdf',
+      file_url: '/storage/guide.pdf',
+      is_members_only: true,
+    },
+    {
+      id: 2,
+      title: 'Intro Video',
+      category: 'Videos',
+      file_type: 'video',
+      file_url: 'https://example.com/video',
+      is_members_only: false,
+    },
+    {
+      id: 3,
+      title: 'Logo Pack',
+      category: 'Guides',
+      file_type: 'image',
+      file_url: '/storage/logo.zip',
+      is_members_only: true,
+    },
   ];
 
   function fileTypeIcon(type) {
@@ -13,11 +34,11 @@ describe('resources rendering', () => {
   }
 
   function filterByCategory(resources, category) {
-    return category ? resources.filter(r => r.category === category) : resources;
+    return category ? resources.filter((r) => r.category === category) : resources;
   }
 
   function getCategories(resources) {
-    return [...new Set(resources.map(r => r.category).filter(Boolean))];
+    return [...new Set(resources.map((r) => r.category).filter(Boolean))];
   }
 
   it('returns correct file type icons', () => {
@@ -36,7 +57,7 @@ describe('resources rendering', () => {
   it('filters by category', () => {
     const guides = filterByCategory(resources, 'Guides');
     expect(guides.length).toBe(2);
-    expect(guides.every(r => r.category === 'Guides')).toBe(true);
+    expect(guides.every((r) => r.category === 'Guides')).toBe(true);
   });
 
   it('returns all when no category filter', () => {

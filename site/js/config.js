@@ -1,11 +1,12 @@
+// @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
 import { get } from './api.js';
-import { getSession, getRole, isAdmin } from './auth.js';
-import { loadLocale, t } from './i18n.js';
+import { getRole, getSession, isAdmin } from './auth.js';
+import { loadLocale } from './i18n.js';
 
-let siteConfig = {};
-let features = {};
+const siteConfig = {};
+const features = {};
 
 export function getConfig(key) {
   const row = siteConfig[key];
@@ -39,12 +40,12 @@ function applyTheme(theme) {
 
 function applyBranding(config) {
   const name = config.site_name || 'Wild Lychee';
-  document.title = document.title ? document.title + ' — ' + name : name;
+  document.title = document.title ? `${document.title} — ${name}` : name;
 
   const brandEl = document.querySelector('.nav-brand-text');
   if (brandEl) brandEl.textContent = name;
 
-  const logoEl = document.querySelector('.nav-brand img');
+  const logoEl = /** @type {HTMLImageElement|null} */ (document.querySelector('.nav-brand img'));
   if (logoEl && config.logo_url) {
     logoEl.src = config.logo_url;
     logoEl.alt = name;
@@ -52,7 +53,7 @@ function applyBranding(config) {
     logoEl.style.display = 'none';
   }
 
-  const favicon = document.querySelector('link[rel="icon"]');
+  const favicon = /** @type {HTMLLinkElement|null} */ (document.querySelector('link[rel="icon"]'));
   if (favicon && config.favicon_url) favicon.href = config.favicon_url;
 }
 
@@ -75,7 +76,7 @@ function buildNav(navItems) {
     // Public items shown to all (no filter needed)
 
     const a = document.createElement('a');
-    a.className = 'nav-link' + (currentPath === item.href ? ' active' : '');
+    a.className = `nav-link${currentPath === item.href ? ' active' : ''}`;
     a.href = item.href;
     a.textContent = item.label;
     navEl.appendChild(a);
@@ -137,8 +138,8 @@ async function loadMemberRecord() {
   const session = getSession();
   if (!session) return;
   try {
-    const members = await get('members?user_id=eq.' + session.user.id + '&limit=1');
-    if (members && members[0]) {
+    const members = await get(`members?user_id=eq.${session.user.id}&limit=1`);
+    if (members?.[0]) {
       session.user.member = members[0];
       localStorage.setItem('wl_session', JSON.stringify(session));
     }
@@ -206,11 +207,13 @@ export async function getTranslatedContent(contentType, contentId, field) {
   const locale = localStorage.getItem('wl_locale') || 'en';
   if (locale === 'en') return null; // Original content is English
   try {
-    const rows = await get(`content_translations?content_type=eq.${contentType}&content_id=eq.${contentId}&language=eq.${locale}&field=eq.${field}&limit=1`);
+    const rows = await get(
+      `content_translations?content_type=eq.${contentType}&content_id=eq.${contentId}&language=eq.${locale}&field=eq.${field}&limit=1`,
+    );
     return rows.length > 0 ? rows[0].translated_text : null;
   } catch {
     return null;
   }
 }
 
-export { siteConfig, features };
+export { features, siteConfig };

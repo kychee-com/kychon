@@ -1,6 +1,6 @@
 // forum.js — Forum categories, topics, and replies
 
-import { get, post, patch, del } from './api.js';
+import { del, get, patch, post } from './api.js';
 import { getSession, isAdmin, isAuthenticated } from './auth.js';
 
 function esc(s) {
@@ -14,11 +14,11 @@ function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
-  if (mins < 60) return mins + 'm ago';
+  if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return hrs + 'h ago';
+  if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  if (days < 30) return days + 'd ago';
+  if (days < 30) return `${days}d ago`;
   return new Date(dateStr).toLocaleDateString();
 }
 
@@ -88,14 +88,14 @@ async function renderTopicListing(root, categoryId) {
   // Load category info
   let category = null;
   try {
-    const cats = await get('forum_categories?id=eq.' + categoryId);
+    const cats = await get(`forum_categories?id=eq.${categoryId}`);
     category = cats[0] || null;
   } catch (e) {
     console.warn('Failed to load category:', e);
   }
 
   // Build query: admin sees hidden topics too
-  let query = 'forum_topics?category_id=eq.' + categoryId;
+  let query = `forum_topics?category_id=eq.${categoryId}`;
   if (!isAdmin()) {
     query += '&hidden=eq.false';
   }
@@ -173,7 +173,10 @@ async function renderTopicListing(root, categoryId) {
       ev.preventDefault();
       const session = getSession();
       const memberId = session?.user?.member?.id;
-      if (!memberId) { alert('You must be logged in.'); return; }
+      if (!memberId) {
+        alert('You must be logged in.');
+        return;
+      }
 
       const title = document.getElementById('nt-title').value.trim();
       const body = document.getElementById('nt-body').value.trim();
@@ -201,7 +204,10 @@ async function renderTopicListing(root, categoryId) {
         console.error('Failed to create topic:', e);
         alert('Failed to create topic. Please try again.');
         const btn = form.querySelector('button[type="submit"]');
-        if (btn) { btn.disabled = false; btn.textContent = 'Create Topic'; }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Create Topic';
+        }
       }
     });
   }
@@ -212,7 +218,7 @@ async function renderTopicListing(root, categoryId) {
 async function renderTopicView(root, topicId) {
   let topic = null;
   try {
-    const topics = await get('forum_topics?id=eq.' + topicId);
+    const topics = await get(`forum_topics?id=eq.${topicId}`);
     topic = topics[0] || null;
   } catch (e) {
     console.warn('Failed to load topic:', e);
@@ -230,7 +236,7 @@ async function renderTopicView(root, topicId) {
   }
 
   // Load replies
-  let replyQuery = 'forum_replies?topic_id=eq.' + topicId;
+  let replyQuery = `forum_replies?topic_id=eq.${topicId}`;
   if (!isAdmin()) {
     replyQuery += '&hidden=eq.false';
   }
@@ -316,7 +322,10 @@ async function renderTopicView(root, topicId) {
       ev.preventDefault();
       const session = getSession();
       const memberId = session?.user?.member?.id;
-      if (!memberId) { alert('You must be logged in.'); return; }
+      if (!memberId) {
+        alert('You must be logged in.');
+        return;
+      }
 
       const body = document.getElementById('rf-body').value.trim();
       if (!body) return;
@@ -334,7 +343,7 @@ async function renderTopicView(root, topicId) {
         });
 
         // Update topic reply_count and last_reply_at
-        await patch('forum_topics?id=eq.' + topicId, {
+        await patch(`forum_topics?id=eq.${topicId}`, {
           reply_count: (topic.reply_count || 0) + 1,
           last_reply_at: new Date().toISOString(),
         });
@@ -345,7 +354,10 @@ async function renderTopicView(root, topicId) {
         console.error('Failed to post reply:', e);
         alert('Failed to post reply. Please try again.');
         const btn = replyForm.querySelector('button[type="submit"]');
-        if (btn) { btn.disabled = false; btn.textContent = 'Post Reply'; }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Post Reply';
+        }
       }
     });
   }
@@ -378,23 +390,23 @@ function buildReplyAdminBar(reply) {
 }
 
 function bindTopicAdminActions(root, topic) {
-  root.querySelectorAll('[data-topic-action]').forEach(btn => {
+  root.querySelectorAll('[data-topic-action]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const action = btn.dataset.topicAction;
       const id = btn.dataset.topicId;
 
       try {
         if (action === 'pin') {
-          await patch('forum_topics?id=eq.' + id, { is_pinned: !topic.is_pinned });
+          await patch(`forum_topics?id=eq.${id}`, { is_pinned: !topic.is_pinned });
         } else if (action === 'lock') {
-          await patch('forum_topics?id=eq.' + id, { locked: !topic.locked });
+          await patch(`forum_topics?id=eq.${id}`, { locked: !topic.locked });
         } else if (action === 'hide') {
-          await patch('forum_topics?id=eq.' + id, { hidden: !topic.hidden });
+          await patch(`forum_topics?id=eq.${id}`, { hidden: !topic.hidden });
         } else if (action === 'delete') {
           if (!confirm('Delete this topic and all its replies?')) return;
-          await del('forum_replies?topic_id=eq.' + id);
-          await del('forum_topics?id=eq.' + id);
-          window.location.href = '?cat=' + topic.category_id;
+          await del(`forum_replies?topic_id=eq.${id}`);
+          await del(`forum_topics?id=eq.${id}`);
+          window.location.href = `?cat=${topic.category_id}`;
           return;
         }
 
@@ -409,7 +421,7 @@ function bindTopicAdminActions(root, topic) {
 }
 
 function bindReplyAdminActions(root, topicId) {
-  root.querySelectorAll('[data-reply-action]').forEach(btn => {
+  root.querySelectorAll('[data-reply-action]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const action = btn.dataset.replyAction;
       const id = btn.dataset.replyId;
@@ -417,13 +429,13 @@ function bindReplyAdminActions(root, topicId) {
       try {
         if (action === 'hide') {
           // Fetch current state to toggle
-          const replies = await get('forum_replies?id=eq.' + id);
+          const replies = await get(`forum_replies?id=eq.${id}`);
           const reply = replies[0];
           if (!reply) return;
-          await patch('forum_replies?id=eq.' + id, { hidden: !reply.hidden });
+          await patch(`forum_replies?id=eq.${id}`, { hidden: !reply.hidden });
         } else if (action === 'delete') {
           if (!confirm('Delete this reply?')) return;
-          await del('forum_replies?id=eq.' + id);
+          await del(`forum_replies?id=eq.${id}`);
         }
 
         // Re-render topic view

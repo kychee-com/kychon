@@ -1,9 +1,9 @@
 // admin-settings.js — Site settings panel
 
-import { get, patch, post } from './api.js';
+import { get, patch } from './api.js';
 import { requireAdmin } from './auth.js';
 
-let configMap = {};
+const configMap = {};
 
 export async function initAdminSettings() {
   if (!requireAdmin()) return;
@@ -40,11 +40,15 @@ export async function initAdminSettings() {
     const flags = Object.entries(configMap)
       .filter(([k]) => k.startsWith('feature_'))
       .sort(([a], [b]) => a.localeCompare(b));
-    featureContainer.innerHTML = flags.map(([key, val]) => `
+    featureContainer.innerHTML = flags
+      .map(
+        ([key, val]) => `
       <label class="flex items-center gap-1" style="padding:0.5rem 0">
         <input type="checkbox" class="feature-toggle" data-key="${key}" ${val === true || val === 'true' ? 'checked' : ''}>
         <span>${key.replace('feature_', '').replace(/_/g, ' ')}</span>
-      </label>`).join('');
+      </label>`,
+      )
+      .join('');
   }
 
   // Load tiers
@@ -58,7 +62,7 @@ export async function initAdminSettings() {
   document.getElementById('as-theme-form')?.addEventListener('submit', saveTheme);
 
   // Feature flag toggles
-  document.querySelectorAll('.feature-toggle').forEach(cb => {
+  document.querySelectorAll('.feature-toggle').forEach((cb) => {
     cb.addEventListener('change', async () => {
       await patchConfig(cb.dataset.key, cb.checked);
     });
@@ -97,7 +101,7 @@ async function saveTheme(e) {
 
 async function patchConfig(key, value) {
   // Use service-level patch: update existing row
-  await patch('site_config?key=eq.' + key, { value: JSON.stringify(value) });
+  await patch(`site_config?key=eq.${key}`, { value: JSON.stringify(value) });
 }
 
 async function loadTiers() {
@@ -105,14 +109,18 @@ async function loadTiers() {
   if (!container) return;
   try {
     const tiers = await get('membership_tiers?order=position.asc');
-    container.innerHTML = tiers.map(t => `
+    container.innerHTML = tiers
+      .map(
+        (t) => `
       <div class="card mb-1 flex justify-between items-center" style="padding:0.75rem 1rem">
         <div>
           <strong>${esc(t.name)}</strong>
           ${t.is_default ? '<span class="badge badge-primary">Default</span>' : ''}
           <div class="text-sm text-muted">${esc(t.price_label || 'Free')} — ${(t.benefits || []).join(', ')}</div>
         </div>
-      </div>`).join('');
+      </div>`,
+      )
+      .join('');
   } catch {}
 }
 
@@ -121,17 +129,19 @@ function setupAISettings() {
   const toggleContainer = document.getElementById('as-ai-toggles');
   if (toggleContainer) {
     const aiFlags = ['feature_ai_moderation', 'feature_ai_translation', 'feature_ai_insights', 'feature_ai_onboarding'];
-    toggleContainer.innerHTML = aiFlags.map(key => {
-      const val = configMap[key];
-      const checked = val === true || val === 'true';
-      const label = key.replace('feature_ai_', '').replace(/_/g, ' ');
-      return `<label class="flex items-center gap-1" style="padding:0.375rem 0">
+    toggleContainer.innerHTML = aiFlags
+      .map((key) => {
+        const val = configMap[key];
+        const checked = val === true || val === 'true';
+        const label = key.replace('feature_ai_', '').replace(/_/g, ' ');
+        return `<label class="flex items-center gap-1" style="padding:0.375rem 0">
         <input type="checkbox" class="ai-toggle" data-key="${key}" ${checked ? 'checked' : ''}>
         <span>AI ${label}</span>
       </label>`;
-    }).join('');
+      })
+      .join('');
 
-    toggleContainer.querySelectorAll('.ai-toggle').forEach(cb => {
+    toggleContainer.querySelectorAll('.ai-toggle').forEach((cb) => {
       cb.addEventListener('change', async () => {
         await patchConfig(cb.dataset.key, cb.checked);
       });
@@ -169,9 +179,15 @@ async function loadAIActivity() {
     const since = sevenDaysAgo.toISOString();
 
     const [modCount, transCount, insightCount] = await Promise.all([
-      get('moderation_log?created_at=gte.' + since + '&select=id').then(r => r.length).catch(() => 0),
-      get('content_translations?created_at=gte.' + since + '&select=id').then(r => r.length).catch(() => 0),
-      get('member_insights?created_at=gte.' + since + '&select=id').then(r => r.length).catch(() => 0),
+      get(`moderation_log?created_at=gte.${since}&select=id`)
+        .then((r) => r.length)
+        .catch(() => 0),
+      get(`content_translations?created_at=gte.${since}&select=id`)
+        .then((r) => r.length)
+        .catch(() => 0),
+      get(`member_insights?created_at=gte.${since}&select=id`)
+        .then((r) => r.length)
+        .catch(() => 0),
     ]);
 
     if (modCount || transCount || insightCount) {
@@ -186,12 +202,21 @@ async function loadAIActivity() {
   } catch {}
 }
 
-function getVal(id) { return document.getElementById(id)?.value || ''; }
-function setVal(id, val) { const el = document.getElementById(id); if (el) el.value = val || ''; }
+function getVal(id) {
+  return document.getElementById(id)?.value || '';
+}
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val || '';
+}
 function showSaved(id) {
   const btn = document.getElementById(id);
   if (!btn) return;
   btn.textContent = 'Saved!';
-  setTimeout(() => btn.textContent = 'Save', 2000);
+  setTimeout(() => (btn.textContent = 'Save'), 2000);
 }
-function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}

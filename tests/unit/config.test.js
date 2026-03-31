@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { defaultConfig, defaultTheme, defaultNav } from '../fixtures/configs.js';
+import { describe, expect, it } from 'vitest';
+import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js';
 
 // We test the pure logic functions of config.js by testing the patterns they use
 // Since config.js has side effects (DOM manipulation), we test the logic in isolation
@@ -37,7 +37,7 @@ describe('config logic', () => {
 
   describe('nav filtering', () => {
     function filterNav(navItems, { isAuth, role, features }) {
-      return navItems.filter(item => {
+      return navItems.filter((item) => {
         if (item.feature && !features[item.feature]) return false;
         if (item.auth && !isAuth) return false;
         if (item.admin && role !== 'admin') return false;
@@ -47,38 +47,46 @@ describe('config logic', () => {
 
     it('shows public items to anonymous users', () => {
       const filtered = filterNav(defaultNav, { isAuth: false, role: null, features: {} });
-      expect(filtered.some(i => i.label === 'Home')).toBe(true);
+      expect(filtered.some((i) => i.label === 'Home')).toBe(true);
     });
 
     it('hides auth items from anonymous users', () => {
       const filtered = filterNav(defaultNav, { isAuth: false, role: null, features: { feature_directory: true } });
-      expect(filtered.some(i => i.label === 'Members')).toBe(false);
+      expect(filtered.some((i) => i.label === 'Members')).toBe(false);
     });
 
     it('shows auth items to logged-in users', () => {
       const filtered = filterNav(defaultNav, { isAuth: true, role: 'member', features: { feature_directory: true } });
-      expect(filtered.some(i => i.label === 'Members')).toBe(true);
+      expect(filtered.some((i) => i.label === 'Members')).toBe(true);
     });
 
     it('hides admin items from non-admin', () => {
       const filtered = filterNav(defaultNav, { isAuth: true, role: 'member', features: {} });
-      expect(filtered.some(i => i.label === 'Dashboard')).toBe(false);
+      expect(filtered.some((i) => i.label === 'Dashboard')).toBe(false);
     });
 
     it('shows admin items to admin', () => {
       const filtered = filterNav(defaultNav, { isAuth: true, role: 'admin', features: {} });
-      expect(filtered.some(i => i.label === 'Dashboard')).toBe(true);
+      expect(filtered.some((i) => i.label === 'Dashboard')).toBe(true);
     });
 
     it('hides items when feature flag is disabled', () => {
-      const filtered = filterNav(defaultNav, { isAuth: true, role: 'admin', features: { feature_events: false, feature_forum: false, feature_directory: false } });
-      expect(filtered.some(i => i.label === 'Events')).toBe(false);
-      expect(filtered.some(i => i.label === 'Forum')).toBe(false);
+      const filtered = filterNav(defaultNav, {
+        isAuth: true,
+        role: 'admin',
+        features: { feature_events: false, feature_forum: false, feature_directory: false },
+      });
+      expect(filtered.some((i) => i.label === 'Events')).toBe(false);
+      expect(filtered.some((i) => i.label === 'Forum')).toBe(false);
     });
 
     it('shows items when feature flag is enabled', () => {
-      const filtered = filterNav(defaultNav, { isAuth: true, role: 'member', features: { feature_events: true, feature_directory: true } });
-      expect(filtered.some(i => i.label === 'Events')).toBe(true);
+      const filtered = filterNav(defaultNav, {
+        isAuth: true,
+        role: 'member',
+        features: { feature_events: true, feature_directory: true },
+      });
+      expect(filtered.some((i) => i.label === 'Events')).toBe(true);
     });
   });
 

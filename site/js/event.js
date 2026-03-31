@@ -1,6 +1,6 @@
 // event.js — Single event detail page with RSVP
 
-import { get, post, patch, del, getAuthHeaders, API } from './api.js';
+import { API, del, get, getAuthHeaders, patch, post } from './api.js';
 import { getSession, isAdmin, isAuthenticated } from './auth.js';
 import { isFeatureEnabled } from './config.js';
 import { showToast } from './toast.js';
@@ -13,7 +13,7 @@ export async function initEvent() {
   }
 
   try {
-    const events = await get('events?id=eq.' + id + '&limit=1');
+    const events = await get(`events?id=eq.${id}&limit=1`);
     if (events.length === 0) {
       document.getElementById('event-detail').innerHTML = '<p>Event not found.</p>';
       return;
@@ -27,17 +27,17 @@ export async function initEvent() {
     }
 
     // Load RSVPs
-    const rsvps = await get('event_rsvps?event_id=eq.' + id + '&select=*,members(display_name,avatar_url)');
-    const goingCount = rsvps.filter(r => r.status === 'going').length;
-    const maybeCount = rsvps.filter(r => r.status === 'maybe').length;
+    const rsvps = await get(`event_rsvps?event_id=eq.${id}&select=*,members(display_name,avatar_url)`);
+    const goingCount = rsvps.filter((r) => r.status === 'going').length;
+    const maybeCount = rsvps.filter((r) => r.status === 'maybe').length;
 
     // Current user's RSVP
     const session = getSession();
     const memberId = session?.user?.member?.id;
-    const myRsvp = memberId ? rsvps.find(r => r.member_id === memberId) : null;
+    const myRsvp = memberId ? rsvps.find((r) => r.member_id === memberId) : null;
 
     renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId);
-  } catch (e) {
+  } catch (_e) {
     document.getElementById('event-detail').innerHTML = '<p>Error loading event.</p>';
   }
 }
@@ -47,9 +47,16 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
   if (!container) return;
 
   const date = new Date(event.starts_at);
-  const dateStr = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const dateStr = date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
   const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  const endStr = event.ends_at ? ' — ' + new Date(event.ends_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+  const endStr = event.ends_at
+    ? ` — ${new Date(event.ends_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+    : '';
 
   const capacityPct = event.capacity ? Math.min(100, Math.round((goingCount / event.capacity) * 100)) : 0;
   const spotsLeft = event.capacity ? event.capacity - goingCount : null;
@@ -71,52 +78,71 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
       </div>
       ${event.capacity ? `<div style="height:6px;background:var(--color-border);border-radius:3px;overflow:hidden"><div style="width:${capacityPct}%;height:100%;background:var(--color-primary);border-radius:3px"></div></div>` : ''}
 
-      ${memberId ? `
+      ${
+        memberId
+          ? `
         <div class="flex gap-1 mt-2" id="rsvp-buttons">
           <button class="btn ${myRsvp?.status === 'going' ? 'btn-primary' : 'btn-secondary'} btn-sm" data-rsvp="going" ${isFull && myRsvp?.status !== 'going' ? 'disabled' : ''}>Going</button>
           <button class="btn ${myRsvp?.status === 'maybe' ? 'btn-primary' : 'btn-secondary'} btn-sm" data-rsvp="maybe">Maybe</button>
           ${myRsvp ? '<button class="btn btn-secondary btn-sm" data-rsvp="cancel">Cancel RSVP</button>' : ''}
         </div>
-      ` : '<p class="text-sm text-muted mt-1">Sign in to RSVP</p>'}
+      `
+          : '<p class="text-sm text-muted mt-1">Sign in to RSVP</p>'
+      }
     </div>
 
-    ${rsvps.filter(r => r.status === 'going' || r.status === 'maybe').length > 0 ? `
+    ${
+      rsvps.filter((r) => r.status === 'going' || r.status === 'maybe').length > 0
+        ? `
       <div class="mt-2">
         <h3 class="mb-1">Attendees</h3>
-        ${rsvps.filter(r => r.status !== 'cancelled').map(r => `
+        ${rsvps
+          .filter((r) => r.status !== 'cancelled')
+          .map(
+            (r) => `
           <div class="member-card">
-            ${r.members?.avatar_url
-              ? `<img class="member-avatar" src="${esc(r.members.avatar_url)}" alt="">`
-              : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(r.members?.display_name || '?')[0].toUpperCase()}</div>`}
+            ${
+              r.members?.avatar_url
+                ? `<img class="member-avatar" src="${esc(r.members.avatar_url)}" alt="">`
+                : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(r.members?.display_name || '?')[0].toUpperCase()}</div>`
+            }
             <div class="member-info">
               <span class="member-name">${esc(r.members?.display_name || 'Member')}</span>
               <span class="badge badge-${r.status === 'going' ? 'success' : 'warning'} ml-1">${r.status}</span>
             </div>
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${isAdmin() ? `
+    ${
+      isAdmin()
+        ? `
       <div class="mt-2 flex gap-1">
         ${isFeatureEnabled('feature_ai_event_recaps') && new Date(event.ends_at || event.starts_at) < new Date() ? '<button class="btn btn-secondary btn-sm" id="event-recap">Generate Recap</button>' : ''}
         <button class="btn btn-danger btn-sm" id="event-delete">Delete Event</button>
       </div>
-    ` : ''}
+    `
+        : ''
+    }
   `;
 
   // RSVP handlers
-  container.querySelectorAll('[data-rsvp]').forEach(btn => {
+  container.querySelectorAll('[data-rsvp]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const action = btn.dataset.rsvp;
       const eventId = event.id;
 
       try {
         if (action === 'cancel' && myRsvp) {
-          await del('event_rsvps?id=eq.' + myRsvp.id);
+          await del(`event_rsvps?id=eq.${myRsvp.id}`);
           showToast('RSVP cancelled', 'info');
         } else if (myRsvp) {
-          await patch('event_rsvps?id=eq.' + myRsvp.id, { status: action });
+          await patch(`event_rsvps?id=eq.${myRsvp.id}`, { status: action });
           showToast(action === 'going' ? "You're going!" : 'Marked as maybe', 'success');
         } else {
           await post('event_rsvps', { event_id: eventId, member_id: memberId, status: action });
@@ -124,9 +150,13 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
         }
         // Log RSVP activity (only for going/maybe, not cancel)
         if (action !== 'cancel' && memberId) {
-          await post('activity_log', { member_id: memberId, action: 'rsvp', metadata: { event_title: event.title, event_id: eventId } });
+          await post('activity_log', {
+            member_id: memberId,
+            action: 'rsvp',
+            metadata: { event_title: event.title, event_id: eventId },
+          });
         }
-      } catch (e) {
+      } catch (_e) {
         showToast('Could not update RSVP', 'error');
       }
       // Reload
@@ -140,7 +170,7 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
     btn.disabled = true;
     btn.textContent = 'Generating...';
     try {
-      const res = await fetch(API + '/functions/v1/ai-content', {
+      const res = await fetch(`${API}/functions/v1/ai-content`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ event_id: event.id }),
@@ -150,20 +180,30 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
         btn.textContent = 'Recap created!';
       } else {
         btn.textContent = data.error || 'Failed';
-        setTimeout(() => { btn.textContent = 'Generate Recap'; btn.disabled = false; }, 3000);
+        setTimeout(() => {
+          btn.textContent = 'Generate Recap';
+          btn.disabled = false;
+        }, 3000);
       }
-    } catch (e) {
+    } catch (_e) {
       btn.textContent = 'Error';
-      setTimeout(() => { btn.textContent = 'Generate Recap'; btn.disabled = false; }, 3000);
+      setTimeout(() => {
+        btn.textContent = 'Generate Recap';
+        btn.disabled = false;
+      }, 3000);
     }
   });
 
   // Delete handler
   document.getElementById('event-delete')?.addEventListener('click', async () => {
     if (!confirm('Delete this event?')) return;
-    await del('events?id=eq.' + event.id);
+    await del(`events?id=eq.${event.id}`);
     window.location.href = '/events.html';
   });
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}

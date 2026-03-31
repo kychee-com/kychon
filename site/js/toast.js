@@ -29,15 +29,19 @@ export function showToast(message, type = 'info') {
   c.innerHTML = '';
 
   const toast = document.createElement('div');
-  toast.className = 'toast toast-' + type;
-  toast.innerHTML = '<span class="toast-icon">' + (ICONS[type] || ICONS.info) + '</span><span>' + message + '</span>';
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon">${ICONS[type] || ICONS.info}</span><span>${message}</span>`;
   c.appendChild(toast);
 
   // Auto-dismiss after 3s
-  dismissTimer = setTimeout(function () {
+  dismissTimer = setTimeout(() => {
     toast.classList.add('dismissing');
-    toast.addEventListener('animationend', function () {
-      toast.remove();
-    }, { once: true });
+    toast.addEventListener(
+      'animationend',
+      () => {
+        toast.remove();
+      },
+      { once: true },
+    );
   }, 3000);
 }

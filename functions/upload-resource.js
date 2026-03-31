@@ -22,7 +22,7 @@ export default async (req) => {
     const uploadRes = await fetch(`https://api.run402.com/storage/v1/upload/${path}`, {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + process.env.RUN402_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}`,
       },
       body: file,
     });

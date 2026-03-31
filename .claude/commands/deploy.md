@@ -18,11 +18,11 @@ Full deploy pipeline: test locally, commit, push, deploy to Run402, verify via C
 
 Run these steps in order. Do NOT skip steps.
 
-### 1. Local Tests
+### 1. Quality Checks
 ```
-npx vitest run
+npx vitest run && npx biome check . && npx tsc --noEmit --project jsconfig.json
 ```
-If tests fail, fix them before proceeding. Do not deploy broken code.
+Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 
 ### 2. Commit & Push
 - `git status` + `git diff --stat` to review changes

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const root = join(import.meta.dirname, '../../');
 
@@ -18,7 +18,9 @@ describe('Niche seed variants', () => {
   for (const seed of seeds) {
     describe(seed.label, () => {
       let sql;
-      beforeAll(() => { sql = readSeed(seed.name); });
+      beforeAll(() => {
+        sql = readSeed(seed.name);
+      });
 
       it('is idempotent (uses ON CONFLICT or WHERE NOT EXISTS)', () => {
         const insertCount = (sql.match(/INSERT INTO/gi) || []).length;
@@ -62,7 +64,9 @@ describe('Niche seed variants', () => {
 
   describe('Church-specific config', () => {
     let sql;
-    beforeAll(() => { sql = readSeed('seed-church.sql'); });
+    beforeAll(() => {
+      sql = readSeed('seed-church.sql');
+    });
 
     it('has church roles (Pastor, Elder, Member, Visitor)', () => {
       expect(sql).toMatch(/Pastor/);
@@ -88,7 +92,9 @@ describe('Niche seed variants', () => {
 
   describe('HOA-specific config', () => {
     let sql;
-    beforeAll(() => { sql = readSeed('seed-hoa.sql'); });
+    beforeAll(() => {
+      sql = readSeed('seed-hoa.sql');
+    });
 
     it('has HOA roles (Board Member, Resident, Tenant)', () => {
       expect(sql).toMatch(/Board Member/);
@@ -108,7 +114,9 @@ describe('Niche seed variants', () => {
 
   describe('Association-specific config', () => {
     let sql;
-    beforeAll(() => { sql = readSeed('seed-association.sql'); });
+    beforeAll(() => {
+      sql = readSeed('seed-association.sql');
+    });
 
     it('has association tiers (Fellow, Member, Associate, Student)', () => {
       expect(sql).toMatch(/Fellow/);

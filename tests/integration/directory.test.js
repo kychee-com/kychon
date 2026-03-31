@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { allMembers, activeMember, pendingMember, defaultTiers } from '../fixtures/members.js';
+import { describe, expect, it } from 'vitest';
+import { activeMember, allMembers, defaultTiers } from '../fixtures/members.js';
 
 describe('directory rendering', () => {
   function renderMemberGrid(members) {
@@ -19,29 +19,27 @@ describe('directory rendering', () => {
   }
 
   function filterMembers(members, { query, tierId }) {
-    let filtered = members.filter(m => m.status === 'active');
+    let filtered = members.filter((m) => m.status === 'active');
     if (query) {
       const q = query.toLowerCase();
-      filtered = filtered.filter(m =>
-        m.display_name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
-      );
+      filtered = filtered.filter((m) => m.display_name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
     }
     if (tierId) {
-      filtered = filtered.filter(m => String(m.tier_id) === String(tierId));
+      filtered = filtered.filter((m) => String(m.tier_id) === String(tierId));
     }
     return filtered;
   }
 
   it('only shows active members', () => {
-    const active = allMembers.filter(m => m.status === 'active');
+    const active = allMembers.filter((m) => m.status === 'active');
     const grid = renderMemberGrid(active);
     expect(grid.children.length).toBe(2); // admin + activeMember
     // pending and suspended should not be shown
   });
 
   it('search filters by name', () => {
-    const tierMap = Object.fromEntries(defaultTiers.map(t => [t.id, t.name]));
-    const membersWithTier = allMembers.map(m => ({ ...m, tier_name: tierMap[m.tier_id] || '' }));
+    const tierMap = Object.fromEntries(defaultTiers.map((t) => [t.id, t.name]));
+    const membersWithTier = allMembers.map((m) => ({ ...m, tier_name: tierMap[m.tier_id] || '' }));
     const filtered = filterMembers(membersWithTier, { query: 'Jane' });
     expect(filtered.length).toBe(1);
     expect(filtered[0].display_name).toBe('Jane Member');

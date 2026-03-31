@@ -1,8 +1,8 @@
 // directory.js — Member directory logic
 
 import { get } from './api.js';
-import { getSession, requireAuth, isAuthenticated } from './auth.js';
-import { getConfig, isFeatureEnabled } from './config.js';
+import { requireAuth } from './auth.js';
+import { getConfig } from './config.js';
 
 let allMembers = [];
 let tiers = [];
@@ -17,8 +17,9 @@ export async function initDirectory() {
     tiers = await get('membership_tiers?order=position.asc');
     const tierFilter = document.getElementById('dir-tier-filter');
     if (tierFilter) {
-      tierFilter.innerHTML = '<option value="">All Tiers</option>' +
-        tiers.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+      tierFilter.innerHTML =
+        '<option value="">All Tiers</option>' +
+        tiers.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
     }
   } catch {}
 
@@ -26,8 +27,8 @@ export async function initDirectory() {
   try {
     allMembers = await get('members?status=eq.active&order=display_name.asc');
     // Join tier names
-    const tierMap = Object.fromEntries(tiers.map(t => [t.id, t.name]));
-    allMembers.forEach(m => m.tier_name = tierMap[m.tier_id] || '');
+    const tierMap = Object.fromEntries(tiers.map((t) => [t.id, t.name]));
+    allMembers.forEach((m) => (m.tier_name = tierMap[m.tier_id] || ''));
   } catch (e) {
     console.warn('Failed to load members:', e);
   }
@@ -45,13 +46,12 @@ function applyFilters() {
 
   let filtered = allMembers;
   if (query) {
-    filtered = filtered.filter(m =>
-      m.display_name.toLowerCase().includes(query) ||
-      m.email.toLowerCase().includes(query)
+    filtered = filtered.filter(
+      (m) => m.display_name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query),
     );
   }
   if (tierId) {
-    filtered = filtered.filter(m => String(m.tier_id) === tierId);
+    filtered = filtered.filter((m) => String(m.tier_id) === tierId);
   }
   renderMembers(filtered);
 }
@@ -65,11 +65,14 @@ function renderMembers(members) {
     return;
   }
 
-  grid.innerHTML = members.map(m => `
+  grid.innerHTML = members
+    .map(
+      (m) => `
     <div class="card member-card" data-member-id="${m.id}" style="cursor:pointer">
-      ${m.avatar_url
-        ? `<img class="member-avatar" src="${esc(m.avatar_url)}" alt="">`
-        : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(m.display_name || '?')[0].toUpperCase()}</div>`
+      ${
+        m.avatar_url
+          ? `<img class="member-avatar" src="${esc(m.avatar_url)}" alt="">`
+          : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(m.display_name || '?')[0].toUpperCase()}</div>`
       }
       <div class="member-info">
         <div class="member-name">${esc(m.display_name)}</div>
@@ -78,13 +81,15 @@ function renderMembers(members) {
           Joined ${formatDate(m.joined_at)}
         </div>
       </div>
-    </div>`).join('');
+    </div>`,
+    )
+    .join('');
 
   // Click to show detail
-  grid.querySelectorAll('[data-member-id]').forEach(card => {
+  grid.querySelectorAll('[data-member-id]').forEach((card) => {
     card.addEventListener('click', () => {
-      const id = parseInt(card.dataset.memberId);
-      showMemberDetail(members.find(m => m.id === id));
+      const id = parseInt(card.dataset.memberId, 10);
+      showMemberDetail(members.find((m) => m.id === id));
     });
   });
 }
@@ -97,7 +102,7 @@ function showMemberDetail(member) {
   document.getElementById('mm-name').textContent = member.display_name;
   document.getElementById('mm-bio').textContent = member.bio || 'No bio yet.';
   document.getElementById('mm-tier').textContent = member.tier_name || 'Member';
-  document.getElementById('mm-joined').textContent = 'Joined ' + formatDate(member.joined_at);
+  document.getElementById('mm-joined').textContent = `Joined ${formatDate(member.joined_at)}`;
 
   const avatar = document.getElementById('mm-avatar');
   if (member.avatar_url) {

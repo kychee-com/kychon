@@ -61,14 +61,33 @@ async function handleNewsletter() {
 async function gatherWeeklyActivity(since) {
   const [newMembers, upcomingEvents, announcements, topForumPosts, newResources] = await Promise.all([
     db.from('members').select('display_name').gte('joined_at', since).eq('status', 'active'),
-    db.from('events').select('title,starts_at,location').gte('starts_at', new Date().toISOString()).order('starts_at', { ascending: true }).limit(5),
-    db.from('announcements').select('title,body').gte('created_at', since).order('created_at', { ascending: false }).limit(5),
-    db.from('forum_topics').select('title,reply_count').gte('created_at', since).order('reply_count', { ascending: false }).limit(5),
+    db
+      .from('events')
+      .select('title,starts_at,location')
+      .gte('starts_at', new Date().toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(5),
+    db
+      .from('announcements')
+      .select('title,body')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    db
+      .from('forum_topics')
+      .select('title,reply_count')
+      .gte('created_at', since)
+      .order('reply_count', { ascending: false })
+      .limit(5),
     db.from('resources').select('title,category').gte('created_at', since).limit(5),
   ]);
 
-  const hasContent = newMembers.length > 0 || upcomingEvents.length > 0 ||
-    announcements.length > 0 || topForumPosts.length > 0 || newResources.length > 0;
+  const hasContent =
+    newMembers.length > 0 ||
+    upcomingEvents.length > 0 ||
+    announcements.length > 0 ||
+    topForumPosts.length > 0 ||
+    newResources.length > 0;
 
   return { newMembers, upcomingEvents, announcements, topForumPosts, newResources, hasContent };
 }
@@ -76,21 +95,33 @@ async function gatherWeeklyActivity(since) {
 async function generateNewsletter(provider, siteName, activity) {
   const sections = [];
   if (activity.newMembers.length > 0) {
-    sections.push(`New members this week: ${activity.newMembers.map(m => m.display_name).join(', ')}`);
+    sections.push(`New members this week: ${activity.newMembers.map((m) => m.display_name).join(', ')}`);
   }
   if (activity.upcomingEvents.length > 0) {
-    sections.push('Upcoming events:\n' + activity.upcomingEvents.map(e =>
-      `- ${e.title} on ${new Date(e.starts_at).toLocaleDateString()}${e.location ? ' at ' + e.location : ''}`
-    ).join('\n'));
+    sections.push(
+      'Upcoming events:\n' +
+        activity.upcomingEvents
+          .map(
+            (e) =>
+              `- ${e.title} on ${new Date(e.starts_at).toLocaleDateString()}${e.location ? ` at ${e.location}` : ''}`,
+          )
+          .join('\n'),
+    );
   }
   if (activity.announcements.length > 0) {
-    sections.push('Recent announcements:\n' + activity.announcements.map(a => `- ${a.title}`).join('\n'));
+    sections.push(`Recent announcements:\n${activity.announcements.map((a) => `- ${a.title}`).join('\n')}`);
   }
   if (activity.topForumPosts.length > 0) {
-    sections.push('Popular discussions:\n' + activity.topForumPosts.map(p => `- ${p.title} (${p.reply_count} replies)`).join('\n'));
+    sections.push(
+      'Popular discussions:\n' +
+        activity.topForumPosts.map((p) => `- ${p.title} (${p.reply_count} replies)`).join('\n'),
+    );
   }
   if (activity.newResources.length > 0) {
-    sections.push('New resources:\n' + activity.newResources.map(r => `- ${r.title}${r.category ? ' (' + r.category + ')' : ''}`).join('\n'));
+    sections.push(
+      'New resources:\n' +
+        activity.newResources.map((r) => `- ${r.title}${r.category ? ` (${r.category})` : ''}`).join('\n'),
+    );
   }
 
   const prompt = `Write a friendly, concise weekly newsletter for "${siteName}". Output JSON with "subject" and "body" (HTML). The body should be warm, use <h2>, <p>, <ul> tags, and be ready to send.
@@ -137,7 +168,11 @@ async function handleRecap(eventId) {
   const provider = process.env.AI_PROVIDER || 'openai';
 
   try {
-    const eventDate = new Date(event.starts_at).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+    const eventDate = new Date(event.starts_at).toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
     const prompt = `Write a brief, warm event recap for "${siteName}". Output JSON with "title" and "body" (HTML with <p> tags).
 
 Event: ${event.title}
@@ -196,7 +231,7 @@ async function callAI(provider, prompt, maxTokens) {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + process.env.AI_API_KEY,
+        Authorization: `Bearer ${process.env.AI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
