@@ -75,11 +75,11 @@
 
   <script src="/js/env.js"></script>
   <script type="module">
-    import { init } from './js/config.js';
+    import { init } from './js/config.js?v=3';
 
     await init();
 
-    import { initAdminMembers } from './js/admin-members.js';
+    import { initAdminMembers } from './js/admin-members.js?v=3';
 
     await initAdminMembers();
   </script>

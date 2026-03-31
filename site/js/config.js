@@ -1,10 +1,10 @@
 // @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
-import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js';
-import { get } from './api.js';
-import { getRole, getSession, isAdmin } from './auth.js';
-import { loadLocale } from './i18n.js';
+import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=3';
+import { get } from './api.js?v=3';
+import { getRole, getSession, isAdmin } from './auth.js?v=3';
+import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales } from './i18n.js?v=3';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
@@ -158,6 +158,29 @@ function buildUserNav() {
   }
   // Add theme toggle after user nav is built
   buildThemeToggle();
+  buildLanguageSwitcher();
+}
+
+const LANG_LABELS = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR', de: 'DE', zh: '中文', ja: '日本語', ko: '한국어' };
+
+function buildLanguageSwitcher() {
+  const locales = getAvailableLocales();
+  if (locales.length < 2) return;
+  const userEl = document.getElementById('nav-user');
+  if (!userEl) return;
+  const current = getLocale();
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-sm btn-secondary';
+  btn.id = 'lang-toggle';
+  btn.setAttribute('aria-label', 'Switch language');
+  btn.textContent = LANG_LABELS[current] || current.toUpperCase();
+  btn.addEventListener('click', async () => {
+    const idx = locales.indexOf(current);
+    const next = locales[(idx + 1) % locales.length];
+    await setLanguage(next);
+    window.location.reload();
+  });
+  userEl.prepend(btn);
 }
 
 async function loadMemberRecord() {
@@ -207,8 +230,9 @@ export async function init() {
   // Apply branding
   applyBranding(siteConfig);
 
-  // Load i18n
-  await loadLocale();
+  // Load i18n — pass DB languages if available
+  if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
+  await loadLocale(null, siteConfig.default_language);
 
   // Load member record for authenticated users (must happen before nav build)
   await loadMemberRecord();

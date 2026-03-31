@@ -1,8 +1,8 @@
 // admin.js — Admin dashboard logic
 
-import { count, get, patch } from './api.js';
-import { requireAdmin } from './auth.js';
-import { isFeatureEnabled } from './config.js';
+import { count, get, patch } from './api.js?v=3';
+import { requireAdmin } from './auth.js?v=3';
+import { isFeatureEnabled } from './config.js?v=3';
 
 export async function initDashboard() {
   if (!requireAdmin()) return;

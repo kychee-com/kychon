@@ -91,11 +91,11 @@
   <script src="/js/animations.js?v=2"></script>
   <script src="/js/env.js"></script>
   <script type="module">
-    import { announce, releaseFocus, trapFocus } from './js/accessibility.js';
-    import { del, get, patch, post } from './js/api.js';
-    import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js';
-    import { init, isFeatureEnabled } from './js/config.js';
-    import { showToast } from './js/toast.js';
+    import { announce, releaseFocus, trapFocus } from './js/accessibility.js?v=3';
+    import { del, get, patch, post } from './js/api.js?v=3';
+    import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js?v=3';
+    import { init, isFeatureEnabled } from './js/config.js?v=3';
+    import { showToast } from './js/toast.js?v=3';
 
     // Handle OAuth callback
     const session = await handleOAuthCallback();

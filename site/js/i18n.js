@@ -40,10 +40,13 @@ async function fetchLocale(lang) {
   }
 }
 
-export async function loadLocale(lang) {
-  // Determine locale: explicit arg > localStorage > brand.json default > 'en'
+export async function loadLocale(lang, defaultLang) {
+  // Determine locale: explicit arg > localStorage > defaultLang param > brand.json default > 'en'
   if (!lang) {
     lang = localStorage.getItem('wl_locale');
+  }
+  if (!lang && defaultLang) {
+    lang = defaultLang;
   }
   if (!lang) {
     try {
@@ -83,7 +86,14 @@ export function getLocale() {
   return currentLocale;
 }
 
+let _availableLocales = null;
+
+export function setAvailableLocales(locales) {
+  _availableLocales = locales;
+}
+
 export function getAvailableLocales() {
+  if (_availableLocales) return _availableLocales;
   try {
     const brand = JSON.parse(document.getElementById('brand-data')?.textContent || '{}');
     return brand.languages || ['en'];

@@ -1,7 +1,7 @@
 // committees.js — Committee listing and detail
 
-import { del, get, post } from './api.js';
-import { isAdmin } from './auth.js';
+import { del, get, post } from './api.js?v=3';
+import { isAdmin } from './auth.js?v=3';
 
 export async function initCommittees() {
   const id = new URLSearchParams(window.location.search).get('id');
