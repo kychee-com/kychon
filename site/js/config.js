@@ -4,7 +4,7 @@
 import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=3';
 import { get } from './api.js?v=3';
 import { getRole, getSession, isAdmin } from './auth.js?v=3';
-import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales } from './i18n.js?v=3';
+import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=3';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
@@ -81,6 +81,18 @@ function applyBranding(config) {
   if (favicon && config.favicon_url) favicon.href = config.favicon_url;
 }
 
+// Map common nav labels (any language) to i18n keys
+const NAV_LABEL_KEYS = {
+  Home: 'nav.home', Inicio: 'nav.home',
+  Members: 'nav.members', Miembros: 'nav.members', Residents: 'nav.members',
+  Events: 'nav.events', Eventos: 'nav.events',
+  Resources: 'nav.resources', Recursos: 'nav.resources', Sermons: 'nav.resources', Documents: 'nav.resources',
+  Forum: 'nav.forum', Foro: 'nav.forum',
+  Dashboard: 'nav.dashboard', Panel: 'nav.dashboard',
+  Settings: 'nav.settings', 'Configuración': 'nav.settings',
+  Profile: 'nav.profile', Perfil: 'nav.profile',
+};
+
 function buildNav(navItems) {
   const navEl = document.getElementById('nav-links');
   if (!navEl || !navItems) return;
@@ -102,7 +114,9 @@ function buildNav(navItems) {
     const a = document.createElement('a');
     a.className = `nav-link${currentPath === item.href ? ' active' : ''}`;
     a.href = item.href;
-    a.textContent = item.label;
+    // Translate nav labels via i18n key mapping
+    const labelKey = NAV_LABEL_KEYS[item.label];
+    a.textContent = labelKey ? t(labelKey) : item.label;
     navEl.appendChild(a);
   }
 }
@@ -136,7 +150,7 @@ function buildUserNav() {
 
   const session = getSession();
   if (!session) {
-    userEl.innerHTML = '<button class="btn btn-primary btn-sm" id="login-btn">Sign In</button>';
+    userEl.innerHTML = `<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
     document.getElementById('login-btn')?.addEventListener('click', () => {
       const modal = document.getElementById('auth-modal');
       modal?.classList.remove('hidden');
