@@ -22,14 +22,9 @@ fi
 
 # Deploy site + images + seed
 cd "$ROOT"
-RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=barrio-unido node deploy.js
+SEED_FILE="demo/barrio-unido/seed.sql" RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=barrio-unido node deploy.js
 
-# Run the barrio-unido seed
-echo ""
-echo "Running barrio-unido seed..."
-run402 projects sql "$PROJECT_ID" --file "$SCRIPT_DIR/seed.sql"
-
-# Clean up symlinks
+# Clean up copied assets
 if [ -d "$ASSETS_DST" ]; then
   echo "Cleaning up copied assets..."
   rm -rf "$ASSETS_DST"

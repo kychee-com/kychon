@@ -79,7 +79,7 @@ writeFileSync(envJsPath, envJsContent);
 
 // Read schema + seed as combined migrations
 const schema = readText('schema.sql');
-const seed = readText('seed.sql');
+const seed = readText(process.env.SEED_FILE || 'seed.sql');
 const migrations = `${schema}\n\n${seed}`;
 
 // Write migrations to temp file (migrations_file approach avoids JSON escaping)
