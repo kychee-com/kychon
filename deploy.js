@@ -19,7 +19,7 @@ function collectFiles(dir, base = dir) {
       files.push(...collectFiles(full, base));
     } else {
       // Use "path" reference — CLI auto-detects and base64-encodes binary files
-      files.push({ file: relative(base, full), path: './' + full });
+      files.push({ file: relative(base, full), path: `./${full}` });
     }
   }
   return files;
