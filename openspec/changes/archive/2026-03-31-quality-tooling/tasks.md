@@ -21,7 +21,7 @@
 ## 3. GitHub Actions CI
 
 - [x] 3.1 Create `.github/workflows/ci.yml` with Node 20, dependency caching, and three steps: test, lint, typecheck
-- [ ] 3.2 Push and verify the workflow runs on GitHub
+- [x] 3.2 Push and verify the workflow runs on GitHub (passed in 25s)
 
 ## 4. Verification
 
