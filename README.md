@@ -1,12 +1,9 @@
 # Wild Lychee
 
-[![GitHub release](https://img.shields.io/github/v/release/kychee-com/wildlychee?style=flat-square&color=4f46e5)](https://github.com/kychee-com/wildlychee/releases)
 [![Tests](https://img.shields.io/badge/tests-205%20passed-brightgreen?style=flat-square)](https://github.com/kychee-com/wildlychee)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Biome](https://img.shields.io/badge/linter-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev)
 [![Platform: Run402](https://img.shields.io/badge/platform-Run402-ff6b35?style=flat-square)](https://run402.com)
-[![No Build Step](https://img.shields.io/badge/build%20step-none-10b981?style=flat-square)](https://github.com/kychee-com/wildlychee)
-[![Vanilla JS](https://img.shields.io/badge/framework-vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)](https://github.com/kychee-com/wildlychee)
 [![AI Native](https://img.shields.io/badge/AI-built--in-a855f7?style=flat-square)](https://wildlychee.com/#ai)
 
 A forkable, AI-powered membership portal built on [Run402](https://run402.com). One deploy gives your community a full-featured site with member directory, events, forum, resources, committees, and built-in AI moderation and translation.
