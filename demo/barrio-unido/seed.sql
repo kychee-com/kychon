@@ -622,51 +622,51 @@ WHERE NOT EXISTS (SELECT 1 FROM announcements WHERE title = 'Buscamos voluntario
 -- 11. RESOURCES (12 items)
 -- ============================================
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Tarjeta "Conozca Sus Derechos"', 'Tarjeta de bolsillo bilingüe con sus derechos constitucionales durante encuentros con ICE o la policía. Imprimible.', 'Guías Legales', '/resources/know-your-rights.pdf', false, (SELECT id FROM members WHERE email = 'ana.delgado@gmail.com'), now() - interval '200 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Tarjeta "Conozca Sus Derechos"');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Lista de verificación para renovación de DACA', 'Documentos necesarios, fechas límite y pasos para renovar su DACA. Actualizado para 2026.', 'Guías Legales', '/resources/daca-renewal-checklist.pdf', false, (SELECT id FROM members WHERE email = 'ana.delgado@gmail.com'), now() - interval '180 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Lista de verificación para renovación de DACA');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Guía de estudio para el examen de ciudadanía', '100 preguntas cívicas con respuestas en español e inglés. Incluye tarjetas de estudio recortables.', 'Ciudadanía', '/resources/citizenship-study-guide.pdf', false, (SELECT id FROM members WHERE email = 'lucia.ramirez@barriounido.org'), now() - interval '300 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Guía de estudio para el examen de ciudadanía');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Cuaderno de ESL — Nivel 1', 'Material de estudio para el curso de inglés nivel principiante. Vocabulario básico, saludos, números, familia.', 'Clases de Inglés', '/resources/esl-workbook-level1.pdf', true, (SELECT id FROM members WHERE email = 'carlos.medina@outlook.com'), now() - interval '250 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Cuaderno de ESL — Nivel 1');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Cuaderno de ESL — Nivel 2', 'Material intermedio: tiempos verbales, conversación cotidiana, vocabulario de trabajo y servicios.', 'Clases de Inglés', '/resources/esl-workbook-level2.pdf', true, (SELECT id FROM members WHERE email = 'carlos.medina@outlook.com'), now() - interval '200 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Cuaderno de ESL — Nivel 2');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Derechos del inquilino en California', 'Guía completa sobre protecciones para inquilinos: renta justa, desalojos, reparaciones, depósitos y discriminación.', 'Guías Legales', '/resources/tenant-rights-ca.pdf', false, (SELECT id FROM members WHERE email = 'jennifer.tran@gmail.com'), now() - interval '160 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Derechos del inquilino en California');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Horario de la despensa comunitaria', 'Calendario actualizado de días y horarios de distribución de alimentos. Incluye lista de productos disponibles.', 'Servicios', '/resources/food-pantry-schedule.pdf', false, (SELECT id FROM members WHERE email = 'rosa.martinez@yahoo.com'), now() - interval '100 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Horario de la despensa comunitaria');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Guía de inscripción a Medi-Cal', 'Paso a paso para inscribirse en Medi-Cal, el seguro médico gratuito de California. Incluye documentos necesarios y sitios de ayuda.', 'Servicios', '/resources/medi-cal-guide.pdf', false, (SELECT id FROM members WHERE email = 'maria.elena.rios@gmail.com'), now() - interval '140 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Guía de inscripción a Medi-Cal');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Solicitud de beca juvenil Barrio Unido', 'Formulario para aplicar a la beca anual de $1,000 para jóvenes del programa Jóvenes Unidos que van a la universidad.', 'Jóvenes', '/resources/youth-scholarship.pdf', true, (SELECT id FROM members WHERE email = 'adriana.morales@gmail.com'), now() - interval '80 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Solicitud de beca juvenil Barrio Unido');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Formulario de voluntario', 'Registro para nuevos voluntarios: información personal, disponibilidad, habilidades e intereses.', 'Formularios', '/resources/volunteer-form.pdf', false, (SELECT id FROM members WHERE email = 'lucia.ramirez@barriounido.org'), now() - interval '350 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Formulario de voluntario');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Directorio de servicios de inmigración en LA', 'Lista de organizaciones, abogados y servicios gratuitos de inmigración en el condado de Los Ángeles.', 'Guías Legales', '/resources/immigration-services-directory.pdf', false, (SELECT id FROM members WHERE email = 'ana.delgado@gmail.com'), now() - interval '120 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Directorio de servicios de inmigración en LA');
 
-INSERT INTO resources (title, description, category, file_url, is_members_only, created_by, created_at)
+INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)
 SELECT 'Guía básica de tecnología para adultos', 'Cómo usar un smartphone, correo electrónico, WhatsApp y videollamadas. Con capturas de pantalla paso a paso.', 'Clases de Inglés', '/resources/tech-basics-guide.pdf', true, (SELECT id FROM members WHERE email = 'raul.mendoza@gmail.com'), now() - interval '90 days'
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Guía básica de tecnología para adultos');
 
@@ -736,10 +736,10 @@ WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_t
 -- 13. CUSTOM PAGES
 -- ============================================
 
-INSERT INTO pages (slug, title, body, visible, position)
+INSERT INTO pages (slug, title, content, published)
 SELECT 'nosotros', 'Sobre Barrio Unido',
   '<h2>Nuestra Historia</h2><p>Barrio Unido nació en 2018 cuando un grupo de vecinos de Boyle Heights decidió que nuestra comunidad merecía un espacio propio — un lugar donde cualquier persona pudiera encontrar ayuda, aprender, conectar y celebrar.</p><p>Lo que empezó como una mesa con café y formularios de inmigración en el garaje de Lucía Ramírez, hoy es un centro comunitario que sirve a más de 2,400 familias al año.</p><h2>Nuestra Misión</h2><p>Empoderar a las familias inmigrantes y latinx de East Los Angeles proporcionando servicios legales, educación, alimentos y espacios culturales — todo gratuito, todo con dignidad.</p><h2>Cómo Participar</h2><p>No importa si hablas español, inglés o ambos. No importa tu estatus migratorio. No importa cuánto tiempo lleves en el barrio. <strong>Aquí hay un lugar para ti.</strong></p><ul><li>Ven a un evento y conoce a la comunidad</li><li>Inscríbete como voluntario/a</li><li>Dona a nuestra despensa de alimentos</li><li>Comparte nuestros recursos con alguien que los necesite</li></ul>',
-  true, 1
+  true
 WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'nosotros');
 
 -- ============================================
@@ -956,7 +956,7 @@ SELECT 'page', id, 'en', 'title', 'About Barrio Unido' FROM pages WHERE slug = '
 ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
 
 INSERT INTO content_translations (content_type, content_id, language, field, translated_text)
-SELECT 'page', id, 'en', 'body', '<h2>Our Story</h2><p>Barrio Unido was born in 2018 when a group of Boyle Heights neighbors decided our community deserved a space of its own — a place where anyone could find help, learn, connect, and celebrate.</p><p>What started as a table with coffee and immigration forms in Lucía Ramírez''s garage is now a community center serving over 2,400 families per year.</p><h2>Our Mission</h2><p>To empower immigrant and Latinx families in East Los Angeles by providing legal services, education, food, and cultural spaces — all free, all with dignity.</p><h2>How to Get Involved</h2><p>It doesn''t matter if you speak Spanish, English, or both. It doesn''t matter what your immigration status is. It doesn''t matter how long you''ve been in the neighborhood. <strong>There''s a place for you here.</strong></p><ul><li>Come to an event and meet the community</li><li>Sign up as a volunteer</li><li>Donate to our food pantry</li><li>Share our resources with someone who needs them</li></ul>' FROM pages WHERE slug = 'nosotros'
+SELECT 'page', id, 'en', 'content', '<h2>Our Story</h2><p>Barrio Unido was born in 2018 when a group of Boyle Heights neighbors decided our community deserved a space of its own — a place where anyone could find help, learn, connect, and celebrate.</p><p>What started as a table with coffee and immigration forms in Lucía Ramírez''s garage is now a community center serving over 2,400 families per year.</p><h2>Our Mission</h2><p>To empower immigrant and Latinx families in East Los Angeles by providing legal services, education, food, and cultural spaces — all free, all with dignity.</p><h2>How to Get Involved</h2><p>It doesn''t matter if you speak Spanish, English, or both. It doesn''t matter what your immigration status is. It doesn''t matter how long you''ve been in the neighborhood. <strong>There''s a place for you here.</strong></p><ul><li>Come to an event and meet the community</li><li>Sign up as a volunteer</li><li>Donate to our food pantry</li><li>Share our resources with someone who needs them</li></ul>' FROM pages WHERE slug = 'nosotros'
 ON CONFLICT (content_type, content_id, language, field) DO NOTHING;
 
 -- ============================================
@@ -1277,152 +1277,152 @@ WHERE NOT EXISTS (SELECT 1 FROM forum_replies WHERE topic_id = (SELECT id FROM f
 -- 17. ACTIVITY LOG (30 entries)
 -- ============================================
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'signup', m.id, '{"name": "Diego Salazar"}', now() - interval '5 days'
 FROM members m WHERE m.email = 'diego.salazar@gmail.com'
 AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'signup' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'signup', m.id, '{"name": "Carmen Aguilar"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'carmen.aguilar@outlook.com'
 AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'signup' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'announcement', m.id, '{"title": "Buscamos voluntarios para el mercadito"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'teresa.ruiz@yahoo.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND details::text LIKE '%mercadito%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND metadata::text LIKE '%mercadito%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Clínica Legal Gratuita", "status": "going"}', now() - interval '2 days'
 FROM members m WHERE m.email = 'pedro.gutierrez@hotmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Clínica Legal%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Clínica Legal%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Noche de Ciudadanía", "status": "going"}', now() - interval '2 days'
 FROM members m WHERE m.email = 'jose.hernandez@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Ciudadanía%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Ciudadanía%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'post', m.id, '{"topic": "¡Mi mamá pasó el examen de ciudadanía! 🇺🇸"}', now() - interval '12 days'
 FROM members m WHERE m.email = 'jose.hernandez@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND details::text LIKE '%ciudadanía%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND metadata::text LIKE '%ciudadanía%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'announcement', m.id, '{"title": "Próxima clínica legal: actualización sobre DACA"}', now() - interval '7 days'
 FROM members m WHERE m.email = 'ana.delgado@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND details::text LIKE '%DACA%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND metadata::text LIKE '%DACA%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Mercadito del Barrio", "status": "going"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'teresa.ruiz@yahoo.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Mercadito%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Mercadito%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Mercadito del Barrio", "status": "going"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'marco.fuentes@outlook.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Mercadito%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Mercadito%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Feria de Salud Comunitaria", "status": "going"}', now() - interval '4 days'
 FROM members m WHERE m.email = 'maria.elena.rios@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Feria de Salud%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Feria de Salud%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'post', m.id, '{"topic": "Cierre de calle 1st por construcción"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'lucia.ramirez@barriounido.org'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND details::text LIKE '%calle 1st%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND metadata::text LIKE '%calle 1st%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'resource_upload', m.id, '{"title": "Guía básica de tecnología para adultos"}', now() - interval '90 days'
 FROM members m WHERE m.email = 'raul.mendoza@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'resource_upload' AND details::text LIKE '%tecnología%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'resource_upload' AND metadata::text LIKE '%tecnología%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Taller de Impuestos Gratis (VITA)", "status": "going"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'sandra.lopez@outlook.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Impuestos%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Impuestos%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Noche de Ciudadanía", "status": "going"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'carlos.medina@outlook.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Ciudadanía%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Ciudadanía%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'post', m.id, '{"topic": "¿Cómo me inscribo en las clases de inglés?"}', now() - interval '4 days'
 FROM members m WHERE m.email = 'carmen.aguilar@outlook.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND details::text LIKE '%clases de inglés%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND metadata::text LIKE '%clases de inglés%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'announcement', m.id, '{"title": "Récord en la despensa: 180 familias servidas"}', now() - interval '14 days'
 FROM members m WHERE m.email = 'rosa.martinez@yahoo.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND details::text LIKE '%180 familias%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND metadata::text LIKE '%180 familias%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Feria de Salud Comunitaria", "status": "going"}', now() - interval '5 days'
 FROM members m WHERE m.email = 'rosa.martinez@yahoo.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Feria de Salud%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Feria de Salud%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Clínica Legal Gratuita", "status": "going"}', now() - interval '2 days'
 FROM members m WHERE m.email = 'ana.delgado@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Clínica Legal%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Clínica Legal%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'post', m.id, '{"topic": "Buscan cocineros en restaurante de la calle César Chávez"}', now() - interval '8 days'
 FROM members m WHERE m.email = 'marco.fuentes@outlook.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND details::text LIKE '%cocineros%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND metadata::text LIKE '%cocineros%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Mercadito del Barrio", "status": "going"}', now() - interval '2 days'
 FROM members m WHERE m.email = 'guadalupe.flores@yahoo.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Mercadito%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Mercadito%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Noche de Ciudadanía", "status": "going"}', now() - interval '4 days'
 FROM members m WHERE m.email = 'lucia.ramirez@barriounido.org'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Ciudadanía%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Ciudadanía%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'post', m.id, '{"topic": "Cuidado: estafas telefónicas haciéndose pasar por ICE"}', now() - interval '9 days'
 FROM members m WHERE m.email = 'ana.delgado@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND details::text LIKE '%estafas%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND metadata::text LIKE '%estafas%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Feria de Salud Comunitaria", "status": "going"}', now() - interval '6 days'
 FROM members m WHERE m.email = 'guadalupe.flores@yahoo.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Feria de Salud%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Feria de Salud%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'resource_upload', m.id, '{"title": "Solicitud de beca juvenil Barrio Unido"}', now() - interval '80 days'
 FROM members m WHERE m.email = 'adriana.morales@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'resource_upload' AND details::text LIKE '%beca%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'resource_upload' AND metadata::text LIKE '%beca%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Taller de Impuestos Gratis (VITA)", "status": "going"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'jose.hernandez@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Impuestos%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Impuestos%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'announcement', m.id, '{"title": "¡18 graduados del programa de ESL!"}', now() - interval '28 days'
 FROM members m WHERE m.email = 'carlos.medina@outlook.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND details::text LIKE '%18 graduados%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'announcement' AND metadata::text LIKE '%18 graduados%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Clínica Legal Gratuita", "status": "going"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'david.kim@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Clínica Legal%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Clínica Legal%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'post', m.id, '{"topic": "App gratuita para practicar inglés"}', now() - interval '20 days'
 FROM members m WHERE m.email = 'adriana.morales@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND details::text LIKE '%Duolingo%');
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'post' AND metadata::text LIKE '%Duolingo%');
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Mercadito del Barrio", "status": "going"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'oscar.herrera@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Mercadito%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Mercadito%' AND member_id = m.id);
 
-INSERT INTO activity_log (action, member_id, details, created_at)
+INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Noche de Ciudadanía", "status": "going"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'ana.delgado@gmail.com'
-AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND details::text LIKE '%Ciudadanía%' AND member_id = m.id);
+AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Ciudadanía%' AND member_id = m.id);
