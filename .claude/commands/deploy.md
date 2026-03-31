@@ -1,50 +1,93 @@
 ---
 name: "Deploy"
-description: "Deploy Wild Lychee sites to Run402"
+description: "Test, commit, deploy, verify, and report friction for Wild Lychee sites"
 category: Deploy
-tags: [deploy, run402]
+tags: [deploy, run402, test]
 ---
 
-Deploy one or more Wild Lychee sites to Run402.
+Full deploy pipeline: test locally, commit, push, deploy to Run402, verify via Chrome, and report any friction as GitHub issues.
 
 **Usage:**
-- `/deploy` — deploy everything (portal + marketing)
-- `/deploy portal` — deploy the portal template only
-- `/deploy marketing` — deploy the marketing site only
-- `/deploy eagles` — deploy the Eagles demo seed data
+- `/deploy` — full pipeline for everything (portal + marketing)
+- `/deploy portal` — portal only
+- `/deploy marketing` — marketing site only
+- `/deploy eagles` — deploy Eagles demo seed data
 - `/deploy screenshots` — recapture showcase screenshots and redeploy marketing
 
-## Sites
+## Full Pipeline
 
-### Portal (wildlychee portal template)
-- **Project:** `REDACTED_PROJECT_ID` (or active project)
-- **Subdomain:** `eagles.run402.com` (currently shares project with Eagles)
-- **Deploy:** `node deploy.js`
-- **Includes:** schema.sql + seed.sql migrations, site files, edge functions, RLS
+Run these steps in order. Do NOT skip steps.
 
-### Marketing (wildlychee.com landing page)
+### 1. Local Tests
+```
+npx vitest run
+```
+If tests fail, fix them before proceeding. Do not deploy broken code.
+
+### 2. Commit & Push
+- `git status` + `git diff --stat` to review changes
+- Stage relevant files (never `git add .` blindly)
+- Commit with a descriptive message
+- `git push`
+
+### 3. Deploy
+
+#### Portal (community template)
+- **Project:** `REDACTED_PROJECT_ID`
+- **Subdomain:** `eagles.run402.com`
+- **Command:** `node deploy.js`
+- **Includes:** schema.sql + seed.sql, site files, edge functions, RLS
+
+#### Marketing (wildlychee.com)
 - **Project:** `REDACTED_PROJECT_ID`
 - **Subdomain:** `wildlychee.run402.com`
-- **Deploy:** `MARKETING_PROJECT_ID=REDACTED_PROJECT_ID node marketing/deploy-marketing.js`
-- **Includes:** Static files only (HTML, CSS, assets). No database, no functions.
+- **Command:** `MARKETING_PROJECT_ID=REDACTED_PROJECT_ID node marketing/deploy-marketing.js`
+- **Includes:** Static HTML/CSS/assets only
 
-### Eagles Demo Seed
-- **Run after portal deploy** to populate Eagles-specific data
-- **Reactions & Activity:** `run402 projects sql REDACTED_PROJECT_ID --file demo/eagles/seed-eagles-reactions-activity.sql`
+#### Eagles Demo Seed (after portal deploy)
+- **Command:** `run402 projects sql REDACTED_PROJECT_ID --file demo/eagles/seed-eagles-reactions-activity.sql`
 
-### Screenshots
-- **Capture:** `./marketing/capture-screenshots.sh` (all) or `./marketing/capture-screenshots.sh eagles` (specific)
-- **Then redeploy marketing** to include updated screenshots
+#### Screenshots (before marketing deploy)
+- **Capture:** `./marketing/capture-screenshots.sh`
+- **Then redeploy marketing** to include updated images
 
-## Steps
+### 4. E2E Verification via Chrome MCP
 
-When deploying everything:
+After deploy, open each deployed site in Chrome and verify:
 
-1. Run tests: `npx vitest run`
-2. Deploy portal: `node deploy.js`
-3. Deploy marketing: `MARKETING_PROJECT_ID=REDACTED_PROJECT_ID node marketing/deploy-marketing.js`
-4. Verify both sites load in Chrome
+**Portal (eagles.run402.com):**
+- Homepage loads with sections (hero, features, stats, activity feed, announcements)
+- Activity feed shows entries with member names and timestamps
+- Announcements display with reaction bars
+- Nav links work (directory, events, resources, forum, committees)
+- Check browser console for errors
 
-When only a specific target is requested, deploy just that target.
+**Marketing (wildlychee.run402.com):**
+- All sections render (hero, problem, features, AI, showcase, pricing, niches, CTA, footer)
+- Nav anchor links scroll to correct sections
+- Showcase gallery shows Eagles screenshot
+- Niche page links work (/churches.html, /hoa.html, /sports.html, /associations.html)
+- External links work (GitHub, Eagles demo)
 
-Always run tests before deploying the portal. Always verify deploys via Chrome MCP after deploying.
+### 5. Report Friction
+
+**CRITICAL: Report ANY issues encountered during the entire pipeline as GitHub issues.** This includes bugs, unexpected behavior, missing features, confusing error messages, documentation gaps, and workarounds you had to use.
+
+File issues on the appropriate repo:
+- **Platform/backend** (deploy behavior, SQL, storage, RLS, seed, CDN, subdomains, demo mode) → `gh issue create --repo MajorTal/run402`
+- **CLI/tooling** (argument order, error messages, missing flags, docs) → `gh issue create --repo kychee-com/run402`
+
+Include in each issue:
+- Steps to reproduce
+- Expected vs actual behavior
+- Workaround used (if any)
+
+Even small friction counts — if you had to work around something, file it.
+
+## When deploying a specific target
+
+Skip steps that don't apply (e.g., `/deploy marketing` skips portal deploy and portal E2E), but always:
+- Run tests if code changed
+- Commit & push if there are uncommitted changes
+- Verify the deployed target via Chrome
+- Report any friction
