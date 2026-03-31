@@ -24,6 +24,8 @@ export function isFeatureEnabled(flag) {
 function applyTheme(theme) {
   if (!theme) return;
   const el = document.documentElement;
+  // Colors that dark mode overrides — set only on :root, not inline
+  const darkOverridable = new Set(['bg', 'surface', 'text', 'text_muted', 'border']);
   const map = {
     primary: '--color-primary',
     primary_hover: '--color-primary-hover',
@@ -37,9 +39,27 @@ function applyTheme(theme) {
     radius: '--radius',
     max_width: '--max-width',
   };
+  // Non-dark-overridable vars go inline (highest priority, same in both modes)
+  // Dark-overridable vars go into a :root stylesheet so [data-theme="dark"] wins
+  const rootVars = [];
   for (const [key, prop] of Object.entries(map)) {
-    if (theme[key]) el.style.setProperty(prop, theme[key]);
+    if (!theme[key]) continue;
+    if (darkOverridable.has(key)) {
+      rootVars.push(`${prop}: ${theme[key]};`);
+    } else {
+      el.style.setProperty(prop, theme[key]);
+    }
   }
+  let styleEl = document.getElementById('wl-theme-vars');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'wl-theme-vars';
+    // Insert before other stylesheets so [data-theme="dark"] can override
+    const firstLink = document.querySelector('link[rel="stylesheet"]');
+    if (firstLink) firstLink.before(styleEl);
+    else document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = `:root {\n  ${rootVars.join('\n  ')}\n}`;
 }
 
 function applyBranding(config) {
