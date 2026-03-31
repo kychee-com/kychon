@@ -1,11 +1,11 @@
 ---
 name: "Deploy"
-description: "Test, commit, deploy, verify, and report friction for Wild Lychee sites"
+description: "Test, commit, deploy, verify, create release, and report friction for Wild Lychee sites"
 category: Deploy
-tags: [deploy, run402, test]
+tags: [deploy, run402, test, release]
 ---
 
-Full deploy pipeline: test locally, commit, push, deploy to Run402, verify via Chrome, and report any friction as GitHub issues.
+Full deploy pipeline: test locally, commit, push, deploy to Run402, verify via Chrome, create a GitHub release, and report any friction as GitHub issues.
 
 **Usage:**
 - `/deploy` — full pipeline for everything (portal + marketing)
@@ -70,7 +70,58 @@ After deploy, open each deployed site in Chrome and verify:
 - Niche page links work (/churches.html, /hoa.html, /sports.html, /associations.html)
 - External links work (GitHub, Eagles demo)
 
-### 5. Report Friction
+### 5. Create GitHub Release
+
+**CRITICAL: Every deploy MUST create a semantic version release.** This is not optional.
+
+#### Version bumping
+
+Determine the version bump from the changes being deployed:
+- **patch** (0.0.X): bug fixes, copy changes, CSS tweaks, config updates
+- **minor** (0.X.0): new features, new pages, new edge functions, new demo portals
+- **major** (X.0.0): breaking changes, architecture changes, schema migrations that break existing data
+
+Get the last release tag:
+```bash
+gh release list --repo kychee-com/wildlychee --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "v0.0.0"
+```
+
+Increment appropriately (e.g., `v0.3.0` -> `v0.3.1` for patch, `v0.4.0` for minor).
+
+#### Release notes
+
+Generate detailed release notes from commits since the last release. Use this format:
+
+```bash
+gh release create <tag> --repo kychee-com/wildlychee --title "<tag> — <short title>" --notes "$(cat <<'EOF'
+## What's New
+
+<Bullet list of user-facing changes. Group by category if needed.>
+
+## Details
+
+<For each significant change, 1-2 sentences explaining what changed and why.>
+
+## Deployed To
+
+- Portal: https://eagles.run402.com
+- Marketing: https://wildlychee.com
+
+## Commits
+
+<List commits since last release: `git log <last-tag>..HEAD --oneline`>
+EOF
+)"
+```
+
+**Rules for release notes:**
+- Lead with user-facing changes, not implementation details
+- Group changes: Features, Fixes, Marketing, Infrastructure
+- Include deploy URLs so anyone can verify
+- List all commits for traceability
+- The title should capture the theme of the release (e.g., "v0.4.0 — Native AI, no more BYOK")
+
+### 6. Report Friction
 
 **CRITICAL: Report ANY issues encountered during the entire pipeline as GitHub issues.** This includes bugs, unexpected behavior, missing features, confusing error messages, documentation gaps, and workarounds you had to use.
 
@@ -91,4 +142,5 @@ Skip steps that don't apply (e.g., `/deploy marketing` skips portal deploy and p
 - Run tests if code changed
 - Commit & push if there are uncommitted changes
 - Verify the deployed target via Chrome
+- Create a GitHub release (even for single-target deploys)
 - Report any friction
