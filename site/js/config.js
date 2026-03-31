@@ -1,10 +1,10 @@
 // @ts-check
 // config.js — Loads site_config, injects theme, builds nav, manages feature flags
 
-import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=8';
-import { get } from './api.js?v=8';
-import { getRole, getSession, isAdmin } from './auth.js?v=8';
-import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=8';
+import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=9';
+import { get } from './api.js?v=9';
+import { getRole, getSession, isAdmin } from './auth.js?v=9';
+import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=9';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
@@ -431,8 +431,11 @@ export function addTranslateButton(el, text) {
   if (!text || text.length < 10) return;
   const locale = localStorage.getItem('wl_locale') || siteConfig.default_language || 'en';
   const defaultLang = siteConfig.default_language || 'en';
-  // Only show translate button when the user's locale differs from the content's base language
   if (locale === defaultLang) return;
+
+  const contentType = el.dataset.ct || '';
+  const contentId = el.dataset.ci || '';
+  const field = el.dataset.cf || '';
 
   const link = document.createElement('button');
   link.className = 'translate-link';
@@ -441,6 +444,12 @@ export function addTranslateButton(el, text) {
     link.textContent = t('common.translating') || 'Translating...';
     link.disabled = true;
     try {
+      const payload = { text, target_lang: locale };
+      if (contentType && contentId && field) {
+        payload.content_type = contentType;
+        payload.content_id = contentId;
+        payload.field = field;
+      }
       const res = await fetch(`${window.__WILDLYCHEE_API}/functions/v1/translate-text`, {
         method: 'POST',
         headers: {
@@ -448,7 +457,7 @@ export function addTranslateButton(el, text) {
           Authorization: `Bearer ${window.__WILDLYCHEE_ANON_KEY}`,
           apikey: window.__WILDLYCHEE_ANON_KEY,
         },
-        body: JSON.stringify({ text, target_lang: locale }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.translated) {

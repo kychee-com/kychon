@@ -1,8 +1,8 @@
 // forum.js — Forum categories, topics, and replies
 
-import { del, get, patch, post } from './api.js?v=8';
-import { getSession, isAdmin, isAuthenticated } from './auth.js?v=8';
-import { addTranslateButton, translateItems } from './config.js?v=8';
+import { del, get, patch, post } from './api.js?v=9';
+import { getSession, isAdmin, isAuthenticated } from './auth.js?v=9';
+import { addTranslateButton, translateItems } from './config.js?v=9';
 
 function esc(s) {
   const d = document.createElement('div');
@@ -275,7 +275,7 @@ async function renderTopicView(root, topicId) {
           <span class="forum-post-date">by ${esc(topic.author_name || 'Anonymous')} &middot; ${timeAgo(topic.created_at)}</span>
         </div>
       </div>
-      <div class="forum-post-body" data-translate-text="${esc(topic.body)}">${esc(topic.body)}</div>
+      <div class="forum-post-body" data-translate-text="${esc(topic.body)}" data-ct="forum_topic" data-ci="${topic.id}" data-cf="body">${esc(topic.body)}</div>
       ${admin ? buildTopicAdminBar(topic) : ''}
     </div>`;
 
@@ -290,7 +290,7 @@ async function renderTopicView(root, topicId) {
             <span class="forum-post-author">${esc(r.author_name || 'Anonymous')}</span>
             <span class="forum-post-date">${timeAgo(r.created_at)}${r.hidden ? ' <span class="badge badge-danger">Hidden</span>' : ''}</span>
           </div>
-          <div class="forum-post-body" data-translate-text="${esc(r.body)}">${esc(r.body)}</div>
+          <div class="forum-post-body" data-translate-text="${esc(r.body)}" data-ct="forum_reply" data-ci="${r.id}" data-cf="body">${esc(r.body)}</div>
           ${admin ? buildReplyAdminBar(r) : ''}
         </div>`;
     }

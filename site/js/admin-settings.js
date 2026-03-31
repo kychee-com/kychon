@@ -1,7 +1,7 @@
 // admin-settings.js — Site settings panel
 
-import { get, patch } from './api.js?v=8';
-import { requireAdmin } from './auth.js?v=8';
+import { get, patch } from './api.js?v=9';
+import { requireAdmin } from './auth.js?v=9';
 
 const configMap = {};
 
