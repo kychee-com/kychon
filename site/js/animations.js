@@ -1,7 +1,18 @@
 (() => {
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    || document.documentElement.classList.contains('wl-reduced-motion');
 
-  if (prefersReducedMotion) return;
+  if (prefersReducedMotion) {
+    // Still show sections — just skip animation
+    const showAll = () => document.querySelectorAll('.section').forEach(el => el.classList.add('section-visible'));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showAll);
+    else showAll();
+    // Also catch dynamically added sections
+    new MutationObserver(mutations => mutations.forEach(m =>
+      m.addedNodes.forEach(n => { if (n.nodeType === 1 && n.classList?.contains('section')) n.classList.add('section-visible'); })
+    )).observe(document.body, { childList: true, subtree: true });
+    return;
+  }
 
   // --- Scroll fade-in ---
   let staggerIndex = 0;
