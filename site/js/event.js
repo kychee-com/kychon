@@ -3,6 +3,7 @@
 import { get, post, patch, del, getAuthHeaders, API } from './api.js';
 import { getSession, isAdmin, isAuthenticated } from './auth.js';
 import { isFeatureEnabled } from './config.js';
+import { showToast } from './toast.js';
 
 export async function initEvent() {
   const id = new URLSearchParams(window.location.search).get('id');
@@ -110,16 +111,23 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
       const action = btn.dataset.rsvp;
       const eventId = event.id;
 
-      if (action === 'cancel' && myRsvp) {
-        await del('event_rsvps?id=eq.' + myRsvp.id);
-      } else if (myRsvp) {
-        await patch('event_rsvps?id=eq.' + myRsvp.id, { status: action });
-      } else {
-        await post('event_rsvps', { event_id: eventId, member_id: memberId, status: action });
-      }
-      // Log RSVP activity (only for going/maybe, not cancel)
-      if (action !== 'cancel' && memberId) {
-        await post('activity_log', { member_id: memberId, action: 'rsvp', metadata: { event_title: event.title, event_id: eventId } });
+      try {
+        if (action === 'cancel' && myRsvp) {
+          await del('event_rsvps?id=eq.' + myRsvp.id);
+          showToast('RSVP cancelled', 'info');
+        } else if (myRsvp) {
+          await patch('event_rsvps?id=eq.' + myRsvp.id, { status: action });
+          showToast(action === 'going' ? "You're going!" : 'Marked as maybe', 'success');
+        } else {
+          await post('event_rsvps', { event_id: eventId, member_id: memberId, status: action });
+          showToast(action === 'going' ? "You're going!" : 'Marked as maybe', 'success');
+        }
+        // Log RSVP activity (only for going/maybe, not cancel)
+        if (action !== 'cancel' && memberId) {
+          await post('activity_log', { member_id: memberId, action: 'rsvp', metadata: { event_title: event.title, event_id: eventId } });
+        }
+      } catch (e) {
+        showToast('Could not update RSVP', 'error');
       }
       // Reload
       await initEvent();

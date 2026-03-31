@@ -7,6 +7,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <script>(function(){var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
 </head>
 <body>
   <div class="page">
@@ -25,7 +26,9 @@
           <h2>Events</h2>
           <button class="btn btn-primary hidden" id="event-create-btn">Create Event</button>
         </div>
-        <div id="events-list"></div>
+        <div id="events-list">
+          <div class="card-grid"><div class="card"><div class="skeleton skeleton-card"></div></div><div class="card"><div class="skeleton skeleton-card"></div></div><div class="card"><div class="skeleton skeleton-card"></div></div></div>
+        </div>
       </div>
     </main>
 
