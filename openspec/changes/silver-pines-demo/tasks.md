@@ -19,23 +19,23 @@
 
 ## 3. Silver Pines Seed Data
 
-- [ ] 3.1 Create `demo/silver-pines/` directory structure
-- [ ] 3.2 Write `demo/silver-pines/brand.json` with sage/cream/amber theme, Merriweather + Source Sans 3 fonts, 18px base font, 1.7 line-height
-- [ ] 3.3 Write site_config section of `demo/silver-pines/seed.sql` — theme, nav items, feature flags, accessibility defaults (font-scale enabled, high-contrast available)
-- [ ] 3.4 Write member seed data — 20-25 seniors with diverse backgrounds, Asheville-area names, hobbies, volunteer roles, profile photo URLs (placeholder until image gen)
-- [ ] 3.5 Write event seed data — 6 upcoming + 6 past events with `NOW() +/- INTERVAL` relative dates, descriptions, locations within the center
-- [ ] 3.6 Write resource seed data — 10+ resources across transportation, health, meals, and technology categories
-- [ ] 3.7 Write committee seed data — 5 committees (Wellness, Social Events, Garden, Tech Buddies, Transportation) with member assignments and chairs
-- [ ] 3.8 Write forum seed data — 3 categories, 10-12 topics, 25-35 replies with warm supportive tone
-- [ ] 3.9 Write announcement seed data — 8 announcements mixing practical and social, 1-2 pinned
-- [ ] 3.10 Write custom page seed data — "Getting Here" (directions, parking, shuttle, accessibility info) and "Daily Schedule" (weekly class grid)
-- [ ] 3.11 Write membership tier seed data — Guest, Member, Volunteer, Board with descriptions and permissions
-- [ ] 3.12 Write homepage section seed data — hero, stats (members, events, years serving), features grid, testimonials, activity feed, CTA
+- [x] 3.1 Create `demo/silver-pines/` directory structure
+- [x] 3.2 Write `demo/silver-pines/brand.json` with sage/cream/amber theme, Merriweather + Source Sans 3 fonts, 18px base font, 1.7 line-height
+- [x] 3.3 Write site_config section of `demo/silver-pines/seed.sql` — theme, nav items, feature flags, accessibility defaults (font-scale enabled, high-contrast available)
+- [x] 3.4 Write member seed data — 20-25 seniors with diverse backgrounds, Asheville-area names, hobbies, volunteer roles, profile photo URLs (placeholder until image gen)
+- [x] 3.5 Write event seed data — 6 upcoming + 6 past events with `NOW() +/- INTERVAL` relative dates, descriptions, locations within the center
+- [x] 3.6 Write resource seed data — 10+ resources across transportation, health, meals, and technology categories
+- [x] 3.7 Write committee seed data — 5 committees (Wellness, Social Events, Garden, Tech Buddies, Transportation) with member assignments and chairs
+- [x] 3.8 Write forum seed data — 3 categories, 10-12 topics, 25-35 replies with warm supportive tone
+- [x] 3.9 Write announcement seed data — 8 announcements mixing practical and social, 1-2 pinned
+- [x] 3.10 Write custom page seed data — "Getting Here" (directions, parking, shuttle, accessibility info) and "Daily Schedule" (weekly class grid)
+- [x] 3.11 Write membership tier seed data — Guest, Member, Volunteer, Board with descriptions and permissions
+- [x] 3.12 Write homepage section seed data — hero, stats (members, events, years serving), features grid, testimonials, activity feed, CTA
 
 ## 4. Image Generation
 
-- [ ] 4.1 Write `demo/silver-pines/generate-images.sh` — OpenAI image API calls for hero, portraits, activity photos with idempotent upload to Run402 storage
-- [ ] 4.2 Define image prompts: 1 hero (community center + Blue Ridge Mountains), 20-25 senior portraits (diverse, active, warm), 6-8 activity photos (tai chi, watercolor, garden, book club, tech help, potluck)
+- [x] 4.1 Write `demo/silver-pines/generate-images.sh` — OpenAI image API calls for hero, portraits, activity photos with idempotent upload to Run402 storage
+- [x] 4.2 Define image prompts: 1 hero (community center + Blue Ridge Mountains), 20-25 senior portraits (diverse, active, warm), 6-8 activity photos (tai chi, watercolor, garden, book club, tech help, potluck)
 - [ ] 4.3 Run image generation script and collect storage URLs
 - [ ] 4.4 Update seed.sql member and event rows with actual Run402 storage URLs
 
