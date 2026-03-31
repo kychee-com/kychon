@@ -899,28 +899,31 @@ Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs 
 
 This is where Wild Lychee stops being "a better Wild Apricot" and becomes something Wild Apricot can never be. These features are enabled by edge functions calling AI APIs on a cron schedule.
 
-### Architecture: BYOK (Bring Your Own Key)
+### Architecture: Run402 Native AI
 
 ```
 ┌──────────────┐     ┌─────────────┐    ┌───────────┐
-│ Scheduled     │────>│ Edge        │───>│ AI API    │
-│ cron trigger  │     │ Function    │    │ (OpenAI/  │
-│ (daily/hourly)│     │             │<───│  Claude)  │
+│ Scheduled     │────>│ Edge        │───>│ Run402    │
+│ cron trigger  │     │ Function    │    │ ai.mod()  │
+│ (daily/hourly)│     │             │<───│ ai.trans()│
 └──────────────┘     │ reads DB    │    └───────────┘
                       │ writes DB   │
-                      │ sends email │
                       └─────────────┘
 ```
 
-User stores `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as a project secret. Scheduled functions call the API. Zero AI costs for Run402 — the user pays their own API provider directly.
+Moderation and translation use Run402's built-in `ai.moderate()` (free) and `ai.translate()` (quota-tracked) helpers. No API key required.
+
+Generative AI features (insights, onboarding, newsletter, event recaps) are paused pending a Run402 generic LLM endpoint. Their feature flags exist but are hidden from the admin UI.
 
 ### Feature Flags
 
 ```
-feature_ai_moderation    — true/false (requires AI API key)
-feature_ai_translation   — true/false (requires AI API key)
-feature_ai_newsletter    — true/false (requires AI API key)
-feature_ai_insights      — true/false (requires AI API key)
+feature_ai_moderation    — true/false (platform-native, no key needed)
+feature_ai_translation   — true/false (platform-native, no key needed)
+feature_ai_newsletter    — true/false (dormant — awaiting LLM endpoint)
+feature_ai_insights      — true/false (dormant — awaiting LLM endpoint)
+feature_ai_onboarding    — true/false (dormant — awaiting LLM endpoint)
+feature_ai_event_recaps  — true/false (dormant — awaiting LLM endpoint)
 ```
 
 ### AI Feature 1: Content Moderation Bot
@@ -1056,22 +1059,14 @@ When a new member signs up:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  AI Features                                            │
-│                                                         │
-│  API Key: [sk-••••••••••••••••••••] [Test] [Save]       │
-│  Provider: (•) OpenAI  ( ) Anthropic                    │
+│  Platform-native. No API key required.                  │
 │                                                         │
 │  ☑ Content Moderation     (checks every 15 minutes)     │
 │  ☑ Auto-Translation       (to: PT, NL)                  │
-│  ☐ Newsletter Generator   (Mondays 9AM)                 │
-│  ☑ Member Insights        (daily)                       │
-│  ☑ Personalized Onboarding                              │
-│  ☐ Event Recaps                                         │
 │                                                         │
 │  AI Activity (last 7 days):                             │
 │  • Moderated 21 posts (3 flagged, 0 false positives)    │
 │  • Translated 8 announcements to PT, NL                 │
-│  • Generated 4 member outreach suggestions              │
-│  • Newsletter draft ready for Monday                    │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -1372,7 +1367,7 @@ Four pillars:
 > | 5,000 members | $530/mo | $419/mo + 2% fees | **$20/mo** |
 > | Transaction fees | 2.9% + $0.30 + 20% surcharge | 0.5–2% | **$0** |
 > | AI builder | ❌ | ❌ | **✅** |
-> | AI features | ❌ | ❌ | **✅ (BYOK)** |
+> | AI features | ❌ | ❌ | **✅ (platform-native)** |
 > | Ongoing AI customization | ❌ | ❌ | **✅** |
 > | Own your data | ❌ | ❌ | **✅** |
 >

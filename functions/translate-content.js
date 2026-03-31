@@ -1,5 +1,5 @@
 // schedule: none (triggered by client after content publish)
-import { db, getUser } from '@run402/functions';
+import { ai, db, getUser } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -13,10 +13,6 @@ export default async (req) => {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_translation disabled' }));
   }
 
-  if (!process.env.AI_API_KEY) {
-    return new Response(JSON.stringify({ status: 'skipped', reason: 'AI_API_KEY not set' }));
-  }
-
   let body;
   try {
     body = await req.json();
@@ -28,16 +24,6 @@ export default async (req) => {
   if (!content_type || !content_id) {
     return new Response(JSON.stringify({ error: 'content_type and content_id required' }), { status: 400 });
   }
-
-  // Get configured languages from brand.json (stored in site or fetched)
-  // For now, read from a site_config key or default
-  const _languages = ['en'];
-  try {
-    const _brandRes = await fetch('https://api.run402.com/rest/v1/site_config?key=eq.languages&select=value', {
-      headers: { Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}` },
-    });
-    // Fallback: just use common languages if not configured
-  } catch {}
 
   // Read the content
   let content = {};
@@ -56,82 +42,45 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: 'Content not found' }), { status: 404 });
   }
 
-  const provider = process.env.AI_PROVIDER || 'openai';
   const targetLangs = (body.languages || ['pt', 'es']).filter((l) => l !== 'en');
   let translated = 0;
+  const context = `${content_type} on a community portal`;
 
   for (const lang of targetLangs) {
     for (const field of ['title', 'body']) {
       if (!content[field]) continue;
-      const translation = await translateText(provider, content[field], lang);
-      if (translation) {
-        // Upsert into content_translations
-        const existing = await db
-          .from('content_translations')
-          .select('id')
-          .eq('content_type', content_type)
-          .eq('content_id', content_id)
-          .eq('language', lang)
-          .eq('field', field)
-          .limit(1);
+      try {
+        const result = await ai.translate(content[field].substring(0, 10000), lang, { context });
+        if (result.text) {
+          // Upsert into content_translations
+          const existing = await db
+            .from('content_translations')
+            .select('id')
+            .eq('content_type', content_type)
+            .eq('content_id', content_id)
+            .eq('language', lang)
+            .eq('field', field)
+            .limit(1);
 
-        if (existing.length > 0) {
-          await db.from('content_translations').update({ translated_text: translation }).eq('id', existing[0].id);
-        } else {
-          await db.from('content_translations').insert({
-            content_type,
-            content_id,
-            language: lang,
-            field,
-            translated_text: translation,
-          });
+          if (existing.length > 0) {
+            await db.from('content_translations').update({ translated_text: result.text }).eq('id', existing[0].id);
+          } else {
+            await db.from('content_translations').insert({
+              content_type,
+              content_id,
+              language: lang,
+              field,
+              translated_text: result.text,
+            });
+          }
+          translated++;
         }
-        translated++;
+      } catch (e) {
+        console.warn(`Translation to ${lang} failed for ${field}:`, e.message);
+        // Continue with next field — partial success is fine
       }
     }
   }
 
-  return new Response(JSON.stringify({ status: 'ok', translated }));
+  return new Response(JSON.stringify({ status: translated > 0 ? 'ok' : 'skipped', translated }));
 };
-
-async function translateText(provider, text, targetLang) {
-  const prompt = `Translate the following text to ${targetLang}. Return only the translation, no explanation.\n\n${text.substring(0, 2000)}`;
-
-  try {
-    if (provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': process.env.AI_API_KEY,
-          'content-type': 'application/json',
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2048,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
-      const data = await res.json();
-      return data.content?.[0]?.text || null;
-    } else {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.AI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2048,
-        }),
-      });
-      const data = await res.json();
-      return data.choices?.[0]?.message?.content || null;
-    }
-  } catch (e) {
-    console.warn('Translation failed:', e.message);
-    return null;
-  }
-}

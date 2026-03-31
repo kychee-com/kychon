@@ -1,6 +1,6 @@
 // admin.js — Admin dashboard logic
 
-import { API, count, get, getAuthHeaders, patch } from './api.js';
+import { count, get, patch } from './api.js';
 import { requireAdmin } from './auth.js';
 import { isFeatureEnabled } from './config.js';
 
@@ -62,64 +62,10 @@ export async function initDashboard() {
     }
   } catch {}
 
-  // AI Insights
-  if (isFeatureEnabled('feature_ai_insights')) {
-    await loadInsights();
-  }
-
   // AI Moderation queue
   if (isFeatureEnabled('feature_ai_moderation')) {
     await loadModerationQueue();
   }
-
-  // Newsletter drafts
-  if (isFeatureEnabled('feature_ai_newsletter')) {
-    await loadNewsletterDrafts();
-  }
-}
-
-async function loadInsights() {
-  const container = document.getElementById('insights-section');
-  if (!container) return;
-  container.classList.remove('hidden');
-
-  try {
-    const insights = await get(
-      'member_insights?status=eq.pending&order=priority.desc,created_at.desc&limit=10&select=*,members(display_name)',
-    );
-    const list = document.getElementById('insights-list');
-    if (!list) return;
-
-    if (insights.length === 0) {
-      list.innerHTML = '<p class="text-muted">No pending insights.</p>';
-      return;
-    }
-
-    list.innerHTML = insights
-      .map(
-        (i) => `
-      <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
-        <span class="badge badge-${i.priority === 'high' ? 'danger' : 'warning'}">${esc(i.insight_type)}</span>
-        <div style="flex:1">
-          <strong>${esc(i.members?.display_name || 'Member')}</strong>
-          <div class="text-sm text-muted">${esc(i.message)}</div>
-        </div>
-        <div class="flex gap-1">
-          <button class="btn btn-sm btn-primary insight-action" data-id="${i.id}" data-action="actioned">Action</button>
-          <button class="btn btn-sm btn-secondary insight-action" data-id="${i.id}" data-action="dismissed">Dismiss</button>
-        </div>
-      </div>
-    `,
-      )
-      .join('');
-
-    list.querySelectorAll('.insight-action').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        await patch(`member_insights?id=eq.${btn.dataset.id}`, { status: btn.dataset.action });
-        loadInsights();
-      });
-    });
-  } catch {}
 }
 
 async function loadModerationQueue() {
@@ -187,130 +133,6 @@ async function loadModerationQueue() {
       });
     });
   } catch {}
-}
-
-// --- Newsletter Drafts ---
-
-let tiptapEditor = null;
-let _currentDraftId = null;
-
-async function loadNewsletterDrafts() {
-  const container = document.getElementById('newsletter-section');
-  if (!container) return;
-  container.classList.remove('hidden');
-
-  try {
-    const drafts = await get('newsletter_drafts?order=created_at.desc&limit=10');
-    const list = document.getElementById('newsletter-list');
-    if (!list) return;
-
-    if (drafts.length === 0) {
-      list.innerHTML = '<p class="text-muted">No newsletter drafts yet. Drafts are generated weekly on Mondays.</p>';
-      return;
-    }
-
-    list.innerHTML = drafts
-      .map(
-        (d) => `
-      <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
-        <div style="flex:1">
-          <strong>${esc(d.subject)}</strong>
-          <div class="text-sm text-muted">${formatDate(d.period_start)} — ${formatDate(d.period_end)}</div>
-        </div>
-        <span class="badge badge-${d.status === 'sent' ? 'primary' : 'warning'}">${esc(d.status)}</span>
-        ${d.status !== 'sent' ? `<button class="btn btn-sm btn-primary newsletter-edit" data-id="${d.id}">Edit</button>` : ''}
-      </div>
-    `,
-      )
-      .join('');
-
-    list.querySelectorAll('.newsletter-edit').forEach((btn) => {
-      btn.addEventListener('click', () => openNewsletterEditor(btn.dataset.id));
-    });
-  } catch {}
-}
-
-async function openNewsletterEditor(draftId) {
-  _currentDraftId = draftId;
-  const drafts = await get(`newsletter_drafts?id=eq.${draftId}`);
-  if (!drafts.length) return;
-  const draft = drafts[0];
-
-  document.getElementById('newsletter-list').classList.add('hidden');
-  const editorSection = document.getElementById('newsletter-editor');
-  editorSection.classList.remove('hidden');
-  document.getElementById('newsletter-subject').value = draft.subject;
-
-  const bodyEl = document.getElementById('newsletter-body');
-
-  // Load Tiptap for rich editing
-  try {
-    const core = await import('https://esm.sh/@tiptap/core@2');
-    const starter = await import('https://esm.sh/@tiptap/starter-kit@2');
-    const Editor = core.Editor;
-    const StarterKit = starter.default || starter.StarterKit;
-
-    if (tiptapEditor) tiptapEditor.destroy();
-    tiptapEditor = new Editor({
-      element: bodyEl,
-      extensions: [StarterKit],
-      content: draft.body,
-    });
-  } catch (_e) {
-    // Fallback to plain HTML editing
-    bodyEl.contentEditable = 'true';
-    bodyEl.innerHTML = draft.body;
-  }
-
-  // Wire buttons
-  document.getElementById('newsletter-send').onclick = async () => {
-    const body = tiptapEditor ? tiptapEditor.getHTML() : bodyEl.innerHTML;
-    const subject = document.getElementById('newsletter-subject').value;
-    await patch(`newsletter_drafts?id=eq.${draftId}`, {
-      subject,
-      body,
-      status: 'sent',
-      sent_at: new Date().toISOString(),
-    });
-    closeNewsletterEditor();
-    loadNewsletterDrafts();
-  };
-
-  document.getElementById('newsletter-regenerate').onclick = async () => {
-    const btn = document.getElementById('newsletter-regenerate');
-    btn.disabled = true;
-    btn.textContent = 'Generating...';
-    try {
-      const res = await fetch(`${API}/functions/v1/ai-content`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
-        closeNewsletterEditor();
-        loadNewsletterDrafts();
-      }
-    } catch (e) {
-      console.error('Regenerate failed:', e);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Regenerate';
-    }
-  };
-
-  document.getElementById('newsletter-back').onclick = () => {
-    closeNewsletterEditor();
-  };
-}
-
-function closeNewsletterEditor() {
-  if (tiptapEditor) {
-    tiptapEditor.destroy();
-    tiptapEditor = null;
-  }
-  _currentDraftId = null;
-  document.getElementById('newsletter-editor').classList.add('hidden');
-  document.getElementById('newsletter-list').classList.remove('hidden');
-  document.getElementById('newsletter-body').innerHTML = '';
 }
 
 function statCard(value, label) {

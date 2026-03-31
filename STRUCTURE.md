@@ -50,8 +50,8 @@ wild-lychee/
 │   ├── on-signup.js       # Post-auth: create member, first-user-admin
 │   ├── check-expirations.js   # schedule: "0 8 * * *" — expire lapsed memberships daily at 8 AM
 │   ├── event-reminders.js     # schedule: "0 * * * *" — send upcoming-event reminders hourly
-│   ├── moderate-content.js    # schedule: "*/15 * * * *" — AI content moderation every 15 min
-│   ├── translate-content.js   # On-demand AI translation edge function
+│   ├── moderate-content.js    # schedule: "*/15 * * * *" — AI moderation via ai.moderate()
+│   ├── translate-content.js   # On-demand translation via ai.translate()
 │   ├── upload-resource.js     # Handle resource file uploads
 │   └── export-csv.js          # Generate CSV exports for admin
 └── tests/
@@ -77,10 +77,10 @@ wild-lychee/
 | `resources` | Resource library (Phase 2) | title, file_url, file_type, is_members_only |
 | `forum_*` | Forum tables (Phase 2) | categories, topics, replies |
 | `committees` | Committees (Phase 2) | name, description |
-| `content_translations` | AI translations (Phase 2) | content_type, content_id, language, field |
-| `moderation_log` | AI moderation (Phase 2) | content_type, action, reason, confidence |
-| `member_insights` | AI insights (Phase 2) | member_id, insight_type, message, priority |
-| `newsletter_drafts` | AI newsletter (Phase 2) | subject, body, status |
+| `content_translations` | AI translations (native) | content_type, content_id, language, field |
+| `moderation_log` | AI moderation (native) | content_type, action, reason, confidence |
+| `member_insights` | AI insights (dormant) | member_id, insight_type, message, priority |
+| `newsletter_drafts` | AI newsletter (dormant) | subject, body, status |
 
 ## Feature Flags (site_config)
 
@@ -88,25 +88,20 @@ All boolean. Toggle with: `UPDATE site_config SET value = 'true' WHERE key = 'fe
 
 - `feature_events` (default **true**), `feature_forum`, `feature_directory`, `feature_resources` (default **true**)
 - `feature_blog`, `feature_committees`
-- `feature_ai_onboarding` — AI-powered new-member onboarding flow
-- `feature_ai_moderation`, `feature_ai_translation`, `feature_ai_newsletter`, `feature_ai_insights`
+- `feature_ai_moderation`, `feature_ai_translation` — platform-native, no API key needed
+- `feature_ai_onboarding`, `feature_ai_newsletter`, `feature_ai_insights`, `feature_ai_event_recaps` — dormant, awaiting Run402 LLM endpoint
 - `directory_public` (allow anonymous directory access)
 
 ## AI Configuration
 
-AI features require two Run402 secrets:
+AI moderation and translation are platform-native via Run402 — no API key or secrets required. Enable them via the admin settings UI or SQL:
 
-- `AI_API_KEY` — API key for the AI provider
-- `AI_PROVIDER` — Provider identifier (e.g., `anthropic`, `openai`)
-
-Set them via the CLI:
-
-```sh
-run402 secrets set AI_API_KEY sk-...
-run402 secrets set AI_PROVIDER anthropic
+```sql
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_moderation';
+UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_translation';
 ```
 
-Each AI feature has its own toggle (`feature_ai_moderation`, `feature_ai_translation`, etc.) so you can enable AI capabilities individually after setting the secrets.
+Generative AI features (insights, onboarding, newsletter, event recaps) are dormant pending a Run402 generic LLM endpoint. Their functions remain in the codebase but are unreachable without the endpoint.
 
 ## Schema Migrations
 
