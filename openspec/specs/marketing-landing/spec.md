@@ -2,31 +2,37 @@
 
 ### Requirement: Hero section with three CTAs
 
-The landing page SHALL display a hero section with headline, subheading listing key features (member directory, events, forum, newsletter, AI features) with pricing context, and three CTA buttons: "Try the Demo" (links to Run402 demo mode instance), "Browse a Showcase" (scrolls to showcase gallery), and "Fork on GitHub" (links to the GitHub repo).
+The hero SHALL display the headline "Own your member portal." with a subheading describing Wild Lychee's value proposition (membership portal you own, $5-20/mo, no per-member fees). The hero SHALL include a browser mockup showing the Eagles demo homepage screenshot. CTAs SHALL be: "Explore Live Demo" (links to eagles.run402.com), "Get a Custom Build — $29" (links to #pricing), and a text link "View on GitHub". The hero SHALL NOT reference competitor names.
 
-#### Scenario: Hero renders on page load
+#### Scenario: Hero renders without competitor names
 - **WHEN** a visitor loads wildlychee.com
-- **THEN** the hero section SHALL be the first visible content with headline, subheading, and three CTA buttons
+- **THEN** the hero SHALL display headline, subheading, browser mockup screenshot, and three CTAs
+- **THEN** no competitor names SHALL appear in the hero section
 
-#### Scenario: Try the Demo CTA
-- **WHEN** a visitor clicks "Try the Demo"
-- **THEN** the visitor SHALL be directed to the Run402 demo mode instance URL
+#### Scenario: Primary CTA links to live demo
+- **WHEN** a visitor clicks "Explore Live Demo"
+- **THEN** the visitor SHALL be directed to eagles.run402.com in a new tab
 
-#### Scenario: Fork on GitHub CTA
-- **WHEN** a visitor clicks "Fork on GitHub"
-- **THEN** the visitor SHALL be directed to the Wild Lychee GitHub repository
+### Requirement: Product tour replaces showcase gallery
 
-### Requirement: Problem section with competitor comparison
+The homepage SHALL include a "Tour a real portal" section showing 4-6 screenshot tiles from the Eagles demo. Each tile SHALL display a screenshot of a different Eagles page (home, directory, events, forum), the page name, and a link to that page on eagles.run402.com. No "Coming Soon" placeholders SHALL appear.
 
-The landing page SHALL include a "The Problem" section showing competitor pricing pain points (Wild Apricot, Circle, Bettermode) with specific pricing examples and a side-by-side comparison highlighting Wild Lychee's advantages: modern design, flat pricing, AI features, data ownership, and open source.
+#### Scenario: Tour tiles render with screenshots
+- **WHEN** the visitor scrolls to the product tour section
+- **THEN** 4-6 tiles SHALL display screenshots of different Eagles subpages
 
-#### Scenario: Problem cards render
-- **WHEN** the landing page loads
-- **THEN** three competitor pain-point cards SHALL be visible with specific pricing complaints
+#### Scenario: No placeholder cards
+- **WHEN** the product tour section renders
+- **THEN** zero "Coming Soon" cards SHALL be visible
 
-#### Scenario: Comparison table
-- **WHEN** the visitor scrolls to the comparison area
-- **THEN** a comparison grid SHALL contrast Wild Lychee against incumbents across design, pricing, AI, and data ownership dimensions
+### Requirement: Three benefit cards replace problem section
+
+The homepage SHALL include a "Why organizations choose Wild Lychee" section with three benefit cards: predictable cost (no per-member fees), ownership (your data, your branding), and customization (open source + AI). A small link SHALL read "Switching from Wild Apricot, Circle, or Bettermode? See the full comparison." and link to /compare.html.
+
+#### Scenario: Benefits render without competitor attacks
+- **WHEN** the visitor scrolls to the benefits section
+- **THEN** three positive benefit cards SHALL be visible
+- **THEN** competitor names SHALL only appear in the subtle compare link, not in headlines or cards
 
 ### Requirement: Feature grid
 
@@ -44,37 +50,31 @@ The landing page SHALL include a dedicated section for AI capabilities: content 
 - **WHEN** the visitor scrolls to the AI section
 - **THEN** six AI feature cards SHALL be displayed with BYOK context
 
-### Requirement: Showcase gallery with live links
+### Requirement: Niche cards show only active niches
 
-The landing page SHALL include a "See It Live" gallery section showing 2-4 showcase community sites. Each card SHALL display a screenshot image, community name, niche label (e.g., "Charity / Volunteers"), and a "Browse →" link to the live showcase site. The Eagles demo SHALL be the first card.
+The "Who It's For" section SHALL display only niches with existing landing pages (churches, associations, sports, HOAs). No "Coming Soon" or disabled cards SHALL appear.
 
-#### Scenario: Showcase gallery renders with Eagles
-- **WHEN** the visitor scrolls to the showcase section
-- **THEN** at least one showcase card SHALL be visible featuring the Eagles community with a link to eagles.wildlychee.com (or eagles.run402.com)
+#### Scenario: Only active niches shown
+- **WHEN** the visitor scrolls to the niche section
+- **THEN** exactly 4 niche cards SHALL be visible, all clickable
+- **THEN** zero disabled or "coming soon" cards SHALL appear
 
-#### Scenario: Showcase card links to live site
-- **WHEN** a visitor clicks "Browse →" on a showcase card
-- **THEN** the visitor SHALL be taken to the live showcase community site in a new tab
+### Requirement: Brand color includes lychee-rose accent
 
-### Requirement: Pricing table
+The CSS SHALL introduce a lychee-rose accent color (`#f15b86`) used for hero headline highlights, secondary hover states, and gradient accents. Indigo SHALL remain the primary trust color.
 
-The landing page SHALL display pricing information in two parts: (1) a competitor comparison showing per-member-count pricing for Wild Apricot, Circle, and Wild Lychee at 100, 500, 2000, and 5000 member tiers; (2) Wild Lychee plans showing DIY Template (free + $5-20/mo hosting), Studio build ($29 one-time), and Lychee Pro ($9-29/mo ongoing AI customization).
+#### Scenario: Rose accent visible
+- **WHEN** the homepage loads
+- **THEN** the hero headline highlight SHALL use the rose accent color instead of coral
 
-#### Scenario: Competitor pricing table renders
+### Requirement: Pricing section shows plans only
+
+The pricing section SHALL display the three plan cards (DIY, Studio, Pro) without the competitor comparison table. The comparison table SHALL be moved to /compare.html.
+
+#### Scenario: No competitor table on homepage
 - **WHEN** the visitor scrolls to pricing
-- **THEN** a comparison table SHALL show pricing across member count tiers
-
-#### Scenario: Wild Lychee plans render
-- **WHEN** the visitor scrolls to the plans section
-- **THEN** three plan cards SHALL be visible with pricing breakdowns
-
-### Requirement: "Who It's For" niche cards
-
-The landing page SHALL include niche audience cards for: churches, professional associations, sports leagues, HOAs, nonprofits, coworking spaces, and alumni networks. Each card SHALL link to the corresponding niche landing page (e.g., /churches.html).
-
-#### Scenario: Niche cards render with links
-- **WHEN** the visitor scrolls to the "Who It's For" section
-- **THEN** niche cards SHALL be displayed, each linking to its niche landing page
+- **THEN** three plan cards SHALL be visible
+- **THEN** no competitor pricing comparison table SHALL appear on the homepage
 
 ### Requirement: Final CTA section
 
