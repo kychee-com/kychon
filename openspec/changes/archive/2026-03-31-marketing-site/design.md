@@ -88,14 +88,18 @@ Separate from `site/` (the portal template). The marketing site is not a Wild Ly
 
 Shares Wild Lychee's design tokens (Inter font, indigo primary, rounded corners) but with its own layout conventions for marketing: full-width sections, alternating backgrounds, larger typography, more whitespace. The CSS is standalone — no dependency on `site/css/styles.css`.
 
-### D6: Domain routing
+### D6: Domain routing via Run402 domains CLI
 
 ```
-wildlychee.com → Route53 CNAME → wildlychee.run402.com → marketing project
-eagles.wildlychee.com → Route53 CNAME → eagles.run402.com → Eagles project
+run402 domains add wildlychee.com wildlychee
+  → Route53: CNAME to domains.run402.com (or ALIAS + TXT for apex)
+  → run402 domains status wildlychee.com  (poll until active)
+
+run402 domains add eagles.wildlychee.com eagles
+  → Route53: CNAME to domains.run402.com
 ```
 
-Future showcase sites follow the same pattern: `yoga.wildlychee.com` → `yoga.run402.com`.
+Run402 handles TLS and routing. No manual CloudFront or certificate setup needed. When the linked subdomain is redeployed, the custom domain automatically serves the new deployment.
 
 ## Risks / Trade-offs
 

@@ -39,8 +39,8 @@
 ## 6. Deploy & Domain
 
 - [x] 6.1 Deploy marketing site to the dedicated Run402 project and claim `wildlychee` subdomain
-- [ ] 6.2 Configure Route53 CNAME: `wildlychee.com` → `wildlychee.run402.com` (manual — requires AWS console)
-- [ ] 6.3 Verify the site loads at both `wildlychee.run402.com` and `wildlychee.com` (after Route53)
+- [x] 6.2 Run `run402 domains add wildlychee.com wildlychee` then configure Route53 DNS (CNAME to `domains.run402.com` or ALIAS + TXT for apex)
+- [x] 6.3 Verified `wildlychee.com` serves marketing site (HTTP 200, correct title)
 - [ ] 6.4 Publish Wild Lychee portal as a Run402 app to activate demo mode (so "Try Demo" CTA works)
 
 ## 7. Testing & Verification
