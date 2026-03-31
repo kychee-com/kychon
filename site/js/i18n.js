@@ -5,6 +5,8 @@ let strings = {};
 let fallbackStrings = {};
 let currentLocale = 'en';
 const cache = {};
+const I18N_CACHE_PREFIX = 'wl_cache_i18n_';
+const I18N_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export function t(key, vars = {}) {
   // Plural: if vars.count exists, try key_one for count === 1
@@ -27,13 +29,66 @@ export function t(key, vars = {}) {
   return str;
 }
 
+function readLocaleCache(lang) {
+  try {
+    const raw = localStorage.getItem(I18N_CACHE_PREFIX + lang);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.data ?? null;
+  } catch {
+    localStorage.removeItem(I18N_CACHE_PREFIX + lang);
+    return null;
+  }
+}
+
+function writeLocaleCache(lang, data) {
+  try {
+    localStorage.setItem(I18N_CACHE_PREFIX + lang, JSON.stringify({ data, ts: Date.now() }));
+  } catch {
+    // QuotaExceededError — skip silently
+  }
+}
+
+function isLocaleCacheFresh(lang) {
+  try {
+    const raw = localStorage.getItem(I18N_CACHE_PREFIX + lang);
+    if (!raw) return false;
+    const { ts } = JSON.parse(raw);
+    return typeof ts === 'number' && ts + I18N_TTL > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 async function fetchLocale(lang) {
   if (cache[lang]) return cache[lang];
+
+  // Check localStorage cache
+  const cached = readLocaleCache(lang);
+  if (cached) {
+    cache[lang] = cached;
+    // Background refresh if stale
+    if (!isLocaleCacheFresh(lang)) {
+      fetch(`/custom/strings/${lang}.json?v=8`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) {
+            cache[lang] = data;
+            writeLocaleCache(lang, data);
+          }
+        })
+        .catch(() => {});
+    }
+    return cached;
+  }
+
+  // No cache — fetch and store
   try {
-    const res = await fetch(`/custom/strings/${lang}.json?v=6`);
+    const res = await fetch(`/custom/strings/${lang}.json?v=8`);
     if (!res.ok) return {};
     const data = await res.json();
     cache[lang] = data;
+    writeLocaleCache(lang, data);
     return data;
   } catch {
     return {};
@@ -41,7 +96,7 @@ async function fetchLocale(lang) {
 }
 
 export async function loadLocale(lang, defaultLang) {
-  // Determine locale: explicit arg > localStorage > defaultLang param > brand.json default > 'en'
+  // Determine locale: explicit arg > localStorage > defaultLang param > 'en'
   if (!lang) {
     lang = localStorage.getItem('wl_locale');
   }
@@ -49,12 +104,7 @@ export async function loadLocale(lang, defaultLang) {
     lang = defaultLang;
   }
   if (!lang) {
-    try {
-      const brand = await fetch('/custom/brand.json').then((r) => r.json());
-      lang = brand.defaultLanguage || 'en';
-    } catch {
-      lang = 'en';
-    }
+    lang = 'en';
   }
 
   currentLocale = lang;

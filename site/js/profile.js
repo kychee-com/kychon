@@ -1,7 +1,7 @@
 // profile.js — Profile editor logic
 
-import { get, patch } from './api.js?v=6';
-import { getSession, requireAuth } from './auth.js?v=6';
+import { get, patch } from './api.js?v=8';
+import { getSession, requireAuth } from './auth.js?v=8';
 
 const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
 const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
