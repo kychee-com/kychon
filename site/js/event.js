@@ -1,8 +1,7 @@
 // event.js — Single event detail page with RSVP
 
-import { API, del, get, getAuthHeaders, patch, post } from './api.js';
+import { del, get, patch, post } from './api.js';
 import { getSession, isAdmin, isAuthenticated } from './auth.js';
-import { isFeatureEnabled } from './config.js';
 import { showToast } from './toast.js';
 
 export async function initEvent() {
@@ -123,7 +122,6 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
       isAdmin()
         ? `
       <div class="mt-2 flex gap-1">
-        ${isFeatureEnabled('feature_ai_event_recaps') && new Date(event.ends_at || event.starts_at) < new Date() ? '<button class="btn btn-secondary btn-sm" id="event-recap">Generate Recap</button>' : ''}
         <button class="btn btn-danger btn-sm" id="event-delete">Delete Event</button>
       </div>
     `
@@ -162,36 +160,6 @@ function renderEvent(event, rsvps, goingCount, maybeCount, myRsvp, memberId) {
       // Reload
       await initEvent();
     });
-  });
-
-  // Recap handler
-  document.getElementById('event-recap')?.addEventListener('click', async () => {
-    const btn = document.getElementById('event-recap');
-    btn.disabled = true;
-    btn.textContent = 'Generating...';
-    try {
-      const res = await fetch(`${API}/functions/v1/ai-content`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ event_id: event.id }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        btn.textContent = 'Recap created!';
-      } else {
-        btn.textContent = data.error || 'Failed';
-        setTimeout(() => {
-          btn.textContent = 'Generate Recap';
-          btn.disabled = false;
-        }, 3000);
-      }
-    } catch (_e) {
-      btn.textContent = 'Error';
-      setTimeout(() => {
-        btn.textContent = 'Generate Recap';
-        btn.disabled = false;
-      }, 3000);
-    }
   });
 
   // Delete handler

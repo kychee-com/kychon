@@ -1,5 +1,5 @@
 // prototype-schedule: "*/15 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { db } from '@run402/functions';
+import { ai, db } from '@run402/functions';
 
 export default async (_req) => {
   // Check if feature is enabled
@@ -8,11 +8,6 @@ export default async (_req) => {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_moderation disabled' }));
   }
 
-  if (!process.env.AI_API_KEY) {
-    return new Response(JSON.stringify({ status: 'skipped', reason: 'AI_API_KEY not set' }));
-  }
-
-  const provider = process.env.AI_PROVIDER || 'openai';
   let moderated = 0;
 
   // Find last moderation timestamp
@@ -27,18 +22,14 @@ export default async (_req) => {
     .eq('hidden', false);
 
   for (const topic of newTopics) {
-    const result = await classifyContent(provider, `${topic.title}\n\n${topic.body}`);
-    const action = result.confidence > 0.7 ? 'flagged' : result.confidence > 0.3 ? 'flagged' : 'approved';
-
-    if (result.confidence > 0.7) {
-      // Auto-hide
+    const result = await moderateContent(`${topic.title}\n\n${topic.body}`);
+    if (result.confidence > 0.7 && result.flagged) {
       await db.from('forum_topics').update({ hidden: true }).eq('id', topic.id);
     }
-
     await db.from('moderation_log').insert({
       content_type: 'forum_topic',
       content_id: topic.id,
-      action,
+      action: result.action,
       reason: result.reason,
       confidence: result.confidence,
     });
@@ -53,17 +44,14 @@ export default async (_req) => {
     .eq('hidden', false);
 
   for (const reply of newReplies) {
-    const result = await classifyContent(provider, reply.body);
-    const action = result.confidence > 0.7 ? 'flagged' : result.confidence > 0.3 ? 'flagged' : 'approved';
-
-    if (result.confidence > 0.7) {
+    const result = await moderateContent(reply.body);
+    if (result.confidence > 0.7 && result.flagged) {
       await db.from('forum_replies').update({ hidden: true }).eq('id', reply.id);
     }
-
     await db.from('moderation_log').insert({
       content_type: 'forum_reply',
       content_id: reply.id,
-      action,
+      action: result.action,
       reason: result.reason,
       confidence: result.confidence,
     });
@@ -73,52 +61,24 @@ export default async (_req) => {
   return new Response(JSON.stringify({ status: 'ok', moderated }));
 };
 
-async function classifyContent(provider, text) {
-  const prompt = `Classify this forum post for content moderation. Respond with JSON: {"classification": "spam|toxic|off_topic|appropriate", "confidence": 0.0-1.0, "reason": "brief explanation"}\n\nPost:\n${text.substring(0, 1000)}`;
-
+async function moderateContent(text) {
   try {
-    let response;
-    if (provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': process.env.AI_API_KEY,
-          'content-type': 'application/json',
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 256,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
-      const data = await res.json();
-      response = data.content?.[0]?.text || '{}';
-    } else {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.AI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 256,
-        }),
-      });
-      const data = await res.json();
-      response = data.choices?.[0]?.message?.content || '{}';
-    }
+    const result = await ai.moderate(text.substring(0, 10000));
+    const scores = result.category_scores || {};
+    const entries = Object.entries(scores);
+    const maxEntry = entries.reduce((a, b) => (b[1] > a[1] ? b : a), ['unknown', 0]);
+    const confidence = maxEntry[1];
+    const reason = maxEntry[0];
 
-    const parsed = JSON.parse(response);
-    return {
-      classification: parsed.classification || 'appropriate',
-      confidence: parsed.classification === 'appropriate' ? 0 : parsed.confidence || 0.5,
-      reason: parsed.reason || 'No reason provided',
-    };
+    if (!result.flagged) {
+      return { action: 'approved', confidence, reason, flagged: false };
+    }
+    if (confidence > 0.7) {
+      return { action: 'hidden', confidence, reason, flagged: true };
+    }
+    return { action: 'flagged', confidence, reason, flagged: true };
   } catch (e) {
-    console.warn('AI classification failed:', e.message);
-    return { classification: 'appropriate', confidence: 0, reason: 'AI unavailable' };
+    console.warn('ai.moderate() failed:', e.message);
+    return { action: 'approved', confidence: 0, reason: 'moderation unavailable', flagged: false };
   }
 }

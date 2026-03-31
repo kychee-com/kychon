@@ -125,10 +125,10 @@ async function loadTiers() {
 }
 
 function setupAISettings() {
-  // AI feature toggles
+  // AI feature toggles — only moderation and translation (platform-native)
   const toggleContainer = document.getElementById('as-ai-toggles');
   if (toggleContainer) {
-    const aiFlags = ['feature_ai_moderation', 'feature_ai_translation', 'feature_ai_insights', 'feature_ai_onboarding'];
+    const aiFlags = ['feature_ai_moderation', 'feature_ai_translation'];
     toggleContainer.innerHTML = aiFlags
       .map((key) => {
         const val = configMap[key];
@@ -148,23 +148,6 @@ function setupAISettings() {
     });
   }
 
-  // Save AI key (via run402 secrets - but from frontend we can't set secrets directly)
-  // Instead, show instructions
-  document.getElementById('as-ai-save')?.addEventListener('click', () => {
-    const key = getVal('as-ai-key');
-    const provider = getVal('as-ai-provider');
-    if (!key) return;
-    const status = document.getElementById('as-ai-status');
-    if (status) {
-      status.textContent = `To set the API key, run: run402 secrets set <project_id> AI_API_KEY "${key}" && run402 secrets set <project_id> AI_PROVIDER "${provider}"`;
-    }
-  });
-
-  document.getElementById('as-ai-test')?.addEventListener('click', async () => {
-    const status = document.getElementById('as-ai-status');
-    if (status) status.textContent = 'Testing... (API key must be set as a project secret via CLI)';
-  });
-
   // AI activity summary
   loadAIActivity();
 }
@@ -178,25 +161,21 @@ async function loadAIActivity() {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const since = sevenDaysAgo.toISOString();
 
-    const [modCount, transCount, insightCount] = await Promise.all([
+    const [modCount, transCount] = await Promise.all([
       get(`moderation_log?created_at=gte.${since}&select=id`)
         .then((r) => r.length)
         .catch(() => 0),
       get(`content_translations?created_at=gte.${since}&select=id`)
         .then((r) => r.length)
         .catch(() => 0),
-      get(`member_insights?created_at=gte.${since}&select=id`)
-        .then((r) => r.length)
-        .catch(() => 0),
     ]);
 
-    if (modCount || transCount || insightCount) {
+    if (modCount || transCount) {
       container.innerHTML = `
         <h4 class="mb-1">AI Activity (last 7 days)</h4>
         <div class="text-sm text-muted">
           ${modCount ? `<div>${modCount} posts moderated</div>` : ''}
           ${transCount ? `<div>${transCount} translations created</div>` : ''}
-          ${insightCount ? `<div>${insightCount} member insights generated</div>` : ''}
         </div>`;
     }
   } catch {}

@@ -151,24 +151,18 @@ Categories appear on `forum.html` when `feature_forum` is enabled. Members can c
 
 ## Configure AI Features
 
-1. Set the required secrets via the Run402 CLI:
+AI moderation and translation are platform-native via Run402. No API key required.
 
-```sh
-run402 secrets set AI_API_KEY sk-your-api-key-here
-run402 secrets set AI_PROVIDER anthropic
-```
-
-2. Enable the AI feature flags you want:
+Enable the features via admin settings toggles or SQL:
 
 ```sql
 UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_moderation';
 UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_translation';
-UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_newsletter';
-UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_insights';
-UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_onboarding';
 ```
 
-Enable only the flags you need. Each AI feature works independently. The `moderate-content.js` edge function runs on a 15-minute schedule; `translate-content.js` runs on demand when content is created or updated.
+Moderation (`moderate-content.js`) runs on a 15-minute schedule and is free. Translation (`translate-content.js`) runs on demand when content is published and uses Run402's quota-tracked translation service.
+
+Additional generative AI features (insights, onboarding, newsletter, event recaps) are paused pending a Run402 LLM endpoint. Their flags exist in `site_config` but are not exposed in the admin UI.
 
 ## Add a Resource Category
 
