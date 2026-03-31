@@ -18,10 +18,8 @@ function collectFiles(dir, base = dir) {
     if (entry.isDirectory()) {
       files.push(...collectFiles(full, base));
     } else {
-      files.push({
-        file: relative(base, full),
-        data: readText(full),
-      });
+      // Use "path" reference — CLI auto-detects and base64-encodes binary files
+      files.push({ file: relative(base, full), path: './' + full });
     }
   }
   return files;
