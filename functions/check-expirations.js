@@ -1,8 +1,8 @@
 // schedule: "0 8 * * *"
 import { db, email } from '@run402/functions';
 
-export default async (req) => {
-  const now = new Date().toISOString();
+export default async (_req) => {
+  const _now = new Date().toISOString();
   const results = { reminders_sent: 0, insights_generated: 0 };
 
   // Find members expiring in 7, 14, 30 days
@@ -14,7 +14,8 @@ export default async (req) => {
     nextDay.setDate(nextDay.getDate() + 1);
     const nextDayStr = nextDay.toISOString().split('T')[0];
 
-    const expiring = await db.from('members')
+    const expiring = await db
+      .from('members')
       .select('id,email,display_name')
       .eq('status', 'active')
       .gte('expires_at', cutoffStr)
@@ -60,14 +61,16 @@ async function generateInsights() {
   // Expiring members (7 days)
   const sevenDays = new Date();
   sevenDays.setDate(sevenDays.getDate() + 7);
-  const expiring = await db.from('members')
+  const expiring = await db
+    .from('members')
     .select('id,display_name,email,expires_at')
     .eq('status', 'active')
     .lt('expires_at', sevenDays.toISOString());
 
   for (const m of expiring) {
     // Skip if recent insight exists
-    const existing = await db.from('member_insights')
+    const existing = await db
+      .from('member_insights')
       .select('id')
       .eq('member_id', m.id)
       .eq('insight_type', 'expiring')
@@ -75,14 +78,16 @@ async function generateInsights() {
       .limit(1);
     if (existing.length > 0) continue;
 
-    const message = await callAI(provider,
-      `Generate a brief, friendly outreach suggestion for a community admin. The member "${m.display_name}" has their membership expiring on ${m.expires_at}. Suggest what to say to encourage renewal. Keep it under 200 characters.`
+    const message = await callAI(
+      provider,
+      `Generate a brief, friendly outreach suggestion for a community admin. The member "${m.display_name}" has their membership expiring on ${m.expires_at}. Suggest what to say to encourage renewal. Keep it under 200 characters.`,
     );
 
     await db.from('member_insights').insert({
       member_id: m.id,
       insight_type: 'expiring',
-      message: message || `${m.display_name}'s membership is expiring soon. Consider reaching out to encourage renewal.`,
+      message:
+        message || `${m.display_name}'s membership is expiring soon. Consider reaching out to encourage renewal.`,
       priority: 'high',
     });
     count++;
@@ -102,7 +107,8 @@ async function generateInsights() {
   const inactive = result.rows || result;
 
   for (const m of inactive) {
-    const existing = await db.from('member_insights')
+    const existing = await db
+      .from('member_insights')
       .select('id')
       .eq('member_id', m.id)
       .eq('insight_type', 'inactive')
@@ -110,8 +116,9 @@ async function generateInsights() {
       .limit(1);
     if (existing.length > 0) continue;
 
-    const message = await callAI(provider,
-      `Generate a brief re-engagement suggestion for community admin. Member "${m.display_name}" has been inactive for 30+ days. Suggest how to bring them back. Under 200 characters.`
+    const message = await callAI(
+      provider,
+      `Generate a brief re-engagement suggestion for community admin. Member "${m.display_name}" has been inactive for 30+ days. Suggest how to bring them back. Under 200 characters.`,
     );
 
     await db.from('member_insights').insert({
@@ -148,7 +155,7 @@ async function callAI(provider, prompt) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: 'Bearer ' + process.env.AI_API_KEY,
+          Authorization: `Bearer ${process.env.AI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

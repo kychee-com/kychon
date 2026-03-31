@@ -1,13 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Node 20+ has crypto built-in and read-only — use it directly
 global.btoa = (s) => Buffer.from(s, 'binary').toString('base64');
 global.TextEncoder = TextEncoder;
 global.localStorage = {
   _data: {},
-  getItem(k) { return this._data[k] ?? null; },
-  setItem(k, v) { this._data[k] = v; },
-  removeItem(k) { delete this._data[k]; },
+  getItem(k) {
+    return this._data[k] ?? null;
+  },
+  setItem(k, v) {
+    this._data[k] = v;
+  },
+  removeItem(k) {
+    delete this._data[k];
+  },
 };
 global.window = {
   __WILDLYCHEE_API: 'https://api.test',
@@ -67,26 +73,35 @@ describe('auth.js', () => {
     });
 
     it('getRole returns member role', () => {
-      localStorage.setItem('wl_session', JSON.stringify({
-        access_token: 'tok',
-        user: { member: { role: 'admin' } },
-      }));
+      localStorage.setItem(
+        'wl_session',
+        JSON.stringify({
+          access_token: 'tok',
+          user: { member: { role: 'admin' } },
+        }),
+      );
       expect(auth.getRole()).toBe('admin');
     });
 
     it('isAdmin returns true for admin role', () => {
-      localStorage.setItem('wl_session', JSON.stringify({
-        access_token: 'tok',
-        user: { member: { role: 'admin' } },
-      }));
+      localStorage.setItem(
+        'wl_session',
+        JSON.stringify({
+          access_token: 'tok',
+          user: { member: { role: 'admin' } },
+        }),
+      );
       expect(auth.isAdmin()).toBe(true);
     });
 
     it('isAdmin returns false for member role', () => {
-      localStorage.setItem('wl_session', JSON.stringify({
-        access_token: 'tok',
-        user: { member: { role: 'member' } },
-      }));
+      localStorage.setItem(
+        'wl_session',
+        JSON.stringify({
+          access_token: 'tok',
+          user: { member: { role: 'member' } },
+        }),
+      );
       expect(auth.isAdmin()).toBe(false);
     });
   });
@@ -95,7 +110,8 @@ describe('auth.js', () => {
     it('signIn stores session on success', async () => {
       global.fetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ access_token: 'tok', refresh_token: 'ref', user: { id: '1', email: 'test@test.com' } }),
+        json: () =>
+          Promise.resolve({ access_token: 'tok', refresh_token: 'ref', user: { id: '1', email: 'test@test.com' } }),
       });
       const session = await auth.signIn('test@test.com', 'password');
       expect(session.access_token).toBe('tok');

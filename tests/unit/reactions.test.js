@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 // Pure logic extracted from index.html reactions
 
-const EMOJI_MAP = { like: '\u{1F44D}', heart: '\u2764\uFE0F', celebrate: '\u{1F389}', laugh: '\u{1F604}', think: '\u{1F914}' };
+const EMOJI_MAP = {
+  like: '\u{1F44D}',
+  heart: '\u2764\uFE0F',
+  celebrate: '\u{1F389}',
+  laugh: '\u{1F604}',
+  think: '\u{1F914}',
+};
 const EMOJI_CODES = Object.keys(EMOJI_MAP);
 
 function aggregateReactions(reactions) {

@@ -1,13 +1,14 @@
 // prototype-schedule: "0 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
 import { db, email } from '@run402/functions';
 
-export default async (req) => {
+export default async (_req) => {
   const now = new Date();
   const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
   let sent = 0;
 
   // Find events starting within the next hour
-  const events = await db.from('events')
+  const events = await db
+    .from('events')
     .select('id,title,starts_at,location')
     .gte('starts_at', now.toISOString())
     .lt('starts_at', oneHourFromNow.toISOString());
@@ -28,7 +29,7 @@ export default async (req) => {
         await email.send({
           to: attendee.email,
           subject: `Reminder: ${event.title} starts soon`,
-          html: `<p>Hi ${attendee.display_name},</p><p><strong>${event.title}</strong> starts at ${time}${event.location ? ' at ' + event.location : ''}.</p><p>See you there!</p>`,
+          html: `<p>Hi ${attendee.display_name},</p><p><strong>${event.title}</strong> starts at ${time}${event.location ? ` at ${event.location}` : ''}.</p><p>See you there!</p>`,
           from_name: 'Wild Lychee Community',
         });
         sent++;

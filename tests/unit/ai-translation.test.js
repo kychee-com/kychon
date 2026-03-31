@@ -1,26 +1,35 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('AI translation logic', () => {
   const translations = [
     { content_type: 'announcement', content_id: 1, language: 'pt', field: 'title', translated_text: 'Bem-vindo!' },
-    { content_type: 'announcement', content_id: 1, language: 'pt', field: 'body', translated_text: 'Estamos felizes...' },
+    {
+      content_type: 'announcement',
+      content_id: 1,
+      language: 'pt',
+      field: 'body',
+      translated_text: 'Estamos felizes...',
+    },
     { content_type: 'announcement', content_id: 1, language: 'es', field: 'title', translated_text: '¡Bienvenido!' },
     { content_type: 'event', content_id: 5, language: 'pt', field: 'title', translated_text: 'Churrasco' },
   ];
 
   function findTranslation(translations, contentType, contentId, language, field) {
-    return translations.find(t =>
-      t.content_type === contentType &&
-      t.content_id === contentId &&
-      t.language === language &&
-      t.field === field
-    )?.translated_text || null;
+    return (
+      translations.find(
+        (t) =>
+          t.content_type === contentType && t.content_id === contentId && t.language === language && t.field === field,
+      )?.translated_text || null
+    );
   }
 
   function getTranslatedFields(translations, contentType, contentId, language) {
     return translations
-      .filter(t => t.content_type === contentType && t.content_id === contentId && t.language === language)
-      .reduce((acc, t) => { acc[t.field] = t.translated_text; return acc; }, {});
+      .filter((t) => t.content_type === contentType && t.content_id === contentId && t.language === language)
+      .reduce((acc, t) => {
+        acc[t.field] = t.translated_text;
+        return acc;
+      }, {});
   }
 
   it('finds translation for specific content+language+field', () => {

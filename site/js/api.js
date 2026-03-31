@@ -1,13 +1,15 @@
+// @ts-check
 // api.js — Thin REST wrapper around Run402 PostgREST API
 
 const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
 const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
 
 function getAuthHeaders() {
+  /** @type {Record<string, string>} */
   const headers = { apikey: ANON_KEY, 'Content-Type': 'application/json' };
   const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
   if (session?.access_token) {
-    headers['Authorization'] = 'Bearer ' + session.access_token;
+    headers.Authorization = `Bearer ${session.access_token}`;
   }
   return headers;
 }
@@ -15,7 +17,7 @@ function getAuthHeaders() {
 async function refreshToken() {
   const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
   if (!session?.refresh_token) return null;
-  const res = await fetch(API + '/auth/v1/token?grant_type=refresh_token', {
+  const res = await fetch(`${API}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
     body: JSON.stringify({ refresh_token: session.refresh_token }),
@@ -29,8 +31,9 @@ async function refreshToken() {
   return newSession;
 }
 
+/** @param {string} method @param {string} path @param {{ body?: any, headers?: Record<string, string>, retry?: boolean }} [opts] */
 async function request(method, path, { body, headers: extra, retry = true } = {}) {
-  const url = API + '/rest/v1/' + path;
+  const url = `${API}/rest/v1/${path}`;
   const headers = { ...getAuthHeaders(), ...extra };
   const opts = { method, headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
@@ -40,16 +43,18 @@ async function request(method, path, { body, headers: extra, retry = true } = {}
   if (res.status === 401 && retry) {
     const refreshed = await refreshToken();
     if (refreshed) {
-      headers['Authorization'] = 'Bearer ' + refreshed.access_token;
+      headers.Authorization = `Bearer ${refreshed.access_token}`;
       opts.headers = headers;
       res = await fetch(url, opts);
     }
   }
 
   if (!res.ok) {
-    const err = new Error(`API ${method} ${path}: ${res.status}`);
+    const err = /** @type {any} */ (new Error(`API ${method} ${path}: ${res.status}`));
     err.status = res.status;
-    try { err.body = await res.json(); } catch {}
+    try {
+      err.body = await res.json();
+    } catch {}
     throw err;
   }
 
@@ -75,7 +80,7 @@ export function del(path) {
 
 // Count via GET with Prefer: count=exact and Content-Range header
 export async function count(path) {
-  const url = API + '/rest/v1/' + path;
+  const url = `${API}/rest/v1/${path}`;
   const res = await fetch(url, {
     headers: { ...getAuthHeaders(), Prefer: 'count=exact' },
   });
@@ -87,4 +92,4 @@ export async function count(path) {
   return 0;
 }
 
-export { API, ANON_KEY, getAuthHeaders };
+export { ANON_KEY, API, getAuthHeaders };

@@ -1,7 +1,7 @@
 // committees.js — Committee listing and detail
 
-import { get, post, del } from './api.js';
-import { getSession, isAdmin, isAuthenticated } from './auth.js';
+import { del, get, post } from './api.js';
+import { isAdmin } from './auth.js';
 
 export async function initCommittees() {
   const id = new URLSearchParams(window.location.search).get('id');
@@ -21,25 +21,34 @@ async function renderCommitteeList() {
     // Get member counts
     const members = await get('committee_members?select=committee_id');
     const countMap = {};
-    members.forEach(m => { countMap[m.committee_id] = (countMap[m.committee_id] || 0) + 1; });
+    members.forEach((m) => {
+      countMap[m.committee_id] = (countMap[m.committee_id] || 0) + 1;
+    });
 
     if (committees.length === 0) {
       container.innerHTML = '<p class="text-muted">No committees yet.</p>';
     } else {
-      container.innerHTML = '<div class="card-grid">' + committees.map(c => `
+      container.innerHTML =
+        '<div class="card-grid">' +
+        committees
+          .map(
+            (c) => `
         <a href="/committees.html?id=${c.id}" class="card" style="text-decoration:none;color:inherit">
           <h3>${esc(c.name)}</h3>
           <p class="text-sm text-muted">${esc(c.description || '')}</p>
           <span class="badge badge-primary">${countMap[c.id] || 0} members</span>
         </a>
-      `).join('') + '</div>';
+      `,
+          )
+          .join('') +
+        '</div>';
     }
 
     if (isAdmin()) {
       document.getElementById('committee-create-btn')?.classList.remove('hidden');
       setupCreate(container);
     }
-  } catch (e) {
+  } catch (_e) {
     container.innerHTML = '<p class="text-muted">Failed to load committees.</p>';
   }
 }
@@ -49,13 +58,13 @@ async function renderCommitteeDetail(id) {
   if (!container) return;
 
   try {
-    const committees = await get('committees?id=eq.' + id + '&limit=1');
+    const committees = await get(`committees?id=eq.${id}&limit=1`);
     if (committees.length === 0) {
       container.innerHTML = '<p>Committee not found.</p>';
       return;
     }
     const committee = committees[0];
-    const members = await get('committee_members?committee_id=eq.' + id + '&select=*,members(display_name,avatar_url)');
+    const members = await get(`committee_members?committee_id=eq.${id}&select=*,members(display_name,avatar_url)`);
     const allMembers = isAdmin() ? await get('members?status=eq.active&order=display_name.asc') : [];
 
     container.innerHTML = `
@@ -66,27 +75,35 @@ async function renderCommitteeDetail(id) {
       <div class="mt-2">
         <h3 class="mb-1">Members (${members.length})</h3>
         ${members.length === 0 ? '<p class="text-muted">No members assigned.</p>' : ''}
-        ${members.map(m => `
+        ${members
+          .map(
+            (m) => `
           <div class="member-card card mb-1">
-            ${m.members?.avatar_url
-              ? `<img class="member-avatar" src="${esc(m.members.avatar_url)}" alt="">`
-              : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(m.members?.display_name || '?')[0].toUpperCase()}</div>`}
+            ${
+              m.members?.avatar_url
+                ? `<img class="member-avatar" src="${esc(m.members.avatar_url)}" alt="">`
+                : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(m.members?.display_name || '?')[0].toUpperCase()}</div>`
+            }
             <div class="member-info">
               <span class="member-name">${esc(m.members?.display_name || 'Member')}</span>
               <span class="badge badge-${m.role === 'chair' ? 'warning' : 'primary'}">${esc(m.role)}</span>
             </div>
             ${isAdmin() ? `<button class="btn btn-sm btn-danger cm-remove" data-id="${m.id}" style="margin-left:auto">Remove</button>` : ''}
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
 
-      ${isAdmin() ? `
+      ${
+        isAdmin()
+          ? `
         <div class="card mt-2">
           <h4 class="mb-1">Add Member</h4>
           <div class="flex gap-1">
             <select class="form-select" id="cm-member-select" style="flex:1">
               <option value="">Select member...</option>
-              ${allMembers.map(m => `<option value="${m.id}">${esc(m.display_name)} (${esc(m.email)})</option>`).join('')}
+              ${allMembers.map((m) => `<option value="${m.id}">${esc(m.display_name)} (${esc(m.email)})</option>`).join('')}
             </select>
             <select class="form-select" id="cm-role-select" style="width:8rem">
               <option value="member">Member</option>
@@ -98,13 +115,15 @@ async function renderCommitteeDetail(id) {
         <div class="mt-2">
           <button class="btn btn-danger btn-sm" id="cm-delete-committee">Delete Committee</button>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     `;
 
     // Admin handlers
-    container.querySelectorAll('.cm-remove').forEach(btn => {
+    container.querySelectorAll('.cm-remove').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        await del('committee_members?id=eq.' + btn.dataset.id);
+        await del(`committee_members?id=eq.${btn.dataset.id}`);
         renderCommitteeDetail(id);
       });
     });
@@ -113,16 +132,16 @@ async function renderCommitteeDetail(id) {
       const memberId = document.getElementById('cm-member-select')?.value;
       const role = document.getElementById('cm-role-select')?.value;
       if (!memberId) return;
-      await post('committee_members', { committee_id: parseInt(id), member_id: parseInt(memberId), role });
+      await post('committee_members', { committee_id: parseInt(id, 10), member_id: parseInt(memberId, 10), role });
       renderCommitteeDetail(id);
     });
 
     document.getElementById('cm-delete-committee')?.addEventListener('click', async () => {
       if (!confirm('Delete this committee?')) return;
-      await del('committees?id=eq.' + id);
+      await del(`committees?id=eq.${id}`);
       window.location.href = '/committees.html';
     });
-  } catch (e) {
+  } catch (_e) {
     container.innerHTML = '<p>Error loading committee.</p>';
   }
 }
@@ -146,4 +165,8 @@ function setupCreate() {
   });
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}

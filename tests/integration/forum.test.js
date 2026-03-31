@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('forum rendering', () => {
   const categories = [
@@ -7,9 +7,36 @@ describe('forum rendering', () => {
   ];
 
   const topics = [
-    { id: 1, category_id: 1, title: 'Welcome', body: '<p>Welcome!</p>', is_pinned: true, hidden: false, locked: false, reply_count: 3 },
-    { id: 2, category_id: 1, title: 'Question', body: '<p>How?</p>', is_pinned: false, hidden: false, locked: false, reply_count: 1 },
-    { id: 3, category_id: 1, title: 'Hidden', body: '<p>Spam</p>', is_pinned: false, hidden: true, locked: false, reply_count: 0 },
+    {
+      id: 1,
+      category_id: 1,
+      title: 'Welcome',
+      body: '<p>Welcome!</p>',
+      is_pinned: true,
+      hidden: false,
+      locked: false,
+      reply_count: 3,
+    },
+    {
+      id: 2,
+      category_id: 1,
+      title: 'Question',
+      body: '<p>How?</p>',
+      is_pinned: false,
+      hidden: false,
+      locked: false,
+      reply_count: 1,
+    },
+    {
+      id: 3,
+      category_id: 1,
+      title: 'Hidden',
+      body: '<p>Spam</p>',
+      is_pinned: false,
+      hidden: true,
+      locked: false,
+      reply_count: 0,
+    },
   ];
 
   function renderCategoryList(categories, topicCounts) {
@@ -29,7 +56,7 @@ describe('forum rendering', () => {
   }
 
   function renderTopicList(topics, isAdmin) {
-    const visible = topics.filter(t => isAdmin || !t.hidden);
+    const visible = topics.filter((t) => isAdmin || !t.hidden);
     const sorted = [...visible].sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) return b.is_pinned ? 1 : -1;
       return 0;
@@ -74,7 +101,7 @@ describe('forum rendering', () => {
     const list = renderTopicList(topics, true);
     const rows = list.querySelectorAll('.topic-row');
     expect(rows.length).toBe(3);
-    const hiddenRow = [...rows].find(r => r.querySelector('.title').textContent === 'Hidden');
+    const hiddenRow = [...rows].find((r) => r.querySelector('.title').textContent === 'Hidden');
     expect(hiddenRow.querySelector('.hidden-badge')).toBeTruthy();
   });
 

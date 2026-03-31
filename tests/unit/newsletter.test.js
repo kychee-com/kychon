@@ -1,31 +1,48 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('Newsletter generation logic', () => {
   function buildActivitySummary(activity) {
     const sections = [];
     if (activity.newMembers.length > 0) {
-      sections.push(`New members this week: ${activity.newMembers.map(m => m.display_name).join(', ')}`);
+      sections.push(`New members this week: ${activity.newMembers.map((m) => m.display_name).join(', ')}`);
     }
     if (activity.upcomingEvents.length > 0) {
-      sections.push('Upcoming events:\n' + activity.upcomingEvents.map(e =>
-        `- ${e.title} on ${new Date(e.starts_at).toLocaleDateString()}${e.location ? ' at ' + e.location : ''}`
-      ).join('\n'));
+      sections.push(
+        'Upcoming events:\n' +
+          activity.upcomingEvents
+            .map(
+              (e) =>
+                `- ${e.title} on ${new Date(e.starts_at).toLocaleDateString()}${e.location ? ` at ${e.location}` : ''}`,
+            )
+            .join('\n'),
+      );
     }
     if (activity.announcements.length > 0) {
-      sections.push('Recent announcements:\n' + activity.announcements.map(a => `- ${a.title}`).join('\n'));
+      sections.push(`Recent announcements:\n${activity.announcements.map((a) => `- ${a.title}`).join('\n')}`);
     }
     if (activity.topForumPosts.length > 0) {
-      sections.push('Popular discussions:\n' + activity.topForumPosts.map(p => `- ${p.title} (${p.reply_count} replies)`).join('\n'));
+      sections.push(
+        'Popular discussions:\n' +
+          activity.topForumPosts.map((p) => `- ${p.title} (${p.reply_count} replies)`).join('\n'),
+      );
     }
     if (activity.newResources.length > 0) {
-      sections.push('New resources:\n' + activity.newResources.map(r => `- ${r.title}${r.category ? ' (' + r.category + ')' : ''}`).join('\n'));
+      sections.push(
+        'New resources:\n' +
+          activity.newResources.map((r) => `- ${r.title}${r.category ? ` (${r.category})` : ''}`).join('\n'),
+      );
     }
     return sections;
   }
 
   function hasContent(activity) {
-    return activity.newMembers.length > 0 || activity.upcomingEvents.length > 0 ||
-      activity.announcements.length > 0 || activity.topForumPosts.length > 0 || activity.newResources.length > 0;
+    return (
+      activity.newMembers.length > 0 ||
+      activity.upcomingEvents.length > 0 ||
+      activity.announcements.length > 0 ||
+      activity.topForumPosts.length > 0 ||
+      activity.newResources.length > 0
+    );
   }
 
   function parseNewsletterResponse(response, siteName) {
@@ -90,7 +107,10 @@ describe('Newsletter generation logic', () => {
   });
 
   it('handles events without location', () => {
-    const activity = { ...emptyActivity, upcomingEvents: [{ title: 'Online Call', starts_at: '2026-04-01T10:00:00Z', location: null }] };
+    const activity = {
+      ...emptyActivity,
+      upcomingEvents: [{ title: 'Online Call', starts_at: '2026-04-01T10:00:00Z', location: null }],
+    };
     const sections = buildActivitySummary(activity);
     expect(sections[0]).not.toContain(' at ');
   });

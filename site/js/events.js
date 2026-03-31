@@ -1,7 +1,7 @@
 // events.js — Event listing and RSVP logic
 
-import { get, post, patch, del } from './api.js';
-import { getSession, isAdmin, isAuthenticated } from './auth.js';
+import { get, post } from './api.js';
+import { getSession, isAdmin } from './auth.js';
 
 let allEvents = [];
 
@@ -24,8 +24,8 @@ async function loadEvents() {
 
 function renderEvents() {
   const now = new Date().toISOString();
-  const upcoming = allEvents.filter(e => e.starts_at >= now);
-  const past = allEvents.filter(e => e.starts_at < now).reverse();
+  const upcoming = allEvents.filter((e) => e.starts_at >= now);
+  const past = allEvents.filter((e) => e.starts_at < now).reverse();
 
   const container = document.getElementById('events-list');
   if (!container) return;
@@ -38,20 +38,20 @@ function renderEvents() {
   let html = '';
   if (upcoming.length > 0) {
     html += '<h3 class="mb-1">Upcoming</h3><div class="card-grid mb-2">';
-    html += upcoming.map(e => eventCard(e)).join('');
+    html += upcoming.map((e) => eventCard(e)).join('');
     html += '</div>';
   }
   if (past.length > 0) {
     html += '<h3 class="mb-1 text-muted">Past Events</h3><div class="card-grid">';
-    html += past.map(e => eventCard(e)).join('');
+    html += past.map((e) => eventCard(e)).join('');
     html += '</div>';
   }
   container.innerHTML = html;
 
-  container.querySelectorAll('[data-event-id]').forEach(card => {
+  container.querySelectorAll('[data-event-id]').forEach((card) => {
     card.style.cursor = 'pointer';
     card.addEventListener('click', () => {
-      window.location.href = '/event.html?id=' + card.dataset.eventId;
+      window.location.href = `/event.html?id=${card.dataset.eventId}`;
     });
   });
 }
@@ -93,7 +93,7 @@ function setupEventCreate() {
       location: document.getElementById('ef-location').value,
       starts_at: document.getElementById('ef-starts').value,
       ends_at: document.getElementById('ef-ends').value || null,
-      capacity: parseInt(document.getElementById('ef-capacity').value) || null,
+      capacity: parseInt(document.getElementById('ef-capacity').value, 10) || null,
       is_members_only: document.getElementById('ef-members-only').checked,
       created_by: memberId,
     };
@@ -104,4 +104,8 @@ function setupEventCreate() {
   });
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}

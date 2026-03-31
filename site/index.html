@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
-  <script>(function(){var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
+  <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
 </head>
 <body>
   <div class="page">
@@ -89,10 +89,9 @@
   <script src="/js/animations.js"></script>
   <script src="/js/env.js"></script>
   <script type="module">
+    import { del, get, patch, post } from './js/api.js';
+    import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js';
     import { init, isFeatureEnabled } from './js/config.js';
-    import { handleOAuthCallback, signInWithGoogle, signIn, signUp, isAuthenticated } from './js/auth.js';
-    import { get, post, patch, del } from './js/api.js';
-    import { isAdmin, getSession } from './js/auth.js';
     import { showToast } from './js/toast.js';
 
     // Handle OAuth callback
@@ -142,7 +141,7 @@
           if (cfg.bg_image) el.style.backgroundImage = `url(${cfg.bg_image})`;
           break;
 
-        case 'features':
+        case 'features': {
           el.className = 'section section-features';
           const cols = cfg.columns || 3;
           el.innerHTML = `
@@ -157,6 +156,7 @@
               </div>
             </div>`;
           break;
+        }
 
         case 'cta':
           el.className = 'section section-cta';
@@ -190,7 +190,7 @@
                 ${(cfg.items || []).map(t => `
                   <div class="card">
                     <p style="font-style:italic">"${esc(t.quote || '')}"</p>
-                    <p class="text-sm text-muted mt-1">— ${esc(t.name || '')}${t.role ? ', ' + esc(t.role) : ''}</p>
+                    <p class="text-sm text-muted mt-1">— ${esc(t.name || '')}${t.role ? `, ${esc(t.role)}` : ''}</p>
                   </div>`).join('')}
               </div>
             </div>`;
@@ -257,7 +257,7 @@
 
     function renderActivityEntry(entry, member) {
       const name = member ? member.display_name : 'Former member';
-      const avatar = member && member.avatar_url
+      const avatar = member?.avatar_url
         ? `<img class="activity-avatar" src="${member.avatar_url}" alt="">`
         : `<div class="activity-avatar activity-avatar-fallback">${(name[0] || '?').toUpperCase()}</div>`;
       const meta = entry.metadata || {};
@@ -277,11 +277,11 @@
       const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
       if (seconds < 60) return 'just now';
       const minutes = Math.floor(seconds / 60);
-      if (minutes < 60) return minutes + 'm ago';
+      if (minutes < 60) return `${minutes}m ago`;
       const hours = Math.floor(minutes / 60);
-      if (hours < 24) return hours + 'h ago';
+      if (hours < 24) return `${hours}h ago`;
       const days = Math.floor(hours / 24);
-      if (days < 30) return days + 'd ago';
+      if (days < 30) return `${days}d ago`;
       return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
 
@@ -296,9 +296,9 @@
         }
         // Collect unique member IDs and fetch members
         const memberIds = [...new Set(entries.map(e => e.member_id).filter(Boolean))];
-        let membersMap = {};
+        const membersMap = {};
         if (memberIds.length > 0) {
-          const members = await get('members?id=in.(' + memberIds.join(',') + ')');
+          const members = await get(`members?id=in.(${memberIds.join(',')})`);
           for (const m of members) membersMap[m.id] = m;
         }
         feed.innerHTML = entries.map(e => renderActivityEntry(e, membersMap[e.member_id])).join('');
@@ -391,8 +391,8 @@
       const floater = document.createElement('span');
       floater.className = 'reaction-float-emoji';
       floater.textContent = EMOJI_MAP[emoji] || emoji;
-      floater.style.left = rect.left + rect.width / 2 - 10 + 'px';
-      floater.style.top = rect.top - 10 + window.scrollY + 'px';
+      floater.style.left = `${rect.left + rect.width / 2 - 10}px`;
+      floater.style.top = `${rect.top - 10 + window.scrollY}px`;
       floater.style.position = 'absolute';
       document.body.appendChild(floater);
       floater.addEventListener('animationend', () => floater.remove(), { once: true });
@@ -436,11 +436,11 @@
 
         // Fetch reactions for all announcements in batch
         const annIds = items.map(a => a.id);
-        let reactionsByAnn = {};
-        let myReactionsByAnn = {};
+        const reactionsByAnn = {};
+        const myReactionsByAnn = {};
         const reactionsEnabled = isFeatureEnabled('feature_reactions');
         if (reactionsEnabled && annIds.length > 0) {
-          const allReactions = await get('reactions?content_type=eq.announcement&content_id=in.(' + annIds.join(',') + ')');
+          const allReactions = await get(`reactions?content_type=eq.announcement&content_id=in.(${annIds.join(',')})`);
           const session = getSession();
           const myId = session?.user?.member?.id;
           for (const r of allReactions) {
@@ -471,12 +471,12 @@
 
         // Reaction click handlers
         feed.querySelectorAll('.reaction-badge[data-ann-id]').forEach(btn => {
-          btn.addEventListener('click', () => toggleReaction(parseInt(btn.dataset.annId), btn.dataset.emoji));
+          btn.addEventListener('click', () => toggleReaction(parseInt(btn.dataset.annId, 10), btn.dataset.emoji));
         });
         feed.querySelectorAll('.reaction-picker-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const dropdown = document.getElementById('picker-' + btn.dataset.pickerFor);
+            const dropdown = document.getElementById(`picker-${btn.dataset.pickerFor}`);
             document.querySelectorAll('.reaction-picker-dropdown.open').forEach(d => { if (d !== dropdown) d.classList.remove('open'); });
             dropdown?.classList.toggle('open');
           });
@@ -484,7 +484,7 @@
         feed.querySelectorAll('.reaction-picker-dropdown button').forEach(btn => {
           btn.addEventListener('click', () => {
             btn.closest('.reaction-picker-dropdown')?.classList.remove('open');
-            toggleReaction(parseInt(btn.dataset.annId), btn.dataset.emoji);
+            toggleReaction(parseInt(btn.dataset.annId, 10), btn.dataset.emoji);
           });
         });
         // Close picker on outside click
@@ -497,14 +497,14 @@
           btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
             const pinned = btn.dataset.pinned === 'true';
-            await patch('announcements?id=eq.' + id, { is_pinned: !pinned });
+            await patch(`announcements?id=eq.${id}`, { is_pinned: !pinned });
             renderAnnouncements();
           });
         });
         feed.querySelectorAll('.ann-delete').forEach(btn => {
           btn.addEventListener('click', async () => {
             if (!confirm('Delete this announcement?')) return;
-            await del('announcements?id=eq.' + btn.dataset.id);
+            await del(`announcements?id=eq.${btn.dataset.id}`);
             renderAnnouncements();
           });
         });

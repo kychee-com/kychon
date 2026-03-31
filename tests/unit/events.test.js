@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('events logic', () => {
   const events = [
@@ -15,7 +15,7 @@ describe('events logic', () => {
   ];
 
   function getGoingCount(eventId) {
-    return rsvps.filter(r => r.event_id === eventId && r.status === 'going').length;
+    return rsvps.filter((r) => r.event_id === eventId && r.status === 'going').length;
   }
 
   function isFull(event) {
@@ -25,8 +25,8 @@ describe('events logic', () => {
   function splitEvents(events) {
     const now = new Date().toISOString();
     return {
-      upcoming: events.filter(e => e.starts_at >= now),
-      past: events.filter(e => e.starts_at < now),
+      upcoming: events.filter((e) => e.starts_at >= now),
+      past: events.filter((e) => e.starts_at < now),
     };
   }
 
@@ -52,7 +52,7 @@ describe('events logic', () => {
   });
 
   it('enforces unique RSVP per event+member', () => {
-    const existing = rsvps.filter(r => r.event_id === 1 && r.member_id === 1);
+    const existing = rsvps.filter((r) => r.event_id === 1 && r.member_id === 1);
     expect(existing.length).toBe(1);
   });
 });

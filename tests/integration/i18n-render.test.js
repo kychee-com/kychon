@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('i18n rendering', () => {
   const enStrings = {
@@ -20,13 +20,13 @@ describe('i18n rendering', () => {
   function t(key, vars = {}, strings = enStrings, fallback = enStrings) {
     let resolvedKey = key;
     if (vars.count !== undefined && vars.count === 1) {
-      const oneKey = key + '_one';
+      const oneKey = `${key}_one`;
       if (strings[oneKey] || fallback[oneKey]) resolvedKey = oneKey;
     }
     let str = strings[resolvedKey] || fallback[resolvedKey] || resolvedKey;
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
-        str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), String(v));
+        str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
       }
     }
     return str;
@@ -34,7 +34,7 @@ describe('i18n rendering', () => {
 
   it('renders nav items in English', () => {
     const nav = document.createElement('nav');
-    ['nav.home', 'nav.members'].forEach(key => {
+    ['nav.home', 'nav.members'].forEach((key) => {
       const a = document.createElement('a');
       a.textContent = t(key);
       nav.appendChild(a);
@@ -45,7 +45,7 @@ describe('i18n rendering', () => {
 
   it('renders nav items in Portuguese', () => {
     const nav = document.createElement('nav');
-    ['nav.home', 'nav.members'].forEach(key => {
+    ['nav.home', 'nav.members'].forEach((key) => {
       const a = document.createElement('a');
       a.textContent = t(key, {}, ptStrings, enStrings);
       nav.appendChild(a);

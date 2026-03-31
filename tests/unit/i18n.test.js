@@ -1,11 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock browser globals
 global.localStorage = {
   _data: {},
-  getItem(k) { return this._data[k] ?? null; },
-  setItem(k, v) { this._data[k] = v; },
-  removeItem(k) { delete this._data[k]; },
+  getItem(k) {
+    return this._data[k] ?? null;
+  },
+  setItem(k, v) {
+    this._data[k] = v;
+  },
+  removeItem(k) {
+    delete this._data[k];
+  },
 };
 global.document = { documentElement: { dir: 'ltr' }, getElementById: () => null };
 
@@ -29,32 +35,35 @@ describe('i18n.js', () => {
       if (url.includes('/en.json')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            'nav.home': 'Home',
-            'welcome.greeting': 'Hello, {name}!',
-            'members.count': '{count} members',
-            'members.count_one': '1 member',
-          }),
+          json: () =>
+            Promise.resolve({
+              'nav.home': 'Home',
+              'welcome.greeting': 'Hello, {name}!',
+              'members.count': '{count} members',
+              'members.count_one': '1 member',
+            }),
         });
       }
       if (url.includes('/pt.json')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            'nav.home': 'Inicio',
-            'welcome.greeting': 'Ola, {name}!',
-            'members.count': '{count} membros',
-            'members.count_one': '1 membro',
-          }),
+          json: () =>
+            Promise.resolve({
+              'nav.home': 'Inicio',
+              'welcome.greeting': 'Ola, {name}!',
+              'members.count': '{count} membros',
+              'members.count_one': '1 membro',
+            }),
         });
       }
       if (url.includes('/ar.json')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            '_meta': { direction: 'rtl' },
-            'nav.home': 'الرئيسية',
-          }),
+          json: () =>
+            Promise.resolve({
+              _meta: { direction: 'rtl' },
+              'nav.home': 'الرئيسية',
+            }),
         });
       }
       return Promise.resolve({ ok: false });

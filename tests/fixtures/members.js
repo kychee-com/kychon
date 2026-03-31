@@ -63,17 +63,68 @@ export const suspendedMember = {
 export const allMembers = [adminMember, activeMember, pendingMember, suspendedMember];
 
 export const defaultTiers = [
-  { id: 1, name: 'Member', description: 'Standard', benefits: ['Directory', 'Events'], price_label: 'Free', position: 1, is_default: true },
-  { id: 2, name: 'Premium', description: 'Premium access', benefits: ['Directory', 'Events', 'Resources', 'Forum'], price_label: '$50/year', position: 2, is_default: false },
+  {
+    id: 1,
+    name: 'Member',
+    description: 'Standard',
+    benefits: ['Directory', 'Events'],
+    price_label: 'Free',
+    position: 1,
+    is_default: true,
+  },
+  {
+    id: 2,
+    name: 'Premium',
+    description: 'Premium access',
+    benefits: ['Directory', 'Events', 'Resources', 'Forum'],
+    price_label: '$50/year',
+    position: 2,
+    is_default: false,
+  },
 ];
 
 export const sampleAnnouncements = [
-  { id: 1, title: 'Welcome!', body: '<p>Welcome to our community.</p>', is_pinned: true, author_id: 1, created_at: '2026-03-01T00:00:00Z' },
-  { id: 2, title: 'Upcoming Event', body: '<p>Join us next week.</p>', is_pinned: false, author_id: 1, created_at: '2026-03-15T00:00:00Z' },
+  {
+    id: 1,
+    title: 'Welcome!',
+    body: '<p>Welcome to our community.</p>',
+    is_pinned: true,
+    author_id: 1,
+    created_at: '2026-03-01T00:00:00Z',
+  },
+  {
+    id: 2,
+    title: 'Upcoming Event',
+    body: '<p>Join us next week.</p>',
+    is_pinned: false,
+    author_id: 1,
+    created_at: '2026-03-15T00:00:00Z',
+  },
 ];
 
 export const sampleActivity = [
-  { id: 1, member_id: 1, action: 'signup', metadata: { role: 'admin', is_first: true }, created_at: '2026-01-01T00:00:00Z', members: { display_name: 'Admin User' } },
-  { id: 2, member_id: 2, action: 'signup', metadata: {}, created_at: '2026-02-01T00:00:00Z', members: { display_name: 'Jane Member' } },
-  { id: 3, member_id: 1, action: 'announcement', metadata: { title: 'Welcome!' }, created_at: '2026-03-01T00:00:00Z', members: { display_name: 'Admin User' } },
+  {
+    id: 1,
+    member_id: 1,
+    action: 'signup',
+    metadata: { role: 'admin', is_first: true },
+    created_at: '2026-01-01T00:00:00Z',
+    members: { display_name: 'Admin User' },
+  },
+  {
+    id: 2,
+    member_id: 2,
+    action: 'signup',
+    metadata: {},
+    created_at: '2026-02-01T00:00:00Z',
+    members: { display_name: 'Jane Member' },
+  },
+  {
+    id: 3,
+    member_id: 1,
+    action: 'announcement',
+    metadata: { title: 'Welcome!' },
+    created_at: '2026-03-01T00:00:00Z',
+    members: { display_name: 'Admin User' },
+  },
 ];

@@ -21,13 +21,17 @@ export default async (req) => {
     `);
     const rows = result.rows || result;
     const headers = ['display_name', 'email', 'status', 'role', 'tier', 'joined_at', 'custom_fields'];
-    csv = headers.join(',') + '\n';
-    csv += rows.map(r =>
-      headers.map(h => {
-        const val = h === 'custom_fields' ? JSON.stringify(r[h] || {}) : String(r[h] || '');
-        return '"' + val.replace(/"/g, '""') + '"';
-      }).join(',')
-    ).join('\n');
+    csv = `${headers.join(',')}\n`;
+    csv += rows
+      .map((r) =>
+        headers
+          .map((h) => {
+            const val = h === 'custom_fields' ? JSON.stringify(r[h] || {}) : String(r[h] || '');
+            return `"${val.replace(/"/g, '""')}"`;
+          })
+          .join(','),
+      )
+      .join('\n');
   } else if (type === 'events') {
     const result = await db.sql(`
       SELECT e.title, e.starts_at, e.ends_at, e.location, e.capacity,
@@ -37,10 +41,8 @@ export default async (req) => {
     `);
     const rows = result.rows || result;
     const headers = ['title', 'starts_at', 'ends_at', 'location', 'capacity', 'rsvp_count'];
-    csv = headers.join(',') + '\n';
-    csv += rows.map(r =>
-      headers.map(h => '"' + String(r[h] || '').replace(/"/g, '""') + '"').join(',')
-    ).join('\n');
+    csv = `${headers.join(',')}\n`;
+    csv += rows.map((r) => headers.map((h) => `"${String(r[h] || '').replace(/"/g, '""')}"`).join(',')).join('\n');
   } else {
     return new Response(JSON.stringify({ error: 'Invalid type. Use members or events.' }), { status: 400 });
   }

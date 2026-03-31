@@ -18,7 +18,11 @@ export default async (req) => {
   }
 
   let body;
-  try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 });
+  }
 
   const { content_type, content_id } = body;
   if (!content_type || !content_id) {
@@ -27,10 +31,10 @@ export default async (req) => {
 
   // Get configured languages from brand.json (stored in site or fetched)
   // For now, read from a site_config key or default
-  let languages = ['en'];
+  const _languages = ['en'];
   try {
-    const brandRes = await fetch('https://api.run402.com/rest/v1/site_config?key=eq.languages&select=value', {
-      headers: { Authorization: 'Bearer ' + process.env.RUN402_SERVICE_KEY },
+    const _brandRes = await fetch('https://api.run402.com/rest/v1/site_config?key=eq.languages&select=value', {
+      headers: { Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}` },
     });
     // Fallback: just use common languages if not configured
   } catch {}
@@ -53,7 +57,7 @@ export default async (req) => {
   }
 
   const provider = process.env.AI_PROVIDER || 'openai';
-  const targetLangs = (body.languages || ['pt', 'es']).filter(l => l !== 'en');
+  const targetLangs = (body.languages || ['pt', 'es']).filter((l) => l !== 'en');
   let translated = 0;
 
   for (const lang of targetLangs) {
@@ -62,7 +66,8 @@ export default async (req) => {
       const translation = await translateText(provider, content[field], lang);
       if (translation) {
         // Upsert into content_translations
-        const existing = await db.from('content_translations')
+        const existing = await db
+          .from('content_translations')
           .select('id')
           .eq('content_type', content_type)
           .eq('content_id', content_id)
@@ -71,9 +76,7 @@ export default async (req) => {
           .limit(1);
 
         if (existing.length > 0) {
-          await db.from('content_translations')
-            .update({ translated_text: translation })
-            .eq('id', existing[0].id);
+          await db.from('content_translations').update({ translated_text: translation }).eq('id', existing[0].id);
         } else {
           await db.from('content_translations').insert({
             content_type,
@@ -115,7 +118,7 @@ async function translateText(provider, text, targetLang) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: 'Bearer ' + process.env.AI_API_KEY,
+          Authorization: `Bearer ${process.env.AI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

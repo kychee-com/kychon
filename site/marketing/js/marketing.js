@@ -9,13 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
       links.classList.toggle('open');
     });
     // Close nav on link click (mobile)
-    links.querySelectorAll('a').forEach(a => {
+    links.querySelectorAll('a').forEach((a) => {
       a.addEventListener('click', () => links.classList.remove('open'));
     });
   }
 
   // Smooth scrolling for anchor links
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
     a.addEventListener('click', (e) => {
       const target = document.querySelector(a.getAttribute('href'));
       if (target) {

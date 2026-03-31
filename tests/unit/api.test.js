@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock browser globals
 const mockFetch = vi.fn();
@@ -6,9 +6,15 @@ global.fetch = mockFetch;
 global.window = { __WILDLYCHEE_API: 'https://api.test', __WILDLYCHEE_ANON_KEY: 'test_key' };
 global.localStorage = {
   _data: {},
-  getItem(k) { return this._data[k] ?? null; },
-  setItem(k, v) { this._data[k] = v; },
-  removeItem(k) { delete this._data[k]; },
+  getItem(k) {
+    return this._data[k] ?? null;
+  },
+  setItem(k, v) {
+    this._data[k] = v;
+  },
+  removeItem(k) {
+    delete this._data[k];
+  },
 };
 
 const { get, post, patch, del, count } = await import('../../site/js/api.js');
@@ -27,7 +33,7 @@ describe('api.js', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({ apikey: 'test_key' }),
-      })
+      }),
     );
   });
 
@@ -82,13 +88,17 @@ describe('api.js', () => {
   });
 
   it('throws on non-401 error', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: () => Promise.resolve({ message: 'Server error' }) });
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ message: 'Server error' }),
+    });
     await expect(get('bad')).rejects.toThrow('API GET bad: 500');
   });
 
   it('count parses Content-Range header', async () => {
     mockFetch.mockResolvedValueOnce({
-      headers: { get: (h) => h === 'Content-Range' ? '0-0/42' : null },
+      headers: { get: (h) => (h === 'Content-Range' ? '0-0/42' : null) },
     });
     const c = await count('members?status=eq.active');
     expect(c).toBe(42);

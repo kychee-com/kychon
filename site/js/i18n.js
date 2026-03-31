@@ -1,3 +1,4 @@
+// @ts-check
 // i18n.js — Translation function with English fallback, plurals, interpolation
 
 let strings = {};
@@ -9,7 +10,7 @@ export function t(key, vars = {}) {
   // Plural: if vars.count exists, try key_one for count === 1
   let resolvedKey = key;
   if (vars.count !== undefined && vars.count === 1) {
-    const oneKey = key + '_one';
+    const oneKey = `${key}_one`;
     const oneVal = strings[oneKey] || fallbackStrings[oneKey];
     if (oneVal) resolvedKey = oneKey;
   }
@@ -19,7 +20,7 @@ export function t(key, vars = {}) {
   // Interpolation: replace {placeholder} with vars
   if (vars && typeof str === 'string') {
     for (const [k, v] of Object.entries(vars)) {
-      str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), String(v));
+      str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
     }
   }
 
@@ -29,7 +30,7 @@ export function t(key, vars = {}) {
 async function fetchLocale(lang) {
   if (cache[lang]) return cache[lang];
   try {
-    const res = await fetch('/custom/strings/' + lang + '.json');
+    const res = await fetch(`/custom/strings/${lang}.json`);
     if (!res.ok) return {};
     const data = await res.json();
     cache[lang] = data;
@@ -46,7 +47,7 @@ export async function loadLocale(lang) {
   }
   if (!lang) {
     try {
-      const brand = await fetch('/custom/brand.json').then(r => r.json());
+      const brand = await fetch('/custom/brand.json').then((r) => r.json());
       lang = brand.defaultLanguage || 'en';
     } catch {
       lang = 'en';
@@ -91,4 +92,4 @@ export function getAvailableLocales() {
   }
 }
 
-export { strings, fallbackStrings };
+export { fallbackStrings, strings };

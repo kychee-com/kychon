@@ -11,9 +11,9 @@
  * from `run402 projects list`, or prompt to provision a new one.
  */
 
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, relative } from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 const ROOT = new URL('.', import.meta.url).pathname;
 
@@ -42,13 +42,15 @@ if (!projectId) {
     const out = execSync('run402 projects list', { encoding: 'utf-8' });
     const projects = JSON.parse(out);
     // Look for a project with "marketing" in its name or just use active
-    const active = projects.find(p => p.active);
+    const active = projects.find((p) => p.active);
     if (active) {
       console.log(`Using active project: ${active.project_id}`);
       console.log('Set MARKETING_PROJECT_ID to override.');
       projectId = active.project_id;
     }
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
 }
 
 if (!projectId) {

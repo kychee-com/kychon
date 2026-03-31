@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { featureFlags, defaultNav } from '../fixtures/configs.js';
+import { describe, expect, it } from 'vitest';
+import { defaultNav, featureFlags } from '../fixtures/configs.js';
 
 describe('feature flag permutations', () => {
   function filterNav(navItems, features) {
-    return navItems.filter(item => {
+    return navItems.filter((item) => {
       if (item.feature && !features[item.feature]) return false;
       return true;
     });
@@ -24,43 +24,40 @@ describe('feature flag permutations', () => {
     fc.assert(
       fc.property(
         // Generate random booleans for each feature flag
-        fc.record(Object.fromEntries(featureFlags.map(f => [f, fc.boolean()]))),
+        fc.record(Object.fromEntries(featureFlags.map((f) => [f, fc.boolean()]))),
         (features) => {
           // This should never throw
           const filtered = filterNav(defaultNav, features);
           // Result should always be an array
           expect(Array.isArray(filtered)).toBe(true);
           // Home (public, no feature flag) should always be present
-          expect(filtered.some(i => i.label === 'Home')).toBe(true);
+          expect(filtered.some((i) => i.label === 'Home')).toBe(true);
           // All returned items should have valid href
           for (const item of filtered) {
             expect(item.href).toBeTruthy();
             expect(item.label).toBeTruthy();
           }
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 
   it('random feature flags produce valid DOM', () => {
     fc.assert(
-      fc.property(
-        fc.record(Object.fromEntries(featureFlags.map(f => [f, fc.boolean()]))),
-        (features) => {
-          const container = document.createElement('div');
-          const filtered = filterNav(defaultNav, features);
-          for (const item of filtered) {
-            const a = document.createElement('a');
-            a.href = item.href;
-            a.textContent = item.label;
-            container.appendChild(a);
-          }
-          // DOM should not throw, container should have at least Home
-          expect(container.children.length).toBeGreaterThanOrEqual(1);
+      fc.property(fc.record(Object.fromEntries(featureFlags.map((f) => [f, fc.boolean()]))), (features) => {
+        const container = document.createElement('div');
+        const filtered = filterNav(defaultNav, features);
+        for (const item of filtered) {
+          const a = document.createElement('a');
+          a.href = item.href;
+          a.textContent = item.label;
+          container.appendChild(a);
         }
-      ),
-      { numRuns: 100 }
+        // DOM should not throw, container should have at least Home
+        expect(container.children.length).toBeGreaterThanOrEqual(1);
+      }),
+      { numRuns: 100 },
     );
   });
 

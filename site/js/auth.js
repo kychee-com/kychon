@@ -1,3 +1,4 @@
+// @ts-check
 // auth.js — Google OAuth + password auth, session management, role checking
 
 const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
@@ -8,13 +9,17 @@ function generateVerifier() {
   const arr = new Uint8Array(32);
   crypto.getRandomValues(arr);
   return btoa(String.fromCharCode(...arr))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 async function generateChallenge(verifier) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 // Session management
@@ -61,11 +66,11 @@ export async function signInWithGoogle() {
   const challenge = await generateChallenge(verifier);
   localStorage.setItem('wl_pkce_verifier', verifier);
 
-  const res = await fetch(API + '/auth/v1/oauth/google/start', {
+  const res = await fetch(`${API}/auth/v1/oauth/google/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
     body: JSON.stringify({
-      redirect_url: window.location.origin + '/',
+      redirect_url: `${window.location.origin}/`,
       mode: 'redirect',
       code_challenge: challenge,
       code_challenge_method: 'S256',
@@ -84,7 +89,7 @@ export async function handleOAuthCallback() {
   const verifier = localStorage.getItem('wl_pkce_verifier');
   localStorage.removeItem('wl_pkce_verifier');
 
-  const res = await fetch(API + '/auth/v1/token?grant_type=authorization_code', {
+  const res = await fetch(`${API}/auth/v1/token?grant_type=authorization_code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
     body: JSON.stringify({ code, code_verifier: verifier }),
@@ -98,7 +103,7 @@ export async function handleOAuthCallback() {
 
 // Password auth
 export async function signUp(email, password) {
-  const res = await fetch(API + '/auth/v1/signup', {
+  const res = await fetch(`${API}/auth/v1/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
     body: JSON.stringify({ email, password }),
@@ -111,7 +116,7 @@ export async function signUp(email, password) {
 }
 
 export async function signIn(email, password) {
-  const res = await fetch(API + '/auth/v1/token?grant_type=password', {
+  const res = await fetch(`${API}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
     body: JSON.stringify({ email, password }),
@@ -131,4 +136,4 @@ export function signOut() {
 }
 
 // Export for testing
-export { generateVerifier, generateChallenge };
+export { generateChallenge, generateVerifier };

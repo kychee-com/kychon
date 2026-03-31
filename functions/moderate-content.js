@@ -1,7 +1,7 @@
 // prototype-schedule: "*/15 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
 import { db } from '@run402/functions';
 
-export default async (req) => {
+export default async (_req) => {
   // Check if feature is enabled
   const flag = await db.from('site_config').select('value').eq('key', 'feature_ai_moderation').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
@@ -16,20 +16,19 @@ export default async (req) => {
   let moderated = 0;
 
   // Find last moderation timestamp
-  const lastCheck = await db.sql(
-    "SELECT max(created_at) as last_at FROM moderation_log"
-  );
+  const lastCheck = await db.sql('SELECT max(created_at) as last_at FROM moderation_log');
   const lastAt = (lastCheck.rows || lastCheck)[0]?.last_at || '1970-01-01T00:00:00Z';
 
   // Get new forum topics since last check
-  const newTopics = await db.from('forum_topics')
+  const newTopics = await db
+    .from('forum_topics')
     .select('id,title,body,author_id')
     .gt('created_at', lastAt)
     .eq('hidden', false);
 
   for (const topic of newTopics) {
-    const result = await classifyContent(provider, topic.title + '\n\n' + topic.body);
-    const action = result.confidence > 0.7 ? 'flagged' : (result.confidence > 0.3 ? 'flagged' : 'approved');
+    const result = await classifyContent(provider, `${topic.title}\n\n${topic.body}`);
+    const action = result.confidence > 0.7 ? 'flagged' : result.confidence > 0.3 ? 'flagged' : 'approved';
 
     if (result.confidence > 0.7) {
       // Auto-hide
@@ -47,14 +46,15 @@ export default async (req) => {
   }
 
   // Get new forum replies since last check
-  const newReplies = await db.from('forum_replies')
+  const newReplies = await db
+    .from('forum_replies')
     .select('id,body,author_id')
     .gt('created_at', lastAt)
     .eq('hidden', false);
 
   for (const reply of newReplies) {
     const result = await classifyContent(provider, reply.body);
-    const action = result.confidence > 0.7 ? 'flagged' : (result.confidence > 0.3 ? 'flagged' : 'approved');
+    const action = result.confidence > 0.7 ? 'flagged' : result.confidence > 0.3 ? 'flagged' : 'approved';
 
     if (result.confidence > 0.7) {
       await db.from('forum_replies').update({ hidden: true }).eq('id', reply.id);
@@ -98,7 +98,7 @@ async function classifyContent(provider, text) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: 'Bearer ' + process.env.AI_API_KEY,
+          Authorization: `Bearer ${process.env.AI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -114,7 +114,7 @@ async function classifyContent(provider, text) {
     const parsed = JSON.parse(response);
     return {
       classification: parsed.classification || 'appropriate',
-      confidence: parsed.classification === 'appropriate' ? 0 : (parsed.confidence || 0.5),
+      confidence: parsed.classification === 'appropriate' ? 0 : parsed.confidence || 0.5,
       reason: parsed.reason || 'No reason provided',
     };
   } catch (e) {

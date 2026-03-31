@@ -8,7 +8,7 @@ const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
 
 // --- Simple text editing via contenteditable ---
 function initEditableText() {
-  document.querySelectorAll('[data-editable]').forEach(el => {
+  document.querySelectorAll('[data-editable]').forEach((el) => {
     el.addEventListener('click', () => {
       el.contentEditable = 'true';
       el.focus();
@@ -36,7 +36,7 @@ function initEditableText() {
 
 // --- Rich text editing via Tiptap ---
 let tiptapLoaded = false;
-let Editor, StarterKit, Placeholder;
+let Editor, StarterKit, _Placeholder;
 
 async function loadTiptap() {
   if (tiptapLoaded) return;
@@ -52,7 +52,7 @@ async function loadTiptap() {
 }
 
 function initEditableRich() {
-  document.querySelectorAll('[data-editable-rich]').forEach(el => {
+  document.querySelectorAll('[data-editable-rich]').forEach((el) => {
     let editor = null;
 
     el.addEventListener('click', async () => {
@@ -84,7 +84,7 @@ function initEditableRich() {
 
 // --- Image editing via click-to-upload ---
 function initEditableImage() {
-  document.querySelectorAll('[data-editable-image]').forEach(el => {
+  document.querySelectorAll('[data-editable-image]').forEach((el) => {
     el.style.cursor = 'pointer';
 
     el.addEventListener('click', () => {
@@ -104,7 +104,7 @@ function initEditableImage() {
             method: 'POST',
             headers: {
               apikey: ANON_KEY,
-              Authorization: 'Bearer ' + session.access_token,
+              Authorization: `Bearer ${session.access_token}`,
             },
             body: formData,
           });

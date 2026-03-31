@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
-  <script>(function(){var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
+  <script>(()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()</script>
   <style>
     .forum-category { display: block; text-decoration: none; color: inherit; border-left: 4px solid var(--color-primary); transition: box-shadow var(--transition); }
     .forum-category:hover { box-shadow: var(--shadow-md); color: inherit; }
@@ -68,8 +68,11 @@
   <script src="/js/env.js"></script>
   <script type="module">
     import { init } from './js/config.js';
+
     await init();
+
     import { initForum } from './js/forum.js';
+
     await initForum();
   </script>
 </body>
