@@ -365,11 +365,28 @@ a:hover {
 }
 .section-hero {
   text-align: center;
-  padding: 6rem 0;
+  padding: 8rem 0;
   background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-bg) 100%);
+  background-size: cover;
+  background-position: center;
+  position: relative;
 }
+.section-hero[style*="background-image"] {
+  background-blend-mode: normal;
+}
+.section-hero[style*="background-image"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 75%, transparent) 0%, color-mix(in srgb, var(--color-primary) 55%, transparent) 100%);
+}
+.section-hero[style*="background-image"] .container { position: relative; z-index: 1; }
+.section-hero[style*="background-image"] h1 { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.section-hero[style*="background-image"] p { color: rgba(255,255,255,0.9); }
+.section-hero[style*="background-image"] .btn { box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
 .section-hero h1 {
   margin-bottom: 1rem;
+  font-size: 3rem;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -379,7 +396,7 @@ a:hover {
   font-size: 1.25rem;
   color: var(--color-text-muted);
   margin-bottom: 2rem;
-  max-width: 36rem;
+  max-width: 40rem;
   margin-inline: auto;
 }
 .section-features .features-grid {
