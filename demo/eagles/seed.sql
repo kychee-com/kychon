@@ -431,7 +431,7 @@ SELECT 'Winter Coat Drive',
   'Evergreen Recreation Center, 2700 N Woodland St, Wichita, KS 67204',
   now() - interval '45 days' + interval '9 hours',
   now() - interval '45 days' + interval '14 hours',
-  60, '/assets/event-food-drive.jpg', false,
+  60, '/assets/event-coat-drive.jpg', false,
   (SELECT id FROM members WHERE email = 'keisha.brown@gmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Winter Coat Drive');
 
@@ -453,7 +453,7 @@ SELECT 'MLK Day of Service',
   'Boys & Girls Club of South Central KS, 2400 E 21st St, Wichita, KS 67214',
   now() - interval '60 days' + interval '8 hours',
   now() - interval '60 days' + interval '15 hours',
-  100, '/assets/event-youth-day.jpg', false,
+  100, '/assets/event-mlk-day.jpg', false,
   (SELECT id FROM members WHERE email = 'marcus.reid@eagleswichita.org')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'MLK Day of Service');
 
@@ -464,7 +464,7 @@ SELECT 'Holiday Food Baskets Packing',
   'Kansas Food Bank, 1919 E Douglas Ave, Wichita, KS 67211',
   now() - interval '75 days' + interval '8 hours',
   now() - interval '75 days' + interval '13 hours',
-  70, '/assets/event-food-drive.jpg', false,
+  70, '/assets/event-holiday-baskets.jpg', false,
   (SELECT id FROM members WHERE email = 'roberto.castillo@hotmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Holiday Food Baskets Packing');
 
@@ -475,7 +475,7 @@ SELECT 'Eagles Fall Festival',
   'Sedgwick County Park, 6501 W 21st St N, Wichita, KS 67205',
   now() - interval '90 days' + interval '11 hours',
   now() - interval '90 days' + interval '17 hours',
-  100, '/assets/event-park-cleanup.jpg', false,
+  100, '/assets/event-fall-festival.jpg', false,
   (SELECT id FROM members WHERE email = 'amanda.brooks@gmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Eagles Fall Festival');
 
@@ -486,7 +486,7 @@ SELECT 'Back to School Supply Drive',
   'Century II Expo Hall, 225 W Douglas Ave, Wichita, KS 67202',
   now() - interval '120 days' + interval '9 hours',
   now() - interval '120 days' + interval '14 hours',
-  60, '/assets/event-training.jpg', false,
+  60, '/assets/event-school-supplies.jpg', false,
   (SELECT id FROM members WHERE email = 'rachel.stone@gmail.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Back to School Supply Drive');
 
@@ -497,7 +497,7 @@ SELECT 'Community Garden Planting Day',
   'Fairmount Park, 1648 N Yale Blvd, Wichita, KS 67208',
   now() - interval '150 days' + interval '8 hours',
   now() - interval '150 days' + interval '13 hours',
-  45, '/assets/event-park-cleanup.jpg', false,
+  45, '/assets/event-garden.jpg', false,
   (SELECT id FROM members WHERE email = 'sarah.nguyen@outlook.com')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Community Garden Planting Day');
 
@@ -1699,7 +1699,7 @@ SELECT 'index', 'hero', '{
   "heading": "Lifting Wichita, One Neighbor at a Time",
   "subheading": "The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.",
   "cta_text": "Join The Eagles",
-  "cta_href": "#signup",
+  "cta_href": "/join.html",
   "bg_image": "/assets/hero.jpg"
 }', 1, true
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'hero');
@@ -1730,6 +1730,6 @@ SELECT 'index', 'cta', '{
   "heading": "Ready to make a difference?",
   "text": "Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.",
   "cta_text": "Get Started",
-  "cta_href": "#signup"
+  "cta_href": "/join.html"
 }', 4, true
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'cta');

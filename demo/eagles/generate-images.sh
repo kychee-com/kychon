@@ -71,6 +71,30 @@ generate "event-training.jpg" \
   "A volunteer training workshop in a modern meeting room. Presenter at a whiteboard, diverse group of attendees taking notes and engaging. Professional and welcoming environment." \
   "1024x1024" "medium"
 
+generate "event-coat-drive.jpg" \
+  "Volunteers sorting winter coats, scarves, and gloves on long tables at a community center. Piles of colorful warm clothing, cardboard boxes labeled by size. Diverse helpers working together. Warm indoor lighting." \
+  "1024x1024" "medium"
+
+generate "event-mlk-day.jpg" \
+  "A large group of diverse community volunteers painting and repairing a community building on MLK Day of Service. People holding paint rollers and brushes, wearing matching volunteer t-shirts. Uplifting, collaborative atmosphere." \
+  "1024x1024" "medium"
+
+generate "event-holiday-baskets.jpg" \
+  "Volunteers in a warehouse assembling holiday food baskets on a long assembly line. Turkeys, canned goods, and grocery bags on tables. Festive decorations, people wearing Santa hats and smiling. Warm, cheerful atmosphere." \
+  "1024x1024" "medium"
+
+generate "event-fall-festival.jpg" \
+  "A lively outdoor fall festival in a park with hay bales, pumpkin decorations, a chili cook-off tent, and families enjoying activities. Autumn trees with orange and gold leaves. Kids painting pumpkins. Festive community atmosphere." \
+  "1024x1024" "medium"
+
+generate "event-school-supplies.jpg" \
+  "Volunteers filling backpacks with school supplies at a back-to-school drive. Tables covered with notebooks, pencils, crayons, and folders. Children excitedly picking up their new backpacks. Community event in a large hall." \
+  "1024x1024" "medium"
+
+generate "event-garden.jpg" \
+  "Community volunteers building raised garden beds and planting vegetables in a sunny community garden. People kneeling in soil, carrying seedlings, hammering wooden bed frames. Green plants, garden tools, and a sense of teamwork." \
+  "1024x1024" "medium"
+
 # Member avatars - diverse group of 25+ people
 for i in $(seq 1 28); do
   case $((i % 7)) in
