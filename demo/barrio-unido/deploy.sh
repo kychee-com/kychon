@@ -5,7 +5,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PROJECT_ID="${BARRIO_PROJECT_ID:-REDACTED_PROJECT_ID}"
+PROJECT_ID="${BARRIO_PROJECT_ID:?Set BARRIO_PROJECT_ID env var}"
 
 echo "=== Barrio Unido Deploy ==="
 echo "Project: $PROJECT_ID"

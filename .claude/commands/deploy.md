@@ -33,20 +33,20 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 ### 3. Deploy
 
 #### Portal (community template)
-- **Project:** `REDACTED_PROJECT_ID`
+- **Project:** Set `RUN402_PROJECT_ID` env var (or check `run402 projects list`)
 - **Subdomain:** `eagles.run402.com`
-- **Command:** `RUN402_PROJECT_ID=REDACTED_PROJECT_ID SUBDOMAIN=eagles node deploy.js`
+- **Command:** `RUN402_PROJECT_ID=$PORTAL_PROJECT_ID SUBDOMAIN=eagles node deploy.js`
 - **Includes:** schema.sql + seed.sql, site files, edge functions, RLS
 - **IMPORTANT:** Always pass explicit project ID and subdomain — do NOT rely on the active project, which may have changed
 
 #### Marketing (wildlychee.com)
-- **Project:** `REDACTED_PROJECT_ID`
+- **Project:** Set `MARKETING_PROJECT_ID` env var (or check `run402 projects list`)
 - **Subdomain:** `wildlychee.run402.com`
-- **Command:** `MARKETING_PROJECT_ID=REDACTED_PROJECT_ID node marketing/deploy-marketing.js`
+- **Command:** `MARKETING_PROJECT_ID=$MARKETING_PROJECT_ID node marketing/deploy-marketing.js`
 - **Includes:** Static HTML/CSS/assets only
 
 #### Eagles Demo Seed (after portal deploy)
-- **Command:** `run402 projects sql REDACTED_PROJECT_ID --file demo/eagles/seed-eagles-reactions-activity.sql`
+- **Command:** `run402 projects sql $PORTAL_PROJECT_ID --file demo/eagles/seed-eagles-reactions-activity.sql`
 
 #### Screenshots (before marketing deploy)
 - **Capture:** `./marketing/capture-screenshots.sh`

@@ -3,7 +3,7 @@
 # Usage: bash demo/silver-pines/deploy.sh
 set -e
 
-PROJECT_ID="REDACTED_PROJECT_ID"
+PROJECT_ID="${SILVER_PINES_PROJECT_ID:?Set SILVER_PINES_PROJECT_ID env var}"
 SUBDOMAIN="silver-pines"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
@@ -33,6 +33,9 @@ for f in "$ROOT/demo/silver-pines/assets"/avatar-*.jpg; do
   sips -Z 256 -s formatOptions 70 -s format jpeg "$f" --out "$WEB_ASSETS/$(basename "$f")" >/dev/null 2>&1
 done
 for f in "$ROOT/demo/silver-pines/assets"/event-*.jpg; do
+  [ -f "$f" ] && sips -Z 800 -s formatOptions 70 -s format jpeg "$f" --out "$WEB_ASSETS/$(basename "$f")" >/dev/null 2>&1
+done
+for f in "$ROOT/demo/silver-pines/assets"/committee-*.jpg; do
   [ -f "$f" ] && sips -Z 800 -s formatOptions 70 -s format jpeg "$f" --out "$WEB_ASSETS/$(basename "$f")" >/dev/null 2>&1
 done
 for f in "$ROOT/demo/silver-pines/assets"/hero.jpg; do
