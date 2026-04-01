@@ -433,6 +433,185 @@ a:hover {
   font-size: 0.9375rem;
 }
 
+/* Hero mashup — overlapping screenshot cards */
+.m-hero-mashup {
+  position: relative;
+  margin-top: 3.5rem;
+  height: 22rem;
+  max-width: 56rem;
+  margin-inline: auto;
+}
+.m-hero-card {
+  position: absolute;
+  width: 48%;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+  background: var(--m-bg);
+}
+.m-hero-card:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+  z-index: 10;
+}
+.m-hero-card-left:hover {
+  transform: rotate(-3deg) translateY(-4px);
+}
+.m-hero-card-center:hover {
+  transform: translateX(-50%) translateY(-4px);
+}
+.m-hero-card-right:hover {
+  transform: rotate(3deg) translateY(-4px);
+}
+.m-hero-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.m-hero-card-left {
+  left: 0;
+  top: 2rem;
+  transform: rotate(-3deg);
+  z-index: 1;
+}
+.m-hero-card-center {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: 52%;
+}
+.m-hero-card-right {
+  right: 0;
+  top: 2rem;
+  transform: rotate(3deg);
+  z-index: 2;
+}
+
+/* Demo showcase */
+.m-demos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+.m-demo-card {
+  background: var(--m-bg);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius);
+  overflow: hidden;
+  transition:
+    box-shadow var(--m-transition),
+    transform var(--m-transition);
+}
+.m-demo-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+.m-demo-screenshot {
+  position: relative;
+  overflow: hidden;
+}
+.m-demo-screenshot img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.m-browser-frame {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #f1f3f5;
+  border-bottom: 1px solid var(--m-border);
+}
+.m-browser-dots {
+  display: flex;
+  gap: 0.375rem;
+}
+.m-browser-dots span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #d1d5db;
+}
+.m-browser-dots span:first-child {
+  background: #ef4444;
+}
+.m-browser-dots span:nth-child(2) {
+  background: #eab308;
+}
+.m-browser-dots span:last-child {
+  background: #22c55e;
+}
+.m-browser-url {
+  flex: 1;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--m-text-muted);
+  font-family: monospace;
+  background: var(--m-bg);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--m-border);
+}
+.m-demo-body {
+  padding: 1.5rem;
+}
+.m-demo-body h3 {
+  margin-bottom: 0.5rem;
+}
+.m-demo-body p {
+  color: var(--m-text-muted);
+  font-size: 0.9375rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+.m-demo-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+}
+.m-pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--m-primary);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Agent-friendly & open source */
+.m-oss-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+.m-oss-card {
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+.m-oss-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+.m-oss-card h3 {
+  margin-bottom: 0.75rem;
+}
+.m-oss-card p {
+  color: var(--m-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.m-oss-cta {
+  text-align: center;
+}
+
 /* Bottom CTA */
 .m-bottom-cta {
   text-align: center;
@@ -467,6 +646,16 @@ a:hover {
   }
   .m-plans-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .m-demos-grid {
+    grid-template-columns: 1fr;
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+  .m-oss-grid {
+    grid-template-columns: 1fr;
+    max-width: 32rem;
+    margin-inline: auto;
   }
 }
 
@@ -518,5 +707,30 @@ a:hover {
   }
   .m-nav-cta {
     display: none;
+  }
+  .m-demos-grid {
+    grid-template-columns: 1fr;
+  }
+  .m-oss-grid {
+    grid-template-columns: 1fr;
+  }
+  .m-demo-body .m-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .m-hero-mashup {
+    height: 14rem;
+  }
+  .m-hero-card {
+    width: 55%;
+  }
+  .m-hero-card-center {
+    width: 60%;
+  }
+  .m-hero-card-left {
+    top: 1rem;
+  }
+  .m-hero-card-right {
+    top: 1rem;
   }
 }
