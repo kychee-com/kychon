@@ -7,3 +7,5 @@ coverage/
 app-*.json
 demo/*/assets/
 marketing/.marketing-manifest.json
+site/js/env.js
+deploy-batched.js
