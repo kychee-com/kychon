@@ -50,6 +50,23 @@ export function clearCache(key) {
   localStorage.removeItem(key);
 }
 
+const WL_CACHE_HERO_IMG = 'wl_cache_hero_img';
+
+export function preloadHeroImage() {
+  const url = readCache(WL_CACHE_HERO_IMG);
+  if (url && !document.querySelector('link[rel="preload"][as="image"]')) {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = url;
+    document.head.appendChild(link);
+  }
+}
+
+export function cacheHeroImage(url) {
+  if (url) writeCache(WL_CACHE_HERO_IMG, url);
+}
+
 const siteConfig = {};
 const features = {};
 
@@ -164,16 +181,44 @@ function buildNav(navItems) {
   }
 }
 
-function buildThemeToggle() {
+const LANG_LABELS = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR', de: 'DE', zh: '中文', ja: '日本語', ko: '한국어' };
+
+function buildUserNav() {
   const userEl = document.getElementById('nav-user');
   if (!userEl) return;
+
+  const session = getSession();
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const btn = document.createElement('button');
-  btn.className = 'btn btn-sm btn-secondary';
-  btn.id = 'theme-toggle';
-  btn.setAttribute('aria-label', 'Toggle dark mode');
-  btn.textContent = isDark ? '\u2600\uFE0F' : '\uD83C\uDF19';
-  btn.addEventListener('click', () => {
+  const locales = getAvailableLocales();
+  const currentLocale = getLocale();
+
+  // Build all nav-user HTML in one write to prevent multiple reflows
+  const langBtn = locales.length >= 2
+    ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
+    : '';
+  const themeBtn = `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}</button>`;
+
+  if (!session) {
+    userEl.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
+  } else {
+    const user = session.user || {};
+    const avatar = user.avatar_url
+      ? `<img class="nav-avatar" src="${user.avatar_url}" alt="" width="32" height="32">`
+      : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
+    userEl.innerHTML = `${langBtn}${themeBtn}<a href="/profile.html" class="nav-link">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
+  }
+
+  // Attach event listeners after single DOM write
+  document.getElementById('login-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('auth-modal');
+    modal?.classList.remove('hidden');
+    if (modal) trapFocus(modal.querySelector('.auth-panel'));
+  });
+  document.getElementById('logout-btn')?.addEventListener('click', () => {
+    localStorage.removeItem('wl_session');
+    window.location.href = '/';
+  });
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
     const next = dark ? 'light' : 'dark';
     if (next === 'dark') {
@@ -182,62 +227,16 @@ function buildThemeToggle() {
       document.documentElement.removeAttribute('data-theme');
     }
     localStorage.setItem('wl_theme', next);
-    btn.textContent = next === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+    document.getElementById('theme-toggle').textContent = next === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
   });
-  userEl.prepend(btn);
-}
-
-function buildUserNav() {
-  const userEl = document.getElementById('nav-user');
-  if (!userEl) return;
-
-  const session = getSession();
-  if (!session) {
-    userEl.innerHTML = `<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
-    document.getElementById('login-btn')?.addEventListener('click', () => {
-      const modal = document.getElementById('auth-modal');
-      modal?.classList.remove('hidden');
-      if (modal) trapFocus(modal.querySelector('.auth-panel'));
-    });
-  } else {
-    const user = session.user || {};
-    const avatar = user.avatar_url
-      ? `<img class="nav-avatar" src="${user.avatar_url}" alt="">`
-      : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
-    userEl.innerHTML = `
-      <a href="/profile.html" class="nav-link">${avatar}</a>
-      <button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>
-    `;
-    document.getElementById('logout-btn')?.addEventListener('click', () => {
-      localStorage.removeItem('wl_session');
-      window.location.href = '/';
+  if (locales.length >= 2) {
+    document.getElementById('lang-toggle')?.addEventListener('click', async () => {
+      const idx = locales.indexOf(currentLocale);
+      const next = locales[(idx + 1) % locales.length];
+      await setLanguage(next);
+      window.location.reload();
     });
   }
-  // Add theme toggle after user nav is built
-  buildThemeToggle();
-  buildLanguageSwitcher();
-}
-
-const LANG_LABELS = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR', de: 'DE', zh: '中文', ja: '日本語', ko: '한국어' };
-
-function buildLanguageSwitcher() {
-  const locales = getAvailableLocales();
-  if (locales.length < 2) return;
-  const userEl = document.getElementById('nav-user');
-  if (!userEl) return;
-  const current = getLocale();
-  const btn = document.createElement('button');
-  btn.className = 'btn btn-sm btn-secondary';
-  btn.id = 'lang-toggle';
-  btn.setAttribute('aria-label', 'Switch language');
-  btn.textContent = LANG_LABELS[current] || current.toUpperCase();
-  btn.addEventListener('click', async () => {
-    const idx = locales.indexOf(current);
-    const next = locales[(idx + 1) % locales.length];
-    await setLanguage(next);
-    window.location.reload();
-  });
-  userEl.prepend(btn);
 }
 
 function applyMemberToSession(member) {
@@ -307,6 +306,9 @@ export async function init() {
 
   // Try cache first (skip on admin pages — admins need fresh data)
   const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG) : null;
+
+  // Preload hero image from cache (before any fetches)
+  preloadHeroImage();
 
   if (cached) {
     // Cache hit — render immediately from cached data

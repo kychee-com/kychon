@@ -127,6 +127,7 @@ const manifest = {
   rls,
   files: siteFiles,
   subdomain,
+  inherit: true,
 };
 
 if (functions.length > 0) {

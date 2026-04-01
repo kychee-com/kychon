@@ -137,6 +137,11 @@ a:hover {
   height: 2rem;
   border-radius: 50%;
   object-fit: cover;
+  aspect-ratio: 1;
+}
+.card img {
+  aspect-ratio: 8 / 3;
+  object-fit: cover;
 }
 
 /* Buttons */
@@ -378,15 +383,27 @@ a:hover {
 /* Sections (homepage) */
 .section {
   padding: 4rem 0;
+  visibility: hidden;
   opacity: 0;
-  transform: translateY(20px);
   transition:
     opacity 600ms ease-out,
-    transform 600ms ease-out;
+    visibility 0s 600ms;
 }
 .section-visible {
+  visibility: visible;
   opacity: 1;
-  transform: none;
+  transition:
+    opacity 600ms ease-out,
+    visibility 0s 0s;
+}
+/* Below-fold sections: reserve space without rendering until near viewport */
+#announcements-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 800px;
+}
+.section-activity-feed {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
 }
 .section-hero {
   text-align: center;
@@ -395,8 +412,11 @@ a:hover {
   background-size: cover;
   background-position: center;
   position: relative;
+  visibility: visible;
   opacity: 1;
-  transform: none;
+}
+#sections {
+  min-height: 200vh;
 }
 .section-hero h1 {
   margin-bottom: 1rem;
@@ -407,6 +427,7 @@ a:hover {
   background-clip: text;
 }
 .section-hero[style*="background-image"] {
+  min-height: 60vh;
   background-blend-mode: normal;
 }
 .section-hero[style*="background-image"]::before {

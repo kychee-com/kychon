@@ -64,7 +64,7 @@ function eventCard(e) {
   const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return `
     <div class="card" data-event-id="${e.id}">
-      ${e.image_url ? `<img src="${esc(e.image_url)}" alt="" style="width:100%;height:150px;object-fit:cover;border-radius:var(--radius) var(--radius) 0 0;margin:-1.5rem -1.5rem 1rem -1.5rem;width:calc(100% + 3rem)">` : ''}
+      ${e.image_url ? `<img src="${esc(e.image_url)}" alt="" width="400" height="150" style="width:100%;height:150px;object-fit:cover;border-radius:var(--radius) var(--radius) 0 0;margin:-1.5rem -1.5rem 1rem -1.5rem;width:calc(100% + 3rem)">` : ''}
       <h4>${esc(e.title)}</h4>
       <p class="text-sm text-muted">${dateStr} at ${timeStr}</p>
       ${e.location ? `<p class="text-sm text-muted">${esc(e.location)}</p>` : ''}

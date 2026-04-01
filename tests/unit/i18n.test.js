@@ -122,4 +122,37 @@ describe('i18n.js', () => {
     await loadLocale('pt');
     expect(getLocale()).toBe('pt');
   });
+
+  it('caches locale strings in localStorage after fetch', async () => {
+    await loadLocale('en');
+    const cached = localStorage.getItem('wl_cache_i18n_en');
+    expect(cached).not.toBeNull();
+    const parsed = JSON.parse(cached);
+    expect(parsed.data['nav.home']).toBe('Home');
+    expect(parsed.ts).toBeGreaterThan(0);
+  });
+
+  it('serves strings from localStorage cache without network fetch', async () => {
+    // Pre-populate cache
+    localStorage.setItem('wl_cache_i18n_en', JSON.stringify({
+      data: { 'nav.home': 'Cached Home', 'welcome.greeting': 'Cached {name}' },
+      ts: Date.now(),
+    }));
+
+    mockFetch.mockClear();
+    await loadLocale('en');
+
+    // Should not have fetched en.json from network
+    const enFetches = mockFetch.mock.calls.filter((c) => c[0].includes('/en.json'));
+    expect(enFetches).toHaveLength(0);
+    expect(t('nav.home')).toBe('Cached Home');
+  });
+
+  it('defaults to en without fetching brand.json when no locale specified', async () => {
+    mockFetch.mockClear();
+    await loadLocale(null, undefined);
+    const brandFetches = mockFetch.mock.calls.filter((c) => c[0].includes('brand.json'));
+    expect(brandFetches).toHaveLength(0);
+    expect(getLocale()).toBe('en');
+  });
 });

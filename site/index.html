@@ -35,7 +35,7 @@
       </div>
 
       <div class="container">
-        <section class="section" id="announcements-section">
+        <section class="section section-visible" id="announcements-section">
           <h2 id="announcements-title">Announcements</h2>
           <div id="announcement-create" class="hidden mb-2"></div>
           <div id="announcements-feed">
@@ -94,7 +94,7 @@
     import { announce, releaseFocus, trapFocus } from './js/accessibility.js?v=9';
     import { del, get, patch, post } from './js/api.js?v=9';
     import { getSession, handleOAuthCallback, isAdmin, isAuthenticated, signIn, signInWithGoogle, signUp } from './js/auth.js?v=9';
-    import { init, isFeatureEnabled, getTranslatedContent, translateItems } from './js/config.js?v=9';
+    import { init, isFeatureEnabled, getTranslatedContent, translateItems, cacheHeroImage } from './js/config.js?v=9';
     import { getLocale } from './js/i18n.js?v=9';
     import { showToast } from './js/toast.js?v=9';
 
@@ -128,17 +128,20 @@
       if (!container) return;
       try {
         const sections = await get('sections?page_slug=eq.index&visible=eq.true&order=position.asc');
-        // Remove skeleton
+        // Lock container height before swap to prevent layout shift
+        container.style.minHeight = container.offsetHeight + 'px';
         const skel = document.getElementById('sections-skeleton');
         if (skel) skel.remove();
         for (const section of sections) {
           await translateSectionConfig(section);
           container.appendChild(renderSection(section));
         }
+        container.style.minHeight = '';
       } catch (e) {
         console.warn('Failed to load sections:', e);
         const skel = document.getElementById('sections-skeleton');
         if (skel) skel.remove();
+        container.style.minHeight = '';
       }
     }
 
@@ -155,7 +158,10 @@
               <p>${esc(cfg.subheading || '')}</p>
               ${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg">${esc(cfg.cta_text)}</a>` : ''}
             </div>`;
-          if (cfg.bg_image) el.style.backgroundImage = `url(${cfg.bg_image})`;
+          if (cfg.bg_image) {
+            el.style.backgroundImage = `url(${cfg.bg_image})`;
+            cacheHeroImage(cfg.bg_image);
+          }
           break;
 
         case 'features': {
@@ -472,6 +478,8 @@
           }
         }
 
+        // Lock feed height before swap to prevent layout shift
+        feed.style.minHeight = feed.offsetHeight + 'px';
         feed.innerHTML = items.map(a => `
           <div class="announcement card mb-1 ${a.is_pinned ? 'pinned' : ''}" data-id="${a.id}">
             <div class="announcement-title" data-editable="announcements.${a.id}.title">${esc(a.title)}</div>
@@ -527,8 +535,10 @@
             renderAnnouncements();
           });
         });
+        feed.style.minHeight = '';
       } catch (e) {
         feed.innerHTML = '<p class="text-muted">Could not load announcements.</p>';
+        feed.style.minHeight = '';
       }
     }
 
@@ -616,10 +626,8 @@
       return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-    // --- Boot ---
-    await renderSections();
-    loadActivityFeed(15);
-    await renderAnnouncements();
+    // --- Boot (parallel fetches) ---
+    await Promise.all([renderSections(), renderAnnouncements(), loadActivityFeed(15)]);
     setupAnnouncementCreate();
   </script>
   <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
