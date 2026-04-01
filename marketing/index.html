@@ -18,7 +18,7 @@
       </a>
       <button class="nav__toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
       <div class="nav__links" id="nav-links">
-        <a href="#showcase" class="nav__link">Demo</a>
+        <a href="#demos" class="nav__link">Demos</a>
         <a href="#features" class="nav__link">Features</a>
         <a href="#pricing" class="nav__link">Pricing</a>
         <a href="#niches" class="nav__link">Who It's For</a>
@@ -45,68 +45,111 @@
       </div>
       <p class="t-body--sm mt-2" style="color:var(--ink-subtle)">No signup required &middot; Real portal, sample content</p>
 
-      <div class="browser-mockup">
-        <div class="browser-mockup__chrome">
-          <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
-          <div class="browser-mockup__url">eagles.run402.com</div>
+      <div class="hero-mashup">
+        <div class="hero-mashup__card hero-mashup__card--left">
+          <div class="browser-mockup__chrome">
+            <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+            <div class="browser-mockup__url">barrio.wildlychee.com</div>
+          </div>
+          <img src="/assets/screenshot-barrio.png" alt="Barrio Unido - bilingual community portal">
         </div>
-        <img src="/assets/screenshot-eagles.png" alt="Eagles community portal — a fully populated Wild Lychee demo">
+        <div class="hero-mashup__card hero-mashup__card--center">
+          <div class="browser-mockup__chrome">
+            <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+            <div class="browser-mockup__url">eagles.wildlychee.com</div>
+          </div>
+          <img src="/assets/screenshot-eagles.png" alt="Eagles volunteer organization portal">
+        </div>
+        <div class="hero-mashup__card hero-mashup__card--right">
+          <div class="browser-mockup__chrome">
+            <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+            <div class="browser-mockup__url">silver-pines.wildlychee.com</div>
+          </div>
+          <img src="/assets/screenshot-silver-pines.png" alt="Silver Pines Senior Center portal">
+        </div>
       </div>
 
       <div class="hero__stats">
-        <span class="hero__stat"><span class="hero__stat-dot"></span> 25 members</span>
-        <span class="hero__stat"><span class="hero__stat-dot"></span> 10 events</span>
-        <span class="hero__stat"><span class="hero__stat-dot"></span> Active forum</span>
+        <span class="hero__stat"><span class="hero__stat-dot"></span> 3 live demos</span>
+        <span class="hero__stat"><span class="hero__stat-dot"></span> Multilingual</span>
+        <span class="hero__stat"><span class="hero__stat-dot"></span> Accessible</span>
+        <span class="hero__stat"><span class="hero__stat-dot"></span> AI-powered</span>
       </div>
     </div>
   </section>
 
-  <!-- ======== PRODUCT TOUR ======== -->
-  <section class="section section--white" id="showcase">
+  <!-- ======== DEMO SHOWCASE ======== -->
+  <section class="section section--white" id="demos">
     <div class="container">
       <div class="section-header section-header--center">
-        <p class="t-overline">See It Live</p>
-        <h2 class="t-display t-display--lg">Tour a real portal.</h2>
-        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">Browse a fully populated demo &mdash; members, events, forum, announcements, reactions, activity feed. No signup required.</p>
+        <p class="t-overline">See It In Action</p>
+        <h2 class="t-display t-display--lg">Real communities. Running right now.</h2>
+        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">Three live demo sites &mdash; each built and deployed in minutes. Browse them, no signup required.</p>
       </div>
 
-      <div class="tour-grid">
-        <a href="https://eagles.run402.com" target="_blank" class="tour-tile">
-          <div class="tour-tile__img">
-            <img src="/assets/screenshot-eagles.png" alt="Eagles homepage">
+      <div class="demos-grid">
+        <div class="demo-card">
+          <div class="demo-card__screenshot">
+            <div class="browser-mockup__chrome">
+              <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+              <div class="browser-mockup__url">barrio.wildlychee.com</div>
+            </div>
+            <img src="/assets/screenshot-barrio.png" alt="Barrio Unido - bilingual community center" loading="lazy">
           </div>
-          <div class="tour-tile__body">
-            <span class="tour-tile__name">Homepage &amp; Activity Feed</span>
-            <span class="tour-tile__link">Browse &rarr;</span>
+          <div class="demo-card__body">
+            <h3 class="demo-card__name">Barrio Unido</h3>
+            <p class="demo-card__desc">A bilingual community center in East LA. Spanish-first interface with seamless English switching, AI-moderated forums, and culturally rich design.</p>
+            <div class="demo-card__pills">
+              <span class="pill">Multilingual</span>
+              <span class="pill">AI Translation</span>
+              <span class="pill">Moderated Forums</span>
+              <span class="pill">Spanish-First UI</span>
+            </div>
+            <a href="https://barrio.wildlychee.com" target="_blank" rel="noopener" class="btn btn--primary">Visit Demo &rarr;</a>
           </div>
-        </a>
-        <a href="https://eagles.run402.com/directory.html" target="_blank" class="tour-tile">
-          <div class="tour-tile__img">
-            <img src="/assets/screenshot-eagles-directory.png" alt="Member directory">
+        </div>
+
+        <div class="demo-card">
+          <div class="demo-card__screenshot">
+            <div class="browser-mockup__chrome">
+              <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+              <div class="browser-mockup__url">silver-pines.wildlychee.com</div>
+            </div>
+            <img src="/assets/screenshot-silver-pines.png" alt="Silver Pines Senior Center" loading="lazy">
           </div>
-          <div class="tour-tile__body">
-            <span class="tour-tile__name">Member Directory</span>
-            <span class="tour-tile__link">Browse &rarr;</span>
+          <div class="demo-card__body">
+            <h3 class="demo-card__name">Silver Pines Senior Center</h3>
+            <p class="demo-card__desc">An active-adult community in Asheville, NC. Accessibility-first design with font scaling, high contrast mode, keyboard navigation, and senior-friendly layout.</p>
+            <div class="demo-card__pills">
+              <span class="pill">Accessibility</span>
+              <span class="pill">Font Scaling</span>
+              <span class="pill">High Contrast</span>
+              <span class="pill">Keyboard Nav</span>
+            </div>
+            <a href="https://silver-pines.wildlychee.com" target="_blank" rel="noopener" class="btn btn--primary">Visit Demo &rarr;</a>
           </div>
-        </a>
-        <a href="https://eagles.run402.com/events.html" target="_blank" class="tour-tile">
-          <div class="tour-tile__img">
-            <img src="/assets/screenshot-eagles-events.png" alt="Events and RSVP">
+        </div>
+
+        <div class="demo-card">
+          <div class="demo-card__screenshot">
+            <div class="browser-mockup__chrome">
+              <div class="browser-mockup__dots"><span></span><span></span><span></span></div>
+              <div class="browser-mockup__url">eagles.wildlychee.com</div>
+            </div>
+            <img src="/assets/screenshot-eagles.png" alt="Eagles volunteer organization" loading="lazy">
           </div>
-          <div class="tour-tile__body">
-            <span class="tour-tile__name">Events &amp; RSVP</span>
-            <span class="tour-tile__link">Browse &rarr;</span>
+          <div class="demo-card__body">
+            <h3 class="demo-card__name">Eagles &mdash; Good Samaritans of Wichita</h3>
+            <p class="demo-card__desc">A volunteer charity organization in Kansas. Every AI feature enabled &mdash; moderation, insights, reactions, activity feed, personalized member directory.</p>
+            <div class="demo-card__pills">
+              <span class="pill">Member Directory</span>
+              <span class="pill">AI Features</span>
+              <span class="pill">Reactions</span>
+              <span class="pill">Activity Feed</span>
+            </div>
+            <a href="https://eagles.run402.com" target="_blank" rel="noopener" class="btn btn--primary">Visit Demo &rarr;</a>
           </div>
-        </a>
-        <a href="https://eagles.run402.com/forum.html" target="_blank" class="tour-tile">
-          <div class="tour-tile__img">
-            <img src="/assets/screenshot-eagles-forum.png" alt="Forum discussions">
-          </div>
-          <div class="tour-tile__body">
-            <span class="tour-tile__name">Forum Discussions</span>
-            <span class="tour-tile__link">Browse &rarr;</span>
-          </div>
-        </a>
+        </div>
       </div>
     </div>
   </section>
@@ -279,6 +322,39 @@
           <div class="niche-card__name">HOAs &amp; Condos</div>
           <div class="niche-card__sub">Maintenance, documents, voting</div>
         </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== AGENT-FRIENDLY & OPEN SOURCE ======== -->
+  <section class="section section--white" id="open-source">
+    <div class="container">
+      <div class="section-header section-header--center">
+        <p class="t-overline">Open Source</p>
+        <h2 class="t-display t-display--lg">100% open source. Coding agent friendly.</h2>
+        <p class="t-body--lg mt-2" style="margin-left:auto;margin-right:auto;">No vendor lock-in. No proprietary platform. Your code, your data, deployed on your domain.</p>
+      </div>
+
+      <div class="oss-grid">
+        <div class="oss-card">
+          <div class="oss-card__icon">&#128268;</div>
+          <div class="oss-card__name">Fully Open Source</div>
+          <div class="oss-card__desc">Every line of code is yours. Fork it, modify it, own it forever. No hidden proprietary components, no black boxes, no surprises on your bill.</div>
+        </div>
+        <div class="oss-card">
+          <div class="oss-card__icon">&#129302;</div>
+          <div class="oss-card__name">Agent Friendly</div>
+          <div class="oss-card__desc">Designed for AI coding agents like Claude Code and Cursor. Config-driven architecture means an agent can rebrand, restructure, and add features with SQL and file edits.</div>
+        </div>
+        <div class="oss-card">
+          <div class="oss-card__icon">&#9889;</div>
+          <div class="oss-card__name">Deploy in Minutes</div>
+          <div class="oss-card__desc">One command to deploy. No build step, no Docker, no infrastructure to manage. Describe your community and go live &mdash; customized and running in under 5 minutes.</div>
+        </div>
+      </div>
+
+      <div style="text-align:center">
+        <a href="https://github.com/kychee-com/wildlychee" target="_blank" rel="noopener" class="btn btn--outline btn--lg">View Source on GitHub</a>
       </div>
     </div>
   </section>
