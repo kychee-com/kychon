@@ -60,7 +60,7 @@ INSERT INTO site_config (key, value, category) VALUES
     {"label": "Home", "href": "/", "icon": "home", "public": true},
     {"label": "Daily Schedule", "href": "/page.html?slug=daily-schedule", "icon": "calendar", "public": true},
     {"label": "Getting Here", "href": "/page.html?slug=getting-here", "icon": "map", "public": true},
-    {"label": "Members", "href": "/directory.html", "icon": "users", "auth": true, "feature": "feature_directory"},
+    {"label": "Our Members", "href": "/members.html", "icon": "users", "public": true},
     {"label": "Events", "href": "/events.html", "icon": "calendar", "feature": "feature_events"},
     {"label": "Resources", "href": "/resources.html", "icon": "book-open", "feature": "feature_resources"},
     {"label": "Forum", "href": "/forum.html", "icon": "message-circle", "feature": "feature_forum"},
@@ -454,6 +454,43 @@ SELECT 'Volunteer Appreciation Luncheon',
   'Main Hall', '/assets/event-volunteer.jpg', (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org')
 WHERE NOT EXISTS (SELECT 1 FROM events WHERE title = 'Volunteer Appreciation Luncheon');
 
+-- RSVPs for upcoming events (make them look attended!)
+INSERT INTO event_rsvps (event_id, member_id, status, created_at)
+SELECT e.id, m.id, 'going', now() - interval '2 days'
+FROM events e, members m
+WHERE e.title = 'Morning Tai Chi with George' AND m.email IN ('grace.lee@outlook.com', 'charles.robinson@gmail.com', 'patricia.nguyen@outlook.com', 'helen.crawford@silverpines.org', 'george.nakamura@gmail.com', 'rosa.martinez@outlook.com')
+ON CONFLICT (event_id, member_id) DO NOTHING;
+
+INSERT INTO event_rsvps (event_id, member_id, status, created_at)
+SELECT e.id, m.id, 'going', now() - interval '3 days'
+FROM events e, members m
+WHERE e.title = 'Watercolor Wednesday' AND m.email IN ('margaret.johnson@hotmail.com', 'grace.lee@outlook.com', 'charles.robinson@gmail.com', 'betty.williams@outlook.com', 'nancy.allen@yahoo.com')
+ON CONFLICT (event_id, member_id) DO NOTHING;
+
+INSERT INTO event_rsvps (event_id, member_id, status, created_at)
+SELECT e.id, m.id, 'going', now() - interval '1 day'
+FROM events e, members m
+WHERE e.title LIKE 'Tech Help Desk%' AND m.email IN ('robert.chen@gmail.com', 'arthur.williams@gmail.com', 'mary.jackson@outlook.com', 'harold.peterson@gmail.com', 'patricia.nguyen@outlook.com', 'samuel.washington@gmail.com', 'evelyn.wright@yahoo.com')
+ON CONFLICT (event_id, member_id) DO NOTHING;
+
+INSERT INTO event_rsvps (event_id, member_id, status, created_at)
+SELECT e.id, m.id, 'going', now() - interval '4 days'
+FROM events e, members m
+WHERE e.title = 'Thursday Book Club' AND m.email IN ('evelyn.wright@yahoo.com', 'william.thompson@gmail.com', 'helen.crawford@silverpines.org', 'arthur.williams@gmail.com', 'shirley.davis@yahoo.com')
+ON CONFLICT (event_id, member_id) DO NOTHING;
+
+INSERT INTO event_rsvps (event_id, member_id, status, created_at)
+SELECT e.id, m.id, 'going', now() - interval '2 days'
+FROM events e, members m
+WHERE e.title = 'Medicare Open Enrollment Info Session' AND m.email IN ('helen.crawford@silverpines.org', 'james.whitfield@gmail.com', 'rosa.martinez@outlook.com', 'william.thompson@gmail.com', 'betty.williams@outlook.com', 'dorothy.banks@yahoo.com', 'frank.oconnor@gmail.com', 'thomas.brown@gmail.com', 'shirley.davis@yahoo.com', 'richard.harris@gmail.com')
+ON CONFLICT (event_id, member_id) DO NOTHING;
+
+INSERT INTO event_rsvps (event_id, member_id, status, created_at)
+SELECT e.id, m.id, 'going', now() - interval '5 days'
+FROM events e, members m
+WHERE e.title LIKE 'Friday Movie Night%' AND m.email IN ('shirley.davis@yahoo.com', 'william.thompson@gmail.com', 'betty.williams@outlook.com', 'frank.oconnor@gmail.com', 'mary.jackson@outlook.com', 'evelyn.wright@yahoo.com', 'harold.peterson@gmail.com', 'grace.lee@outlook.com', 'samuel.washington@gmail.com', 'nancy.allen@yahoo.com', 'arthur.williams@gmail.com', 'thomas.brown@gmail.com')
+ON CONFLICT (event_id, member_id) DO NOTHING;
+
 -- Backfill image_url on existing events (idempotent)
 UPDATE events SET image_url = '/assets/event-tai-chi.jpg' WHERE title = 'Morning Tai Chi with George' AND image_url IS NULL;
 UPDATE events SET image_url = '/assets/event-watercolor.jpg' WHERE title = 'Watercolor Wednesday' AND image_url IS NULL;
@@ -742,6 +779,15 @@ SELECT (SELECT id FROM forum_topics WHERE title = 'Garden plot available — who
   now() - interval '1 day'
 WHERE NOT EXISTS (SELECT 1 FROM forum_replies WHERE body LIKE 'Basil and tomatoes are best friends%');
 
+-- Backfill author_name on all forum topics and replies
+UPDATE forum_topics SET author_name = m.display_name FROM members m WHERE forum_topics.author_id = m.id AND forum_topics.author_name IS NULL;
+UPDATE forum_replies SET author_name = m.display_name FROM members m WHERE forum_replies.author_id = m.id AND forum_replies.author_name IS NULL;
+
+-- Backfill reply_count and last_reply_at
+UPDATE forum_topics t SET
+  reply_count = (SELECT count(*) FROM forum_replies r WHERE r.topic_id = t.id),
+  last_reply_at = (SELECT max(created_at) FROM forum_replies r WHERE r.topic_id = t.id);
+
 -- ============================================
 -- 9. ANNOUNCEMENTS
 -- ============================================
@@ -840,8 +886,8 @@ INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
   }', 1, true),
   ('index', 'stats', '{
     "items": [
-      {"value": "22+", "label": "Active Members"},
-      {"value": "12+", "label": "Events This Month"},
+      {"value": "22+", "label": "Active Members", "href": "/members.html"},
+      {"value": "12+", "label": "Events This Month", "href": "/events.html"},
       {"value": "5", "label": "Committees"},
       {"value": "8", "label": "Years Serving Asheville"}
     ]

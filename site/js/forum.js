@@ -23,6 +23,35 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString();
 }
 
+// Cache of member_id -> { display_name, avatar_url }
+const memberCache = {};
+
+async function enrichWithAvatars(items) {
+  const ids = [...new Set(items.map(i => i.author_id).filter(Boolean))];
+  const uncached = ids.filter(id => !memberCache[id]);
+  if (uncached.length > 0) {
+    try {
+      const members = await get(`members?id=in.(${uncached.join(',')})&select=id,display_name,avatar_url`);
+      for (const m of members) memberCache[m.id] = m;
+    } catch {}
+  }
+  for (const item of items) {
+    const m = memberCache[item.author_id];
+    if (m) {
+      if (!item.author_name) item.author_name = m.display_name;
+      item.author_avatar = m.avatar_url;
+    }
+  }
+}
+
+function avatarHtml(item, size = '1.5rem') {
+  if (item.author_avatar) {
+    return `<img src="${esc(item.author_avatar)}" alt="" style="width:${size};height:${size};border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:0.375rem">`;
+  }
+  const initial = (item.author_name || '?')[0].toUpperCase();
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size};height:${size};border-radius:50%;background:var(--color-primary);color:white;font-size:calc(${size} * 0.5);font-weight:600;vertical-align:middle;margin-right:0.375rem">${initial}</span>`;
+}
+
 export async function initForum() {
   const params = new URLSearchParams(window.location.search);
   const root = document.getElementById('forum-root');
@@ -106,6 +135,7 @@ async function renderTopicListing(root, categoryId) {
   let topics = [];
   try {
     topics = await get(query);
+    await enrichWithAvatars(topics);
   } catch (e) {
     console.warn('Failed to load topics:', e);
     root.innerHTML = '<p class="text-muted">Could not load topics.</p>';
@@ -136,7 +166,7 @@ async function renderTopicListing(root, categoryId) {
               ${t.hidden ? '<span class="badge badge-danger" style="margin-right:0.375rem">Hidden</span>' : ''}
               ${esc(t.title)}
             </div>
-            <div class="forum-topic-meta">by ${esc(t.author_name || 'Anonymous')} &middot; ${timeAgo(t.created_at)}</div>
+            <div class="forum-topic-meta">${avatarHtml(t)}${esc(t.author_name || 'Anonymous')} &middot; ${timeAgo(t.created_at)}</div>
           </div>
           <div class="forum-topic-stats">
             <span>${t.reply_count || 0} replies</span>
@@ -247,6 +277,7 @@ async function renderTopicView(root, topicId) {
   let replies = [];
   try {
     replies = await get(replyQuery);
+    await enrichWithAvatars([topic, ...replies]);
   } catch (e) {
     console.warn('Failed to load replies:', e);
   }
@@ -272,7 +303,7 @@ async function renderTopicView(root, topicId) {
             ${topic.hidden ? '<span class="badge badge-danger" style="margin-right:0.375rem">Hidden</span>' : ''}
             ${esc(topic.title)}
           </h2>
-          <span class="forum-post-date">by ${esc(topic.author_name || 'Anonymous')} &middot; ${timeAgo(topic.created_at)}</span>
+          <span class="forum-post-date">${avatarHtml(topic, '2rem')}${esc(topic.author_name || 'Anonymous')} &middot; ${timeAgo(topic.created_at)}</span>
         </div>
       </div>
       <div class="forum-post-body" data-translate-text="${esc(topic.body)}" data-ct="forum_topic" data-ci="${topic.id}" data-cf="body">${esc(topic.body)}</div>
@@ -287,7 +318,7 @@ async function renderTopicView(root, topicId) {
       html += `
         <div class="forum-post${rHidden}">
           <div class="forum-post-header">
-            <span class="forum-post-author">${esc(r.author_name || 'Anonymous')}</span>
+            <span class="forum-post-author">${avatarHtml(r, '1.75rem')}${esc(r.author_name || 'Anonymous')}</span>
             <span class="forum-post-date">${timeAgo(r.created_at)}${r.hidden ? ' <span class="badge badge-danger">Hidden</span>' : ''}</span>
           </div>
           <div class="forum-post-body" data-translate-text="${esc(r.body)}" data-ct="forum_reply" data-ci="${r.id}" data-cf="body">${esc(r.body)}</div>

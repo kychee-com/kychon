@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS forum_topics (
   title TEXT NOT NULL,
   body TEXT NOT NULL,
   author_id INT REFERENCES members(id),
+  author_name TEXT,
   is_pinned BOOLEAN DEFAULT false,
   reply_count INT DEFAULT 0,
   last_reply_at TIMESTAMPTZ,
@@ -149,6 +150,7 @@ CREATE TABLE IF NOT EXISTS forum_replies (
   topic_id INT REFERENCES forum_topics(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
   author_id INT REFERENCES members(id),
+  author_name TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -262,6 +264,8 @@ CREATE TABLE IF NOT EXISTS newsletter_drafts (
 -- SECTION: Schema Migrations (safe column additions)
 -- ============================================
 
+DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN author_name TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE forum_replies ADD COLUMN author_name TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN hidden BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN locked BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE forum_replies ADD COLUMN hidden BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
