@@ -41,9 +41,7 @@ describe('renderPoll', () => {
     });
 
     it('highlights user vote when authenticated', () => {
-      const votes = [
-        { id: 1, poll_id: 1, option_id: 10, member_id: 42 },
-      ];
+      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
       const session = { user: { member: { id: 42 } } };
       const html = renderPoll(poll, baseOptions, votes, session);
       expect(html).toContain('poll-option-voted');
@@ -85,9 +83,7 @@ describe('renderPoll', () => {
     const poll = { ...basePoll, results_visible: 'after_close' };
 
     it('hides results while open even after voting', () => {
-      const votes = [
-        { id: 1, poll_id: 1, option_id: 10, member_id: 42 },
-      ];
+      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
       const session = { user: { member: { id: 42 } } };
       const html = renderPoll(poll, baseOptions, votes, session);
       expect(html).not.toContain('poll-bar-fill');
@@ -96,9 +92,7 @@ describe('renderPoll', () => {
 
     it('shows results when closed', () => {
       const closedPoll = { ...poll, is_open: false };
-      const votes = [
-        { id: 1, poll_id: 1, option_id: 10, member_id: 42 },
-      ];
+      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
       const html = renderPoll(closedPoll, baseOptions, votes, null);
       expect(html).toContain('poll-bar-fill');
       expect(html).toContain('Closed');
@@ -135,9 +129,7 @@ describe('renderPoll', () => {
 
     it('shows checked indicator for voted options', () => {
       const multiPoll = { ...basePoll, poll_type: 'multiple' };
-      const votes = [
-        { id: 1, poll_id: 1, option_id: 10, member_id: 42 },
-      ];
+      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
       const session = { user: { member: { id: 42 } } };
       const html = renderPoll(multiPoll, baseOptions, votes, session);
       // after_vote shows results since member voted
