@@ -764,6 +764,58 @@ a { color: inherit; text-decoration: none; }
 }
 .footer a:hover { text-decoration: underline; }
 
+/* --- Prose (legal/about pages) --- */
+.prose {
+  max-width: 48rem;
+}
+
+.prose h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--ink);
+}
+
+.prose p {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--ink-muted);
+  margin-bottom: 1rem;
+}
+
+.prose ul, .prose ol {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--ink-muted);
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+}
+
+.prose strong {
+  color: var(--ink);
+}
+
+.prose a {
+  color: var(--indigo);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--indigo-dark);
+}
+
+.prose__muted {
+  font-size: 0.875rem;
+  color: var(--ink-subtle);
+  margin-bottom: 2.5rem;
+}
+
 /* --- Section header utility --- */
 .section-header {
   margin-bottom: 3rem;

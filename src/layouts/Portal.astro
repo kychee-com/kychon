@@ -8,6 +8,7 @@ import AuthProvider from '../components/AuthProvider.astro';
 import AuthModal from '../components/AuthModal.astro';
 import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
+import DemoBanner from '../components/DemoBanner.astro';
 
 interface Props {
   title: string;
@@ -33,6 +34,7 @@ const { title } = Astro.props;
 </head>
 <body>
   <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
+  <DemoBanner />
   <div class="page">
     <Nav />
 
