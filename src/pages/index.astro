@@ -206,4 +206,5 @@ import Portal from '../layouts/Portal.astro';
 
   bootHomepage();
   document.addEventListener('astro:after-swap', bootHomepage);
+  document.addEventListener('wl-locale-changed', bootHomepage);
 </script>

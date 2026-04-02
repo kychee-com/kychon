@@ -516,4 +516,5 @@ import Portal from '../layouts/Portal.astro';
 
   initForum();
   document.addEventListener('astro:after-swap', initForum);
+  document.addEventListener('wl-locale-changed', initForum);
 </script>

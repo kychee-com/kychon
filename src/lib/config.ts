@@ -221,7 +221,11 @@ export function buildUserNav(): void {
       const idx = locales.indexOf(currentLocale);
       const next = locales[(idx + 1) % locales.length];
       await setLanguage(next);
-      window.location.reload();
+      // Re-render nav with new translations instead of full reload
+      buildNav(siteConfig.nav);
+      buildUserNav();
+      // Dispatch event so page scripts can re-render their content
+      document.dispatchEvent(new CustomEvent('wl-locale-changed', { detail: { locale: next } }));
     });
   }
 }
