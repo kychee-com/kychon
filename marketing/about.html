@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Kychee — Wild Lychee</title>
+  <meta name="description" content="Wild Lychee is built by Kychee, Inc. Learn about the company behind the open-source community portal platform.">
+  <link rel="stylesheet" href="/css/marketing.css">
+</head>
+<body>
+
+  <!-- ======== NAV ======== -->
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a href="/" class="nav__brand">
+        <span class="nav__brand-icon">&#127819;</span>
+        Wild Lychee
+      </a>
+      <button class="nav__toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+      <div class="nav__links" id="nav-links">
+        <a href="/#demos" class="nav__link">Demos</a>
+        <a href="/#features" class="nav__link">Features</a>
+        <a href="/#pricing" class="nav__link">Pricing</a>
+        <a href="/#niches" class="nav__link">Who It's For</a>
+        <a href="https://github.com/kychee-com/wildlychee" class="nav__link" target="_blank">GitHub</a>
+        <a href="https://eagles.run402.com" class="btn btn--primary btn--lg nav__cta" target="_blank">Explore Live Demo</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ======== CONTENT ======== -->
+  <section class="section section--cream">
+    <div class="container prose">
+      <p class="t-overline">About</p>
+      <h1 class="t-display t-display--lg" style="margin-bottom:1rem">About Kychee</h1>
+      <p class="t-body--lg" style="margin-bottom:3rem">The company behind Wild Lychee.</p>
+
+      <h2>Who we are</h2>
+      <p>Wild Lychee is built and maintained by <strong>Kychee, Inc.</strong>, an AI-first software company. We build tools that let AI agents ship real software to real users - removing the friction between what agents can build and what actually gets deployed.</p>
+
+      <h2>What is Wild Lychee?</h2>
+      <p>Wild Lychee is an open-source community portal template. It gives associations, clubs, churches, HOAs, and sports leagues a complete member portal - directory, events, forum, announcements, resources - on software they own, for a flat monthly hosting fee.</p>
+      <p>There are no per-member fees, no vendor lock-in, and no proprietary black boxes. Every line of code is yours to fork, modify, and deploy on your own domain.</p>
+
+      <h2>How it works</h2>
+      <p>Wild Lychee runs on <a href="https://run402.com" target="_blank">Run402</a>, a serverless infrastructure platform also built by Kychee. Run402 provides the database, authentication, file storage, and hosting. Wild Lychee provides the portal template, AI features, and the Studio build experience.</p>
+
+      <h2>Our approach</h2>
+      <p>We believe community software should be affordable, transparent, and owned by the people who use it. Most membership platforms charge per-member fees that punish growth. We charge a flat $5-20/mo for hosting - whether you have 50 members or 5,000.</p>
+      <p>We also believe AI should do the heavy lifting. Lychee Studio can investigate your existing website, ask a few questions, and generate a fully customized portal in minutes - not weeks.</p>
+
+      <h2>Open source</h2>
+      <p>Wild Lychee is fully open source on <a href="https://github.com/kychee-com/wildlychee" target="_blank">GitHub</a>. You can fork it, read every line of code, and deploy it yourself. Studio and Pro are paid services that make the experience easier, but the core template is free forever.</p>
+
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:info@kychee.com">info@kychee.com</a></p>
+      <p>Company: Kychee, Inc.</p>
+    </div>
+  </section>
+
+  <!-- ======== FOOTER ======== -->
+  <footer class="footer">
+    <div class="container">
+      <p>
+        By <a href="https://kychee.com" target="_blank"><strong>Kychee</strong></a>
+        &ensp;&middot;&ensp;
+        <a href="/about.html">About</a>
+        &ensp;&middot;&ensp;
+        <a href="/terms.html">Terms</a>
+        &ensp;&middot;&ensp;
+        <a href="/privacy.html">Privacy</a>
+        &ensp;&middot;&ensp;
+        <a href="/#faq">FAQ</a>
+        &ensp;&middot;&ensp;
+        <a href="https://x.com/kaboramedia" target="_blank">Follow us on X</a>
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('nav-toggle')?.addEventListener('click', () => {
+      document.getElementById('nav-links')?.classList.toggle('open');
+    });
+  </script>
+
+</body>
+</html>
