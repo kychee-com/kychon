@@ -31,7 +31,7 @@ export const MemberSchema = z.object({
   tier_id: z.number().nullable(),
   role: z.string(),
   status: z.string(),
-  custom_fields: z.record(z.any()).nullable(),
+  custom_fields: z.record(z.string(), z.any()).nullable(),
   joined_at: z.string(),
   expires_at: z.string().nullable(),
   created_at: z.string(),
