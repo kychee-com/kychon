@@ -1,13 +1,13 @@
 #!/bin/bash
-# Deploy Barrio Unido demo to Run402
-# Usage: bash demo/barrio-unido/deploy.sh
+# Deploy Eagles demo to Run402
+# Usage: bash demo/eagles/deploy.sh
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PROJECT_ID="${BARRIO_PROJECT_ID:?Set BARRIO_PROJECT_ID env var}"
+PROJECT_ID="${EAGLES_PROJECT_ID:?Set EAGLES_PROJECT_ID env var}"
 
-echo "=== Barrio Unido Deploy ==="
+echo "=== Eagles Deploy ==="
 echo "Project: $PROJECT_ID"
 
 # Copy demo assets into public/assets so Astro build includes them in dist/
@@ -22,7 +22,8 @@ fi
 
 # Deploy site + images + seed (deploy.js runs astro build + collects from dist/)
 cd "$ROOT"
-SEED_FILE="demo/barrio-unido/seed.sql" RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=barrio-unido \
+SEED_FILE="demo/eagles/seed.sql" RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=eagles \
+  EXCLUDE_FUNCTIONS=check-expirations \
   node deploy-batched.js
 
 # Deploy reset-demo separately (too large for bundle deploy)
@@ -38,4 +39,4 @@ fi
 
 echo ""
 echo "=== Deploy complete ==="
-echo "Live at: https://barrio-unido.run402.com"
+echo "Live at: https://eagles.run402.com"

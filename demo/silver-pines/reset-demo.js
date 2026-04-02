@@ -1,4 +1,9 @@
--- ============================================
+// schedule: "0 * * * *"
+// Reset demo site to seed state — auto-generated, do not edit manually
+// Regenerate with: node scripts/generate-reset-function.js <seed.sql>
+import { db } from 'run402-functions';
+
+const SEED_SQL = `-- ============================================
 -- Wild Lychee — Silver Pines Demo Seed (idempotent)
 -- "Silver Pines Senior Center — Asheville, NC"
 -- Active-adult community center, accessibility-first
@@ -863,10 +868,10 @@ DELETE FROM sections WHERE page_slug IN ('getting-here', 'daily-schedule');
 
 INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
   ('getting-here', 'custom', '{
-    "html": "<div style=\"max-width:52rem\"><p style=\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style=\"margin:1rem 0 1rem 1.5rem\"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href=''/resources.html''>download the full schedule</a>.</p></div><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class=\"card mb-2\" style=\"padding:2rem\"><h3 style=\"margin-bottom:1rem\">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class=\"card mb-2\" style=\"padding:2rem;border-left:4px solid var(--color-primary)\"><h3 style=\"margin-bottom:1rem\">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style=\"margin:1rem 0 0 1.5rem\"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>"
+    "html": "<div style=\\"max-width:52rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style=\\"margin:1rem 0 1rem 1.5rem\\"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href=''/resources.html''>download the full schedule</a>.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem;border-left:4px solid var(--color-primary)\\"><h3 style=\\"margin-bottom:1rem\\">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style=\\"margin:1rem 0 0 1.5rem\\"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>"
   }', 1, true),
   ('daily-schedule', 'custom', '{
-    "html": "<div style=\"max-width:60rem\"><p style=\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\">Drop in anytime! All classes and activities are free for members unless noted.</p><div class=\"table-wrap\"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tai Chi (George)</td><td>Chair Yoga</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tech Help Desk</td><td>Open Craft Room</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Watercolor (Margaret)</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style=\"border-top:2px solid var(--color-border)\"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style=\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class=\"card mt-2\" style=\"padding:1.5rem;border-left:4px solid var(--color-primary)\"><p style=\"margin:0\"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>"
+    "html": "<div style=\\"max-width:60rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">Drop in anytime! All classes and activities are free for members unless noted.</p><div class=\\"table-wrap\\"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Watercolor (Margaret)</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style=\\"border-top:2px solid var(--color-border)\\"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class=\\"card mt-2\\" style=\\"padding:1.5rem;border-left:4px solid var(--color-primary)\\"><p style=\\"margin:0\\"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>"
   }', 1, true)
 ON CONFLICT DO NOTHING;
 
@@ -960,3 +965,66 @@ INSERT INTO activity_log (member_id, action, metadata, created_at)
 SELECT m.id, 'rsvp', '{"event_title": "Watercolor Wednesday"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'charles.robinson@gmail.com'
 AND NOT EXISTS (SELECT 1 FROM activity_log WHERE member_id = m.id AND action = 'rsvp' AND metadata->>'event_title' = 'Watercolor Wednesday');
+`;
+
+const MUTABLE_TABLES = [
+  'newsletter_drafts', 'member_insights', 'moderation_log',
+  'content_translations', 'committee_members', 'committees',
+  'forum_replies', 'forum_topics', 'forum_categories',
+  'reactions', 'activity_log', 'event_rsvps', 'events',
+  'resources', 'announcements',
+];
+
+export default async (_req) => {
+  // 1. Read demo account user_ids
+  const configResult = await db.sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
+  const demoAccounts = configResult.rows?.[0]?.value || {};
+  const adminUserId = demoAccounts.admin_user_id;
+  const memberUserId = demoAccounts.member_user_id;
+
+  // 2. TRUNCATE mutable content tables (order matters for FK constraints)
+  for (const table of MUTABLE_TABLES) {
+    await db.sql(`TRUNCATE ${table} CASCADE`);
+  }
+
+  // 3. Delete non-demo members (keep demo accounts by user_id)
+  // First nullify tier_id on kept members to avoid FK constraint on membership_tiers
+  if (adminUserId || memberUserId) {
+    const keepIds = [adminUserId, memberUserId].filter(Boolean).map(id => `'${id}'`).join(',');
+    await db.sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
+    await db.sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
+  } else {
+    await db.sql('DELETE FROM members');
+  }
+
+  // 4. Reset membership_tiers, pages, sections, custom_fields
+  await db.sql('DELETE FROM membership_tiers');
+  await db.sql('DELETE FROM sections');
+  await db.sql('DELETE FROM pages');
+  await db.sql('DELETE FROM member_custom_fields');
+
+  // 5. Re-run seed SQL (idempotent INSERTs)
+  await db.sql(SEED_SQL);
+
+  // 6. Re-link demo accounts to seed member records
+  if (adminUserId) {
+    // Link admin user_id to the first admin member record
+    const adminMembers = await db.sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
+    if (adminMembers.rows?.length) {
+      await db.sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
+    }
+  }
+  if (memberUserId) {
+    // Link member user_id to the first non-admin active member
+    const memberRecords = await db.sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
+    if (memberRecords.rows?.length) {
+      await db.sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
+    }
+  }
+
+  // 7. Write last_reset timestamp
+  const now = new Date().toISOString();
+  await db.sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
+
+  return new Response(JSON.stringify({ status: 'ok', reset_at: now }));
+};
