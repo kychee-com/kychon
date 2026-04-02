@@ -23,7 +23,7 @@ The DemoBanner SHALL be a sticky top banner (above nav, `z-index: 1001`) that di
 - **THEN** the banner shows "Demo Site" indicator
 - **AND** the current role displays as "Visitor"
 - **AND** two buttons are shown: "Try as Admin" and "Try as Member"
-- **AND** a "Get Your Own Portal" link is visible pointing to wildlychee.com
+- **AND** a "Get Your Own Portal" link is visible pointing to kychon.com
 
 #### Scenario: Signed-in admin sees banner with role indicator
 - **WHEN** a visitor is signed in as the demo admin
@@ -41,14 +41,14 @@ The DemoBanner SHALL provide instant role switching by calling `signIn(email, pa
 
 #### Scenario: Visitor clicks "Try as Admin"
 - **WHEN** an unauthenticated visitor clicks "Try as Admin"
-- **THEN** the system calls `signIn('demo-admin@wildlychee.com', 'demo123')`
+- **THEN** the system calls `signIn('demo-admin@kychon.com', 'demo123')`
 - **AND** the page reloads with the admin session active
 - **AND** all admin features (inline editing, admin dashboard, settings) are functional with real writes
 
 #### Scenario: Admin switches to Member
 - **WHEN** an admin clicks "Switch to Member"
 - **THEN** the system signs out the current session
-- **AND** calls `signIn('demo-member@wildlychee.com', 'demo123')`
+- **AND** calls `signIn('demo-member@kychon.com', 'demo123')`
 - **AND** the page reloads with the member session active
 
 #### Scenario: Any role clicks "Just Browse"
@@ -87,7 +87,7 @@ When the countdown reaches zero (or the client detects the reset has occurred), 
 
 ### Requirement: Demo credentials are hardcoded and transparent
 
-The demo account credentials SHALL be hardcoded in the DemoBanner component's client-side JavaScript. The credentials are: `demo-admin@wildlychee.com` / `demo123` for admin, `demo-member@wildlychee.com` / `demo123` for member. These are intentionally visible in view-source.
+The demo account credentials SHALL be hardcoded in the DemoBanner component's client-side JavaScript. The credentials are: `demo-admin@kychon.com` / `demo123` for admin, `demo-member@kychon.com` / `demo123` for member. These are intentionally visible in view-source.
 
 #### Scenario: Credentials visible in page source
 - **WHEN** a visitor views the page source of a demo site

@@ -42,7 +42,7 @@
 ## 5. Deployment & Verification
 
 - [x] 5.1 Provision `silver-pines` Run402 project with separate database and subdomain
-- [x] 5.2 Deploy schema + seed + static files to `silver-pines.run402.com`
+- [x] 5.2 Deploy schema + seed + static files to `silver-pines.kychon.com`
 - [x] 5.3 Verify accessibility: skip-nav present, ARIA landmarks confirmed, a11y toolbar with font/contrast/motion controls verified via accessibility tree and browser
 - [x] 5.4 Verify screen reader: accessibility tree confirms all landmarks labeled, all interactive controls labeled, aria-live region present, focus management working
 - [x] 5.5 Run Lighthouse accessibility audit — scored 93/100. Fixed: footer link contrast, badge contrast, hero overlay contrast, nav opacity, heading levels. Remaining: nav brand composited contrast over hero (Lighthouse edge case with sticky+compositing), feature card h3 heading order (dynamic content)

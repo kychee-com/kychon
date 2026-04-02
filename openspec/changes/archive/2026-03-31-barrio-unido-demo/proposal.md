@@ -43,7 +43,7 @@ _(none — this is seed data and a translation file, not a code change)_
 ## Impact
 
 - **New files**: `demo/barrio-unido/seed.sql`, `demo/barrio-unido/generate-images.sh`, `site/custom/strings/es.json`
-- **Run402**: Deployed to a new project with its own database and subdomain (e.g., `barrio-unido.run402.com`)
+- **Run402**: Deployed to a new project with its own database and subdomain (e.g., `barrio.kychon.com`)
 - **Dependencies**: OpenAI API (image generation), Run402 CLI, Run402 storage API
 - **No impact on template code**: All changes are seed data, a translation file, and image assets
 - **Reusable**: The `es.json` file benefits any future Spanish-language Kychon deployment

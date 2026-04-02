@@ -2,10 +2,10 @@
 # deploy-all.sh — Deploy all 4 Wild Lychee sites to their correct destinations.
 #
 # Sites:
-#   1. Eagles demo        → eagles.run402.com
-#   2. Silver Pines demo  → silver-pines.run402.com
-#   3. Barrio Unido demo  → barrio-unido.run402.com
-#   4. Marketing          → wildlychee.run402.com / wildlychee.com
+#   1. Eagles demo        → eagles.kychon.com
+#   2. Silver Pines demo  → silver-pines.kychon.com
+#   3. Barrio Unido demo  → barrio.kychon.com
+#   4. Marketing          → kychon.com / kychon.com
 #
 # Usage: bash deploy-all.sh
 #        bash deploy-all.sh eagles          # deploy only Eagles
@@ -36,10 +36,10 @@ echo "============================================"
 echo "  Wild Lychee — Deploy All Sites"
 echo "============================================"
 echo ""
-echo "  Eagles:       $EAGLES_PROJECT_ID → eagles.run402.com"
-echo "  Silver Pines: $SILVER_PINES_PROJECT_ID → silver-pines.run402.com"
-echo "  Barrio Unido: $BARRIO_PROJECT_ID → barrio-unido.run402.com"
-echo "  Marketing:    $MARKETING_PROJECT_ID → wildlychee.com"
+echo "  Eagles:       $EAGLES_PROJECT_ID → eagles.kychon.com"
+echo "  Silver Pines: $SILVER_PINES_PROJECT_ID → silver-pines.kychon.com"
+echo "  Barrio Unido: $BARRIO_PROJECT_ID → barrio.kychon.com"
+echo "  Marketing:    $MARKETING_PROJECT_ID → kychon.com"
 echo ""
 echo "  Target: $TARGET"
 echo "============================================"
@@ -86,7 +86,7 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "barrio" ]; then
   fi
 fi
 
-# --- 4. Marketing (LAST — so wildlychee.com serves marketing, not portal) ---
+# --- 4. Marketing (LAST — so kychon.com serves marketing, not portal) ---
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "marketing" ]; then
   echo ""
   echo ">>> [4/4] Deploying Marketing site..."
@@ -112,8 +112,8 @@ else
   exit 1
 fi
 echo ""
-echo "  Eagles:       https://eagles.run402.com"
-echo "  Silver Pines: https://silver-pines.run402.com"
-echo "  Barrio Unido: https://barrio-unido.run402.com"
-echo "  Marketing:    https://wildlychee.com"
+echo "  Eagles:       https://eagles.kychon.com"
+echo "  Silver Pines: https://silver-pines.kychon.com"
+echo "  Barrio Unido: https://barrio.kychon.com"
+echo "  Marketing:    https://kychon.com"
 echo "============================================"

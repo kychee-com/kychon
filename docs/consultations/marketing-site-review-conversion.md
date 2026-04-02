@@ -148,7 +148,7 @@ And if possible, put the demo on a branded subdomain like:
 - `demo.kychon.com`
 - `eagles.kychon.com`
 
-`eagles.run402.com` works, but a Kychon subdomain will feel more polished and trustworthy.
+`eagles.kychon.com` works, but a Kychon subdomain will feel more polished and trustworthy.
 
 ---
 

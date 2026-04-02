@@ -2,7 +2,7 @@
 
 ### Requirement: Hero section with three CTAs
 
-The hero SHALL display the headline "Own your member portal." with a subheading describing Kychon's value proposition (membership portal you own, $5-20/mo, no per-member fees). The hero SHALL include a browser mockup showing the Eagles demo homepage screenshot. CTAs SHALL be: "Explore Live Demo" (links to eagles.run402.com), "Get a Custom Build — $29" (links to #pricing), and a text link "View on GitHub". The hero SHALL NOT reference competitor names.
+The hero SHALL display the headline "Own your member portal." with a subheading describing Kychon's value proposition (membership portal you own, $5-20/mo, no per-member fees). The hero SHALL include a browser mockup showing the Eagles demo homepage screenshot. CTAs SHALL be: "Explore Live Demo" (links to eagles.kychon.com), "Get a Custom Build — $29" (links to #pricing), and a text link "View on GitHub". The hero SHALL NOT reference competitor names.
 
 #### Scenario: Hero renders without competitor names
 - **WHEN** a visitor loads kychon.com
@@ -11,11 +11,11 @@ The hero SHALL display the headline "Own your member portal." with a subheading 
 
 #### Scenario: Primary CTA links to live demo
 - **WHEN** a visitor clicks "Explore Live Demo"
-- **THEN** the visitor SHALL be directed to eagles.run402.com in a new tab
+- **THEN** the visitor SHALL be directed to eagles.kychon.com in a new tab
 
 ### Requirement: Product tour replaces showcase gallery
 
-The homepage SHALL include a "Tour a real portal" section showing 4-6 screenshot tiles from the Eagles demo. Each tile SHALL display a screenshot of a different Eagles page (home, directory, events, forum), the page name, and a link to that page on eagles.run402.com. No "Coming Soon" placeholders SHALL appear.
+The homepage SHALL include a "Tour a real portal" section showing 4-6 screenshot tiles from the Eagles demo. Each tile SHALL display a screenshot of a different Eagles page (home, directory, events, forum), the page name, and a link to that page on eagles.kychon.com. No "Coming Soon" placeholders SHALL appear.
 
 #### Scenario: Tour tiles render with screenshots
 - **WHEN** the visitor scrolls to the product tour section

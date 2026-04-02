@@ -44,7 +44,7 @@ _(none — accessibility features are additive CSS/JS, seed data is a new deploy
 
 - **New files**: `site/js/accessibility.js` (~80 lines), `site/css/a11y.css` (~60 lines), `demo/silver-pines/seed.sql`, `demo/silver-pines/generate-images.sh`, `demo/silver-pines/brand.json`
 - **Modified files**: All `site/*.html` files get skip-nav link, ARIA landmarks, `#main-content` id. `site/js/config.js` loads a11y preferences. `site/css/styles.css` adds focus-visible and reduced-motion rules.
-- **Run402**: New project deployed to `silver-pines.run402.com` with its own database
+- **Run402**: New project deployed to `silver-pines.kychon.com` with its own database
 - **Dependencies**: OpenAI API (image generation), Run402 CLI, Run402 storage API
 - **Platform feedback**: Accessibility issues filed on MajorTal/run402
 

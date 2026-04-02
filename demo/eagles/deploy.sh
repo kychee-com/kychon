@@ -39,4 +39,4 @@ fi
 
 echo ""
 echo "=== Deploy complete ==="
-echo "Live at: https://eagles.run402.com"
+echo "Live at: https://eagles.kychon.com"

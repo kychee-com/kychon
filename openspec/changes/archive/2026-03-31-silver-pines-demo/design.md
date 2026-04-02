@@ -2,13 +2,13 @@
 
 Kychon has two demos — Eagles (English charity) and Barrio Unido (bilingual community center). Both prove the config-driven template works across verticals and languages, but neither exercises accessibility. The current template has zero skip-nav links, no focus management, no font scaling, no reduced-motion support, no ARIA landmarks, and hard-coded font sizes. This is a gap both for the demos and for the product.
 
-Silver Pines Senior Center (Asheville, NC) is a fictional active-adult community center. The demo serves two purposes: (1) a compelling senior-living vertical showcase deployed to `silver-pines.run402.com`, and (2) the forcing function to ship accessibility as a first-class Kychon feature. Every accessibility feature built here ships to the base template — Eagles, Barrio Unido, and all future portals get it for free.
+Silver Pines Senior Center (Asheville, NC) is a fictional active-adult community center. The demo serves two purposes: (1) a compelling senior-living vertical showcase deployed to `silver-pines.kychon.com`, and (2) the forcing function to ship accessibility as a first-class Kychon feature. Every accessibility feature built here ships to the base template — Eagles, Barrio Unido, and all future portals get it for free.
 
 ## Goals / Non-Goals
 
 **Goals:**
 - Ship accessibility infrastructure that benefits ALL Kychon portals (not demo-only code)
-- Deploy a live demo at `silver-pines.run402.com` with warm, readable design and 20+ members
+- Deploy a live demo at `silver-pines.kychon.com` with warm, readable design and 20+ members
 - Surface and document Run402 platform accessibility gaps (auth flows, error messages, upload UI)
 - Prove Kychon works for the senior/aging demographic — a large and underserved market
 - All new features are config-driven: toggleable via `site_config` feature flags

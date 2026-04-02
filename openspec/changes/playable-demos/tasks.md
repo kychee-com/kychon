@@ -8,7 +8,7 @@
 
 - [x] 2.1 Create `src/components/DemoBanner.astro` — sticky top banner with demo indicator, role display, role-switching buttons, reset countdown, and "Get Your Own Portal" CTA
 - [x] 2.2 Add DemoBanner to `src/layouts/Portal.astro` — conditionally render above `<Nav />` when `demo_mode` config is true (read from ConfigProvider's loaded config)
-- [x] 2.3 Implement auto-login logic in DemoBanner `<script>` — "Try as Admin" calls `signIn('demo-admin@wildlychee.com', 'demo123')`, "Try as Member" calls the member variant, "Just Browse" calls `signOut()`, all followed by page reload
+- [x] 2.3 Implement auto-login logic in DemoBanner `<script>` — "Try as Admin" calls `signIn('demo-admin@kychon.com', 'demo123')`, "Try as Member" calls the member variant, "Just Browse" calls `signOut()`, all followed by page reload
 - [x] 2.4 Implement reset countdown — read `last_reset` from site_config on load, compute next reset time, update display every 30s, show "Resets in Xm" or "Resets hourly" fallback
 - [x] 2.5 Implement force-reload on reset — when countdown reaches zero, show "Demo resetting..." overlay, reload page after 2s delay
 

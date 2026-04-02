@@ -2,7 +2,7 @@
 
 The marketing site at kychon.com launched but leads with competitor bashing instead of product proof. The hero name-drops Wild Apricot, the second section attacks three competitors by name, "Coming Soon" placeholders make the showcase feel unfinished, and the page is a long sequence of card grids without showing the actual product. An external review confirmed: lead with proof, not a fight.
 
-The live Eagles demo at eagles.run402.com is the strongest asset and should be front-and-center. The page needs to show the product, remove unfinished elements, add missing conversion elements (FAQ, "how it works"), and shift the brand toward a more ownable lychee-rose color.
+The live Eagles demo at eagles.kychon.com is the strongest asset and should be front-and-center. The page needs to show the product, remove unfinished elements, add missing conversion elements (FAQ, "how it works"), and shift the brand toward a more ownable lychee-rose color.
 
 ## What Changes
 

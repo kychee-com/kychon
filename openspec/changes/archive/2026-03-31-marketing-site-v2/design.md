@@ -1,6 +1,6 @@
 ## Context
 
-The marketing site v1 launched at kychon.com but an external review identified structural issues: competitor-first messaging, placeholder content, card-heavy layout, and missing conversion elements. The live Eagles demo at eagles.run402.com is the strongest asset but is buried below two sections of competitor attacks.
+The marketing site v1 launched at kychon.com but an external review identified structural issues: competitor-first messaging, placeholder content, card-heavy layout, and missing conversion elements. The live Eagles demo at eagles.kychon.com is the strongest asset but is buried below two sections of competitor attacks.
 
 Full consultation at `docs/consultations/marketing-site-review-conversion.md`.
 
@@ -50,13 +50,13 @@ The hero shows the Eagles homepage screenshot inside a browser chrome frame (CSS
 
 ### D3: Showcase as product tour tiles
 
-Instead of a gallery of different communities, the showcase becomes a tour of one rich community. 4-6 tiles, each showing a different Eagles page (home, directory, events, forum). Each tile links directly to that page on eagles.run402.com.
+Instead of a gallery of different communities, the showcase becomes a tour of one rich community. 4-6 tiles, each showing a different Eagles page (home, directory, events, forum). Each tile links directly to that page on eagles.kychon.com.
 
 Screenshots captured via extended `capture-screenshots.sh` with new URLs:
-- `eagles.run402.com/` (already captured)
-- `eagles.run402.com/directory.html`
-- `eagles.run402.com/events.html`
-- `eagles.run402.com/forum.html`
+- `eagles.kychon.com/` (already captured)
+- `eagles.kychon.com/directory.html`
+- `eagles.kychon.com/events.html`
+- `eagles.kychon.com/forum.html`
 
 ### D4: Brand color evolution
 

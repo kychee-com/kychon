@@ -27,11 +27,11 @@ The marketing site deploy SHALL upload only static files (HTML, CSS, images, SVG
 
 ### Requirement: Subdomain and domain configuration
 
-The marketing project SHALL claim the `kychon` subdomain on Run402 (yielding `kychon.run402.com`). The custom domain `kychon.com` SHALL be registered via `run402 domains add kychon.com kychon`, with DNS configured at Route53 (CNAME to `domains.run402.com` or ALIAS + TXT for apex domain).
+The marketing project SHALL claim the `kychon` subdomain on Run402 (yielding `kychon.com`). The custom domain `kychon.com` SHALL be registered via `run402 domains add kychon.com kychon`, with DNS configured at Route53 (CNAME to `domains.run402.com` or ALIAS + TXT for apex domain).
 
 #### Scenario: Subdomain claimed
 - **WHEN** the deploy completes
-- **THEN** the marketing site SHALL be accessible at `kychon.run402.com`
+- **THEN** the marketing site SHALL be accessible at `kychon.com`
 
 #### Scenario: Custom domain registered
 - **WHEN** `run402 domains add kychon.com kychon` is run

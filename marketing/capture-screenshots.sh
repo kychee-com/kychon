@@ -70,10 +70,10 @@ HTMLEOF
 # Showcase sites — add more as they're created
 typeset -A SITES
 SITES=(
-  eagles          "https://eagles.run402.com"
-  eagles-directory "https://eagles.run402.com/directory.html"
-  eagles-events   "https://eagles.run402.com/events.html"
-  eagles-forum    "https://eagles.run402.com/forum.html"
+  eagles          "https://eagles.kychon.com"
+  eagles-directory "https://eagles.kychon.com/directory.html"
+  eagles-events   "https://eagles.kychon.com/events.html"
+  eagles-forum    "https://eagles.kychon.com/forum.html"
 )
 
 if [[ -n "$1" ]]; then

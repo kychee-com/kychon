@@ -10,7 +10,7 @@ The `../run402/site/llms-cli.txt` file is the authoritative reference for all Ru
 
 **Goals:**
 
-- Deploy a fully functional community portal to `kychon.run402.com` via a single `run402 deploy` command
+- Deploy a fully functional community portal to `kychon.com` via a single `run402 deploy` command
 - Implement all 12 Phase 1 items: schema, deploy, auth, members, directory, announcements, admin dashboard, site settings, inline editing, i18n, config-driven UI, tests, and agent docs
 - Achieve 85%+ test coverage on `site/js/**`
 - Make the template forkable — a new community can rebrand and deploy in 5 minutes

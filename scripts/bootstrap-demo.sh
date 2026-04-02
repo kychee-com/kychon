@@ -10,8 +10,8 @@ PROJECT_ID="${1:?Usage: bootstrap-demo.sh <project_id> <anon_key>}"
 ANON_KEY="${2:?Usage: bootstrap-demo.sh <project_id> <anon_key>}"
 API="https://api.run402.com"
 
-ADMIN_EMAIL="demo-admin@wildlychee.com"
-MEMBER_EMAIL="demo-member@wildlychee.com"
+ADMIN_EMAIL="demo-admin@kychon.com"
+MEMBER_EMAIL="demo-member@kychon.com"
 DEMO_PASSWORD="demo123"
 
 echo "=== Bootstrap Demo Accounts ==="

@@ -50,7 +50,7 @@ The landing page SHALL include a "See It Live" gallery section showing 2-4 showc
 
 #### Scenario: Showcase gallery renders with Eagles
 - **WHEN** the visitor scrolls to the showcase section
-- **THEN** at least one showcase card SHALL be visible featuring the Eagles community with a link to eagles.kychon.com (or eagles.run402.com)
+- **THEN** at least one showcase card SHALL be visible featuring the Eagles community with a link to eagles.kychon.com (or eagles.kychon.com)
 
 #### Scenario: Showcase card links to live site
 - **WHEN** a visitor clicks "Browse →" on a showcase card

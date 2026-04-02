@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-Kychon is an open-source, AI-powered community/membership portal template built on the Run402 serverless platform. It targets organizations that currently use expensive SaaS platforms like Wild Apricot ($530/mo at scale), Circle, or Bettermode. Kychon offers the same features (member directory, events, forum, announcements, resources, committees) for $5-20/mo flat pricing with no per-member fees. It has three products: the free open-source template (DIY), Kychon Studio ($29 one-time AI-powered build), and Kychon Pro ($9-29/mo ongoing AI customization). The marketing site just launched at kychon.com and eagles.run402.com is a live showcase demo site populated with AI-generated content for a fictional charity organization. The site is pure static HTML/CSS with no framework.
+Kychon is an open-source, AI-powered community/membership portal template built on the Run402 serverless platform. It targets organizations that currently use expensive SaaS platforms like Wild Apricot ($530/mo at scale), Circle, or Bettermode. Kychon offers the same features (member directory, events, forum, announcements, resources, committees) for $5-20/mo flat pricing with no per-member fees. It has three products: the free open-source template (DIY), Kychon Studio ($29 one-time AI-powered build), and Kychon Pro ($9-29/mo ongoing AI customization). The marketing site just launched at kychon.com and eagles.kychon.com is a live showcase demo site populated with AI-generated content for a fictional charity organization. The site is pure static HTML/CSS with no framework.
 
 ## User's Question
 
@@ -14,7 +14,7 @@ Specifically:
 - The showcase gallery currently has one real demo (Eagles) and two "Coming Soon" placeholders — how can we make this section shine more?
 - The overall design uses Instrument Serif + DM Sans, indigo primary with coral accents, cream backgrounds — how can we make it sexier, more memorable, more converting?
 - What's missing from a conversion optimization perspective?
-- The live demo site is at eagles.run402.com — it's a fully populated community portal with 25 members, 10 events, forum threads, announcements with emoji reactions, activity feed, etc.
+- The live demo site is at eagles.kychon.com — it's a fully populated community portal with 25 members, 10 events, forum threads, announcements with emoji reactions, activity feed, etc.
 
 ## Project Context
 
@@ -94,8 +94,8 @@ Specifically:
 ```
 
 ### Live URLs
-- Marketing site: https://kychon.com (also https://kychon.run402.com)
-- Eagles demo: https://eagles.run402.com (fully populated community portal with 25 members, events, forum, announcements with reactions, activity feed)
+- Marketing site: https://kychon.com (also https://kychon.com)
+- Eagles demo: https://eagles.kychon.com (fully populated community portal with 25 members, events, forum, announcements with reactions, activity feed)
 - GitHub: https://github.com/kychee-com/kychon
 
 ### Current page structure (scroll order)

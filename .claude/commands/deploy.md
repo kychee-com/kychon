@@ -34,14 +34,14 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 
 #### Portal (community template)
 - **Project:** Set `RUN402_PROJECT_ID` env var (or check `run402 projects list`)
-- **Subdomain:** `eagles.run402.com`
+- **Subdomain:** `eagles.kychon.com`
 - **Command:** `RUN402_PROJECT_ID=$PORTAL_PROJECT_ID SUBDOMAIN=eagles node deploy.js`
 - **Includes:** schema.sql + seed.sql, site files, edge functions, RLS
 - **IMPORTANT:** Always pass explicit project ID and subdomain — do NOT rely on the active project, which may have changed
 
 #### Marketing (kychon.com)
 - **Project:** Set `MARKETING_PROJECT_ID` env var (or check `run402 projects list`)
-- **Subdomain:** `kychon.run402.com`
+- **Subdomain:** `kychon.com`
 - **Command:** `MARKETING_PROJECT_ID=$MARKETING_PROJECT_ID node marketing/deploy-marketing.js`
 - **Includes:** Static HTML/CSS/assets only
 
@@ -56,14 +56,14 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 
 After deploy, open each deployed site in Chrome and verify:
 
-**Portal (eagles.run402.com):**
+**Portal (eagles.kychon.com):**
 - Homepage loads with sections (hero, features, stats, activity feed, announcements)
 - Activity feed shows entries with member names and timestamps
 - Announcements display with reaction bars
 - Nav links work (directory, events, resources, forum, committees)
 - Check browser console for errors
 
-**Marketing (kychon.run402.com):**
+**Marketing (kychon.com):**
 - All sections render (hero, problem, features, AI, showcase, pricing, niches, CTA, footer)
 - Nav anchor links scroll to correct sections
 - Showcase gallery shows Eagles screenshot
@@ -104,7 +104,7 @@ gh release create <tag> --repo kychee-com/kychon --title "<tag> — <short title
 
 ## Deployed To
 
-- Portal: https://eagles.run402.com
+- Portal: https://eagles.kychon.com
 - Marketing: https://kychon.com
 
 ## Commits

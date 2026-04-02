@@ -20,7 +20,7 @@ The system SHALL provide a `reset-demo.js` edge function scheduled at `0 * * * *
 
 #### Scenario: Demo auth accounts survive reset
 - **WHEN** the reset runs
-- **THEN** the Run402 auth accounts for `demo-admin@wildlychee.com` and `demo-member@wildlychee.com` are unaffected (they live in Run402's auth layer, not in the `members` table)
+- **THEN** the Run402 auth accounts for `demo-admin@kychon.com` and `demo-member@kychon.com` are unaffected (they live in Run402's auth layer, not in the `members` table)
 - **AND** the `members` table retains rows for both demo accounts with correct `user_id`, `role`, and `status`
 
 ### Requirement: Demo accounts config key
@@ -57,8 +57,8 @@ The system SHALL provide a `scripts/bootstrap-demo.sh` script that performs init
 
 #### Scenario: First-time bootstrap
 - **WHEN** the bootstrap script runs against a freshly deployed demo site
-- **THEN** it signs up `demo-admin@wildlychee.com` with password `demo123` via the Run402 auth API
-- **AND** it signs up `demo-member@wildlychee.com` with password `demo123`
+- **THEN** it signs up `demo-admin@kychon.com` with password `demo123` via the Run402 auth API
+- **AND** it signs up `demo-member@kychon.com` with password `demo123`
 - **AND** it calls the `on-signup` function for each account to create member records
 - **AND** it updates the admin's member record to `role='admin'`, `status='active'`
 - **AND** it updates the member's record to `status='active'`

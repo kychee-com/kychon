@@ -2,7 +2,7 @@
 
 ### Requirement: Dedicated Run402 project
 
-The demo SHALL be deployed to a separate Run402 project with its own project ID, database, and subdomain (`eagles.run402.com`). The project SHALL be provisioned via `run402 projects provision` if it doesn't already exist.
+The demo SHALL be deployed to a separate Run402 project with its own project ID, database, and subdomain (`eagles.kychon.com`). The project SHALL be provisioned via `run402 projects provision` if it doesn't already exist.
 
 #### Scenario: Demo project is provisioned
 - **WHEN** the deploy script runs and no Eagles project exists

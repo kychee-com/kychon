@@ -4,7 +4,7 @@ Kychon has no live demo that showcases the full template with realistic content.
 
 ## What Changes
 
-- **New Run402 project**: Deploy a second Kychon instance as `eagles.run402.com` with its own database, branding, and content
+- **New Run402 project**: Deploy a second Kychon instance as `eagles.kychon.com` with its own database, branding, and content
 - **Custom seed data**: A `seed-eagles.sql` with the full organization — 25+ AI-generated members with photos, 10+ upcoming/past events, 5+ forum categories with active threads, 6+ committees, 15+ announcements, 20+ resources, and newsletter drafts
 - **AI-generated branding**: Logo, hero images, member avatar photos, event photos — all generated via AI image APIs and uploaded to Run402 storage
 - **Custom brand.json**: Eagles-specific colors (navy + gold), fonts, tagline, and i18n strings
@@ -25,6 +25,6 @@ _(none — this is a separate deployment, not a change to the template)_
 ## Impact
 
 - **New files**: `demo/eagles/seed-eagles.sql`, `demo/eagles/brand.json`, `demo/eagles/deploy-eagles.js`, AI-generated image assets
-- **Run402**: New project provisioned, separate database, separate subdomain (`eagles.run402.com`)
+- **Run402**: New project provisioned, separate database, separate subdomain (`eagles.kychon.com`)
 - **Dependencies**: AI image generation API (for logos, member photos, event images), Run402 CLI, Run402 storage API
 - **No impact on template**: The demo is a deployment of the existing template, not a modification. All changes are in seed data, branding config, and static assets.

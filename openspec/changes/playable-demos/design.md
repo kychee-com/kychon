@@ -27,7 +27,7 @@ Key constraints:
 
 ### 1. Real demo accounts via Run402 password auth
 
-**Decision**: Pre-create two Run402 auth accounts per demo site (`demo-admin@wildlychee.com`, `demo-member@wildlychee.com`) using the standard signup API. Auto-login via `signIn(email, password)` on button click.
+**Decision**: Pre-create two Run402 auth accounts per demo site (`demo-admin@kychon.com`, `demo-member@kychon.com`) using the standard signup API. Auto-login via `signIn(email, password)` on button click.
 
 **Why not fake sessions**: RLS `public_read` blocks all writes for anon requests. A fake localStorage session would let visitors see admin UI but not actually create/edit/delete content. Real JWTs are the only path to "playable."
 
@@ -72,7 +72,7 @@ Key constraints:
 ### 6. One-time bootstrap script
 
 **Decision**: A `scripts/bootstrap-demo.sh` script handles initial demo account setup per site:
-1. Signs up `demo-admin@wildlychee.com` and `demo-member@wildlychee.com` via Run402 auth API
+1. Signs up `demo-admin@kychon.com` and `demo-member@kychon.com` via Run402 auth API
 2. Calls the `on-signup` function to create member records
 3. Updates the admin member record: `role='admin'`, `status='active'`
 4. Updates the member record: `status='active'`

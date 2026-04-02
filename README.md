@@ -8,7 +8,7 @@
 
 A forkable, AI-powered membership portal built on [Run402](https://run402.com). One deploy gives your community a full-featured site with member directory, events, forum, resources, committees, and built-in AI moderation and translation.
 
-**Live demo:** [eagles.run402.com](https://eagles.run402.com)
+**Live demo:** [eagles.kychon.com](https://eagles.kychon.com)
 **Marketing site:** [kychon.com](https://kychon.com)
 
 ## Features
@@ -104,7 +104,7 @@ See [CUSTOMIZING.md](CUSTOMIZING.md) for the agent guide.
 
 | Portal | Description | URL |
 |--------|-------------|-----|
-| The Eagles | Good Samaritans of Wichita | [eagles.run402.com](https://eagles.run402.com) |
+| The Eagles | Good Samaritans of Wichita | [eagles.kychon.com](https://eagles.kychon.com) |
 | Silver Pines | Senior center with accessibility focus | demo/silver-pines/ |
 | Barrio Unido | Spanish-language community center | demo/barrio-unido/ |
 
