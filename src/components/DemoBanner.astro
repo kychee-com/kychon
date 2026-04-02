@@ -1,0 +1,277 @@
+---
+// DemoBanner.astro — Demo mode banner with role switching, countdown, and CTA
+// Only visible when site_config demo_mode = true
+---
+<div id="demo-banner" class="demo-banner hidden" role="banner" aria-label="Demo mode">
+  <div class="demo-banner-inner">
+    <div class="demo-banner-left">
+      <span class="demo-badge">DEMO</span>
+      <span class="demo-role" id="demo-role">Visitor</span>
+    </div>
+    <div class="demo-banner-center" id="demo-actions">
+      <button class="demo-btn demo-btn-admin" id="demo-try-admin">Try as Admin</button>
+      <button class="demo-btn demo-btn-member" id="demo-try-member">Try as Member</button>
+      <button class="demo-btn demo-btn-browse hidden" id="demo-browse">Just Browse</button>
+    </div>
+    <div class="demo-banner-right">
+      <span class="demo-countdown" id="demo-countdown">Resets hourly</span>
+      <a class="demo-cta" href="https://wildlychee.com" target="_blank" rel="noopener">Get Your Own Portal</a>
+    </div>
+  </div>
+  <div class="demo-reset-overlay hidden" id="demo-reset-overlay">
+    <span>Demo resetting...</span>
+  </div>
+</div>
+
+<style>
+  .demo-banner {
+    position: sticky;
+    top: 0;
+    z-index: 1001;
+    background: #1a1a2e;
+    color: #f0f0f0;
+    font-size: 0.8125rem;
+    line-height: 1;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .demo-banner.hidden { display: none; }
+  .demo-banner-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0.5rem 1rem;
+  }
+  .demo-banner-left,
+  .demo-banner-center,
+  .demo-banner-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .demo-badge {
+    background: #f59e0b;
+    color: #1a1a2e;
+    font-weight: 700;
+    font-size: 0.6875rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    letter-spacing: 0.05em;
+  }
+  .demo-role {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .demo-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: #f0f0f0;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .demo-btn:hover { background: rgba(255, 255, 255, 0.25); }
+  .demo-btn.hidden { display: none; }
+  .demo-btn-admin:hover { background: rgba(239, 68, 68, 0.4); }
+  .demo-btn-member:hover { background: rgba(59, 130, 246, 0.4); }
+  .demo-countdown {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .demo-cta {
+    background: #f59e0b;
+    color: #1a1a2e;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .demo-cta:hover { background: #d97706; }
+  .demo-reset-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  .demo-reset-overlay.hidden { display: none; }
+
+  @media (max-width: 768px) {
+    .demo-banner-inner {
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+    }
+    .demo-cta { display: none; }
+  }
+</style>
+
+<script>
+  import { signIn, signOut, getSession, getRole } from '../lib/auth';
+  import { get } from '../lib/api';
+
+  const DEMO_CREDS = {
+    admin: { email: 'demo-admin@wildlychee.com', password: 'demo123' },
+    member: { email: 'demo-member@wildlychee.com', password: 'demo123' },
+  };
+
+  let nextResetTime: number | null = null;
+  let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+  async function initDemoBanner() {
+    const banner = document.getElementById('demo-banner');
+    if (!banner) return;
+
+    // Fetch demo_mode and last_reset from site_config
+    let isDemo = false;
+    let lastReset: string | null = null;
+    try {
+      const rows = await get('site_config?key=in.(demo_mode,last_reset)');
+      for (const row of rows) {
+        if (row.key === 'demo_mode' && (row.value === true || row.value === 'true')) {
+          isDemo = true;
+        }
+        if (row.key === 'last_reset' && row.value) {
+          lastReset = typeof row.value === 'string' ? row.value : null;
+        }
+      }
+    } catch {
+      return;
+    }
+
+    if (!isDemo) return;
+
+    banner.classList.remove('hidden');
+    updateRoleDisplay();
+    setupButtons();
+    setupCountdown(lastReset);
+  }
+
+  function updateRoleDisplay() {
+    const roleEl = document.getElementById('demo-role');
+    const adminBtn = document.getElementById('demo-try-admin');
+    const memberBtn = document.getElementById('demo-try-member');
+    const browseBtn = document.getElementById('demo-browse');
+    if (!roleEl || !adminBtn || !memberBtn || !browseBtn) return;
+
+    const session = getSession();
+    // getRole() reads session.user.member.role, but member record may not be loaded yet.
+    // Fall back to checking the session email to infer demo role.
+    const email = session?.user?.email || '';
+    const role = getRole() || (email === DEMO_CREDS.admin.email ? 'admin' : email === DEMO_CREDS.member.email ? 'member' : null);
+
+    if (!session) {
+      roleEl.textContent = 'Visitor';
+      adminBtn.textContent = 'Try as Admin';
+      adminBtn.classList.remove('hidden');
+      memberBtn.textContent = 'Try as Member';
+      memberBtn.classList.remove('hidden');
+      browseBtn.classList.add('hidden');
+    } else if (role === 'admin') {
+      roleEl.textContent = 'Admin';
+      adminBtn.classList.add('hidden');
+      memberBtn.textContent = 'Switch to Member';
+      memberBtn.classList.remove('hidden');
+      browseBtn.classList.remove('hidden');
+    } else {
+      roleEl.textContent = 'Member';
+      adminBtn.textContent = 'Switch to Admin';
+      adminBtn.classList.remove('hidden');
+      memberBtn.classList.add('hidden');
+      browseBtn.classList.remove('hidden');
+    }
+  }
+
+  function setupButtons() {
+    document.getElementById('demo-try-admin')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      try {
+        if (getSession()) signOut();
+        await signIn(DEMO_CREDS.admin.email, DEMO_CREDS.admin.password);
+        window.location.reload();
+      } catch (err) {
+        btn.textContent = 'Error - retry';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('demo-try-member')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      try {
+        if (getSession()) signOut();
+        await signIn(DEMO_CREDS.member.email, DEMO_CREDS.member.password);
+        window.location.reload();
+      } catch (err) {
+        btn.textContent = 'Error - retry';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('demo-browse')?.addEventListener('click', () => {
+      localStorage.removeItem('wl_session');
+      window.location.reload();
+    });
+  }
+
+  function setupCountdown(lastReset: string | null) {
+    const countdownEl = document.getElementById('demo-countdown');
+    if (!countdownEl) return;
+
+    if (lastReset) {
+      nextResetTime = new Date(lastReset).getTime() + 60 * 60 * 1000;
+    }
+
+    function updateCountdown() {
+      if (!countdownEl) return;
+      if (!nextResetTime) {
+        countdownEl.textContent = 'Resets hourly';
+        return;
+      }
+
+      const now = Date.now();
+      const remaining = nextResetTime - now;
+
+      if (remaining <= 0) {
+        // Reset time has passed — show overlay and reload
+        const overlay = document.getElementById('demo-reset-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+        if (countdownInterval) clearInterval(countdownInterval);
+        setTimeout(() => window.location.reload(), 2000);
+        return;
+      }
+
+      const mins = Math.ceil(remaining / 60000);
+      countdownEl.textContent = `Resets in ${mins}m`;
+    }
+
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 30000);
+  }
+
+  // Init on load and on view transition
+  initDemoBanner();
+  document.addEventListener('astro:after-swap', () => {
+    if (countdownInterval) clearInterval(countdownInterval);
+    initDemoBanner();
+  });
+</script>

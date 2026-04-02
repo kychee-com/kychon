@@ -94,7 +94,24 @@ writeFileSync(migrationsPath, migrations);
 const siteFiles = collectFiles('dist', 'dist');
 
 // Collect functions
-const functions = collectFunctions('functions');
+let functions = collectFunctions('functions');
+
+// Support demo deploys: exclude/add functions via env vars
+// EXCLUDE_FUNCTIONS=check-expirations,moderate-content
+// EXTRA_FUNCTION=demo/silver-pines/reset-demo.js
+if (process.env.EXCLUDE_FUNCTIONS) {
+  const exclude = new Set(process.env.EXCLUDE_FUNCTIONS.split(',').map((s) => s.trim()));
+  functions = functions.filter((f) => !exclude.has(f.name));
+}
+if (process.env.EXTRA_FUNCTION) {
+  const extraPath = process.env.EXTRA_FUNCTION;
+  const name = extraPath.split('/').pop().replace('.js', '');
+  const code = readText(extraPath);
+  const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
+  const fn = { name, code };
+  if (scheduleMatch) fn.schedule = scheduleMatch[1];
+  functions.push(fn);
+}
 
 // RLS configuration — public_read: anyone reads, authenticated users write
 const rls = {

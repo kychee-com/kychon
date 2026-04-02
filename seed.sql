@@ -45,7 +45,9 @@ INSERT INTO site_config (key, value, category) VALUES
   ('directory_public', 'false', 'features'),
   ('signup_mode', '"approved"', 'features'),
   ('feature_activity_feed', 'true', 'features'),
-  ('feature_reactions', 'true', 'features')
+  ('feature_reactions', 'true', 'features'),
+  ('feature_polls', 'true', 'features'),
+  ('polls_member_create', 'false', 'features')
 ON CONFLICT (key) DO NOTHING;
 
 -- Navigation
@@ -57,6 +59,7 @@ INSERT INTO site_config (key, value, category) VALUES
     {"label": "Resources", "href": "/resources.html", "icon": "book-open", "feature": "feature_resources"},
     {"label": "Forum", "href": "/forum.html", "icon": "message-circle", "feature": "feature_forum"},
     {"label": "Committees", "href": "/committees.html", "icon": "briefcase", "feature": "feature_committees"},
+    {"label": "Polls", "href": "/polls.html", "icon": "bar-chart", "feature": "feature_polls"},
     {"label": "Dashboard", "href": "/admin.html", "icon": "bar-chart-2", "admin": true},
     {"label": "Members", "href": "/admin-members.html", "icon": "users", "admin": true},
     {"label": "Settings", "href": "/admin-settings.html", "icon": "settings", "admin": true}
