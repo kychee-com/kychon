@@ -22,23 +22,13 @@ function collectFiles(dir, base = dir) {
   if (!existsSync(dir)) return files;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'deploy-marketing.js') continue; // skip self
+    if (entry.name === '.marketing-manifest.json') continue; // skip manifest
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...collectFiles(full, base));
     } else {
-      const isBinary = /\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|svg)$/i.test(entry.name);
-      if (isBinary) {
-        files.push({
-          file: relative(base, full),
-          data: readFileSync(full).toString('base64'),
-          encoding: 'base64',
-        });
-      } else {
-        files.push({
-          file: relative(base, full),
-          data: readFileSync(full, 'utf-8'),
-        });
-      }
+      // Use path reference — CLI auto-detects and base64-encodes binary files
+      files.push({ file: relative(base, full), path: full });
     }
   }
   return files;
