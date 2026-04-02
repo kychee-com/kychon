@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Deploy the Wild Lychee marketing site to Run402.
+ * Deploy the Kychon marketing site to Run402.
  * Static files only — no database, no functions.
  *
  * Usage: node marketing/deploy-marketing.js
@@ -54,7 +54,7 @@ if (!projectId) {
 
 if (!projectId) {
   console.log('No project found. Provision one with:');
-  console.log('  run402 projects provision --name wild-lychee-marketing');
+  console.log('  run402 projects provision --name kychon-marketing');
   process.exit(1);
 }
 
@@ -65,13 +65,13 @@ const siteFiles = collectFiles(ROOT, ROOT);
 const manifest = {
   project_id: projectId,
   files: siteFiles,
-  subdomain: 'wildlychee',
+  subdomain: 'kychon',
 };
 
 const manifestPath = join(ROOT, '.marketing-manifest.json');
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-console.log(`Deploying marketing site to ${projectId} (subdomain: wildlychee)...`);
+console.log(`Deploying marketing site to ${projectId} (subdomain: kychon)...`);
 console.log(`  ${siteFiles.length} files`);
 
 try {

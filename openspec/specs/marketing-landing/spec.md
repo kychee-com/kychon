@@ -2,10 +2,10 @@
 
 ### Requirement: Hero section with three CTAs
 
-The hero SHALL display the headline "Own your member portal." with a subheading describing Wild Lychee's value proposition (membership portal you own, $5-20/mo, no per-member fees). The hero SHALL include a browser mockup showing the Eagles demo homepage screenshot. CTAs SHALL be: "Explore Live Demo" (links to eagles.run402.com), "Get a Custom Build — $29" (links to #pricing), and a text link "View on GitHub". The hero SHALL NOT reference competitor names.
+The hero SHALL display the headline "Own your member portal." with a subheading describing Kychon's value proposition (membership portal you own, $5-20/mo, no per-member fees). The hero SHALL include a browser mockup showing the Eagles demo homepage screenshot. CTAs SHALL be: "Explore Live Demo" (links to eagles.run402.com), "Get a Custom Build — $29" (links to #pricing), and a text link "View on GitHub". The hero SHALL NOT reference competitor names.
 
 #### Scenario: Hero renders without competitor names
-- **WHEN** a visitor loads wildlychee.com
+- **WHEN** a visitor loads kychon.com
 - **THEN** the hero SHALL display headline, subheading, browser mockup screenshot, and three CTAs
 - **THEN** no competitor names SHALL appear in the hero section
 
@@ -27,7 +27,7 @@ The homepage SHALL include a "Tour a real portal" section showing 4-6 screenshot
 
 ### Requirement: Three benefit cards replace problem section
 
-The homepage SHALL include a "Why organizations choose Wild Lychee" section with three benefit cards: predictable cost (no per-member fees), ownership (your data, your branding), and customization (open source + AI). A small link SHALL read "Switching from Wild Apricot, Circle, or Bettermode? See the full comparison." and link to /compare.html.
+The homepage SHALL include a "Why organizations choose Kychon" section with three benefit cards: predictable cost (no per-member fees), ownership (your data, your branding), and customization (open source + AI). A small link SHALL read "Switching from Wild Apricot, Circle, or Bettermode? See the full comparison." and link to /compare.html.
 
 #### Scenario: Benefits render without competitor attacks
 - **WHEN** the visitor scrolls to the benefits section

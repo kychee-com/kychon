@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-Wild Lychee is an open-source, AI-powered community/membership portal template built on the Run402 serverless platform. It targets organizations that currently use expensive SaaS platforms like Wild Apricot ($530/mo at scale), Circle, or Bettermode. Wild Lychee offers the same features (member directory, events, forum, announcements, resources, committees) for $5-20/mo flat pricing with no per-member fees. It has three products: the free open-source template (DIY), Lychee Studio ($29 one-time AI-powered build), and Lychee Pro ($9-29/mo ongoing AI customization). The marketing site just launched at wildlychee.com and eagles.run402.com is a live showcase demo site populated with AI-generated content for a fictional charity organization. The site is pure static HTML/CSS with no framework.
+Kychon is an open-source, AI-powered community/membership portal template built on the Run402 serverless platform. It targets organizations that currently use expensive SaaS platforms like Wild Apricot ($530/mo at scale), Circle, or Bettermode. Kychon offers the same features (member directory, events, forum, announcements, resources, committees) for $5-20/mo flat pricing with no per-member fees. It has three products: the free open-source template (DIY), Kychon Studio ($29 one-time AI-powered build), and Kychon Pro ($9-29/mo ongoing AI customization). The marketing site just launched at kychon.com and eagles.run402.com is a live showcase demo site populated with AI-generated content for a fictional charity organization. The site is pure static HTML/CSS with no framework.
 
 ## User's Question
 
@@ -25,7 +25,7 @@ Specifically:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wild Lychee — AI-Powered Community Portals</title>
+  <title>Kychon — AI-Powered Community Portals</title>
   <meta name="description" content="Open-source membership portal with AI features. Member directory, events, forum, newsletters — $5-20/mo. Own your data.">
   <link rel="stylesheet" href="/css/marketing.css">
 </head>
@@ -36,7 +36,7 @@ Specifically:
     <div class="container nav__inner">
       <a href="/" class="nav__brand">
         <span class="nav__brand-icon">&#127819;</span>
-        Wild Lychee
+        Kychon
       </a>
       <button class="nav__toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
       <div class="nav__links" id="nav-links">
@@ -44,7 +44,7 @@ Specifically:
         <a href="#showcase" class="nav__link">Showcase</a>
         <a href="#pricing" class="nav__link">Pricing</a>
         <a href="#niches" class="nav__link">Who It's For</a>
-        <a href="https://github.com/kychee-com/wildlychee" class="nav__link" target="_blank">GitHub</a>
+        <a href="https://github.com/kychee-com/kychon" class="nav__link" target="_blank">GitHub</a>
         <a href="#demo-placeholder" class="btn btn--primary btn--lg nav__cta">Try the Demo</a>
       </div>
     </div>
@@ -58,12 +58,12 @@ Specifically:
         Your community deserves better than <em>Wild Apricot</em>.
       </h1>
       <p class="t-body--lg hero__sub">
-        Wild Lychee is an AI-powered membership portal you actually own. Member directory, events, forum, announcements, newsletters — all for <strong style="color:var(--ink)">$5–20/mo</strong> on your own infrastructure. No per-member fees. No lock-in. No surprise price hikes.
+        Kychon is an AI-powered membership portal you actually own. Member directory, events, forum, announcements, newsletters — all for <strong style="color:var(--ink)">$5–20/mo</strong> on your own infrastructure. No per-member fees. No lock-in. No surprise price hikes.
       </p>
       <div class="hero__ctas">
         <a href="#demo-placeholder" class="btn btn--primary btn--lg">Try the Demo →</a>
         <a href="#showcase" class="btn btn--outline btn--lg">See It Live</a>
-        <a href="https://github.com/kychee-com/wildlychee" class="btn btn--ghost btn--lg" target="_blank">Fork on GitHub</a>
+        <a href="https://github.com/kychee-com/kychon" class="btn btn--ghost btn--lg" target="_blank">Fork on GitHub</a>
       </div>
     </div>
   </section>
@@ -94,9 +94,9 @@ Specifically:
 ```
 
 ### Live URLs
-- Marketing site: https://wildlychee.com (also https://wildlychee.run402.com)
+- Marketing site: https://kychon.com (also https://kychon.run402.com)
 - Eagles demo: https://eagles.run402.com (fully populated community portal with 25 members, events, forum, announcements with reactions, activity feed)
-- GitHub: https://github.com/kychee-com/wildlychee
+- GitHub: https://github.com/kychee-com/kychon
 
 ### Current page structure (scroll order)
 1. Hero — "Your community deserves better than Wild Apricot" + 3 CTAs

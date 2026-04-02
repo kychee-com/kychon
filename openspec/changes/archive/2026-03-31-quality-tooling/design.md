@@ -1,6 +1,6 @@
 ## Context
 
-Wild Lychee uses vanilla JS with no build step. All frontend code is in `site/js/*.js` (one file per page), edge functions in `functions/*.js`, and tests in `tests/`. There's no TypeScript, no bundler, no framework.
+Kychon uses vanilla JS with no build step. All frontend code is in `site/js/*.js` (one file per page), edge functions in `functions/*.js`, and tests in `tests/`. There's no TypeScript, no bundler, no framework.
 
 ## Goals / Non-Goals
 

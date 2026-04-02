@@ -1,4 +1,4 @@
-# Wild Lychee — AI-Readable Manifest
+# Kychon — AI-Readable Manifest
 
 **Version**: 0.3.0 (Astro rewrite)
 **Platform**: Run402 (Postgres + static hosting + edge functions)
@@ -8,7 +8,7 @@
 ## File Structure
 
 ```
-wild-lychee/
+kychon/
 ├── astro.config.mjs       # Astro config: SSG mode, build.format: 'file', i18n
 ├── tsconfig.json           # Extends astro/tsconfigs/strict
 ├── deploy.js               # Build + deploy: astro build → inject env.js → app.json → run402 deploy

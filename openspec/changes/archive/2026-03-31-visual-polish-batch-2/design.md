@@ -1,6 +1,6 @@
 ## Context
 
-Wild Lychee portals use a CSS custom property system (`theme.css`) for all colors, shadows, and typography. All pages share `styles.css`. The nav, cards, and sections are vanilla HTML/JS with no framework. Batch 1 added scroll animations, stat counters, reaction effects, parallax, and event countdown. This batch adds the next layer of visual polish: depth, loading states, feedback, and dark mode.
+Kychon portals use a CSS custom property system (`theme.css`) for all colors, shadows, and typography. All pages share `styles.css`. The nav, cards, and sections are vanilla HTML/JS with no framework. Batch 1 added scroll animations, stat counters, reaction effects, parallax, and event countdown. This batch adds the next layer of visual polish: depth, loading states, feedback, and dark mode.
 
 ## Goals / Non-Goals
 
@@ -11,7 +11,7 @@ Wild Lychee portals use a CSS custom property system (`theme.css`) for all color
 - Nav has modern layered depth (glassmorphism)
 - Hero headline is visually striking (gradient text)
 - Users can switch to dark mode; preference persists and respects system setting
-- All changes apply to every portal built on Wild Lychee
+- All changes apply to every portal built on Kychon
 
 **Non-Goals:**
 - No admin UI for configuring dark mode colors (dark palette is derived from theme)

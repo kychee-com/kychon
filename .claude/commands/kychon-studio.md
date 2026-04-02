@@ -1,13 +1,13 @@
 ---
-name: "Lychee Studio"
-description: "AI-powered portal builder — investigate, interview, build, deploy, and verify a Wild Lychee community portal"
+name: "Kychon Studio"
+description: "AI-powered portal builder — investigate, interview, build, deploy, and verify a Kychon community portal"
 category: Build
 tags: [studio, build, deploy, portal]
 ---
 
-Build a complete Wild Lychee community portal through investigation, interview, and automated deployment.
+Build a complete Kychon community portal through investigation, interview, and automated deployment.
 
-**Input**: Optionally provide a website URL or community name (e.g., `/lychee-studio igrejadaesperanca.pt` or `/lychee-studio "Riverside HOA"`).
+**Input**: Optionally provide a website URL or community name (e.g., `/kychon-studio igrejadaesperanca.pt` or `/kychon-studio "Riverside HOA"`).
 
 ## Steps
 
@@ -164,7 +164,7 @@ Report to the user:
 - Live URL
 - Summary of what was built (features, pages, languages)
 - "Sign up at [URL] to become the first admin!"
-- Mention they can customize further with Lychee Pro (Phase 4)
+- Mention they can customize further with Kychon Pro (Phase 4)
 
 ## Guardrails
 

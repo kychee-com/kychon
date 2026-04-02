@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Agent-friendly and open source section
-The marketing page SHALL include a dedicated section communicating that Wild Lychee is:
+The marketing page SHALL include a dedicated section communicating that Kychon is:
 1. **100% open source** — full source code, no vendor lock-in
 2. **Coding agent friendly** — designed to work with Claude Code, Cursor, and other AI coding tools
 3. **Customized and deployed in minutes** — config-driven architecture means an AI agent (or a human) can rebrand, restructure, and deploy a portal from scratch in minutes, not weeks
@@ -12,7 +12,7 @@ The marketing page SHALL include a dedicated section communicating that Wild Lyc
 
 #### Scenario: Open source messaging is clear
 - **WHEN** a visitor reads the section
-- **THEN** they understand that Wild Lychee is fully open source with no hidden proprietary components
+- **THEN** they understand that Kychon is fully open source with no hidden proprietary components
 
 #### Scenario: Agent-friendly messaging explains the value
 - **WHEN** a visitor reads the section

@@ -8,9 +8,9 @@ The marketing page SHALL include a "See it in action" section containing three d
 - A "Visit Demo" button linking to the live site (opens in new tab)
 
 The three demos are:
-1. **Barrio Unido** (barrio.wildlychee.com) — pills: Multilingual, AI Translation, Moderated Forums, Spanish-First UI
-2. **Silver Pines** (silver-pines.wildlychee.com) — pills: Accessibility, Font Scaling, High Contrast, Keyboard Navigation
-3. **Eagles** (eagles.wildlychee.com) — pills: Member Directory, AI Features, Reactions, Activity Feed
+1. **Barrio Unido** (barrio.kychon.com) — pills: Multilingual, AI Translation, Moderated Forums, Spanish-First UI
+2. **Silver Pines** (silver-pines.kychon.com) — pills: Accessibility, Font Scaling, High Contrast, Keyboard Navigation
+3. **Eagles** (eagles.kychon.com) — pills: Member Directory, AI Features, Reactions, Activity Feed
 
 #### Scenario: Desktop layout shows three cards side by side
 - **WHEN** a visitor views the demo section on a viewport >= 1024px
@@ -32,7 +32,7 @@ Each demo card SHALL display feature pills as small, styled badges below the scr
 - **THEN** all feature pills are visible, use consistent styling, and text is readable at 14px minimum
 
 ### Requirement: Demo section has a section header with context
-The demo showcase section SHALL include a header with a title (e.g., "See it in action") and a subtitle explaining that these are real communities running on Wild Lychee.
+The demo showcase section SHALL include a header with a title (e.g., "See it in action") and a subtitle explaining that these are real communities running on Kychon.
 
 #### Scenario: Section header provides context
 - **WHEN** a visitor scrolls to the demo section

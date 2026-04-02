@@ -2,17 +2,17 @@
 
 declare global {
   interface Window {
-    __WILDLYCHEE_API: string;
-    __WILDLYCHEE_ANON_KEY: string;
+    __KYCHON_API: string;
+    __KYCHON_ANON_KEY: string;
   }
 }
 
 function getAPI(): string {
-  return window.__WILDLYCHEE_API || 'https://api.run402.com';
+  return window.__KYCHON_API || 'https://api.run402.com';
 }
 
 function getAnonKey(): string {
-  return window.__WILDLYCHEE_ANON_KEY || '';
+  return window.__KYCHON_ANON_KEY || '';
 }
 
 function getAuthHeaders(): Record<string, string> {

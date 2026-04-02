@@ -1,8 +1,8 @@
 ## Context
 
-Wild Lychee homepage sections render statically — content appears instantly on load with no visual transitions. The hero background image is flat, reactions toggle without feedback, and stats are plain text. The site functions well but feels like a template rather than a polished product.
+Kychon homepage sections render statically — content appears instantly on load with no visual transitions. The hero background image is flat, reactions toggle without feedback, and stats are plain text. The site functions well but feels like a template rather than a polished product.
 
-All animation code lives in core `site/` files, so every portal built on Wild Lychee gets these improvements. No per-site configuration is needed (though animations respect `prefers-reduced-motion`).
+All animation code lives in core `site/` files, so every portal built on Kychon gets these improvements. No per-site configuration is needed (though animations respect `prefers-reduced-motion`).
 
 ## Goals / Non-Goals
 

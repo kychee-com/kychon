@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — Eagles Demo Seed (idempotent)
+-- Kychon — Eagles Demo Seed (idempotent)
 -- "The Eagles — Good Samaritans of Wichita"
 -- Community volunteering / charity organization
 -- ============================================

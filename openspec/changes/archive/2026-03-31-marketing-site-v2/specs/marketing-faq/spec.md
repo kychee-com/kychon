@@ -10,4 +10,4 @@ The homepage SHALL include a FAQ section answering at least 6 common questions u
 
 #### Scenario: FAQ addresses affordability
 - **WHEN** the FAQ section renders
-- **THEN** one question SHALL explain why Wild Lychee is so affordable (open source + Run402 infrastructure)
+- **THEN** one question SHALL explain why Kychon is so affordable (open source + Run402 infrastructure)

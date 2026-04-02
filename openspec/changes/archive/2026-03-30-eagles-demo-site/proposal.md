@@ -1,10 +1,10 @@
 ## Why
 
-Wild Lychee has no live demo that showcases the full template with realistic content. Prospective users see a generic "Welcome to Our Community" homepage with zero members, events, or forum posts. A richly populated demo site — "The Eagles: Good Samaritans of Wichita" — will demonstrate every feature with AI-generated content (text, images, logos, member photos) and serve as a stress test of Run402's deployment pipeline. This is a charitable community organization in Wichita, KS — the perfect vertical to show off member directory, events, committees, forum, resources, announcements, and AI features all working together.
+Kychon has no live demo that showcases the full template with realistic content. Prospective users see a generic "Welcome to Our Community" homepage with zero members, events, or forum posts. A richly populated demo site — "The Eagles: Good Samaritans of Wichita" — will demonstrate every feature with AI-generated content (text, images, logos, member photos) and serve as a stress test of Run402's deployment pipeline. This is a charitable community organization in Wichita, KS — the perfect vertical to show off member directory, events, committees, forum, resources, announcements, and AI features all working together.
 
 ## What Changes
 
-- **New Run402 project**: Deploy a second Wild Lychee instance as `eagles.run402.com` with its own database, branding, and content
+- **New Run402 project**: Deploy a second Kychon instance as `eagles.run402.com` with its own database, branding, and content
 - **Custom seed data**: A `seed-eagles.sql` with the full organization — 25+ AI-generated members with photos, 10+ upcoming/past events, 5+ forum categories with active threads, 6+ committees, 15+ announcements, 20+ resources, and newsletter drafts
 - **AI-generated branding**: Logo, hero images, member avatar photos, event photos — all generated via AI image APIs and uploaded to Run402 storage
 - **Custom brand.json**: Eagles-specific colors (navy + gold), fonts, tagline, and i18n strings

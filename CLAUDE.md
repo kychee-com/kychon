@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Wild Lychee is an AI-powered membership/community portal template built on the Run402 serverless platform. It's three products in one:
+Kychon is an AI-powered membership/community portal template built on the Run402 serverless platform. It's three products in one:
 
-- **Wild Lychee** - A forkable community portal template (free + $5-20/mo Run402 hosting)
-- **Lychee Studio** - AI concierge that builds your portal via investigation + interview ($29 premium)
-- **Lychee Pro** - Ongoing AI customization agent ($9-29/mo)
+- **Kychon** - A forkable community portal template (free + $5-20/mo Run402 hosting)
+- **Kychon Studio** - AI concierge that builds your portal via investigation + interview ($29 premium)
+- **Kychon Pro** - Ongoing AI customization agent ($9-29/mo)
 
 **Status**: Design complete, ready for implementation. The full spec lives in `docs/spec.md`.
 
@@ -59,7 +59,7 @@ Users store `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as project secrets. Schedule
 ## File Structure
 
 ```
-wild-lychee/
+kychon/
 ├── astro.config.mjs       # Astro config: SSG, build.format: 'file', i18n
 ├── deploy.js              # Build + deploy: astro build → app.json → run402 deploy
 ├── schema.sql             # All tables (idempotent)
@@ -93,8 +93,8 @@ wild-lychee/
 
 1. **Phase 1 (MVP)**: Schema, auth, members, directory, announcements, admin dashboard, inline editing, i18n, config-driven nav/pages, tests, STRUCTURE.md, CUSTOMIZING.md
 2. **Phase 2**: Events, resources, scheduled functions, forum, committees, AI features (moderation, translation, insights, onboarding)
-3. **Phase 3**: Lychee Studio (Chrome investigation + interview + build), newsletter/recap AI, marketing site, niche variants
-4. **Phase 4**: Lychee Pro agent, marketplace publishing, growth
+3. **Phase 3**: Kychon Studio (Chrome investigation + interview + build), newsletter/recap AI, marketing site, niche variants
+4. **Phase 4**: Kychon Pro agent, marketplace publishing, growth
 
 ## OpenSpec Workflow
 

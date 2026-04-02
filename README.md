@@ -1,15 +1,15 @@
-# Wild Lychee
+# Kychon
 
-[![Tests](https://img.shields.io/badge/tests-205%20passed-brightgreen?style=flat-square)](https://github.com/kychee-com/wildlychee)
+[![Tests](https://img.shields.io/badge/tests-205%20passed-brightgreen?style=flat-square)](https://github.com/kychee-com/kychon)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Biome](https://img.shields.io/badge/linter-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev)
 [![Platform: Run402](https://img.shields.io/badge/platform-Run402-ff6b35?style=flat-square)](https://run402.com)
-[![AI Native](https://img.shields.io/badge/AI-built--in-a855f7?style=flat-square)](https://wildlychee.com/#ai)
+[![AI Native](https://img.shields.io/badge/AI-built--in-a855f7?style=flat-square)](https://kychon.com/#ai)
 
 A forkable, AI-powered membership portal built on [Run402](https://run402.com). One deploy gives your community a full-featured site with member directory, events, forum, resources, committees, and built-in AI moderation and translation.
 
 **Live demo:** [eagles.run402.com](https://eagles.run402.com)
-**Marketing site:** [wildlychee.com](https://wildlychee.com)
+**Marketing site:** [kychon.com](https://kychon.com)
 
 ## Features
 
@@ -57,7 +57,7 @@ Your portal is live at `<your-name>.run402.com`.
 ## Project Structure
 
 ```
-wild-lychee/
+kychon/
 ├── deploy.js              # One-command deploy to Run402
 ├── schema.sql             # All tables (idempotent migrations)
 ├── seed.sql               # Default config + sample data
@@ -67,7 +67,7 @@ wild-lychee/
 │   ├── js/                # One JS file per feature
 │   └── custom/            # Brand config + i18n strings
 ├── functions/             # Serverless edge functions
-├── marketing/             # Marketing site (wildlychee.com)
+├── marketing/             # Marketing site (kychon.com)
 ├── demo/                  # Demo seed data (Eagles, Silver Pines, etc.)
 ├── tests/                 # Unit + integration tests
 ├── docs/                  # Full spec + platform docs
@@ -92,7 +92,7 @@ npm run check
 
 ## Customization
 
-Wild Lychee is designed to be customized by AI agents. Three tiers:
+Kychon is designed to be customized by AI agents. Three tiers:
 
 1. **SQL only** (80%) - Rebrand, toggle features, restructure via `site_config` table
 2. **HTML/CSS** (15%) - Visual and layout changes

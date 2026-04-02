@@ -2,9 +2,9 @@
 
 The marketing site at `site/marketing/` has a solid foundation — pricing tables, competitor comparison, AI feature cards, niche grid, and responsive nav. However, it lacks visual proof. Three production demo sites are now live:
 
-- **barrio.wildlychee.com** — Barrio Unido (bilingual Latino community center, ES/EN)
-- **silver-pines.wildlychee.com** — Silver Pines Senior Center (accessibility-first, 55+)
-- **eagles.wildlychee.com** — Eagles Volunteer Org (full AI features, reactions, member directory)
+- **barrio.kychon.com** — Barrio Unido (bilingual Latino community center, ES/EN)
+- **silver-pines.kychon.com** — Silver Pines Senior Center (accessibility-first, 55+)
+- **eagles.kychon.com** — Eagles Volunteer Org (full AI features, reactions, member directory)
 
 The marketing site needs to evolve from "feature list with copy" to "visual showcase with live proof." All sections, links, images, and CTAs must be populated and functional.
 
@@ -21,7 +21,7 @@ The marketing site needs to evolve from "feature list with copy" to "visual show
 **Non-Goals:**
 - No backend changes or new deploy infrastructure
 - No interactive demo embedding (iframe, etc.) — just screenshots + links
-- No Lychee Studio integration (that's Phase 3)
+- No Kychon Studio integration (that's Phase 3)
 - No new niche pages beyond the four existing ones (churches, associations, sports, HOA)
 - No video content or animation-heavy features
 

@@ -1,11 +1,11 @@
 // auth.ts — Google OAuth + password auth, session management, role checking
 
 function getAPI(): string {
-  return window.__WILDLYCHEE_API || 'https://api.run402.com';
+  return window.__KYCHON_API || 'https://api.run402.com';
 }
 
 function getAnonKey(): string {
-  return window.__WILDLYCHEE_ANON_KEY || '';
+  return window.__KYCHON_ANON_KEY || '';
 }
 
 // PKCE helpers

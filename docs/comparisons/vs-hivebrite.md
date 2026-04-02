@@ -1,10 +1,10 @@
-# Wild Lychee vs Hivebrite
+# Kychon vs Hivebrite
 
 Hivebrite targets alumni networks, professional associations, and enterprise communities. It's the premium end of the market — strong CRM and directory features, but eye-watering pricing that locks out small organizations.
 
 ## Pricing
 
-| | Wild Lychee | Hivebrite |
+| | Kychon | Hivebrite |
 |---|---|---|
 | Base price | $5–20/mo | $799+/mo (sales-gated, no public pricing) |
 | Transaction fees | None | Unknown (sales-gated) |
@@ -14,7 +14,7 @@ Hivebrite targets alumni networks, professional associations, and enterprise com
 
 ## Feature comparison
 
-| Feature | Wild Lychee | Hivebrite |
+| Feature | Kychon | Hivebrite |
 |---|---|---|
 | Member database | Yes | Yes (CRM-grade) |
 | Member directory | Yes (public/private) | Yes (advanced search, filters, maps) |
@@ -36,14 +36,14 @@ Hivebrite targets alumni networks, professional associations, and enterprise com
 
 ## Where Hivebrite wins
 
-- **CRM-grade member management** — Hivebrite's directory and member profiles are its core strength. Rich filtering, map views, LinkedIn-style profiles. More sophisticated than Wild Lychee's directory.
-- **Mentoring and matching** — Built-in mentor/mentee matching. Valuable for alumni networks and professional associations. Wild Lychee doesn't have this.
-- **Job board** — Integrated job board for member organizations. Wild Lychee doesn't have this.
-- **Fundraising** — Built-in donation and fundraising tools. Wild Lychee links to external payment.
-- **Enterprise features** — SSO/SAML, advanced analytics, dedicated support, SLAs. Wild Lychee is self-service.
+- **CRM-grade member management** — Hivebrite's directory and member profiles are its core strength. Rich filtering, map views, LinkedIn-style profiles. More sophisticated than Kychon's directory.
+- **Mentoring and matching** — Built-in mentor/mentee matching. Valuable for alumni networks and professional associations. Kychon doesn't have this.
+- **Job board** — Integrated job board for member organizations. Kychon doesn't have this.
+- **Fundraising** — Built-in donation and fundraising tools. Kychon links to external payment.
+- **Enterprise features** — SSO/SAML, advanced analytics, dedicated support, SLAs. Kychon is self-service.
 - **Scale and maturity** — Built for 10,000–100,000+ member networks. Battle-tested at enterprise scale.
 
-## Where Wild Lychee wins
+## Where Kychon wins
 
 - **Price** — 50–150x cheaper. This isn't a comparison; it's a different universe. $14/mo vs $800+/mo means Hivebrite is simply inaccessible to small organizations.
 - **Accessibility** — No sales calls, no gated pricing, no enterprise contracts. Sign up and go.
@@ -57,4 +57,4 @@ Hivebrite targets alumni networks, professional associations, and enterprise com
 
 **Pick Hivebrite if:** You're a large alumni network, professional association, or enterprise community with 5,000+ members, you need CRM-grade member management with mentoring and job boards, you have the budget ($800+/mo), and you need enterprise features like SSO and SLAs.
 
-**Pick Wild Lychee if:** You're a small to mid-size organization that needs solid member management but can't justify $800+/mo, you want to get started without a sales call, you want AI-powered customization, or you want to own your data. Wild Lychee gives you 80% of what matters at 1% of the cost.
+**Pick Kychon if:** You're a small to mid-size organization that needs solid member management but can't justify $800+/mo, you want to get started without a sales call, you want AI-powered customization, or you want to own your data. Kychon gives you 80% of what matters at 1% of the cost.

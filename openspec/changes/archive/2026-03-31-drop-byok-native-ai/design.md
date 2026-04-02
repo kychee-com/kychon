@@ -1,6 +1,6 @@
 ## Context
 
-Wild Lychee currently implements six AI features using a BYOK (Bring Your Own Key) architecture. Portal operators set `AI_API_KEY` and `AI_PROVIDER` secrets, and edge functions call OpenAI or Anthropic APIs directly. Run402 1.25.0 introduces native `ai.moderate()` (free) and `ai.translate()` (quota-tracked) runtime helpers that replace two of these features. The remaining four generative features (insights, onboarding, newsletter, event recaps) have no native equivalent yet — Run402 plans a generic LLM endpoint later.
+Kychon currently implements six AI features using a BYOK (Bring Your Own Key) architecture. Portal operators set `AI_API_KEY` and `AI_PROVIDER` secrets, and edge functions call OpenAI or Anthropic APIs directly. Run402 1.25.0 introduces native `ai.moderate()` (free) and `ai.translate()` (quota-tracked) runtime helpers that replace two of these features. The remaining four generative features (insights, onboarding, newsletter, event recaps) have no native equivalent yet — Run402 plans a generic LLM endpoint later.
 
 Current state of the six AI functions:
 

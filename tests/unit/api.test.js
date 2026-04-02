@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock browser globals
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
-global.window = { __WILDLYCHEE_API: 'https://api.test', __WILDLYCHEE_ANON_KEY: 'test_key' };
+global.window = { __KYCHON_API: 'https://api.test', __KYCHON_ANON_KEY: 'test_key' };
 global.localStorage = {
   _data: {},
   getItem(k) {

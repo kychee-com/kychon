@@ -1,6 +1,6 @@
-// Global type declarations for Wild Lychee
+// Global type declarations for Kychon
 
 interface Window {
-  __WILDLYCHEE_API: string;
-  __WILDLYCHEE_ANON_KEY: string;
+  __KYCHON_API: string;
+  __KYCHON_ANON_KEY: string;
 }

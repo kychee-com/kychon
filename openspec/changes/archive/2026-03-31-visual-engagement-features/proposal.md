@@ -1,6 +1,6 @@
 ## Why
 
-Wild Lychee portals are functional but visually static. Sections appear instantly without animation, stats are plain text, reactions toggle without feedback, and the hero image has no depth. Adding scroll animations, animated counters, reaction effects, parallax, and an event countdown transforms the perceived quality from "template" to "polished product" — with minimal code added to the core `site/` files so every portal built on Wild Lychee benefits.
+Kychon portals are functional but visually static. Sections appear instantly without animation, stats are plain text, reactions toggle without feedback, and the hero image has no depth. Adding scroll animations, animated counters, reaction effects, parallax, and an event countdown transforms the perceived quality from "template" to "polished product" — with minimal code added to the core `site/` files so every portal built on Kychon benefits.
 
 ## What Changes
 

@@ -30,7 +30,7 @@ export default async (_req) => {
           to: attendee.email,
           subject: `Reminder: ${event.title} starts soon`,
           html: `<p>Hi ${attendee.display_name},</p><p><strong>${event.title}</strong> starts at ${time}${event.location ? ` at ${event.location}` : ''}.</p><p>See you there!</p>`,
-          from_name: 'Wild Lychee Community',
+          from_name: 'Kychon Community',
         });
         sent++;
       } catch (e) {

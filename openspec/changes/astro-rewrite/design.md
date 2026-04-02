@@ -1,6 +1,6 @@
 ## Context
 
-Wild Lychee is a 90%-complete community portal running on Run402 (static files + PostgREST + edge functions). The frontend is ~3,300 lines of vanilla JS across 11 HTML pages and ~20 JS modules. No build step — files are served directly from S3.
+Kychon is a 90%-complete community portal running on Run402 (static files + PostgREST + edge functions). The frontend is ~3,300 lines of vanilla JS across 11 HTML pages and ~20 JS modules. No build step — files are served directly from S3.
 
 The architecture is deliberately simple for AI agents, but three pain points have emerged: full page reloads on navigation, no component reuse (agents copy-paste boilerplate per page), and no build-time validation (agent errors surface only at runtime).
 
@@ -41,7 +41,7 @@ Astro builds to static HTML/JS/CSS in `dist/`. Using `build.format: 'file'` outp
 
 The `site_config` table is fetched at runtime by client-side JS, same as today. Theme CSS variables, nav structure, feature flags, and branding are all applied on page load from the DB.
 
-**Alternative considered:** Fetch config at build time in `.astro` frontmatter. Rejected because: (a) config changes would require a rebuild, breaking the "80% customization via SQL" story; (b) every portal deploy would need a unique build, complicating Lychee Studio.
+**Alternative considered:** Fetch config at build time in `.astro` frontmatter. Rejected because: (a) config changes would require a rebuild, breaking the "80% customization via SQL" story; (b) every portal deploy would need a unique build, complicating Kychon Studio.
 
 **Implementation:** A `ConfigProvider` island (`client:load`) runs early in the layout, fetches `site_config`, injects CSS vars, builds nav, and exposes config to other islands via a shared module.
 

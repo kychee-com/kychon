@@ -38,21 +38,21 @@
 - [x] 5.4 Ensure all niche seeds are idempotent (ON CONFLICT / WHERE NOT EXISTS)
 - [x] 5.5 Write integration tests verifying each seed creates expected config, tiers, and pages
 
-## 6. Lychee Studio — Investigation
+## 6. Kychon Studio — Investigation
 
-- [x] 6.1 Create `/lychee-studio/` skill directory structure with skill manifest
+- [x] 6.1 Create `/kychon-studio/` skill directory structure with skill manifest
 - [x] 6.2 Implement website investigation module: open URL in Chrome MCP, navigate pages, extract brand data (colors, fonts, logo, name, tagline, content, structure)
 - [x] 6.3 Save investigation results to structured `investigation.json` format
 - [x] 6.4 Implement fallback: skip investigation when URL is inaccessible or user has no website
 
-## 7. Lychee Studio — Interview
+## 7. Kychon Studio — Interview
 
 - [x] 7.1 Implement core interview flow: community type, member count, signup mode, languages
 - [x] 7.2 Implement conditional question logic: skip questions for data already found in investigation
 - [x] 7.3 Implement niche-specific question branches (church, HOA, association, sports, club)
 - [x] 7.4 Implement AI feature preference questions (moderation, translation, newsletter, insights, onboarding)
 
-## 8. Lychee Studio — Spec Generation & Build
+## 8. Kychon Studio — Spec Generation & Build
 
 - [x] 8.1 Implement spec generator: produce `studio-spec.json` from interview answers (brand, features, tiers, customFields, homepage, niche)
 - [x] 8.2 Implement spec review and modification loop — display spec, accept changes, re-present
@@ -61,7 +61,7 @@
 - [x] 8.5 Implement deploy step: run `npx tsx deploy.ts`, claim subdomain, report live URL
 - [x] 8.6 Implement deploy failure handling with error reporting and retry offer
 
-## 9. Lychee Studio — Verification
+## 9. Kychon Studio — Verification
 
 - [x] 9.1 Implement Chrome verification: open deployed site, navigate home, directory, events, resources, forum, admin pages
 - [x] 9.2 Verify each page loads without errors, report results
@@ -72,10 +72,10 @@
 
 - [x] 10.1 Create `site/marketing/index.html` with hero section (headline, subheading, 3 CTAs)
 - [x] 10.2 Build "The Problem" section with 3 competitor pain-point cards
-- [x] 10.3 Build side-by-side comparison section (Wild Lychee vs incumbents)
+- [x] 10.3 Build side-by-side comparison section (Kychon vs incumbents)
 - [x] 10.4 Build AI features showcase section with 5 feature cards (icons, names, descriptions)
 - [x] 10.5 Build competitor pricing comparison table (100/500/2000/5000 members)
-- [x] 10.6 Build Wild Lychee plans table (Template, Studio+Starter, Studio+Unlimited)
+- [x] 10.6 Build Kychon plans table (Template, Studio+Starter, Studio+Unlimited)
 - [x] 10.7 Build "Who It's For" vertical cards section with links to niche pages
 - [x] 10.8 Build bottom CTA section with Build My Portal and Fork the Template buttons
 - [x] 10.9 Create `site/marketing/css/marketing.css` with responsive styles (mobile < 768px, tablet 768-1199px, desktop 1200px+)
@@ -93,5 +93,5 @@
 
 - [x] 12.1 Update `deploy.ts` to handle marketing site files and niche seed variants
 - [x] 12.2 Run full test suite — ensure all new and existing tests pass
-- [x] 12.3 Deploy marketing site to wildlychee.com on Run402
+- [x] 12.3 Deploy marketing site to kychon.com on Run402
 - [x] 12.4 Chrome MCP end-to-end verification of marketing site across all pages

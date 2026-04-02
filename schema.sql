@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — Database Schema
+-- Kychon — Database Schema
 -- All migrations are idempotent (safe to re-run)
 -- ============================================
 

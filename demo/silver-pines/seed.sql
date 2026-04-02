@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — Silver Pines Demo Seed (idempotent)
+-- Kychon — Silver Pines Demo Seed (idempotent)
 -- "Silver Pines Senior Center — Asheville, NC"
 -- Active-adult community center, accessibility-first
 -- ============================================

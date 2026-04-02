@@ -16,8 +16,8 @@ global.localStorage = {
   },
 };
 global.window = {
-  __WILDLYCHEE_API: 'https://api.test',
-  __WILDLYCHEE_ANON_KEY: 'test_key',
+  __KYCHON_API: 'https://api.test',
+  __KYCHON_ANON_KEY: 'test_key',
   location: { origin: 'http://localhost', hash: '', pathname: '/', href: 'http://localhost/' },
   history: { replaceState: vi.fn() },
 };

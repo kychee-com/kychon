@@ -1,12 +1,12 @@
 ## Why
 
-Wild Lychee's demos prove it works for charities (Eagles) and bilingual community centers (Barrio Unido), but neither stress-tests **accessibility** — the single biggest gap preventing adoption by senior centers, disability orgs, churches with aging congregations, and any community that takes inclusion seriously. Senior living is a $500B+ market with 55M Americans over 65, growing fast, and these communities desperately need simple, accessible portals.
+Kychon's demos prove it works for charities (Eagles) and bilingual community centers (Barrio Unido), but neither stress-tests **accessibility** — the single biggest gap preventing adoption by senior centers, disability orgs, churches with aging congregations, and any community that takes inclusion seriously. Senior living is a $500B+ market with 55M Americans over 65, growing fast, and these communities desperately need simple, accessible portals.
 
-Silver Pines Senior Center (Asheville, NC) is a fictional active-adult community center that forces Wild Lychee to ship real accessibility infrastructure: skip-nav, focus management, font scaling, reduced-motion support, WCAG AA contrast, keyboard-navigable everything, and screen-reader-friendly dynamic content. These aren't demo-only features — they become permanent Wild Lychee capabilities that benefit every future portal. This demo also surfaces accessibility gaps in Run402 itself (auth flows, PostgREST error messages, file upload UI) that become platform feedback.
+Silver Pines Senior Center (Asheville, NC) is a fictional active-adult community center that forces Kychon to ship real accessibility infrastructure: skip-nav, focus management, font scaling, reduced-motion support, WCAG AA contrast, keyboard-navigable everything, and screen-reader-friendly dynamic content. These aren't demo-only features — they become permanent Kychon capabilities that benefit every future portal. This demo also surfaces accessibility gaps in Run402 itself (auth flows, PostgREST error messages, file upload UI) that become platform feedback.
 
 ## What Changes
 
-### New Wild Lychee features (permanent, all portals benefit)
+### New Kychon features (permanent, all portals benefit)
 
 - **Skip navigation link**: Hidden-until-focused link at top of every page, jumps to `#main-content`
 - **Font size controls**: Persistent user preference (localStorage) with 3 steps (100%/125%/150%), toggle in nav bar
@@ -32,7 +32,7 @@ Silver Pines Senior Center (Asheville, NC) is a fictional active-adult community
 
 ### New Capabilities
 
-- `accessibility`: Core accessibility infrastructure for all Wild Lychee portals — skip-nav, font scaling, high-contrast mode, reduced-motion, focus management, ARIA landmarks, keyboard nav, screen reader announcements. CSS + JS utilities added to the base template.
+- `accessibility`: Core accessibility infrastructure for all Kychon portals — skip-nav, font scaling, high-contrast mode, reduced-motion, focus management, ARIA landmarks, keyboard nav, screen reader announcements. CSS + JS utilities added to the base template.
 - `silver-pines-seed`: Full senior center seed SQL — 20+ members, 12+ events, 8+ announcements, 10+ resources, 5 committees, 3 forum categories (Health & Wellness, Activities, Tech Help), homepage sections, membership tiers (Guest, Member, Volunteer, Board)
 - `silver-pines-images`: AI image generation script for ~30 assets — welcoming hero with Blue Ridge Mountains backdrop, 20+ warm senior portraits, activity photos (tai chi, painting, gardening, book club, tech help)
 

@@ -1,6 +1,6 @@
 ## Why
 
-Wild Lychee portals look clean but feel flat. Cards don't respond to hover, content flashes in without loading states, actions happen silently with no feedback, and the nav/hero lack the layered depth users expect from modern sites. These six CSS/JS polish improvements — card hover lift, skeleton loading, toast notifications, glassmorphic nav, gradient hero text, and dark mode — close the gap between "functional template" and "premium product" with minimal code across the core `site/` files.
+Kychon portals look clean but feel flat. Cards don't respond to hover, content flashes in without loading states, actions happen silently with no feedback, and the nav/hero lack the layered depth users expect from modern sites. These six CSS/JS polish improvements — card hover lift, skeleton loading, toast notifications, glassmorphic nav, gradient hero text, and dark mode — close the gap between "functional template" and "premium product" with minimal code across the core `site/` files.
 
 ## What Changes
 

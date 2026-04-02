@@ -1,6 +1,6 @@
 ## Why
 
-Wild Lychee is designed and specced but has zero implementation. We need the full Phase 1 MVP deployed on Run402 to validate the architecture, dogfood the platform, and enable the Lychee Studio and Pro products that depend on a working template. Without a live MVP, nothing else moves forward.
+Kychon is designed and specced but has zero implementation. We need the full Phase 1 MVP deployed on Run402 to validate the architecture, dogfood the platform, and enable the Kychon Studio and Pro products that depend on a working template. Without a live MVP, nothing else moves forward.
 
 ## What Changes
 

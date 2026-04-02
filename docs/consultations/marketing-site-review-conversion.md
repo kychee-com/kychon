@@ -76,7 +76,7 @@ Comparison page job:
 ## Recommendation
 Replace the current “Problem” section with something like:
 
-### “Why organizations choose Wild Lychee”
+### “Why organizations choose Kychon”
 Three simple cards:
 - **Predictable cost** — no per-member fees
 - **Own your setup** — your data, branding, and account
@@ -140,15 +140,15 @@ That still works great.
 ## Also do this
 Add a banner on the demo site itself:
 
-> **This is a sample Wild Lychee portal. Create your own →**
+> **This is a sample Kychon portal. Create your own →**
 
 That way the demo becomes part of the funnel, not a dead end.
 
 And if possible, put the demo on a branded subdomain like:
-- `demo.wildlychee.com`
-- `eagles.wildlychee.com`
+- `demo.kychon.com`
+- `eagles.kychon.com`
 
-`eagles.run402.com` works, but a Wild Lychee subdomain will feel more polished and trustworthy.
+`eagles.run402.com` works, but a Kychon subdomain will feel more polished and trustworthy.
 
 ---
 
@@ -198,7 +198,7 @@ Less “here are 14 cards”, more “here’s the product and why it matters.�
 ### C. Make the brand more ownable
 Indigo + coral is nice, but a bit generic startup.
 
-Because the brand is **Wild Lychee**, I’d introduce a more lychee-specific accent:
+Because the brand is **Kychon**, I’d introduce a more lychee-specific accent:
 - lychee pink / rose
 - plum
 - keep indigo as the trust color
@@ -408,7 +408,7 @@ Open-source membership portal
 **Own your member portal.**
 
 **Subhead:**  
-Wild Lychee gives associations, clubs, churches, and HOAs a complete portal — member directory, events, forum, announcements, and resources — on software you control, with typical hosting costs of **$5–20/mo**.
+Kychon gives associations, clubs, churches, and HOAs a complete portal — member directory, events, forum, announcements, and resources — on software you control, with typical hosting costs of **$5–20/mo**.
 
 **Buttons:**  
 [Explore live demo] [Get a custom build for $29]  

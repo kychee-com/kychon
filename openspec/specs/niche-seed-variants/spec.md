@@ -44,7 +44,7 @@ The system SHALL provide a `seed-association.sql` file that configures a profess
 
 ### Requirement: Niche seed variant selection by Studio
 
-Lychee Studio SHALL select the appropriate seed variant based on the community type chosen during the interview. If no niche variant matches, the default `seed.sql` SHALL be used.
+Kychon Studio SHALL select the appropriate seed variant based on the community type chosen during the interview. If no niche variant matches, the default `seed.sql` SHALL be used.
 
 #### Scenario: Church community type selected
 - **WHEN** the Studio interview identifies community type as "church"

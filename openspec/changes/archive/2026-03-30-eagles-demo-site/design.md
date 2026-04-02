@@ -1,20 +1,20 @@
 ## Context
 
-Wild Lychee is deployed at `wildlychee.run402.com` with a generic default seed. The marketing site shows pricing and features but there's no live demo with real-feeling content. We need a fully populated demo instance — "The Eagles: Good Samaritans of Wichita" — deployed as a separate Run402 project at `eagles.run402.com`.
+Kychon is deployed at `kychon.run402.com` with a generic default seed. The marketing site shows pricing and features but there's no live demo with real-feeling content. We need a fully populated demo instance — "The Eagles: Good Samaritans of Wichita" — deployed as a separate Run402 project at `eagles.run402.com`.
 
 The Eagles are a fictional charitable community org in Wichita, KS. They run volunteer events (food drives, habitat builds, park cleanups), have committees (fundraising, outreach, youth), an active forum, a resource library (volunteer handbooks, tax receipts, training videos), and ~25 members with diverse profiles. Everything — text, images, member photos, logo — is AI-generated.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- A live demo at `eagles.run402.com` that shows every Wild Lychee feature with realistic content
+- A live demo at `eagles.run402.com` that shows every Kychon feature with realistic content
 - AI-generated images (logo, member avatars, event photos, hero image) uploaded to Run402 storage
 - Enough content density that the site feels lived-in: 25+ members, 10+ events (past and future), active forum threads, committee membership, announcements with history
 - Document every Run402 friction point encountered during the build
 - Reusable deploy script (`demo/eagles/deploy-eagles.js`) that can redeploy the demo from scratch
 
 **Non-Goals:**
-- Modifying the Wild Lychee template code (this is a deployment, not a feature)
+- Modifying the Kychon template code (this is a deployment, not a feature)
 - Real user signups or authentication testing
 - Production-quality AI images (placeholder quality is fine, recognizably AI-generated is OK)
 - i18n / multi-language for the demo (English only)
@@ -26,7 +26,7 @@ The Eagles are a fictional charitable community org in Wichita, KS. They run vol
 The demo gets its own `run402 projects provision` project ID, separate database, separate subdomain. Not a niche seed variant (those are starting points for real users; this is a showroom).
 
 **Alternatives considered:**
-- Reuse the existing wildlychee project with a different seed: Risky — overwrites the marketing site's data.
+- Reuse the existing kychon project with a different seed: Risky — overwrites the marketing site's data.
 - Niche seed variant: Doesn't include content (members, events, forum posts) — only config.
 
 **Rationale:** Clean separation. The demo can be torn down and rebuilt without affecting the template project.

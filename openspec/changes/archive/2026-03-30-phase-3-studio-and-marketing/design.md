@@ -3,9 +3,9 @@
 Phases 1-2 delivered a complete community portal template: auth, members, directory, events, forum, resources, committees, admin dashboard, inline editing, i18n, AI moderation/translation/insights/onboarding, and scheduled functions. The template works but requires developer knowledge to fork, configure, and deploy.
 
 Phase 3 bridges the gap to non-technical users by adding:
-1. An AI builder (Lychee Studio) that deploys a customized portal in minutes
+1. An AI builder (Kychon Studio) that deploys a customized portal in minutes
 2. AI content automation (newsletter + event recaps)
-3. A marketing site that positions Wild Lychee against incumbents
+3. A marketing site that positions Kychon against incumbents
 
 Constraints: vanilla JS (no frameworks), no build step, Run402 hosting, BYOK for AI features, 10MB upload limit.
 
@@ -14,22 +14,22 @@ Constraints: vanilla JS (no frameworks), no build step, Run402 hosting, BYOK for
 **Goals:**
 - Non-technical community managers can deploy a fully customized portal without writing code
 - Weekly newsletter drafting is automated — admin only reviews and sends
-- wildlychee.com communicates the value prop and converts visitors to builders
+- kychon.com communicates the value prop and converts visitors to builders
 - Niche landing pages speak each audience's language (church, HOA, sports, association)
 - Niche seed variants give each vertical a ready-to-use starting point
 
 **Non-Goals:**
 - Web-based Studio UI (Phase 4 — this phase uses Claude Code skill only)
-- Lychee Pro ongoing customization agent (Phase 4)
+- Kychon Pro ongoing customization agent (Phase 4)
 - Email sending infrastructure (newsletter generates drafts; sending mechanism is separate)
 - Payment processing for the $29 premium build (manual/Stripe integration is Phase 4)
 - Mobile app or PWA
 
 ## Decisions
 
-### D1: Lychee Studio as a Claude Code skill, not a web app
+### D1: Kychon Studio as a Claude Code skill, not a web app
 
-Studio runs as a `/lychee-studio` Claude Code skill with full access to Chrome MCP, file system, and Run402 CLI. This gives it all the power it needs (browser automation, file editing, shell commands) without building a web UI.
+Studio runs as a `/kychon-studio` Claude Code skill with full access to Chrome MCP, file system, and Run402 CLI. This gives it all the power it needs (browser automation, file editing, shell commands) without building a web UI.
 
 **Alternatives considered:**
 - Web-based chat UI: Would need its own auth, file system proxy, browser automation service. Much higher scope for Phase 3.
@@ -63,9 +63,9 @@ The interview produces a `studio-spec.json` containing brand.json content, featu
 
 **Rationale:** Draft-first balances automation with editorial control. The admin's job shrinks from "write a newsletter" to "review and click send."
 
-### D5: Marketing site built with Wild Lychee's own stack
+### D5: Marketing site built with Kychon's own stack
 
-wildlychee.com is a static site using the same vanilla JS + CSS custom properties pattern as the template. Deployed on Run402, dogfooding the platform.
+kychon.com is a static site using the same vanilla JS + CSS custom properties pattern as the template. Deployed on Run402, dogfooding the platform.
 
 **Alternatives considered:**
 - Next.js/Astro marketing site: Violates the no-build-step principle, adds complexity.

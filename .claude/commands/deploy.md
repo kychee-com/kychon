@@ -1,6 +1,6 @@
 ---
 name: "Deploy"
-description: "Test, commit, deploy, verify, create release, and report friction for Wild Lychee sites"
+description: "Test, commit, deploy, verify, create release, and report friction for Kychon sites"
 category: Deploy
 tags: [deploy, run402, test, release]
 ---
@@ -39,9 +39,9 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 - **Includes:** schema.sql + seed.sql, site files, edge functions, RLS
 - **IMPORTANT:** Always pass explicit project ID and subdomain — do NOT rely on the active project, which may have changed
 
-#### Marketing (wildlychee.com)
+#### Marketing (kychon.com)
 - **Project:** Set `MARKETING_PROJECT_ID` env var (or check `run402 projects list`)
-- **Subdomain:** `wildlychee.run402.com`
+- **Subdomain:** `kychon.run402.com`
 - **Command:** `MARKETING_PROJECT_ID=$MARKETING_PROJECT_ID node marketing/deploy-marketing.js`
 - **Includes:** Static HTML/CSS/assets only
 
@@ -63,7 +63,7 @@ After deploy, open each deployed site in Chrome and verify:
 - Nav links work (directory, events, resources, forum, committees)
 - Check browser console for errors
 
-**Marketing (wildlychee.run402.com):**
+**Marketing (kychon.run402.com):**
 - All sections render (hero, problem, features, AI, showcase, pricing, niches, CTA, footer)
 - Nav anchor links scroll to correct sections
 - Showcase gallery shows Eagles screenshot
@@ -83,7 +83,7 @@ Determine the version bump from the changes being deployed:
 
 Get the last release tag:
 ```bash
-gh release list --repo kychee-com/wildlychee --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "v0.0.0"
+gh release list --repo kychee-com/kychon --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "v0.0.0"
 ```
 
 Increment appropriately (e.g., `v0.3.0` -> `v0.3.1` for patch, `v0.4.0` for minor).
@@ -93,7 +93,7 @@ Increment appropriately (e.g., `v0.3.0` -> `v0.3.1` for patch, `v0.4.0` for mino
 Generate detailed release notes from commits since the last release. Use this format:
 
 ```bash
-gh release create <tag> --repo kychee-com/wildlychee --title "<tag> — <short title>" --notes "$(cat <<'EOF'
+gh release create <tag> --repo kychee-com/kychon --title "<tag> — <short title>" --notes "$(cat <<'EOF'
 ## What's New
 
 <Bullet list of user-facing changes. Group by category if needed.>
@@ -105,7 +105,7 @@ gh release create <tag> --repo kychee-com/wildlychee --title "<tag> — <short t
 ## Deployed To
 
 - Portal: https://eagles.run402.com
-- Marketing: https://wildlychee.com
+- Marketing: https://kychon.com
 
 ## Commits
 

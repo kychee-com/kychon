@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — HOA / Condo Seed Variant (idempotent)
+-- Kychon — HOA / Condo Seed Variant (idempotent)
 -- For homeowners associations and condo boards
 -- ============================================
 

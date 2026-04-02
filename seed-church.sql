@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — Church Seed Variant (idempotent)
+-- Kychon — Church Seed Variant (idempotent)
 -- For evangelical churches and religious orgs
 -- ============================================
 

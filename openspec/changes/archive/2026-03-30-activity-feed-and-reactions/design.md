@@ -1,6 +1,6 @@
 ## Context
 
-Wild Lychee has an `activity_log` table that records member actions, but nothing renders it. Announcements are one-way broadcasts with no interaction mechanism. The homepage shows sections (hero, features, CTA) and announcements, but nothing that conveys "people are here, things are happening."
+Kychon has an `activity_log` table that records member actions, but nothing renders it. Announcements are one-way broadcasts with no interaction mechanism. The homepage shows sections (hero, features, CTA) and announcements, but nothing that conveys "people are here, things are happening."
 
 The Eagles demo site will have 25+ members and dense content — without a feed and reactions, all that content sits inert.
 

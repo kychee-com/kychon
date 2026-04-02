@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — Barrio Unido Demo Seed (idempotent)
+-- Kychon — Barrio Unido Demo Seed (idempotent)
 -- "Centro Comunitario Barrio Unido"
 -- Latino immigrant services hub, East LA
 -- Spanish-first with English content_translations

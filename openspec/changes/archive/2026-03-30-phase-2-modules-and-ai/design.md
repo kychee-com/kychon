@@ -1,8 +1,8 @@
 ## Context
 
-Phase 1 MVP is deployed at wildlychee.run402.com with auth, members, directory, announcements, admin dashboard, inline editing, and i18n. The database schema already includes tables for events, resources, forum, and committees (created in Phase 1 schema.sql but unused). AI feature tables (content_translations, moderation_log, member_insights, newsletter_drafts) also exist.
+Phase 1 MVP is deployed at kychon.run402.com with auth, members, directory, announcements, admin dashboard, inline editing, and i18n. The database schema already includes tables for events, resources, forum, and committees (created in Phase 1 schema.sql but unused). AI feature tables (content_translations, moderation_log, member_insights, newsletter_drafts) also exist.
 
-This phase adds the feature modules and AI capabilities that differentiate Wild Lychee from competitors.
+This phase adds the feature modules and AI capabilities that differentiate Kychon from competitors.
 
 ## Goals / Non-Goals
 
@@ -16,7 +16,7 @@ This phase adds the feature modules and AI capabilities that differentiate Wild 
 
 **Non-Goals:**
 
-- Lychee Studio or Lychee Pro (Phase 3-4)
+- Kychon Studio or Kychon Pro (Phase 3-4)
 - Newsletter generation (Phase 3, depends on email gap resolution)
 - Event recap generation (Phase 3)
 - Real-time notifications or WebSocket features
