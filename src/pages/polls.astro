@@ -40,13 +40,15 @@ import Portal from '../layouts/Portal.astro';
       const session = getSession();
       const memberId = session?.user?.member?.id ?? null;
 
-      // Fetch options and votes for all polls
+      // Fetch options and votes for all polls, store for listener binding
+      const admin = isAdmin();
+      const pollVotesMap = new Map<number, any[]>();
       let html = '';
       for (const poll of polls) {
         await checkAutoClose(poll);
         const options = await get(`poll_options?poll_id=eq.${poll.id}&order=position.asc`);
         const votes = await get(`poll_votes?poll_id=eq.${poll.id}`);
-        const admin = isAdmin();
+        pollVotesMap.set(poll.id, votes);
 
         html += `<div class="card mb-1" data-poll-container="${poll.id}">`;
         html += renderPoll(poll, options, votes, session);
@@ -61,12 +63,11 @@ import Portal from '../layouts/Portal.astro';
 
       listEl.innerHTML = html;
 
-      // Bind vote listeners for each poll
+      // Bind vote listeners using already-fetched data
       for (const poll of polls) {
         const container = listEl.querySelector(`[data-poll-container="${poll.id}"]`) as HTMLElement;
         if (!container) continue;
-        const pollVotes = await get(`poll_votes?poll_id=eq.${poll.id}`);
-        bindPollVoteListeners(container, poll, pollVotes, memberId, () => renderPollsList());
+        bindPollVoteListeners(container, poll, pollVotesMap.get(poll.id) || [], memberId, () => renderPollsList());
       }
 
       // Bind admin actions
