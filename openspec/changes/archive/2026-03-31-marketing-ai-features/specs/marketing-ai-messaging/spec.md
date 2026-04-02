@@ -34,7 +34,7 @@ The compare.html feature table SHALL show AI moderation and AI translation as av
 
 #### Scenario: Visitor views comparison table
 - **WHEN** a visitor views the feature comparison on compare.html
-- **THEN** AI moderation and AI translation rows SHALL show checkmarks for Wild Lychee, and no AI newsletter row SHALL exist
+- **THEN** AI moderation and AI translation rows SHALL show checkmarks for Kychon, and no AI newsletter row SHALL exist
 
 ### Requirement: Niche pages remove BYOK AI references
 

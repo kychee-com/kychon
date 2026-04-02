@@ -1,6 +1,6 @@
 ## Context
 
-Wild Lychee is a greenfield community portal template deploying on Run402. The spec (`docs/spec.md`) defines the full product; this change implements Phase 1 MVP — the core template that everything else builds on.
+Kychon is a greenfield community portal template deploying on Run402. The spec (`docs/spec.md`) defines the full product; this change implements Phase 1 MVP — the core template that everything else builds on.
 
 Run402 provides: Postgres + PostgREST API, static site hosting, Google OAuth + password auth (auto-enabled, PKCE flow), edge functions (Node 22), file storage, email (template-based), and `run402 deploy --manifest app.json` for single-command deploys. The `anon_key` is a permanent project identifier embedded in frontend code. RLS controls write access.
 
@@ -10,7 +10,7 @@ The `../run402/site/llms-cli.txt` file is the authoritative reference for all Ru
 
 **Goals:**
 
-- Deploy a fully functional community portal to `wildlychee.run402.com` via a single `run402 deploy` command
+- Deploy a fully functional community portal to `kychon.run402.com` via a single `run402 deploy` command
 - Implement all 12 Phase 1 items: schema, deploy, auth, members, directory, announcements, admin dashboard, site settings, inline editing, i18n, config-driven UI, tests, and agent docs
 - Achieve 85%+ test coverage on `site/js/**`
 - Make the template forkable — a new community can rebrand and deploy in 5 minutes
@@ -19,7 +19,7 @@ The `../run402/site/llms-cli.txt` file is the authoritative reference for all Ru
 
 - Events, resources, forum, committees (Phase 2 modules)
 - AI-powered features — moderation, translation, newsletter, insights (Phase 2)
-- Lychee Studio or Lychee Pro (Phase 3-4)
+- Kychon Studio or Kychon Pro (Phase 3-4)
 - Recurring billing / Stripe integration
 - Real-time features (Run402 is HTTP-only)
 - Custom domain support (subdomain only for MVP)

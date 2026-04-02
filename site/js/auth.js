@@ -1,8 +1,8 @@
 // @ts-check
 // auth.js — Google OAuth + password auth, session management, role checking
 
-const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
-const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
+const API = window.__KYCHON_API || 'https://api.run402.com';
+const ANON_KEY = window.__KYCHON_ANON_KEY || '';
 
 // PKCE helpers
 function generateVerifier() {

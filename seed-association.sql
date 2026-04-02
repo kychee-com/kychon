@@ -1,5 +1,5 @@
 -- ============================================
--- Wild Lychee — Professional Association Seed Variant (idempotent)
+-- Kychon — Professional Association Seed Variant (idempotent)
 -- For trade groups, chambers, and professional bodies
 -- ============================================
 

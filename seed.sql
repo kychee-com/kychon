@@ -1,10 +1,10 @@
 -- ============================================
--- Wild Lychee — Seed Data (idempotent)
+-- Kychon — Seed Data (idempotent)
 -- ============================================
 
 -- Branding
 INSERT INTO site_config (key, value, category) VALUES
-  ('site_name', '"Wild Lychee Community"', 'branding'),
+  ('site_name', '"Kychon Community"', 'branding'),
   ('site_tagline', '"Your AI-powered community platform"', 'branding'),
   ('site_description', '"A modern membership portal — own your data, customize with AI."', 'branding'),
   ('logo_url', '""', 'branding'),

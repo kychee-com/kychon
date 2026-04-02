@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Hero section displays a generated community mashup image
-The hero section SHALL include a visually rich image showing a mashup of diverse communities — people gathering, events, activities — conveying that Wild Lychee works for many community types. The image SHALL be stored as a static asset in `site/marketing/assets/hero/`.
+The hero section SHALL include a visually rich image showing a mashup of diverse communities — people gathering, events, activities — conveying that Kychon works for many community types. The image SHALL be stored as a static asset in `site/marketing/assets/hero/`.
 
 #### Scenario: Hero image loads on page visit
 - **WHEN** a visitor loads the marketing page

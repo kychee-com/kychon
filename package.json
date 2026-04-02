@@ -1,5 +1,5 @@
 {
-  "name": "wildlychee",
+  "name": "kychon",
   "version": "0.1.0",
   "description": "AI-powered membership/community portal template for Run402",
   "type": "module",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kychee-com/wildlychee.git"
+    "url": "git+https://github.com/kychee-com/kychon.git"
   },
   "license": "MIT",
   "devDependencies": {

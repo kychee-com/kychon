@@ -1,6 +1,6 @@
 ## Why
 
-Wild Lychee's vanilla HTML/JS architecture has three gaps that compound as agents build more portals:
+Kychon's vanilla HTML/JS architecture has three gaps that compound as agents build more portals:
 
 1. **Full page reloads** — every navigation is a hard reload, falling short of modern UX expectations. Building a proper client-side router in vanilla JS is effectively building a framework.
 2. **No component reuse** — agents copy-paste nav, footer, scripts, and boilerplate into every new page. Each copy is a chance to diverge, forget, or break.

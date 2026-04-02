@@ -5,7 +5,7 @@ The `deploy.js` script SHALL:
 1. Run `npx astro build` to generate static output in `dist/`
 2. Resolve project ID from `RUN402_PROJECT_ID` env var or `run402 projects list`
 3. Resolve `anon_key` from `ANON_KEY` env var or `run402 projects keys`
-4. Generate `dist/js/env.js` with `__WILDLYCHEE_API` and `__WILDLYCHEE_ANON_KEY`
+4. Generate `dist/js/env.js` with `__KYCHON_API` and `__KYCHON_ANON_KEY`
 5. Read `schema.sql` + seed SQL and write combined `.migrations.sql`
 6. Collect all files from `dist/` recursively (instead of `site/`)
 7. Collect edge functions from `functions/` with schedule parsing

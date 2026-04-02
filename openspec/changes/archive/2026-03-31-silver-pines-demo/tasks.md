@@ -51,6 +51,6 @@
 
 ## 6. Run402 Platform Accessibility Feedback
 
-- [x] 6.1 Document accessibility issues found in Run402 auth flows (Google OAuth popup, password forms) — auth is client-side (Wild Lychee controls the modal), no Run402 platform a11y issues found in auth flow
+- [x] 6.1 Document accessibility issues found in Run402 auth flows (Google OAuth popup, password forms) — auth is client-side (Kychon controls the modal), no Run402 platform a11y issues found in auth flow
 - [x] 6.2 Document accessibility issues in Run402 error messages and admin UI — Run402 REST API returns JSON errors (not user-facing HTML), no a11y issues. Static file caching (max-age=3600) causes stale deploys — not a11y specific but affects testing.
-- [x] 6.3 File issues on MajorTal/run402 for each accessibility gap found — no blocking a11y issues found in Run402 platform itself; all a11y work was in the Wild Lychee template layer
+- [x] 6.3 File issues on MajorTal/run402 for each accessibility gap found — no blocking a11y issues found in Run402 platform itself; all a11y work was in the Kychon template layer

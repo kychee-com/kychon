@@ -13,7 +13,7 @@ Each niche landing page SHALL follow a consistent layout: niche-specific hero (h
 The `/churches.html` page SHALL display church-specific messaging highlighting: sermon archive, prayer requests, worship team resources, small group management, multilingual support (Portuguese/English example), and event types (services, bible study, youth night). The showcase link SHALL point to a church showcase site when available.
 
 #### Scenario: Church page renders
-- **WHEN** a visitor navigates to wildlychee.com/churches.html
+- **WHEN** a visitor navigates to kychon.com/churches.html
 - **THEN** church-specific features and language SHALL be displayed
 
 ### Requirement: HOA niche page
@@ -21,7 +21,7 @@ The `/churches.html` page SHALL display church-specific messaging highlighting: 
 The `/hoa.html` page SHALL display HOA-specific messaging highlighting: maintenance request tracking, document archive (CC&Rs, meeting minutes), voting/polls, resident vs board member roles, and issue submission with photos.
 
 #### Scenario: HOA page renders
-- **WHEN** a visitor navigates to wildlychee.com/hoa.html
+- **WHEN** a visitor navigates to kychon.com/hoa.html
 - **THEN** HOA-specific features and language SHALL be displayed
 
 ### Requirement: Sports league niche page
@@ -29,7 +29,7 @@ The `/hoa.html` page SHALL display HOA-specific messaging highlighting: maintena
 The `/sports.html` page SHALL display sports-league-specific messaging highlighting: team rosters, game schedules, standings, season management, photo galleries, and registration/RSVP for games.
 
 #### Scenario: Sports page renders
-- **WHEN** a visitor navigates to wildlychee.com/sports.html
+- **WHEN** a visitor navigates to kychon.com/sports.html
 - **THEN** sports-league-specific features and language SHALL be displayed
 
 ### Requirement: Professional association niche page
@@ -37,5 +37,5 @@ The `/sports.html` page SHALL display sports-league-specific messaging highlight
 The `/associations.html` page SHALL display association-specific messaging highlighting: member directory with company profiles, committee management, conference/event registration, resource library (whitepapers, recordings), and membership tiers (fellow, member, associate, student).
 
 #### Scenario: Association page renders
-- **WHEN** a visitor navigates to wildlychee.com/associations.html
+- **WHEN** a visitor navigates to kychon.com/associations.html
 - **THEN** association-specific features and language SHALL be displayed

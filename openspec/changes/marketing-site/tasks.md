@@ -3,7 +3,7 @@
 - [x] 1.1 Create `site/marketing/assets/hero/` directory
 - [x] 1.2 Generate hero image — pivoted to CSS screenshot mashup (3 overlapping demo screenshots in hero) since no image generation API is available
 - [x] 1.3 Generate 2-3 supporting feature images for demo showcase cards or section backgrounds
-- [x] 1.4 Capture screenshots of barrio.wildlychee.com, silver-pines.wildlychee.com, and eagles.wildlychee.com via Chrome MCP for demo cards
+- [x] 1.4 Capture screenshots of barrio.kychon.com, silver-pines.kychon.com, and eagles.kychon.com via Chrome MCP for demo cards
 - [x] 1.5 Optimize all images (WebP preferred, under 300KB each, explicit width/height attributes)
 
 ## 2. Demo Showcase Section

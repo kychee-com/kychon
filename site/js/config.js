@@ -121,7 +121,7 @@ function applyTheme(theme) {
 }
 
 function applyBranding(config) {
-  const name = config.site_name || 'Wild Lychee';
+  const name = config.site_name || 'Kychon';
   document.title = document.title ? `${document.title} — ${name}` : name;
 
   const brandEl = document.querySelector('.nav-brand-text');
@@ -471,12 +471,12 @@ export function addTranslateButton(el, text) {
         payload.content_id = contentId;
         payload.field = field;
       }
-      const res = await fetch(`${window.__WILDLYCHEE_API}/functions/v1/translate-text`, {
+      const res = await fetch(`${window.__KYCHON_API}/functions/v1/translate-text`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${window.__WILDLYCHEE_ANON_KEY}`,
-          apikey: window.__WILDLYCHEE_ANON_KEY,
+          Authorization: `Bearer ${window.__KYCHON_ANON_KEY}`,
+          apikey: window.__KYCHON_ANON_KEY,
         },
         body: JSON.stringify(payload),
       });

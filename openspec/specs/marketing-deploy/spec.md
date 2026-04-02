@@ -27,19 +27,19 @@ The marketing site deploy SHALL upload only static files (HTML, CSS, images, SVG
 
 ### Requirement: Subdomain and domain configuration
 
-The marketing project SHALL claim the `wildlychee` subdomain on Run402 (yielding `wildlychee.run402.com`). The custom domain `wildlychee.com` SHALL be registered via `run402 domains add wildlychee.com wildlychee`, with DNS configured at Route53 (CNAME to `domains.run402.com` or ALIAS + TXT for apex domain).
+The marketing project SHALL claim the `kychon` subdomain on Run402 (yielding `kychon.run402.com`). The custom domain `kychon.com` SHALL be registered via `run402 domains add kychon.com kychon`, with DNS configured at Route53 (CNAME to `domains.run402.com` or ALIAS + TXT for apex domain).
 
 #### Scenario: Subdomain claimed
 - **WHEN** the deploy completes
-- **THEN** the marketing site SHALL be accessible at `wildlychee.run402.com`
+- **THEN** the marketing site SHALL be accessible at `kychon.run402.com`
 
 #### Scenario: Custom domain registered
-- **WHEN** `run402 domains add wildlychee.com wildlychee` is run
+- **WHEN** `run402 domains add kychon.com kychon` is run
 - **THEN** Run402 SHALL return DNS configuration instructions
 
 #### Scenario: Custom domain active
-- **WHEN** DNS is configured and `run402 domains status wildlychee.com` shows `active`
-- **THEN** `wildlychee.com` SHALL serve the marketing site
+- **WHEN** DNS is configured and `run402 domains status kychon.com` shows `active`
+- **THEN** `kychon.com` SHALL serve the marketing site
 
 ### Requirement: Deploy script
 
