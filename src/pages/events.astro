@@ -86,8 +86,9 @@ import Portal from '../layouts/Portal.astro';
 
     container.querySelectorAll('[data-event-id]').forEach((card) => {
       (card as HTMLElement).style.cursor = 'pointer';
-      card.addEventListener('click', () => {
-        window.location.href = `/event?id=${(card as HTMLElement).dataset.eventId}`;
+      card.addEventListener('click', async () => {
+        const { navigate } = await import('astro:transitions/client');
+        navigate(`/event.html?id=${(card as HTMLElement).dataset.eventId}`);
       });
     });
   }
@@ -150,4 +151,5 @@ import Portal from '../layouts/Portal.astro';
   initEvents();
   document.addEventListener('astro:after-swap', initEvents);
   document.addEventListener('wl-locale-changed', initEvents);
+  document.addEventListener('wl-auth-changed', initEvents);
 </script>

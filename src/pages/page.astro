@@ -39,7 +39,8 @@ import Portal from '../layouts/Portal.astro';
 
       // Auth gate
       if (page.requires_auth && !isAuthenticated()) {
-        window.location.href = '/';
+        const { navigate } = await import('astro:transitions/client');
+        navigate('/');
         return;
       }
 
@@ -72,4 +73,5 @@ import Portal from '../layouts/Portal.astro';
   initPage();
   document.addEventListener('astro:after-swap', initPage);
   document.addEventListener('wl-locale-changed', initPage);
+  document.addEventListener('wl-auth-changed', initPage);
 </script>

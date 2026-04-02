@@ -164,7 +164,8 @@ import Portal from '../layouts/Portal.astro';
       document.getElementById('cm-delete-committee')?.addEventListener('click', async () => {
         if (!confirm('Delete this committee?')) return;
         await del(`committees?id=eq.${id}`);
-        window.location.href = '/committees';
+        const { navigate } = await import('astro:transitions/client');
+        navigate('/committees.html');
       });
     } catch (_e) {
       container.innerHTML = '<p>Error loading committee.</p>';
@@ -202,4 +203,5 @@ import Portal from '../layouts/Portal.astro';
   initCommittees();
   document.addEventListener('astro:after-swap', initCommittees);
   document.addEventListener('wl-locale-changed', initCommittees);
+  document.addEventListener('wl-auth-changed', initCommittees);
 </script>
