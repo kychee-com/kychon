@@ -13,11 +13,11 @@
 ## 3. Landing Page
 
 - [x] 3.1 Build hero section: headline, subheading, three CTAs (Try Demo, Browse Showcase, Fork on GitHub)
-- [x] 3.2 Build "The Problem" section: three competitor pain-point cards + comparison grid (Wild Lychee vs incumbents)
+- [x] 3.2 Build "The Problem" section: three competitor pain-point cards + comparison grid (Kychon vs incumbents)
 - [x] 3.3 Build feature grid: 8+ feature cards with icons, names, descriptions
 - [x] 3.4 Build AI features showcase: 6 AI capability cards with BYOK note
 - [x] 3.5 Build showcase gallery: Eagles card with screenshot and "Browse →" link, placeholder slots for future showcases
-- [x] 3.6 Build pricing section: competitor comparison table (by member count) + Wild Lychee plans (Template / Studio / Pro)
+- [x] 3.6 Build pricing section: competitor comparison table (by member count) + Kychon plans (Template / Studio / Pro)
 - [x] 3.7 Build "Who It's For" niche cards: churches, associations, sports leagues, HOAs, nonprofits, coworking, alumni — each linking to niche page
 - [x] 3.8 Build final CTA section and footer
 
@@ -38,10 +38,10 @@
 
 ## 6. Deploy & Domain
 
-- [x] 6.1 Deploy marketing site to the dedicated Run402 project and claim `wildlychee` subdomain
-- [x] 6.2 Run `run402 domains add wildlychee.com wildlychee` then configure Route53 DNS (CNAME to `domains.run402.com` or ALIAS + TXT for apex)
-- [x] 6.3 Verified `wildlychee.com` serves marketing site (HTTP 200, correct title)
-- [ ] 6.4 Publish Wild Lychee portal as a Run402 app to activate demo mode (so "Try Demo" CTA works)
+- [x] 6.1 Deploy marketing site to the dedicated Run402 project and claim `kychon` subdomain
+- [x] 6.2 Run `run402 domains add kychon.com kychon` then configure Route53 DNS (CNAME to `domains.run402.com` or ALIAS + TXT for apex)
+- [x] 6.3 Verified `kychon.com` serves marketing site (HTTP 200, correct title)
+- [ ] 6.4 Publish Kychon portal as a Run402 app to activate demo mode (so "Try Demo" CTA works)
 
 ## 7. Testing & Verification
 

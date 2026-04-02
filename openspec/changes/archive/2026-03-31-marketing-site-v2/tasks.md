@@ -16,7 +16,7 @@
 ## 3. Homepage Rewrite
 
 - [x] 3.1 Rewrite hero: "Own your member portal" headline, browser mockup with Eagles screenshot, new CTAs (Explore Live Demo → eagles.run402.com, Get a Custom Build → #pricing, View on GitHub text link)
-- [x] 3.2 Replace "Problem" section with "Why organizations choose Wild Lychee" — three benefit cards (predictable cost, ownership, customization) + subtle compare link
+- [x] 3.2 Replace "Problem" section with "Why organizations choose Kychon" — three benefit cards (predictable cost, ownership, customization) + subtle compare link
 - [x] 3.3 Replace showcase gallery with product tour: 4 tiles linking to Eagles subpages (home, directory, events, forum) with real screenshots
 - [x] 3.4 Add "How it works" section: 3 steps (pick template, AI builds, launch)
 - [x] 3.5 Keep features grid (existing 8 cards) — no changes needed

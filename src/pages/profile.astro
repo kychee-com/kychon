@@ -125,8 +125,8 @@ import Portal from '../layouts/Portal.astro';
     document.getElementById('profile-avatar-upload')?.addEventListener('change', async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
-      const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
+      const API = window.__KYCHON_API || 'https://api.run402.com';
+      const ANON_KEY = window.__KYCHON_ANON_KEY || '';
       const path = `avatars/${member.id}/${file.name}`;
       const formData = new FormData();
       formData.append('file', file);

@@ -116,10 +116,10 @@ function setupUpload() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('metadata', JSON.stringify(data));
-        const res = await fetch(`${window.__WILDLYCHEE_API}/functions/v1/upload-resource`, {
+        const res = await fetch(`${window.__KYCHON_API}/functions/v1/upload-resource`, {
           method: 'POST',
           headers: {
-            apikey: window.__WILDLYCHEE_ANON_KEY,
+            apikey: window.__KYCHON_ANON_KEY,
             Authorization: `Bearer ${session.access_token}`,
           },
           body: formData,

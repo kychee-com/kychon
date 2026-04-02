@@ -1,6 +1,6 @@
 ## Context
 
-The marketing site v1 launched at wildlychee.com but an external review identified structural issues: competitor-first messaging, placeholder content, card-heavy layout, and missing conversion elements. The live Eagles demo at eagles.run402.com is the strongest asset but is buried below two sections of competitor attacks.
+The marketing site v1 launched at kychon.com but an external review identified structural issues: competitor-first messaging, placeholder content, card-heavy layout, and missing conversion elements. The live Eagles demo at eagles.run402.com is the strongest asset but is buried below two sections of competitor attacks.
 
 Full consultation at `docs/consultations/marketing-site-review-conversion.md`.
 
@@ -76,7 +76,7 @@ Keep indigo as the primary trust color. Keep coral for tertiary accents only.
 ### D5: Compare page structure
 
 `/compare.html` gets the competitor content removed from the homepage:
-- Pricing comparison table (Wild Apricot, Circle, Bettermode vs Wild Lychee)
+- Pricing comparison table (Wild Apricot, Circle, Bettermode vs Kychon)
 - Feature comparison grid
 - Migration callout
 - CTA to demo/Studio

@@ -1,6 +1,6 @@
 ## Why
 
-Wild Lychee needs a demo that showcases its bilingual i18n system and content_translations feature end-to-end. The existing demos (Eagles, Church, HOA, Association) are all English-only and share a similar visual identity (blues/navys). Barrio Unido is a fictional Latino immigrant services community center in East LA that demonstrates:
+Kychon needs a demo that showcases its bilingual i18n system and content_translations feature end-to-end. The existing demos (Eagles, Church, HOA, Association) are all English-only and share a similar visual identity (blues/navys). Barrio Unido is a fictional Latino immigrant services community center in East LA that demonstrates:
 
 1. **Full ES/EN bilingual portal** — Spanish as the default language, English via content_translations
 2. **The content_translations system** — admin-generated content (events, announcements, resources, homepage sections) stored in Spanish with English translation rows, showing the translation infrastructure working without requiring the AI translation feature to be enabled
@@ -16,7 +16,7 @@ Wild Lychee needs a demo that showcases its bilingual i18n system and content_tr
 
 - **`demo/barrio-unido/generate-images.sh`** (~5KB) — OpenAI image generation script for: community mural hero image, 20-25 warm diverse portrait avatars, 6+ event photos (markets, workshops, celebrations, murals, legal clinic, food pantry)
 
-- **`site/custom/strings/es.json`** (~60 keys) — Full Spanish translation of all UI chrome: navigation, auth forms, profile, directory, announcements, admin dashboard, admin members, admin settings, common actions, member counts. This file is reusable by any future Spanish-language Wild Lychee portal.
+- **`site/custom/strings/es.json`** (~60 keys) — Full Spanish translation of all UI chrome: navigation, auth forms, profile, directory, announcements, admin dashboard, admin members, admin settings, common actions, member counts. This file is reusable by any future Spanish-language Kychon portal.
 
 ### Modified files
 
@@ -46,7 +46,7 @@ _(none — this is seed data and a translation file, not a code change)_
 - **Run402**: Deployed to a new project with its own database and subdomain (e.g., `barrio-unido.run402.com`)
 - **Dependencies**: OpenAI API (image generation), Run402 CLI, Run402 storage API
 - **No impact on template code**: All changes are seed data, a translation file, and image assets
-- **Reusable**: The `es.json` file benefits any future Spanish-language Wild Lychee deployment
+- **Reusable**: The `es.json` file benefits any future Spanish-language Kychon deployment
 
 ## Content Model
 

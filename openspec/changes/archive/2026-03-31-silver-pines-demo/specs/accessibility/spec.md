@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Skip navigation link
-Every Wild Lychee page SHALL include a visually hidden link as the first focusable element that reads "Skip to main content" and targets `#main-content`. The link SHALL become visible when focused.
+Every Kychon page SHALL include a visually hidden link as the first focusable element that reads "Skip to main content" and targets `#main-content`. The link SHALL become visible when focused.
 
 #### Scenario: Skip-nav visible on focus
 - **WHEN** a user presses Tab on any page and the skip-nav link receives focus

@@ -3,8 +3,8 @@
 import { get, patch } from './api.js?v=9';
 import { getSession, requireAuth } from './auth.js?v=9';
 
-const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
-const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
+const API = window.__KYCHON_API || 'https://api.run402.com';
+const ANON_KEY = window.__KYCHON_ANON_KEY || '';
 
 export async function initProfile() {
   if (!requireAuth()) return;

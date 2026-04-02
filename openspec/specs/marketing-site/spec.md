@@ -2,10 +2,10 @@
 
 ### Requirement: Landing page hero section
 
-The wildlychee.com landing page SHALL display a hero section with headline "Tell us about your community. We'll build your platform in 5 minutes.", a subheading listing key features (member directory, events, forum, newsletter) with pricing ($5/mo), and three CTAs: [Build My Portal], [See Demo], [Fork the Template].
+The kychon.com landing page SHALL display a hero section with headline "Tell us about your community. We'll build your platform in 5 minutes.", a subheading listing key features (member directory, events, forum, newsletter) with pricing ($5/mo), and three CTAs: [Build My Portal], [See Demo], [Fork the Template].
 
 #### Scenario: Hero renders with CTAs
-- **WHEN** a visitor loads wildlychee.com
+- **WHEN** a visitor loads kychon.com
 - **THEN** the hero section SHALL display the headline, subheading, and three CTA buttons
 
 #### Scenario: Build My Portal CTA
@@ -18,7 +18,7 @@ The wildlychee.com landing page SHALL display a hero section with headline "Tell
 
 ### Requirement: Competitive positioning section
 
-The landing page SHALL include a "The Problem" section showing competitor pricing pain points (Wild Apricot $530/mo, Circle $89/mo + fees, Bettermode price hikes) and a side-by-side comparison section contrasting Wild Lychee's modern design, flat pricing, AI features, and data ownership against incumbents.
+The landing page SHALL include a "The Problem" section showing competitor pricing pain points (Wild Apricot $530/mo, Circle $89/mo + fees, Bettermode price hikes) and a side-by-side comparison section contrasting Kychon's modern design, flat pricing, AI features, and data ownership against incumbents.
 
 #### Scenario: Problem cards render
 - **WHEN** the landing page loads
@@ -26,7 +26,7 @@ The landing page SHALL include a "The Problem" section showing competitor pricin
 
 #### Scenario: Comparison table renders
 - **WHEN** the visitor scrolls to the comparison section
-- **THEN** a side-by-side comparison SHALL show Wild Lychee advantages across design, pricing, AI, and data ownership
+- **THEN** a side-by-side comparison SHALL show Kychon advantages across design, pricing, AI, and data ownership
 
 ### Requirement: AI features showcase
 
@@ -38,15 +38,15 @@ The landing page SHALL include a section highlighting five AI capabilities: cont
 
 ### Requirement: Pricing table
 
-The landing page SHALL display two pricing tables: (1) a competitor comparison table showing per-member-count pricing for Wild Apricot, Circle, and Wild Lychee; (2) a Wild Lychee plans table showing Template (DIY), Studio + Starter, and Studio + Unlimited tiers with pricing breakdown.
+The landing page SHALL display two pricing tables: (1) a competitor comparison table showing per-member-count pricing for Wild Apricot, Circle, and Kychon; (2) a Kychon plans table showing Template (DIY), Studio + Starter, and Studio + Unlimited tiers with pricing breakdown.
 
 #### Scenario: Competitor pricing comparison renders
 - **WHEN** the visitor scrolls to the pricing section
-- **THEN** a table SHALL show pricing at 100, 500, 2000, and 5000 member tiers across Wild Apricot, Circle, and Wild Lychee
+- **THEN** a table SHALL show pricing at 100, 500, 2000, and 5000 member tiers across Wild Apricot, Circle, and Kychon
 
-#### Scenario: Wild Lychee plans table renders
+#### Scenario: Kychon plans table renders
 - **WHEN** the visitor scrolls to the plans section
-- **THEN** a table SHALL show three Wild Lychee tiers with initial build, hosting, and AI customizer pricing
+- **THEN** a table SHALL show three Kychon tiers with initial build, hosting, and AI customizer pricing
 
 ### Requirement: Niche audience cards
 
@@ -69,19 +69,19 @@ The landing page SHALL end with a CTA section containing [Build My Portal] ("Liv
 The marketing site SHALL include niche-specific landing pages at `/churches`, `/hoa`, `/sports`, and `/associations`. Each page SHALL use the same layout as the main landing page but with niche-specific hero text, screenshots, sample data examples, and language tailored to that audience.
 
 #### Scenario: Church niche page
-- **WHEN** a visitor navigates to wildlychee.com/churches
+- **WHEN** a visitor navigates to kychon.com/churches
 - **THEN** the page SHALL display church-specific messaging, features (sermon archive, prayer requests), and Portuguese/English examples
 
 #### Scenario: HOA niche page
-- **WHEN** a visitor navigates to wildlychee.com/hoa
+- **WHEN** a visitor navigates to kychon.com/hoa
 - **THEN** the page SHALL display HOA-specific messaging, features (maintenance requests, document archive, voting), and resident vs board role examples
 
 #### Scenario: Sports niche page
-- **WHEN** a visitor navigates to wildlychee.com/sports
+- **WHEN** a visitor navigates to kychon.com/sports
 - **THEN** the page SHALL display sports league-specific messaging, features (teams, standings, schedules), and league management examples
 
 #### Scenario: Association niche page
-- **WHEN** a visitor navigates to wildlychee.com/associations
+- **WHEN** a visitor navigates to kychon.com/associations
 - **THEN** the page SHALL display professional association-specific messaging, features (company profiles, committees), and directory-focused examples
 
 ### Requirement: Marketing site responsive design

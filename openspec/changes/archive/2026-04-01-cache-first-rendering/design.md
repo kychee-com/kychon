@@ -1,6 +1,6 @@
 ## Context
 
-Every page in Wild Lychee calls `config.js::init()` which makes 2-4 sequential network requests before painting anything:
+Every page in Kychon calls `config.js::init()` which makes 2-4 sequential network requests before painting anything:
 
 1. `GET site_config` — theme, nav, feature flags (~3KB JSON)
 2. `GET /custom/strings/{lang}.json` — i18n strings (~5KB)

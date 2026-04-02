@@ -28,7 +28,7 @@ export default async (_req) => {
             to: member.email,
             subject: `Membership Renewal Reminder — ${days} days left`,
             html: `<p>Hi ${member.display_name},</p><p>Your membership expires in <strong>${days} days</strong>. Please renew to keep your access to the community.</p>`,
-            from_name: 'Wild Lychee Community',
+            from_name: 'Kychon Community',
           });
           results.reminders_sent++;
         } catch (e) {

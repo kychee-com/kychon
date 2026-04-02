@@ -5,7 +5,7 @@
 The landing page SHALL display a hero section with headline, subheading listing key features (member directory, events, forum, newsletter, AI features) with pricing context, and three CTA buttons: "Try the Demo" (links to Run402 demo mode instance), "Browse a Showcase" (scrolls to showcase gallery), and "Fork on GitHub" (links to the GitHub repo).
 
 #### Scenario: Hero renders on page load
-- **WHEN** a visitor loads wildlychee.com
+- **WHEN** a visitor loads kychon.com
 - **THEN** the hero section SHALL be the first visible content with headline, subheading, and three CTA buttons
 
 #### Scenario: Try the Demo CTA
@@ -14,11 +14,11 @@ The landing page SHALL display a hero section with headline, subheading listing 
 
 #### Scenario: Fork on GitHub CTA
 - **WHEN** a visitor clicks "Fork on GitHub"
-- **THEN** the visitor SHALL be directed to the Wild Lychee GitHub repository
+- **THEN** the visitor SHALL be directed to the Kychon GitHub repository
 
 ### Requirement: Problem section with competitor comparison
 
-The landing page SHALL include a "The Problem" section showing competitor pricing pain points (Wild Apricot, Circle, Bettermode) with specific pricing examples and a side-by-side comparison highlighting Wild Lychee's advantages: modern design, flat pricing, AI features, data ownership, and open source.
+The landing page SHALL include a "The Problem" section showing competitor pricing pain points (Wild Apricot, Circle, Bettermode) with specific pricing examples and a side-by-side comparison highlighting Kychon's advantages: modern design, flat pricing, AI features, data ownership, and open source.
 
 #### Scenario: Problem cards render
 - **WHEN** the landing page loads
@@ -26,7 +26,7 @@ The landing page SHALL include a "The Problem" section showing competitor pricin
 
 #### Scenario: Comparison table
 - **WHEN** the visitor scrolls to the comparison area
-- **THEN** a comparison grid SHALL contrast Wild Lychee against incumbents across design, pricing, AI, and data ownership dimensions
+- **THEN** a comparison grid SHALL contrast Kychon against incumbents across design, pricing, AI, and data ownership dimensions
 
 ### Requirement: Feature grid
 
@@ -50,7 +50,7 @@ The landing page SHALL include a "See It Live" gallery section showing 2-4 showc
 
 #### Scenario: Showcase gallery renders with Eagles
 - **WHEN** the visitor scrolls to the showcase section
-- **THEN** at least one showcase card SHALL be visible featuring the Eagles community with a link to eagles.wildlychee.com (or eagles.run402.com)
+- **THEN** at least one showcase card SHALL be visible featuring the Eagles community with a link to eagles.kychon.com (or eagles.run402.com)
 
 #### Scenario: Showcase card links to live site
 - **WHEN** a visitor clicks "Browse →" on a showcase card
@@ -58,13 +58,13 @@ The landing page SHALL include a "See It Live" gallery section showing 2-4 showc
 
 ### Requirement: Pricing table
 
-The landing page SHALL display pricing information in two parts: (1) a competitor comparison showing per-member-count pricing for Wild Apricot, Circle, and Wild Lychee at 100, 500, 2000, and 5000 member tiers; (2) Wild Lychee plans showing DIY Template (free + $5-20/mo hosting), Studio build ($29 one-time), and Lychee Pro ($9-29/mo ongoing AI customization).
+The landing page SHALL display pricing information in two parts: (1) a competitor comparison showing per-member-count pricing for Wild Apricot, Circle, and Kychon at 100, 500, 2000, and 5000 member tiers; (2) Kychon plans showing DIY Template (free + $5-20/mo hosting), Studio build ($29 one-time), and Kychon Pro ($9-29/mo ongoing AI customization).
 
 #### Scenario: Competitor pricing table renders
 - **WHEN** the visitor scrolls to pricing
 - **THEN** a comparison table SHALL show pricing across member count tiers
 
-#### Scenario: Wild Lychee plans render
+#### Scenario: Kychon plans render
 - **WHEN** the visitor scrolls to the plans section
 - **THEN** three plan cards SHALL be visible with pricing breakdowns
 

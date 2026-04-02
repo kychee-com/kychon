@@ -1,6 +1,6 @@
 ## Why
 
-The Wild Lychee portal feels static — announcements are broadcast-only and there's no visible pulse of community activity. Adding an activity feed and emoji reactions transforms passive readers into participants and makes the site feel inhabited. The Eagles demo site needs this even more: with 25+ members and dense content, a feed and reactions make the demo feel alive rather than like a data dump.
+The Kychon portal feels static — announcements are broadcast-only and there's no visible pulse of community activity. Adding an activity feed and emoji reactions transforms passive readers into participants and makes the site feel inhabited. The Eagles demo site needs this even more: with 25+ members and dense content, a feed and reactions make the demo feel alive rather than like a data dump.
 
 ## What Changes
 

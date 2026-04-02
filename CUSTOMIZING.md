@@ -1,4 +1,4 @@
-# Wild Lychee — Customization Guide for AI Agents
+# Kychon — Customization Guide for AI Agents
 
 Read `STRUCTURE.md` first for the full project map. This file has step-by-step recipes.
 

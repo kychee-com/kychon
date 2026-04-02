@@ -1,9 +1,9 @@
-# Wild Lychee — Membership / Community Portal
+# Kychon — Membership / Community Portal
 
 **Date**: 2026-03-27
 **Status**: Design complete, ready for implementation
-**Codename**: Wild Lychee (a cheeky nod to Wild Apricot)
-**Brand**: Both a standalone product (wildlychee.com) and a Run402 template
+**Codename**: Kychon (a cheeky nod to Wild Apricot)
+**Brand**: Both a standalone product (kychon.com) and a Run402 template
 
 ## Product Family
 
@@ -11,9 +11,9 @@ Three products, one mission: **"From zero to your own AI-powered community platf
 
 | Product | What | Who | Pricing |
 |---------|------|-----|---------|
-| **Wild Lychee** | The community portal template — forkable, customizable, AI-powered | Agents + devs who want full control | Free to fork + $5–20/mo Run402 tier |
-| **Lychee Studio** | The AI concierge that builds your portal — investigates your site, interviews you, deploys | Community managers who want it done for them | Free basic build / $29 premium (one-time) |
-| **Lychee Pro** | Ongoing AI customization — "add volunteer tracking", "translate to Spanish", "redesign for Christmas" | Community managers who want it to keep growing | $9/mo (5 requests) / $29/mo (unlimited) |
+| **Kychon** | The community portal template — forkable, customizable, AI-powered | Agents + devs who want full control | Free to fork + $5–20/mo Run402 tier |
+| **Kychon Studio** | The AI concierge that builds your portal — investigates your site, interviews you, deploys | Community managers who want it done for them | Free basic build / $29 premium (one-time) |
+| **Kychon Pro** | Ongoing AI customization — "add volunteer tracking", "translate to Spanish", "redesign for Christmas" | Community managers who want it to keep growing | $9/mo (5 requests) / $29/mo (unlimited) |
 
 **Total cost**: $5 (Run402) + $9 (Pro) = **$14/mo** vs. Wild Apricot $140/mo vs. Circle $89/mo + 2% fees.
 
@@ -23,7 +23,7 @@ Three products, one mission: **"From zero to your own AI-powered community platf
 
 The membership management software market is $5.4–8.5B (2025), growing 10–15% CAGR. The dominant player for small orgs — Wild Apricot — has websites that "look like they were created in 1995" and customer support that collapsed after acquisition. Every competitor charges per-member fees, transaction taxes, or both. Nobody offers a self-hosted, fully customizable, own-your-data alternative that an AI agent can fork and make truly unique.
 
-**Wild Lychee fills this gap.** Flat $5–20/mo Run402 tier. Zero transaction fees. No per-member pricing. Own your data. And the killer: an AI agent can customize it endlessly — add features, translate, retheme, restructure — no ceiling.
+**Kychon fills this gap.** Flat $5–20/mo Run402 tier. Zero transaction fees. No per-member pricing. Own your data. And the killer: an AI agent can customize it endlessly — add features, translate, retheme, restructure — no ceiling.
 
 ---
 
@@ -80,7 +80,7 @@ The membership management software market is $5.4–8.5B (2025), growing 10–15
 
 ### 1. Full Admin Dashboard (not lean)
 
-The admin UI IS the product. Wild Apricot's admin is ugly but functional — that's what people pay $530/mo for. Wild Lychee's admin must be genuinely good — not "good for a template." Full member management, event management, resource management, analytics, site settings.
+The admin UI IS the product. Wild Apricot's admin is ugly but functional — that's what people pay $530/mo for. Kychon's admin must be genuinely good — not "good for a template." Full member management, event management, resource management, analytics, site settings.
 
 Admin pages:
 - **Dashboard** — stats cards, activity feed, quick actions, members needing attention
@@ -127,12 +127,12 @@ The admin editing JS (`admin-editor.js`) is a separate script that only loads wh
 
 ### 3. Brand: Both Product and Template
 
-Wild Lychee is:
-- **A standalone product** at wildlychee.com — its own landing page, brand, marketing
+Kychon is:
+- **A standalone product** at kychon.com — its own landing page, brand, marketing
 - **A Run402 template** — forkable from the marketplace
 - **Deployed on Run402 itself** — dogfooding the platform
 
-"Wild Lychee — the community platform you own. Powered by Run402."
+"Kychon — the community platform you own. Powered by Run402."
 
 ### 4. Incremental Deploys for Ongoing Agent Customization
 
@@ -311,7 +311,7 @@ LAYER 3: The Code (agent operates)
 ### File Structure
 
 ```
-wild-lychee/
+kychon/
 ├── deploy.ts                     # One-command deploy to Run402
 ├── STRUCTURE.md                  # AI-readable manifest (the map)
 ├── CUSTOMIZING.md                # Agent guide: how to customize
@@ -833,7 +833,7 @@ Issues found during design that the Run402 team should consider filling.
 
 **Current state:** 3 fixed templates (`project_invite`, `magic_link`, `notification`). The `notification` template only allows a 500-char plain text `message`.
 
-**What Wild Lychee needs:**
+**What Kychon needs:**
 - Welcome email with community name, logo, getting-started links
 - Event RSVP confirmation with event details
 - Renewal reminder with member tier, expiration date, renewal link
@@ -843,7 +843,7 @@ Issues found during design that the Run402 team should consider filling.
 **Options:**
 - A: Run402 adds more template types with richer variable support
 - B: Run402 adds a `raw_email` endpoint (subject + HTML body, with abuse guardrails)
-- C: Wild Lychee uses an edge function calling an external email API (Resend, SES)
+- C: Kychon uses an edge function calling an external email API (Resend, SES)
 
 Option B is the cleanest platform improvement. Option C is the workaround.
 
@@ -873,7 +873,7 @@ Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs 
 
 **Current state:** `getUser(req)` returns `{ id, role }` only. Password-auth users have no email in the JWT claims. The `/auth/v1/user` endpoint may not return email consistently for password users either.
 
-**What Wild Lychee needs:** Email is critical for the on-signup flow (creating member records, sending welcome emails, display name derivation).
+**What Kychon needs:** Email is critical for the on-signup flow (creating member records, sending welcome emails, display name derivation).
 
 **Workaround:** Client-side JS passes the email (from the signup form or session) in the request body to the on-signup edge function. Works but requires trusting client-provided data.
 
@@ -897,7 +897,7 @@ Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs 
 
 ## AI-Powered Features — The Moat
 
-This is where Wild Lychee stops being "a better Wild Apricot" and becomes something Wild Apricot can never be. These features are enabled by edge functions calling AI APIs on a cron schedule.
+This is where Kychon stops being "a better Wild Apricot" and becomes something Wild Apricot can never be. These features are enabled by edge functions calling AI APIs on a cron schedule.
 
 ### Architecture: Run402 Native AI
 
@@ -1073,7 +1073,7 @@ When a new member signs up:
 
 ### Why This Is Unbeatable
 
-| Pain Point | Wild Apricot | Wild Lychee |
+| Pain Point | Wild Apricot | Kychon |
 |------------|-------------|-------------|
 | Forum dies (no moderator) | Manual only. Volunteer burns out. | AI moderator runs 24/7. Spam never gets through. |
 | Newsletter never written | Admin procrastinates. Members disengage. | AI writes draft Monday AM. Admin reviews + sends. |
@@ -1086,14 +1086,14 @@ This is not a feature gap. This is a category gap. Wild Apricot cannot do this. 
 
 ---
 
-## Lychee Studio — The AI Builder
+## Kychon Studio — The AI Builder
 
 ### The Gap
 
 Nobody does "investigate your existing site + interview you + build a community portal." B12 comes closest (imports content from existing sites) but builds generic business sites, not community platforms. Circle and Mighty Networks have zero AI-powered setup — just manual templates. The closest model (Durable) asks 3 questions and builds a brochure site in 30 seconds — but brochure sites, not membership portals.
 
 Wild Apricot onboarding: sign up → pick a template → spend weeks configuring.
-Lychee Studio: one conversation → done.
+Kychon Studio: one conversation → done.
 
 ### The Flow
 
@@ -1163,7 +1163,7 @@ User confirms or requests changes. Iterate until happy.
 
 **Step 4: Build + Deploy**
 
-1. Fork Wild Lychee template
+1. Fork Kychon template
 2. Apply brand.json customizations
 3. Generate translations via AI
 4. Apply seed.sql (config, tiers, sample data)
@@ -1233,15 +1233,15 @@ The $29 premium build adds:
 
 Start with a Claude Code skill: `/lychee-studio`. It has full access to Chrome MCP (investigate sites), file system (generate customizations), and Run402 APIs (deploy).
 
-Later (Phase 4+): web-based chat interface at `studio.wildlychee.com` for non-technical community managers.
+Later (Phase 4+): web-based chat interface at `studio.kychon.com` for non-technical community managers.
 
 ---
 
-## Lychee Pro — Ongoing AI Customization
+## Kychon Pro — Ongoing AI Customization
 
 ### What It Is
 
-After the portal is built, the community manager needs ongoing help. Lychee Pro is the AI assistant that keeps customizing:
+After the portal is built, the community manager needs ongoing help. Kychon Pro is the AI assistant that keeps customizing:
 
 - "Add a volunteer hours tracker"
 - "Our youth group needs their own events calendar"
@@ -1252,7 +1252,7 @@ After the portal is built, the community manager needs ongoing help. Lychee Pro 
 
 ### How It Works
 
-Community manager opens Claude Code with their Wild Lychee project → describes what they want → the agent:
+Community manager opens Claude Code with their Kychon project → describes what they want → the agent:
 1. Reads STRUCTURE.md to understand the current portal
 2. Plans the change (new table? new page? config update?)
 3. Implements it (SQL + file edits)
@@ -1264,7 +1264,7 @@ Community manager opens Claude Code with their Wild Lychee project → describes
 
 | Plan | Requests/mo | Price | Target |
 |------|-------------|-------|--------|
-| **Free** | 0 (DIY with Claude Code) | $0 | Devs/agents who fork Wild Lychee |
+| **Free** | 0 (DIY with Claude Code) | $0 | Devs/agents who fork Kychon |
 | **Starter** | 5 customization requests | $9/mo | Small clubs, churches |
 | **Unlimited** | Unlimited requests | $29/mo | Active communities, associations |
 
@@ -1278,7 +1278,7 @@ This is the recurring revenue engine. The community manager is locked in by conv
 - Keeps getting better (as Claude improves, so does Pro)
 - Costs less per month than a single hour of freelance developer time
 
-No SaaS competitor can offer this. Wild Apricot's support team takes weeks to respond. Circle's enterprise plan is $419/mo and still doesn't customize for you. Lychee Pro gives you an AI developer for $29/mo.
+No SaaS competitor can offer this. Wild Apricot's support team takes weeks to respond. Circle's enterprise plan is $419/mo and still doesn't customize for you. Kychon Pro gives you an AI developer for $29/mo.
 
 ---
 
@@ -1286,7 +1286,7 @@ No SaaS competitor can offer this. Wild Apricot's support team takes weeks to re
 
 ### Positioning
 
-Wild Lychee is NOT "a cheaper Wild Apricot." It's a new category:
+Kychon is NOT "a cheaper Wild Apricot." It's a new category:
 
 **The community platform that gets smarter, not more expensive.**
 
@@ -1300,12 +1300,12 @@ Four pillars:
 
 - "The community platform you own. With an AI that runs it."
 - "Tell us about your community. We'll build your platform in 5 minutes."
-- "Wild Apricot charges $530/mo. Wild Lychee is $14. And it has AI."
+- "Wild Apricot charges $530/mo. Kychon is $14. And it has AI."
 - "From zero to your own community platform in one conversation."
 - "Stop renting your community. Own it."
 - "The membership platform that evolves with you."
 
-### Landing Page Structure (wildlychee.com)
+### Landing Page Structure (kychon.com)
 
 **Hero**
 > Tell us about your community.
@@ -1321,7 +1321,7 @@ Four pillars:
 - "Circle costs $89/mo + 2% of every transaction. Checkout pages randomly delete themselves."
 - "Bettermode was $50/mo. Then they raised it to $599/mo. Your community was trapped."
 
-**The Solution** (visual: side-by-side Wild Apricot vs Wild Lychee screenshots)
+**The Solution** (visual: side-by-side Wild Apricot vs Kychon screenshots)
 - Modern 2026 design vs. 1995 design
 - $5/mo flat vs. $530/mo per-contact
 - AI moderator vs. manual-only
@@ -1359,7 +1359,7 @@ Four pillars:
 
 > **vs. the competition:**
 >
-> | | Wild Apricot | Circle | Wild Lychee |
+> | | Wild Apricot | Circle | Kychon |
 > |---|---|---|---|
 > | 100 members | $60/mo | $89/mo | **$5/mo** |
 > | 500 members | $140/mo | $89/mo + 2% fees | **$5/mo** |
@@ -1371,7 +1371,7 @@ Four pillars:
 > | Ongoing AI customization | ❌ | ❌ | **✅** |
 > | Own your data | ❌ | ❌ | **✅** |
 >
-> **Wild Lychee plans:**
+> **Kychon plans:**
 >
 > | | Template (DIY) | Studio + Starter | Studio + Unlimited |
 > |---|---|---|---|
@@ -1394,17 +1394,17 @@ Four pillars:
 
 Each niche variant gets its own landing page that speaks the audience's language:
 
-- `wildlychee.com/churches` — "Portal para igrejas" / "Church management made simple"
-- `wildlychee.com/hoa` — "Your HOA deserves better than spreadsheets"
-- `wildlychee.com/sports` — "Run your league like a pro. For $5/mo."
-- `wildlychee.com/associations` — "The membership platform your association actually needs"
+- `kychon.com/churches` — "Portal para igrejas" / "Church management made simple"
+- `kychon.com/hoa` — "Your HOA deserves better than spreadsheets"
+- `kychon.com/sports` — "Run your league like a pro. For $5/mo."
+- `kychon.com/associations` — "The membership platform your association actually needs"
 
-These pages are the same Wild Lychee template, just with different hero text, screenshots, and sample data. The niche name IS the marketing.
+These pages are the same Kychon template, just with different hero text, screenshots, and sample data. The niche name IS the marketing.
 
 ### Distribution Channels
 
 1. **Run402 marketplace** — forkable template listing
-2. **wildlychee.com** — direct marketing site
+2. **kychon.com** — direct marketing site
 3. **Google Ads** — niche keywords: "church management software", "HOA portal", "membership management software alternative"
 4. **Niche directories** — list on comparison sites (Capterra, G2, GetApp)
 5. **Community forums** — Reddit r/nonprofit, r/HOA, church tech groups, association manager forums
@@ -1412,9 +1412,9 @@ These pages are the same Wild Lychee template, just with different hero text, sc
 
 ### The Pitch in One Sentence
 
-**For community managers**: "Wild Lychee is the community platform you own, for $5/mo, with an AI assistant that moderates your forum, writes your newsletter, and translates your content — while you sleep."
+**For community managers**: "Kychon is the community platform you own, for $5/mo, with an AI assistant that moderates your forum, writes your newsletter, and translates your content — while you sleep."
 
-**For agents/developers**: "Wild Lychee is a fully customizable community portal template on Run402. Fork it, retheme it, add features, translate it. STRUCTURE.md tells you everything. Deploy in 5 minutes."
+**For agents/developers**: "Kychon is a fully customizable community portal template on Run402. Fork it, retheme it, add features, translate it. STRUCTURE.md tells you everything. Deploy in 5 minutes."
 
 ---
 
@@ -1435,7 +1435,7 @@ Same template, different `seed.sql` files:
 
 ## Build Priority
 
-### Phase 1: Wild Lychee Core (MVP)
+### Phase 1: Kychon Core (MVP)
 1. Schema + seed data + deploy script
 2. Auth (Google OAuth + password) + first-user-admin flow
 3. Member profiles + directory
@@ -1461,23 +1461,23 @@ Same template, different `seed.sql` files:
 21. AI: Smart member insights (admin dashboard integration)
 22. AI: Personalized onboarding (on-signup integration)
 
-### Phase 3: Lychee Studio + Marketing
-23. Lychee Studio: website investigation via Chrome MCP (extract brand, content, structure)
-24. Lychee Studio: interview flow (smart questions based on community type + findings)
-25. Lychee Studio: spec generator (brand.json + seed.sql + translations from interview)
-26. Lychee Studio: automated build + deploy + Chrome verification
+### Phase 3: Kychon Studio + Marketing
+23. Kychon Studio: website investigation via Chrome MCP (extract brand, content, structure)
+24. Kychon Studio: interview flow (smart questions based on community type + findings)
+25. Kychon Studio: spec generator (brand.json + seed.sql + translations from interview)
+26. Kychon Studio: automated build + deploy + Chrome verification
 27. AI: Weekly newsletter generator (requires email gap solution)
 28. AI: Event recap generator
-29. wildlychee.com landing page (deployed on Run402, dogfooding)
+29. kychon.com landing page (deployed on Run402, dogfooding)
 30. Niche landing pages (churches, HOAs, associations, sports)
 31. Niche seed variants (3 seed.sql files: church, HOA, professional association)
 
-### Phase 4: Lychee Pro + Growth
-32. Lychee Pro: ongoing customization agent (reads STRUCTURE.md, implements requests, redeploys)
-33. Lychee Pro: request tracking + usage metering
+### Phase 4: Kychon Pro + Growth
+32. Kychon Pro: ongoing customization agent (reads STRUCTURE.md, implements requests, redeploys)
+33. Kychon Pro: request tracking + usage metering
 34. Publish to Run402 marketplace as forkable app
 35. Additional niche variants + seed files
 36. Community contributions (agent-submitted translations, themes)
 37. Niche Google Ads campaigns
 38. Directory listings (Capterra, G2, GetApp)
-39. Web-based Studio interface at studio.wildlychee.com (non-technical users)
+39. Web-based Studio interface at studio.kychon.com (non-technical users)
