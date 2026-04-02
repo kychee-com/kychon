@@ -369,7 +369,7 @@ import Portal from '../layouts/Portal.astro';
       ntAddPoll.addEventListener('click', () => {
         const formContainer = document.getElementById('nt-poll-form-container')!;
         if (topicPollFormRef) return;
-        topicPollFormRef = createPollForm(formContainer, { type: 'forum_topic', id: null });
+        topicPollFormRef = createPollForm(formContainer);
         ntAddPoll.classList.add('hidden');
         const observer = new MutationObserver(() => {
           if (formContainer.innerHTML === '') {
@@ -489,8 +489,8 @@ import Portal from '../layouts/Portal.astro';
     let topicPollData: any = null;
     if (isFeatureEnabled('feature_polls')) {
       try {
-        topicPollData = await fetchAttachedPoll('forum_topic', parseInt(topicId), session);
-      } catch {}
+        topicPollData = await fetchAttachedPoll('forum_topic', parseInt(topicId, 10), session);
+      } catch (e) { console.warn('Failed to fetch topic poll:', e); }
     }
 
     // Topic post
@@ -650,7 +650,7 @@ import Portal from '../layouts/Portal.astro';
             await patch(`forum_topics?id=eq.${id}`, { hidden: !topic.hidden });
           } else if (action === 'delete') {
             if (!confirm('Delete this topic and all its replies?')) return;
-            try { await del(`polls?attached_to=eq.forum_topic&attached_id=eq.${id}`); } catch {}
+            try { await del(`polls?attached_to=eq.forum_topic&attached_id=eq.${id}`); } catch (e) { console.warn('Failed to delete attached poll:', e); }
             await del(`forum_replies?topic_id=eq.${id}`);
             await del(`forum_topics?id=eq.${id}`);
             const { navigate } = await import('astro:transitions/client');

@@ -44,7 +44,7 @@ export async function checkAutoClose(poll: PollData): Promise<boolean> {
   if (new Date(poll.closes_at) > new Date()) return false;
   try {
     await patch(`polls?id=eq.${poll.id}`, { is_open: false });
-  } catch {}
+  } catch (e) { console.warn('Failed to auto-close poll:', e); }
   return true;
 }
 
@@ -241,7 +241,6 @@ export interface AttachConfig {
 
 export function createPollForm(
   container: HTMLElement,
-  _attachConfig?: AttachConfig | null,
 ): { getPollData: () => { question: string; options: string[]; poll_type: string; is_anonymous: boolean; results_visible: string; closes_at: string | null } | null; remove: () => void } {
   container.innerHTML = `
     <div class="poll-form card">
@@ -365,9 +364,9 @@ export async function submitPoll(
   const [created] = await post('polls', pollBody);
   const pollId = created.id;
 
-  for (let i = 0; i < data.options.length; i++) {
-    await post('poll_options', { poll_id: pollId, label: data.options[i], position: i });
-  }
+  await Promise.all(data.options.map((label, i) =>
+    post('poll_options', { poll_id: pollId, label, position: i })
+  ));
 
   await post('activity_log', {
     member_id: memberId,
