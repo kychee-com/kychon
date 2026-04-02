@@ -2,41 +2,166 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Forum">
-  <style>
+  <style is:global>
+    /* Category listing */
     .forum-category { display: block; text-decoration: none; color: inherit; border-left: 4px solid var(--color-primary); transition: box-shadow var(--transition); }
     .forum-category:hover { box-shadow: var(--shadow-md); color: inherit; }
     .forum-category-name { font-weight: 600; font-size: 1.1rem; }
     .forum-category-desc { color: var(--color-text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
     .forum-category-count { font-size: 0.8125rem; color: var(--color-text-muted); margin-top: 0.5rem; }
 
-    .forum-topic-row { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 1rem; border-bottom: 1px solid var(--color-border); transition: background var(--transition); }
-    .forum-topic-row:hover { background: var(--color-surface); }
-    .forum-topic-row.pinned { background: rgba(99, 102, 241, 0.03); border-left: 3px solid var(--color-primary); }
+    /* Topic listing rows */
+    .forum-topic-row {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr auto;
+      gap: 0.875rem;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--color-border);
+      transition: background var(--transition);
+      text-decoration: none;
+      color: inherit;
+    }
+    .forum-topic-row:hover { background: var(--color-surface); color: inherit; }
+    .forum-topic-row.pinned { background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg)); }
     .forum-topic-row.hidden-topic { opacity: 0.5; }
-    .forum-topic-title { font-weight: 600; font-size: 0.9375rem; color: var(--color-text); }
-    .forum-topic-title:hover { color: var(--color-primary); }
-    .forum-topic-meta { font-size: 0.8125rem; color: var(--color-text-muted); margin-top: 0.125rem; }
-    .forum-topic-info { flex: 1; min-width: 0; }
-    .forum-topic-stats { display: flex; gap: 1.5rem; font-size: 0.8125rem; color: var(--color-text-muted); white-space: nowrap; }
+    .forum-topic-avatar {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .forum-topic-avatar-fallback {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .forum-topic-info { min-width: 0; }
+    .forum-topic-title {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      flex-wrap: wrap;
+    }
+    .forum-topic-row:hover .forum-topic-title { color: var(--color-primary); }
+    .forum-topic-meta {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin-top: 0.25rem;
+    }
+    .forum-topic-stats {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.125rem;
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    .forum-topic-stats .reply-count {
+      font-weight: 500;
+      color: var(--color-text);
+    }
 
-    .forum-post { padding: 1.25rem; border-bottom: 1px solid var(--color-border); }
+    /* Topic view posts */
+    .forum-post { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-border); }
     .forum-post:last-child { border-bottom: none; }
     .forum-post.hidden-post { opacity: 0.5; background: rgba(239, 68, 68, 0.03); }
-    .forum-post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-    .forum-post-author { font-weight: 600; font-size: 0.9375rem; }
+    .forum-post-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .forum-post-author {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      display: flex;
+      align-items: center;
+    }
     .forum-post-date { font-size: 0.8125rem; color: var(--color-text-muted); }
-    .forum-post-body { font-size: 0.9375rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+    .forum-post-body {
+      font-size: 0.9375rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     .forum-post-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-    .forum-admin-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); }
+    .forum-admin-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--color-border);
+    }
 
-    .forum-breadcrumb { font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 1.5rem; }
+    /* Topic list card should not lift on hover */
+    .forum-topic-list.card:hover {
+      transform: none;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Breadcrumb */
+    .forum-breadcrumb {
+      font-size: 0.875rem;
+      color: var(--color-text-muted);
+      margin-bottom: 1.5rem;
+    }
     .forum-breadcrumb a { color: var(--color-primary); }
 
-    .forum-reply-form { margin-top: 1.5rem; }
-    .forum-new-topic-form { margin-top: 1.5rem; }
+    /* Forms */
+    .forum-reply-form,
+    .forum-new-topic-form {
+      margin-top: 2rem;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
 
-    .forum-locked-notice { padding: 1rem 1.25rem; background: var(--color-surface); border-radius: var(--radius); color: var(--color-text-muted); font-size: 0.875rem; margin-top: 1.5rem; text-align: center; }
+    .forum-locked-notice {
+      padding: 1rem 1.25rem;
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .forum-topic-row {
+        grid-template-columns: 2rem 1fr;
+        gap: 0.625rem;
+        padding: 0.875rem 1rem;
+      }
+      .forum-topic-avatar, .forum-topic-avatar-fallback {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.75rem;
+      }
+      .forum-topic-stats {
+        grid-column: 2;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+      }
+    }
   </style>
 
   <div class="container">
@@ -94,6 +219,14 @@ import Portal from '../layouts/Portal.astro';
     }
     const initial = (item.author_name || '?')[0].toUpperCase();
     return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size};height:${size};border-radius:50%;background:var(--color-primary);color:white;font-size:calc(${size} * 0.5);font-weight:600;vertical-align:middle;margin-right:0.375rem">${initial}</span>`;
+  }
+
+  function topicAvatarHtml(item: any): string {
+    if (item.author_avatar) {
+      return `<img src="${esc(item.author_avatar)}" alt="" class="forum-topic-avatar">`;
+    }
+    const initial = (item.author_name || '?')[0].toUpperCase();
+    return `<div class="forum-topic-avatar-fallback">${initial}</div>`;
   }
 
   // -- Category Listing --
@@ -178,23 +311,25 @@ import Portal from '../layouts/Portal.astro';
     if (topics.length === 0) {
       html += '<p class="text-muted">No topics yet. Be the first to start a discussion!</p>';
     } else {
-      html += '<div class="card" style="padding:0;overflow:hidden">';
+      html += '<div class="card forum-topic-list" style="padding:0;overflow:hidden">';
       for (const t of topics) {
         const pinnedClass = t.is_pinned ? ' pinned' : '';
         const hiddenClass = t.hidden ? ' hidden-topic' : '';
+        const replyCount = t.reply_count || 0;
         html += `
-          <a href="?topic=${esc(t.id)}" class="forum-topic-row${pinnedClass}${hiddenClass}" style="text-decoration:none;color:inherit">
+          <a href="?topic=${esc(t.id)}" class="forum-topic-row${pinnedClass}${hiddenClass}">
+            ${topicAvatarHtml(t)}
             <div class="forum-topic-info">
               <div class="forum-topic-title">
-                ${t.is_pinned ? '<span class="badge badge-primary" style="margin-right:0.375rem">Pinned</span>' : ''}
-                ${t.locked ? '<span class="badge badge-warning" style="margin-right:0.375rem">Locked</span>' : ''}
-                ${t.hidden ? '<span class="badge badge-danger" style="margin-right:0.375rem">Hidden</span>' : ''}
+                ${t.is_pinned ? '<span class="badge badge-primary">Pinned</span>' : ''}
+                ${t.locked ? '<span class="badge badge-warning">Locked</span>' : ''}
+                ${t.hidden ? '<span class="badge badge-danger">Hidden</span>' : ''}
                 ${esc(t.title)}
               </div>
-              <div class="forum-topic-meta">${avatarHtml(t)}${esc(t.author_name || 'Anonymous')} &middot; ${timeAgo(t.created_at)}</div>
+              <div class="forum-topic-meta">${esc(t.author_name || 'Anonymous')} &middot; ${timeAgo(t.created_at)}</div>
             </div>
             <div class="forum-topic-stats">
-              <span>${t.reply_count || 0} replies</span>
+              <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
               <span>${t.last_reply_at ? timeAgo(t.last_reply_at) : 'no replies'}</span>
             </div>
           </a>`;
