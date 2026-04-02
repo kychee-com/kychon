@@ -25,4 +25,4 @@ jobs:
         run: npx biome check .
 
       - name: Type Check
-        run: npx tsc --noEmit --project jsconfig.json
+        run: npx astro check
