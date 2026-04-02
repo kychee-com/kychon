@@ -12,7 +12,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = new URL('.', import.meta.url).pathname;
