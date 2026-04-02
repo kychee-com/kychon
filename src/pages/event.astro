@@ -181,11 +181,13 @@ import Portal from '../layouts/Portal.astro';
     document.getElementById('event-delete')?.addEventListener('click', async () => {
       if (!confirm('Delete this event?')) return;
       await del(`events?id=eq.${event.id}`);
-      window.location.href = '/events';
+      const { navigate } = await import('astro:transitions/client');
+      navigate('/events.html');
     });
   }
 
   initEvent();
   document.addEventListener('astro:after-swap', initEvent);
   document.addEventListener('wl-locale-changed', initEvent);
+  document.addEventListener('wl-auth-changed', initEvent);
 </script>

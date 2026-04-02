@@ -217,4 +217,5 @@ import Portal from '../layouts/Portal.astro';
   initAdminMembers();
   document.addEventListener('astro:after-swap', initAdminMembers);
   document.addEventListener('wl-locale-changed', initAdminMembers);
+  document.addEventListener('wl-auth-changed', initAdminMembers);
 </script>

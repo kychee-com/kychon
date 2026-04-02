@@ -215,4 +215,5 @@ import Portal from '../layouts/Portal.astro';
   initDashboard();
   document.addEventListener('astro:after-swap', initDashboard);
   document.addEventListener('wl-locale-changed', initDashboard);
+  document.addEventListener('wl-auth-changed', initDashboard);
 </script>

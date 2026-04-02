@@ -74,7 +74,12 @@
           }
         } else {
           await signIn(email, password);
-          window.location.reload();
+          document.getElementById('auth-modal')?.classList.add('hidden');
+          // Re-init config (loads member record, rebuilds nav with auth state)
+          const { init } = await import('../lib/config');
+          await init();
+          // Re-render current page content
+          document.dispatchEvent(new CustomEvent('wl-auth-changed'));
         }
       } catch (err: any) {
         if (errorEl) {

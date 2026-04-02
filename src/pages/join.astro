@@ -70,7 +70,8 @@ import Portal from '../layouts/Portal.astro';
         }
       } else {
         await signIn(email, password);
-        window.location.href = '/';
+        const { navigate } = await import('astro:transitions/client');
+        navigate('/');
       }
     } catch (err: any) {
       if (errEl) {

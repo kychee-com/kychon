@@ -461,7 +461,8 @@ import Portal from '../layouts/Portal.astro';
             if (!confirm('Delete this topic and all its replies?')) return;
             await del(`forum_replies?topic_id=eq.${id}`);
             await del(`forum_topics?id=eq.${id}`);
-            window.location.href = `?cat=${topic.category_id}`;
+            const { navigate } = await import('astro:transitions/client');
+            navigate(`/forum.html?cat=${topic.category_id}`);
             return;
           }
 
@@ -517,4 +518,5 @@ import Portal from '../layouts/Portal.astro';
   initForum();
   document.addEventListener('astro:after-swap', initForum);
   document.addEventListener('wl-locale-changed', initForum);
+  document.addEventListener('wl-auth-changed', initForum);
 </script>
