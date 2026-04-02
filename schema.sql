@@ -188,6 +188,41 @@ CREATE TABLE IF NOT EXISTS announcements (
 );
 
 -- ============================================
+-- SECTION: Polls (feature: polls)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS polls (
+  id SERIAL PRIMARY KEY,
+  question TEXT NOT NULL,
+  description TEXT,
+  poll_type TEXT NOT NULL DEFAULT 'single',
+  is_anonymous BOOLEAN DEFAULT false,
+  results_visible TEXT NOT NULL DEFAULT 'after_vote',
+  is_open BOOLEAN DEFAULT true,
+  closes_at TIMESTAMPTZ,
+  attached_to TEXT,
+  attached_id INT,
+  created_by INT REFERENCES members(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS poll_options (
+  id SERIAL PRIMARY KEY,
+  poll_id INT REFERENCES polls(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  position INT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS poll_votes (
+  id SERIAL PRIMARY KEY,
+  poll_id INT REFERENCES polls(id) ON DELETE CASCADE,
+  option_id INT REFERENCES poll_options(id) ON DELETE CASCADE,
+  member_id INT REFERENCES members(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(poll_id, member_id, option_id)
+);
+
+-- ============================================
 -- SECTION: Reactions
 -- ============================================
 

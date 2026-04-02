@@ -119,12 +119,14 @@ import { SiteConfigRowSchema } from '../schemas/config';
 import { AnnouncementSchema, ResourceSchema, SectionSchema, PageSchema, ReactionSchema } from '../schemas/content';
 import { ForumCategorySchema, ForumTopicSchema, ForumReplySchema } from '../schemas/forum';
 import { CommitteeSchema, CommitteeMemberSchema } from '../schemas/committee';
+import { PollSchema, PollOptionSchema, PollVoteSchema } from '../schemas/poll';
 import type { Event, EventRSVP } from '../schemas/event';
 import type { Member, MemberTier } from '../schemas/member';
 import type { SiteConfigRow } from '../schemas/config';
 import type { Announcement, Resource, Section, Page, Reaction } from '../schemas/content';
 import type { ForumCategory, ForumTopic, ForumReply } from '../schemas/forum';
 import type { Committee, CommitteeMember } from '../schemas/committee';
+import type { Poll, PollOption, PollVote } from '../schemas/poll';
 
 export async function getConfig(): Promise<SiteConfigRow[]> {
   const data = await get('site_config');
@@ -200,6 +202,21 @@ export async function getCommittees(): Promise<Committee[]> {
 export async function getCommitteeMembers(committeeId: number): Promise<CommitteeMember[]> {
   const data = await get(`committee_members?committee_id=eq.${committeeId}`);
   return z.array(CommitteeMemberSchema).parse(data);
+}
+
+export async function getPolls(query = ''): Promise<Poll[]> {
+  const data = await get(`polls${query ? `?${query}` : '?order=created_at.desc'}`);
+  return z.array(PollSchema).parse(data);
+}
+
+export async function getPollOptions(pollId: number): Promise<PollOption[]> {
+  const data = await get(`poll_options?poll_id=eq.${pollId}&order=position.asc`);
+  return z.array(PollOptionSchema).parse(data);
+}
+
+export async function getPollVotes(pollId: number): Promise<PollVote[]> {
+  const data = await get(`poll_votes?poll_id=eq.${pollId}`);
+  return z.array(PollVoteSchema).parse(data);
 }
 
 export { getAPI, getAnonKey, getAuthHeaders };
