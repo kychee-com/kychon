@@ -1,5 +1,5 @@
 // schedule: none (triggered manually from admin UI)
-import { db, getUser } from '@run402/functions';
+import { db, getUser } from 'run402-functions';
 
 export default async (req) => {
   const user = await getUser(req);

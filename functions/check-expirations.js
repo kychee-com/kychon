@@ -1,5 +1,5 @@
 // schedule: "0 8 * * *"
-import { db, email } from '@run402/functions';
+import { db, email } from 'run402-functions';
 
 export default async (_req) => {
   const _now = new Date().toISOString();

@@ -1,5 +1,5 @@
 // schedule: none (triggered by client after content publish)
-import { ai, db, getUser } from '@run402/functions';
+import { ai, db, getUser } from 'run402-functions';
 
 export default async (req) => {
   const user = await getUser(req);

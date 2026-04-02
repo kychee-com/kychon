@@ -1,5 +1,5 @@
 // prototype-schedule: "*/15 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { ai, db } from '@run402/functions';
+import { ai, db } from 'run402-functions';
 
 export default async (_req) => {
   // Check if feature is enabled

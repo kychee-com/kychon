@@ -80,7 +80,7 @@ Members select their language in profile settings. The picker only shows when >1
 1. Create `functions/my-job.js`:
    ```js
    // schedule: "0 9 * * *"
-   import { db } from '@run402/functions';
+   import { db } from 'run402-functions';
    export default async (req) => {
      // Your logic here
      return new Response(JSON.stringify({ status: 'ok' }));

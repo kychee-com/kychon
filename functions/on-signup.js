@@ -1,6 +1,6 @@
 // Lifecycle hook: called automatically by Run402 after first signup (fire-and-forget).
 // Also supports direct invocation with auth token for backward compatibility.
-import { db, getUser } from '@run402/functions';
+import { db, getUser } from 'run402-functions';
 
 export default async (req) => {
   // Determine user identity from lifecycle hook payload or auth token

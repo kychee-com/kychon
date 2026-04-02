@@ -1,6 +1,6 @@
 // On-demand text translation for user-generated content (Twitter-style "Translate" button)
 // Caches results in content_translations table. Uses OpenAI API via OPENAI_API_KEY secret.
-import { db } from '@run402/functions';
+import { db } from 'run402-functions';
 
 export default async (req) => {
   let body;

@@ -1,6 +1,6 @@
 // AI content generation — newsletter drafts + event recaps
 // prototype-schedule: "0 9 * * 1" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { db } from '@run402/functions';
+import { db } from 'run402-functions';
 
 export default async (req) => {
   // Route: if request has event_id body, handle recap; otherwise handle newsletter
