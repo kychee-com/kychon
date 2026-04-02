@@ -12,3 +12,4 @@ public/js/env.js
 deploy-batched.js
 dist/
 .astro/
+.deploy-minimal.json
