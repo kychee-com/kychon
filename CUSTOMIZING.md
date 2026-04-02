@@ -64,10 +64,10 @@ VALUES ('about', 'faq', '{"items":[{"q":"How do I join?","a":"Click Sign Up!"}]}
 
 ## Add a New Language
 
-1. Copy `site/custom/strings/en.json` to `site/custom/strings/pt.json`
+1. Copy `public/custom/strings/en.json` to `public/custom/strings/pt.json`
 2. Translate all values (keys stay the same)
 3. For RTL languages, add `"_meta": {"direction": "rtl"}` to the JSON root
-4. Update `site/custom/brand.json`:
+4. Update `public/custom/brand.json`:
    ```json
    { "languages": ["en", "pt"], "defaultLanguage": "en" }
    ```

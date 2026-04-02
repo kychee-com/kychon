@@ -1,0 +1,13 @@
+---
+// AuthProvider.astro — client:load island that handles auth state and OAuth callback
+---
+<div id="auth-provider" transition:persist></div>
+
+<script>
+  import { handleOAuthCallback, getSession } from '../lib/auth';
+
+  // Handle OAuth callback if hash contains code
+  if (window.location.hash.includes('code=')) {
+    await handleOAuthCallback();
+  }
+</script>

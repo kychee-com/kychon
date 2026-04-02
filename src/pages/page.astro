@@ -1,0 +1,74 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Page">
+  <div class="container">
+    <h1 id="page-title"></h1>
+    <div id="page-content" class="mt-2"></div>
+    <div id="page-sections" class="mt-2"></div>
+  </div>
+</Portal>
+
+<script>
+  import { get } from '../lib/api';
+  import { isAuthenticated } from '../lib/auth';
+  import { translateItems } from '../lib/config';
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  async function initPage() {
+    const slug = new URLSearchParams(window.location.search).get('slug');
+    if (!slug) {
+      document.getElementById('page-title')!.textContent = 'Page not found';
+      return;
+    }
+
+    try {
+      const pages = await get(`pages?slug=eq.${slug}&published=eq.true&limit=1`);
+      if (pages.length === 0) {
+        document.getElementById('page-title')!.textContent = 'Page not found';
+        return;
+      }
+
+      const page = pages[0];
+      await translateItems('page', [page], ['title', 'content']);
+
+      // Auth gate
+      if (page.requires_auth && !isAuthenticated()) {
+        window.location.href = '/';
+        return;
+      }
+
+      document.title = page.title;
+      document.getElementById('page-title')!.textContent = page.title;
+      if (page.content) {
+        document.getElementById('page-content')!.innerHTML = page.content;
+      }
+
+      // Load sections
+      const sections = await get(`sections?page_slug=eq.${slug}&visible=eq.true&order=position.asc`);
+      const container = document.getElementById('page-sections')!;
+      for (const s of sections) {
+        const el = document.createElement('div');
+        el.className = 'section section-visible';
+        if (s.config?.html) {
+          el.innerHTML = s.config.html;
+        } else if (s.section_type === 'faq') {
+          el.innerHTML = (s.config.items || []).map((f: any) =>
+            `<details class="card mb-1"><summary style="font-weight:600;cursor:pointer">${esc(f.q)}</summary><p class="text-muted mt-1">${esc(f.a)}</p></details>`
+          ).join('');
+        }
+        container.appendChild(el);
+      }
+    } catch (_e) {
+      document.getElementById('page-title')!.textContent = 'Error loading page';
+    }
+  }
+
+  initPage();
+  document.addEventListener('astro:after-swap', initPage);
+</script>

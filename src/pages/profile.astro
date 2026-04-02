@@ -1,0 +1,152 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Profile">
+  <div class="container" style="max-width:36rem">
+    <h2 class="mb-2">Your Profile</h2>
+    <form id="profile-form">
+      <div class="text-center mb-2">
+        <label style="cursor:pointer">
+          <img id="profile-avatar-img" class="member-avatar" src="" alt="Avatar" style="width:5rem;height:5rem;margin:0 auto;display:block">
+          <input type="file" id="profile-avatar-upload" accept="image/*" class="hidden">
+          <span class="text-sm text-muted">Click to change</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="profile-name">Display Name</label>
+        <input class="form-input" id="profile-name" type="text" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="profile-bio">Bio</label>
+        <textarea class="form-textarea" id="profile-bio" rows="3"></textarea>
+      </div>
+      <div id="custom-fields"></div>
+      <button type="submit" class="btn btn-primary" id="profile-save">Save</button>
+    </form>
+  </div>
+</Portal>
+
+<script>
+  import { get, patch } from '../lib/api';
+  import { getSession, requireAuth } from '../lib/auth';
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  async function renderCustomFields(member: any) {
+    const container = document.getElementById('custom-fields');
+    if (!container) return;
+    try {
+      const fields = await get('member_custom_fields?order=position.asc');
+      if (fields.length === 0) return;
+      container.innerHTML = fields
+        .map((f: any) => {
+          const val = member.custom_fields?.[f.field_name] || '';
+          switch (f.field_type) {
+            case 'textarea':
+              return `<div class="form-group">
+              <label class="form-label">${esc(f.field_label)}</label>
+              <textarea class="form-textarea" data-custom-field="${esc(f.field_name)}">${esc(val)}</textarea>
+            </div>`;
+            case 'select': {
+              const opts = (f.options || [])
+                .map((o: string) => `<option value="${esc(o)}" ${o === val ? 'selected' : ''}>${esc(o)}</option>`)
+                .join('');
+              return `<div class="form-group">
+              <label class="form-label">${esc(f.field_label)}</label>
+              <select class="form-select" data-custom-field="${esc(f.field_name)}"><option value="">—</option>${opts}</select>
+            </div>`;
+            }
+            case 'date':
+              return `<div class="form-group">
+              <label class="form-label">${esc(f.field_label)}</label>
+              <input class="form-input" type="date" data-custom-field="${esc(f.field_name)}" value="${esc(val)}">
+            </div>`;
+            case 'url':
+              return `<div class="form-group">
+              <label class="form-label">${esc(f.field_label)}</label>
+              <input class="form-input" type="url" data-custom-field="${esc(f.field_name)}" value="${esc(val)}">
+            </div>`;
+            default:
+              return `<div class="form-group">
+              <label class="form-label">${esc(f.field_label)}</label>
+              <input class="form-input" type="text" data-custom-field="${esc(f.field_name)}" value="${esc(val)}">
+            </div>`;
+          }
+        })
+        .join('');
+    } catch (e) {
+      console.warn('Failed to load custom fields:', e);
+    }
+  }
+
+  async function initProfile() {
+    if (!requireAuth()) return;
+
+    const session = getSession();
+    const member = session.user?.member;
+    if (!member) return;
+
+    (document.getElementById('profile-name') as HTMLInputElement).value = member.display_name || '';
+    (document.getElementById('profile-bio') as HTMLTextAreaElement).value = member.bio || '';
+    if (member.avatar_url) {
+      (document.getElementById('profile-avatar-img') as HTMLImageElement).src = member.avatar_url;
+    }
+
+    await renderCustomFields(member);
+
+    document.getElementById('profile-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body: any = {
+        display_name: (document.getElementById('profile-name') as HTMLInputElement).value,
+        bio: (document.getElementById('profile-bio') as HTMLTextAreaElement).value,
+      };
+
+      const customFields = { ...member.custom_fields };
+      document.querySelectorAll('[data-custom-field]').forEach((el) => {
+        customFields[(el as HTMLElement).dataset.customField!] = (el as HTMLInputElement).value;
+      });
+      body.custom_fields = customFields;
+
+      await patch(`members?id=eq.${member.id}`, body);
+
+      Object.assign(member, body);
+      localStorage.setItem('wl_session', JSON.stringify(session));
+
+      const btn = document.getElementById('profile-save')!;
+      btn.textContent = 'Saved!';
+      setTimeout(() => (btn.textContent = 'Save'), 2000);
+    });
+
+    // Avatar upload
+    document.getElementById('profile-avatar-upload')?.addEventListener('change', async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const API = window.__WILDLYCHEE_API || 'https://api.run402.com';
+      const ANON_KEY = window.__WILDLYCHEE_ANON_KEY || '';
+      const path = `avatars/${member.id}/${file.name}`;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`${API}/storage/v1/upload/${path}`, {
+        method: 'POST',
+        headers: { apikey: ANON_KEY, Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const avatarUrl = data.url || `/storage/${path}`;
+        await patch(`members?id=eq.${member.id}`, { avatar_url: avatarUrl });
+        (document.getElementById('profile-avatar-img') as HTMLImageElement).src = avatarUrl;
+        member.avatar_url = avatarUrl;
+        localStorage.setItem('wl_session', JSON.stringify(session));
+      }
+    });
+  }
+
+  initProfile();
+  document.addEventListener('astro:after-swap', initProfile);
+</script>

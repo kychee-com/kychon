@@ -8,4 +8,7 @@ app-*.json
 demo/*/assets/
 marketing/.marketing-manifest.json
 site/js/env.js
+public/js/env.js
 deploy-batched.js
+dist/
+.astro/

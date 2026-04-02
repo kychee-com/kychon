@@ -17,7 +17,7 @@ global.localStorage = {
   },
 };
 
-const { get, post, patch, del, count } = await import('../../site/js/api.js');
+const { get, post, patch, del, count } = await import('../../src/lib/api.ts');
 
 describe('api.js', () => {
   beforeEach(() => {

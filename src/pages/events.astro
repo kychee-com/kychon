@@ -1,0 +1,152 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Events">
+  <div class="container">
+    <div class="flex justify-between items-center mb-2">
+      <h2>Events</h2>
+      <button class="btn btn-primary hidden" id="event-create-btn">Create Event</button>
+    </div>
+    <div id="events-list">
+      <div class="card-grid"><div class="card"><div class="skeleton skeleton-card"></div></div><div class="card"><div class="skeleton skeleton-card"></div></div><div class="card"><div class="skeleton skeleton-card"></div></div></div>
+    </div>
+  </div>
+
+  <!-- Event Create Modal -->
+  <div class="auth-modal hidden" id="event-form-modal">
+    <div class="auth-panel" style="max-width:32rem">
+      <h3 class="mb-1">Create Event</h3>
+      <form id="event-form">
+        <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="ef-title" required></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="ef-description"></textarea></div>
+        <div class="form-group"><label class="form-label">Location</label><input class="form-input" id="ef-location"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group"><label class="form-label">Starts</label><input class="form-input" id="ef-starts" type="datetime-local" required></div>
+          <div class="form-group"><label class="form-label">Ends</label><input class="form-input" id="ef-ends" type="datetime-local"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Capacity (0 = unlimited)</label><input class="form-input" id="ef-capacity" type="number" min="0" value="0"></div>
+        <label class="flex items-center gap-1 mb-2"><input type="checkbox" id="ef-members-only"> Members only</label>
+        <div class="flex gap-1">
+          <button type="submit" class="btn btn-primary">Create</button>
+          <button type="button" class="btn btn-secondary" id="event-form-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</Portal>
+
+<script>
+  import { get, post } from '../lib/api';
+  import { getSession, isAdmin } from '../lib/auth';
+  import { translateItems } from '../lib/config';
+
+  let allEvents: any[] = [];
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+  }
+
+  async function loadEvents() {
+    try {
+      allEvents = await get('events?order=starts_at.asc');
+      await translateItems('event', allEvents, ['title', 'description']);
+      renderEvents();
+    } catch (e) {
+      console.warn('Failed to load events:', e);
+    }
+  }
+
+  function renderEvents() {
+    const now = new Date().toISOString();
+    const upcoming = allEvents.filter((e) => e.starts_at >= now);
+    const past = allEvents.filter((e) => e.starts_at < now).reverse();
+
+    const container = document.getElementById('events-list');
+    if (!container) return;
+
+    if (upcoming.length === 0 && past.length === 0) {
+      container.innerHTML = '<p class="text-muted">No events yet.</p>';
+      return;
+    }
+
+    let html = '';
+    if (upcoming.length > 0) {
+      html += '<h3 class="mb-1">Upcoming</h3><div class="card-grid mb-2">';
+      html += upcoming.map((e) => eventCard(e)).join('');
+      html += '</div>';
+    }
+    if (past.length > 0) {
+      html += '<h3 class="mb-1 text-muted">Past Events</h3><div class="card-grid">';
+      html += past.map((e) => eventCard(e)).join('');
+      html += '</div>';
+    }
+    container.innerHTML = html;
+
+    container.querySelectorAll('[data-event-id]').forEach((card) => {
+      (card as HTMLElement).style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        window.location.href = `/event?id=${(card as HTMLElement).dataset.eventId}`;
+      });
+    });
+  }
+
+  function eventCard(e: any): string {
+    const date = new Date(e.starts_at);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="card" data-event-id="${e.id}">
+        ${e.image_url ? `<img src="${esc(e.image_url)}" alt="" width="400" height="150" style="width:100%;height:150px;object-fit:cover;border-radius:var(--radius) var(--radius) 0 0;margin:-1.5rem -1.5rem 1rem -1.5rem;width:calc(100% + 3rem)">` : ''}
+        <h4>${esc(e.title)}</h4>
+        <p class="text-sm text-muted">${dateStr} at ${timeStr}</p>
+        ${e.location ? `<p class="text-sm text-muted">${esc(e.location)}</p>` : ''}
+        ${e.is_members_only ? '<span class="badge badge-primary">Members Only</span>' : ''}
+        ${e.capacity ? `<span class="badge badge-warning">${e.capacity} spots</span>` : ''}
+      </div>`;
+  }
+
+  function setupEventCreate() {
+    const btn = document.getElementById('event-create-btn');
+    if (!btn) return;
+    btn.classList.remove('hidden');
+    btn.addEventListener('click', () => {
+      document.getElementById('event-form-modal')?.classList.remove('hidden');
+    });
+
+    document.getElementById('event-form-cancel')?.addEventListener('click', () => {
+      document.getElementById('event-form-modal')?.classList.add('hidden');
+    });
+
+    document.getElementById('event-form')?.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const session = getSession();
+      const memberId = session?.user?.member?.id;
+      const data = {
+        title: (document.getElementById('ef-title') as HTMLInputElement).value,
+        description: (document.getElementById('ef-description') as HTMLTextAreaElement).value,
+        location: (document.getElementById('ef-location') as HTMLInputElement).value,
+        starts_at: (document.getElementById('ef-starts') as HTMLInputElement).value,
+        ends_at: (document.getElementById('ef-ends') as HTMLInputElement).value || null,
+        capacity: parseInt((document.getElementById('ef-capacity') as HTMLInputElement).value, 10) || null,
+        is_members_only: (document.getElementById('ef-members-only') as HTMLInputElement).checked,
+        created_by: memberId,
+      };
+      await post('events', data);
+      document.getElementById('event-form-modal')?.classList.add('hidden');
+      (document.getElementById('event-form') as HTMLFormElement)?.reset();
+      await loadEvents();
+    });
+  }
+
+  async function initEvents() {
+    await loadEvents();
+    if (isAdmin()) {
+      setupEventCreate();
+    }
+  }
+
+  initEvents();
+  document.addEventListener('astro:after-swap', initEvents);
+</script>

@@ -69,7 +69,7 @@ describe('i18n.js', () => {
       return Promise.resolve({ ok: false });
     });
 
-    const mod = await import('../../site/js/i18n.js');
+    const mod = await import('../../src/lib/i18n.ts');
     t = mod.t;
     loadLocale = mod.loadLocale;
     setLanguage = mod.setLanguage;

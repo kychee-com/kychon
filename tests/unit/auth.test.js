@@ -30,7 +30,7 @@ describe('auth.js', () => {
     vi.resetModules();
     localStorage._data = {};
     global.fetch.mockReset();
-    auth = await import('../../site/js/auth.js');
+    auth = await import('../../src/lib/auth.ts');
   });
 
   describe('PKCE', () => {

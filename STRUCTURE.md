@@ -1,64 +1,102 @@
 # Wild Lychee — AI-Readable Manifest
 
-**Version**: 0.2.0 (Phase 2)
+**Version**: 0.3.0 (Astro rewrite)
 **Platform**: Run402 (Postgres + static hosting + edge functions)
-**Deploy**: `node deploy.js` (assembles app.json, runs `run402 deploy`)
+**Framework**: Astro SSG (static output, no server-side rendering)
+**Deploy**: `node deploy.js` (builds Astro → assembles app.json → `run402 deploy`)
 
 ## File Structure
 
 ```
 wild-lychee/
-├── deploy.js              # Deploy script → assembles app.json → run402 deploy
-├── schema.sql             # All database tables (idempotent, CREATE TABLE IF NOT EXISTS)
-├── seed.sql               # Default config, tiers, homepage sections (idempotent, ON CONFLICT)
-├── site/
-│   ├── index.html         # Landing page: schema-driven sections + announcements + auth modal
-│   ├── directory.html     # Member directory (search, filter, detail modal)
-│   ├── profile.html       # Profile editor (name, bio, avatar, custom fields)
-│   ├── page.html          # Generic page renderer (?slug=about)
-│   ├── events.html        # Events listing (upcoming, past, RSVP)
-│   ├── event.html         # Single event detail + RSVP (?id=UUID)
-│   ├── resources.html     # Resource library (browse, search, download)
-│   ├── forum.html         # Forum (categories, topics, replies)
-│   ├── committees.html    # Committees listing + detail
-│   ├── admin.html         # Admin dashboard (stats, activity feed, quick actions)
-│   ├── admin-members.html # Member management (approve, suspend, tier, role, CSV export)
-│   ├── admin-settings.html# Site settings (branding, theme, features, tiers)
-│   ├── css/
-│   │   ├── theme.css      # CSS custom properties (defaults, overridden by site_config.theme)
-│   │   └── styles.css     # All component styles using CSS variables
-│   ├── js/
-│   │   ├── api.js         # REST wrapper: get/post/patch/del/count + 401 refresh
-│   │   ├── auth.js        # Google OAuth PKCE + password auth + session + role checks
-│   │   ├── config.js      # Loads site_config, injects theme, builds nav, loads admin-editor
-│   │   ├── i18n.js        # t(key, vars), locale loading, plurals, RTL
-│   │   ├── profile.js     # Profile editor logic
-│   │   ├── directory.js   # Directory listing + search/filter
-│   │   ├── admin.js       # Dashboard stats + activity feed
-│   │   ├── events.js          # Events listing + RSVP logic
-│   │   ├── event.js           # Single event detail + RSVP
-│   │   ├── resources.js       # Resource library browse/search/download
-│   │   ├── forum.js           # Forum categories, topics, replies
-│   │   ├── committees.js      # Committees listing + detail
-│   │   ├── admin-members.js   # Member management table
-│   │   ├── admin-settings.js  # Settings panel logic
-│   │   └── admin-editor.js    # Inline editing (contenteditable + Tiptap + image upload)
+├── astro.config.mjs       # Astro config: SSG mode, build.format: 'file', i18n
+├── tsconfig.json           # Extends astro/tsconfigs/strict
+├── deploy.js               # Build + deploy: astro build → inject env.js → app.json → run402 deploy
+├── schema.sql              # All database tables (idempotent, CREATE TABLE IF NOT EXISTS)
+├── seed.sql                # Default config, tiers, homepage sections (idempotent, ON CONFLICT)
+├── src/
+│   ├── pages/              # One .astro file per route (outputs flat .html)
+│   │   ├── index.astro     # Landing: schema-driven sections + announcements
+│   │   ├── join.astro      # Signup/login page
+│   │   ├── directory.astro # Member directory (search, filter)
+│   │   ├── profile.astro   # Profile editor
+│   │   ├── page.astro      # Generic page renderer (?slug=about)
+│   │   ├── events.astro    # Events listing (upcoming, past, RSVP)
+│   │   ├── event.astro     # Single event detail + RSVP
+│   │   ├── resources.astro # Resource library
+│   │   ├── forum.astro     # Forum (categories, topics, replies)
+│   │   ├── committees.astro# Committees listing + detail
+│   │   ├── admin.astro     # Admin dashboard
+│   │   ├── admin-members.astro  # Member management
+│   │   └── admin-settings.astro # Site settings
+│   ├── layouts/
+│   │   └── Portal.astro    # Main layout: head, nav, footer, auth, config, toast, admin editor
+│   ├── components/
+│   │   ├── Nav.astro       # Navigation bar (static shell, populated at runtime)
+│   │   ├── Footer.astro    # Site footer
+│   │   ├── ConfigProvider.astro  # client:load — fetches config, injects theme, builds nav, i18n
+│   │   ├── AuthProvider.astro    # client:load — handles OAuth callback, session
+│   │   ├── AuthModal.astro       # Sign in / sign up modal
+│   │   ├── AdminEditor.astro     # client:idle — contenteditable + Tiptap + image upload
+│   │   └── Toast.astro           # client:idle — notification toasts
+│   ├── lib/                # Shared TypeScript modules (client-side)
+│   │   ├── api.ts          # REST wrapper: get/post/patch/del/count + typed wrappers (Zod)
+│   │   ├── auth.ts         # Google OAuth PKCE + password auth + session + role checks
+│   │   ├── config.ts       # Loads site_config, injects theme, builds nav, i18n init
+│   │   └── i18n.ts         # t(key, vars), locale loading, plurals, RTL
+│   ├── schemas/            # Zod schemas for PostgREST responses
+│   │   ├── config.ts       # SiteConfigRow, Theme, NavItem
+│   │   ├── member.ts       # Member, MemberTier, MemberCustomField
+│   │   ├── event.ts        # Event, EventRSVP
+│   │   ├── forum.ts        # ForumCategory, ForumTopic, ForumReply
+│   │   ├── content.ts      # Announcement, Resource, Page, Section, Reaction
+│   │   ├── committee.ts    # Committee, CommitteeMember
+│   │   └── index.ts        # Re-exports all schemas
+│   └── styles/             # Global CSS (also copied to public/css/)
+│       ├── theme.css       # CSS custom properties
+│       ├── global.css       # Component styles
+│       └── a11y.css        # Accessibility styles
+├── public/
+│   ├── css/                # CSS served statically (theme.css, styles.css, a11y.css)
+│   ├── js/env.js           # Runtime config (auto-generated by deploy.js)
 │   └── custom/
-│       ├── brand.json     # Languages + default language
-│       └── strings/en.json# English UI strings (~130 keys)
-├── functions/
-│   ├── on-signup.js       # Post-auth: create member, first-user-admin
-│   ├── check-expirations.js   # schedule: "0 8 * * *" — expire lapsed memberships daily at 8 AM
-│   ├── event-reminders.js     # schedule: "0 * * * *" — send upcoming-event reminders hourly
-│   ├── moderate-content.js    # schedule: "*/15 * * * *" — AI moderation via ai.moderate()
-│   ├── translate-content.js   # On-demand translation via ai.translate()
-│   ├── upload-resource.js     # Handle resource file uploads
-│   └── export-csv.js          # Generate CSV exports for admin
+│       ├── brand.json      # Languages + default language
+│       └── strings/en.json # English UI strings (~180 keys)
+├── functions/              # Run402 edge functions (unchanged)
+│   ├── on-signup.js        # Post-auth: create member, first-user-admin
+│   ├── check-expirations.js    # schedule: "0 8 * * *"
+│   ├── event-reminders.js      # schedule: "0 * * * *"
+│   ├── moderate-content.js     # schedule: "*/15 * * * *"
+│   ├── translate-content.js    # On-demand translation
+│   ├── translate-text.js       # Live translation endpoint
+│   ├── upload-resource.js      # Resource file uploads
+│   ├── export-csv.js           # CSV exports for admin
+│   └── ai-content.js           # Newsletter/insights (dormant)
 └── tests/
-    ├── unit/              # Vitest + Node
-    ├── integration/       # Vitest + happy-dom
-    └── fixtures/          # Mock data
+    ├── unit/               # Vitest + Node (imports from src/lib/, src/schemas/)
+    ├── integration/        # Vitest + happy-dom
+    └── fixtures/           # Mock data
 ```
+
+## Key Architecture Patterns
+
+### Astro SSG + Run402
+Astro builds to static HTML/JS/CSS in `dist/`. Run402 serves these as static files. No SSR — all interactivity is client-side JavaScript in `<script>` tags within .astro pages.
+
+### Island Hydration
+Components in the layout use `client:*` directives for progressive hydration:
+- `client:load` — ConfigProvider, AuthProvider (must run before first paint)
+- `client:idle` — AdminEditor, Toast (load after page settles)
+- No directive — Nav, Footer (static HTML, zero JS)
+
+### View Transitions
+`<ClientRouter />` in the layout provides SPA-like navigation. Pages transition smoothly without full reloads. Nav, footer, and providers persist across navigations via `transition:persist`.
+
+### Runtime Config from DB
+Theme, nav, feature flags, and branding are fetched from `site_config` at runtime by ConfigProvider. **SQL changes take effect without rebuilding.** The build produces a static shell; the DB fills it in.
+
+### Type Safety
+Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (`getEvents()`, `getMembers()`, etc.) in `src/lib/api.ts` parse responses through schemas. Build fails on type errors.
 
 ## Database Tables
 
@@ -72,13 +110,13 @@ wild-lychee/
 | `members` | All members | user_id (UUID), email, display_name, role, status, tier_id, custom_fields (JSONB) |
 | `announcements` | News/announcements | title, body, is_pinned, author_id |
 | `activity_log` | Activity tracking | member_id, action, metadata (JSONB) |
-| `events` | Events (Phase 2) | title, starts_at, capacity, is_members_only |
-| `event_rsvps` | RSVPs (Phase 2) | event_id, member_id, status |
-| `resources` | Resource library (Phase 2) | title, file_url, file_type, is_members_only |
-| `forum_*` | Forum tables (Phase 2) | categories, topics, replies |
-| `committees` | Committees (Phase 2) | name, description |
-| `content_translations` | AI translations (native) | content_type, content_id, language, field |
-| `moderation_log` | AI moderation (native) | content_type, action, reason, confidence |
+| `events` | Events | title, starts_at, capacity, is_members_only |
+| `event_rsvps` | RSVPs | event_id, member_id, status |
+| `resources` | Resource library | title, file_url, file_type, is_members_only |
+| `forum_*` | Forum tables | categories, topics, replies |
+| `committees` | Committees | name, description |
+| `content_translations` | AI translations | content_type, content_id, language, field |
+| `moderation_log` | AI moderation | content_type, action, reason, confidence |
 | `member_insights` | AI insights (dormant) | member_id, insight_type, message, priority |
 | `newsletter_drafts` | AI newsletter (dormant) | subject, body, status |
 
@@ -89,51 +127,30 @@ All boolean. Toggle with: `UPDATE site_config SET value = 'true' WHERE key = 'fe
 - `feature_events` (default **true**), `feature_forum`, `feature_directory`, `feature_resources` (default **true**)
 - `feature_blog`, `feature_committees`
 - `feature_ai_moderation`, `feature_ai_translation` — platform-native, no API key needed
-- `feature_ai_onboarding`, `feature_ai_newsletter`, `feature_ai_insights`, `feature_ai_event_recaps` — dormant, awaiting Run402 LLM endpoint
-- `directory_public` (allow anonymous directory access)
-
-## AI Configuration
-
-AI moderation and translation are platform-native via Run402 — no API key or secrets required. Enable them via the admin settings UI or SQL:
-
-```sql
-UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_moderation';
-UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_translation';
-```
-
-Generative AI features (insights, onboarding, newsletter, event recaps) are dormant pending a Run402 generic LLM endpoint. Their functions remain in the codebase but are unreachable without the endpoint.
-
-## Schema Migrations
-
-Phase 2 tables are created with `CREATE TABLE IF NOT EXISTS` (safe to re-run). When adding columns to existing tables, use the safe ALTER pattern:
-
-```sql
-DO $$ BEGIN
-  ALTER TABLE members ADD COLUMN onboarding_complete BOOLEAN DEFAULT false;
-EXCEPTION WHEN duplicate_column THEN NULL;
-END $$;
-```
-
-This avoids errors on repeated deploys.
+- `feature_ai_onboarding`, `feature_ai_newsletter`, `feature_ai_insights`, `feature_ai_event_recaps` — dormant
 
 ## Naming Conventions
 
-- Pages: `site/{feature}.html`
-- Page logic: `site/js/{feature}.js`
+- Pages: `src/pages/{feature}.astro`
+- Layout: `src/layouts/Portal.astro`
+- Components: `src/components/{Name}.astro` (PascalCase)
+- Libraries: `src/lib/{module}.ts` (camelCase)
+- Schemas: `src/schemas/{entity}.ts` (camelCase)
 - Edge functions: `functions/{feature}.js`
-- Schema sections: `-- SECTION: {Feature}` comments in schema.sql
 - Config keys: `site_name`, `feature_forum`, `theme` (snake_case)
-- i18n keys: `section.key` dot notation (e.g., `nav.home`, `admin.stats_active`)
+- i18n keys: `section.key` dot notation (e.g., `nav.home`)
 
 ## How to Add a New Feature
 
 1. Add tables to `schema.sql` (use `CREATE TABLE IF NOT EXISTS`)
 2. Add seed data to `seed.sql` (use `ON CONFLICT`)
-3. Create `site/{feature}.html` + `site/js/{feature}.js`
-4. Add nav item to `seed.sql` nav config
-5. Add feature flag to `seed.sql` (e.g., `feature_myfeature`)
-6. Add i18n keys to `site/custom/strings/en.json`
-7. Run `node deploy.js`
+3. Add Zod schema to `src/schemas/{feature}.ts`, re-export from `src/schemas/index.ts`
+4. Add typed API wrapper to `src/lib/api.ts`
+5. Create `src/pages/{feature}.astro` — import Portal layout, add page content + `<script>`
+6. Add nav item to `seed.sql` nav config
+7. Add feature flag to `seed.sql` (e.g., `feature_myfeature`)
+8. Add i18n keys to `public/custom/strings/en.json`
+9. Run `node deploy.js`
 
 ## How to Add a New Page
 

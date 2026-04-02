@@ -1,0 +1,209 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Home">
+  <div id="sections">
+    <div class="section section-visible" id="sections-skeleton" style="padding:2rem 0">
+      <div class="container"><div class="skeleton skeleton-card mb-1"></div><div class="skeleton skeleton-card mb-1"></div></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="section section-visible" id="announcements-section">
+      <h2 id="announcements-title">Announcements</h2>
+      <div id="announcement-create" class="hidden mb-2"></div>
+      <div id="announcements-feed">
+        <div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></div>
+        <div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></div>
+      </div>
+    </section>
+  </div>
+</Portal>
+
+<script>
+  import { del, get, patch, post } from '../lib/api';
+  import { getSession, isAdmin } from '../lib/auth';
+  import { isFeatureEnabled, getTranslatedContent, translateItems, cacheHeroImage } from '../lib/config';
+  import { getLocale } from '../lib/i18n';
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function timeAgo(iso: string): string {
+    const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function featureIcon(name: string): string {
+    const icons: Record<string, string> = {
+      users: '\u{1F465}', calendar: '\u{1F4C5}', 'book-open': '\u{1F4D6}', 'message-circle': '\u{1F4AC}',
+      home: '\u{1F3E0}', settings: '\u2699\uFE0F', 'bar-chart-2': '\u{1F4CA}', shield: '\u{1F6E1}',
+    };
+    return icons[name] || '\u2726';
+  }
+
+  // --- Sections ---
+  async function renderSections() {
+    const container = document.getElementById('sections');
+    if (!container) return;
+    try {
+      const sections = await get('sections?page_slug=eq.index&visible=eq.true&order=position.asc');
+      container.style.minHeight = container.offsetHeight + 'px';
+      document.getElementById('sections-skeleton')?.remove();
+      for (const section of sections) {
+        container.appendChild(renderSection(section));
+      }
+      container.style.minHeight = '';
+    } catch (e) {
+      console.warn('Failed to load sections:', e);
+      document.getElementById('sections-skeleton')?.remove();
+      container.style.minHeight = '';
+    }
+  }
+
+  function renderSection(section: any): HTMLElement {
+    const cfg = section.config;
+    const el = document.createElement('section');
+
+    switch (section.section_type) {
+      case 'hero':
+        el.className = 'section section-hero';
+        el.innerHTML = `<div class="container"><h1>${esc(cfg.heading || '')}</h1><p>${esc(cfg.subheading || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg">${esc(cfg.cta_text)}</a>` : ''}</div>`;
+        if (cfg.bg_image) { el.style.backgroundImage = `url(${cfg.bg_image})`; cacheHeroImage(cfg.bg_image); }
+        break;
+
+      case 'features': {
+        el.className = 'section section-features';
+        const cols = cfg.columns || 3;
+        el.innerHTML = `<div class="container"><div class="features-grid" style="--cols:${cols}">${(cfg.items || []).map((item: any) => `<div class="feature-card"><div class="feature-icon">${featureIcon(item.icon)}</div><h3>${esc(item.title || '')}</h3><p>${esc(item.desc || '')}</p></div>`).join('')}</div></div>`;
+        break;
+      }
+
+      case 'cta':
+        el.className = 'section section-cta';
+        el.innerHTML = `<div class="container"><h2>${esc(cfg.heading || '')}</h2><p class="text-muted mt-1">${esc(cfg.text || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg mt-2">${esc(cfg.cta_text)}</a>` : ''}</div>`;
+        break;
+
+      case 'stats':
+        el.className = 'section section-stats';
+        el.innerHTML = `<div class="container"><div class="stats-grid">${(cfg.items || []).map((s: any) => { const inner = `<div class="stat-value">${esc(s.value || '')}</div><div class="stat-label">${esc(s.label || '')}</div>`; return s.href ? `<a href="${esc(s.href)}" class="stat-card" style="text-decoration:none;color:inherit">${inner}</a>` : `<div class="stat-card">${inner}</div>`; }).join('')}</div></div>`;
+        break;
+
+      case 'testimonials':
+        el.className = 'section';
+        el.innerHTML = `<div class="container"><div class="card-grid">${(cfg.items || []).map((t: any) => `<div class="card"><p style="font-style:italic">"${esc(t.quote || '')}"</p><p class="text-sm text-muted mt-1">- ${esc(t.name || '')}${t.role ? `, ${esc(t.role)}` : ''}</p></div>`).join('')}</div></div>`;
+        break;
+
+      case 'faq':
+        el.className = 'section';
+        el.innerHTML = `<div class="container"><h2 class="mb-2">FAQ</h2>${(cfg.items || []).map((f: any) => `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600">${esc(f.q || '')}</summary><p class="text-muted mt-1">${esc(f.a || '')}</p></details>`).join('')}</div>`;
+        break;
+
+      default:
+        el.className = 'section';
+        if (cfg.html) el.innerHTML = `<div class="container">${cfg.html}</div>`;
+        break;
+    }
+    return el;
+  }
+
+  // --- Activity feed ---
+  async function loadActivityFeed(limit: number) {
+    const feed = document.getElementById('activity-feed');
+    if (!feed) return;
+    try {
+      const entries = await get(`activity_log?order=created_at.desc&limit=${limit}`);
+      if (entries.length === 0) { feed.innerHTML = '<p class="text-muted">No recent activity yet.</p>'; return; }
+      const memberIds = [...new Set(entries.map((e: any) => e.member_id).filter(Boolean))];
+      const membersMap: Record<number, any> = {};
+      if (memberIds.length > 0) {
+        const members = await get(`members?id=in.(${memberIds.join(',')})`);
+        for (const m of members) membersMap[m.id] = m;
+      }
+      feed.innerHTML = entries.map((e: any) => {
+        const member = membersMap[e.member_id];
+        const name = member ? member.display_name : 'Former member';
+        const avatar = member?.avatar_url
+          ? `<img class="activity-avatar" src="${member.avatar_url}" alt="">`
+          : `<div class="activity-avatar activity-avatar-fallback">${(name[0] || '?').toUpperCase()}</div>`;
+        return `<div class="activity-entry">${avatar}<div class="activity-entry-content"><div class="activity-entry-text"><strong>${esc(name)}</strong> was active</div><div class="activity-entry-time">${timeAgo(e.created_at)}</div></div></div>`;
+      }).join('');
+    } catch { feed.innerHTML = '<p class="text-muted">Could not load activity.</p>'; }
+  }
+
+  // --- Announcements ---
+  async function renderAnnouncements() {
+    const feed = document.getElementById('announcements-feed');
+    if (!feed) return;
+    try {
+      const items = await get('announcements?order=is_pinned.desc,created_at.desc&limit=20');
+      await translateItems('announcement', items, ['title', 'body']);
+      if (items.length === 0) { feed.innerHTML = '<p class="text-muted">No announcements yet.</p>'; return; }
+      feed.style.minHeight = feed.offsetHeight + 'px';
+      feed.innerHTML = items.map((a: any) => `
+        <div class="announcement card mb-1 ${a.is_pinned ? 'pinned' : ''}" data-id="${a.id}">
+          <div class="announcement-title" data-editable="announcements.${a.id}.title">${esc(a.title)}</div>
+          <div class="announcement-body" data-editable-rich="announcements.${a.id}.body">${a.body}</div>
+          <div class="announcement-meta">${a.is_pinned ? '<span class="badge badge-primary">Pinned</span> ' : ''}<span>${formatDate(a.created_at)}</span></div>
+          ${isAdmin() ? `<div class="mt-1 flex gap-1"><button class="btn btn-sm btn-secondary ann-pin" data-id="${a.id}" data-pinned="${a.is_pinned}">${a.is_pinned ? 'Unpin' : 'Pin'}</button><button class="btn btn-sm btn-danger ann-delete" data-id="${a.id}">Delete</button></div>` : ''}
+        </div>`).join('');
+      feed.querySelectorAll('.ann-pin').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const el = btn as HTMLElement;
+          await patch(`announcements?id=eq.${el.dataset.id}`, { is_pinned: el.dataset.pinned !== 'true' });
+          renderAnnouncements();
+        });
+      });
+      feed.querySelectorAll('.ann-delete').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await del(`announcements?id=eq.${(btn as HTMLElement).dataset.id}`);
+          renderAnnouncements();
+        });
+      });
+      feed.style.minHeight = '';
+    } catch { feed.innerHTML = '<p class="text-muted">Could not load announcements.</p>'; }
+  }
+
+  // --- Admin: announcement creation ---
+  function setupAnnouncementCreate() {
+    if (!isAdmin()) return;
+    const container = document.getElementById('announcement-create');
+    if (!container) return;
+    container.classList.remove('hidden');
+    container.innerHTML = `<div class="card"><h4 class="mb-1">New Announcement</h4><div class="form-group"><input class="form-input" id="ann-title" placeholder="Title"></div><div class="form-group"><textarea class="form-textarea" id="ann-body" placeholder="Write your announcement..."></textarea></div><button class="btn btn-primary" id="ann-post">Post</button></div>`;
+    document.getElementById('ann-post')?.addEventListener('click', async () => {
+      const title = (document.getElementById('ann-title') as HTMLInputElement).value.trim();
+      const body = (document.getElementById('ann-body') as HTMLTextAreaElement).value.trim();
+      if (!title || !body) return;
+      const session = getSession();
+      const memberId = session?.user?.member?.id;
+      await post('announcements', { title, body, author_id: memberId });
+      (document.getElementById('ann-title') as HTMLInputElement).value = '';
+      (document.getElementById('ann-body') as HTMLTextAreaElement).value = '';
+      renderAnnouncements();
+    });
+  }
+
+  // --- Boot ---
+  async function bootHomepage() {
+    await Promise.all([renderSections(), renderAnnouncements(), loadActivityFeed(15)]);
+    setupAnnouncementCreate();
+  }
+
+  bootHomepage();
+  document.addEventListener('astro:after-swap', bootHomepage);
+</script>
