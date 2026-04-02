@@ -1061,6 +1061,10 @@ a { color: inherit; text-decoration: none; }
     transform 0.3s var(--ease),
     box-shadow 0.3s var(--ease);
   background: #fff;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  cursor: pointer;
 }
 
 .hero-mashup__card:hover {
@@ -1127,6 +1131,12 @@ a { color: inherit; text-decoration: none; }
 .demo-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+a.demo-card__screenshot {
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .demo-card__screenshot img {
