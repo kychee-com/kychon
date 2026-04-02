@@ -23,6 +23,7 @@ fi
 # Deploy site + images + seed (deploy.js runs astro build + collects from dist/)
 cd "$ROOT"
 SEED_FILE="demo/barrio-unido/seed.sql" RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=barrio-unido \
+  EXCLUDE_FUNCTIONS=check-expirations \
   node deploy-batched.js
 
 # Deploy reset-demo separately (too large for bundle deploy)
