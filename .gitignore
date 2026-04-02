@@ -13,3 +13,4 @@ deploy-batched.js
 dist/
 .astro/
 .deploy-minimal.json
+.wrangler/
