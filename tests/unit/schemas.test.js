@@ -6,6 +6,7 @@ const { SiteConfigRowSchema, NavItemSchema } = await import('../../src/schemas/c
 const { AnnouncementSchema, ResourceSchema, PageSchema, ReactionSchema } = await import('../../src/schemas/content.ts');
 const { ForumCategorySchema, ForumTopicSchema } = await import('../../src/schemas/forum.ts');
 const { CommitteeSchema, CommitteeMemberSchema } = await import('../../src/schemas/committee.ts');
+const { PollSchema, PollOptionSchema, PollVoteSchema } = await import('../../src/schemas/poll.ts');
 
 describe('Zod schemas', () => {
   describe('EventSchema', () => {
@@ -253,6 +254,72 @@ describe('Zod schemas', () => {
           created_at: '2026-04-01T00:00:00Z',
         }),
       ).toBeTruthy();
+    });
+  });
+
+  describe('PollSchema', () => {
+    const validPoll = {
+      id: 1,
+      question: 'What should our next event be?',
+      description: 'Vote for your preference',
+      poll_type: 'single',
+      is_anonymous: false,
+      results_visible: 'after_vote',
+      is_open: true,
+      closes_at: null,
+      attached_to: null,
+      attached_id: null,
+      created_by: 1,
+      created_at: '2026-04-01T00:00:00Z',
+    };
+
+    it('parses valid poll', () => {
+      expect(PollSchema.parse(validPoll)).toEqual(validPoll);
+    });
+
+    it('rejects poll missing question', () => {
+      const { question, ...noQuestion } = validPoll;
+      expect(() => PollSchema.parse(noQuestion)).toThrow();
+    });
+
+    it('accepts nullable fields as null', () => {
+      const poll = {
+        ...validPoll,
+        description: null,
+        closes_at: null,
+        attached_to: null,
+        attached_id: null,
+        created_by: null,
+      };
+      expect(PollSchema.parse(poll)).toBeTruthy();
+    });
+
+    it('parses attached poll', () => {
+      const poll = { ...validPoll, attached_to: 'announcement', attached_id: 5 };
+      expect(PollSchema.parse(poll)).toEqual(poll);
+    });
+  });
+
+  describe('PollOptionSchema', () => {
+    it('parses valid option', () => {
+      const option = { id: 1, poll_id: 1, label: 'Workshop', position: 0 };
+      expect(PollOptionSchema.parse(option)).toEqual(option);
+    });
+
+    it('rejects option missing label', () => {
+      expect(() => PollOptionSchema.parse({ id: 1, poll_id: 1, position: 0 })).toThrow();
+    });
+  });
+
+  describe('PollVoteSchema', () => {
+    it('parses valid vote', () => {
+      const vote = { id: 1, poll_id: 1, option_id: 2, member_id: 3, created_at: '2026-04-01T00:00:00Z' };
+      expect(PollVoteSchema.parse(vote)).toEqual(vote);
+    });
+
+    it('accepts nullable member_id', () => {
+      const vote = { id: 1, poll_id: 1, option_id: 2, member_id: null, created_at: '2026-04-01T00:00:00Z' };
+      expect(PollVoteSchema.parse(vote)).toBeTruthy();
     });
   });
 });

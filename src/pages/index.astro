@@ -25,6 +25,7 @@ import Portal from '../layouts/Portal.astro';
   import { getSession, isAdmin } from '../lib/auth';
   import { isFeatureEnabled, getTranslatedContent, translateItems, cacheHeroImage } from '../lib/config';
   import { getLocale } from '../lib/i18n';
+  import { bindPollVoteListeners, createPollForm, submitPoll, fetchAttachedPoll, fetchAndRenderPoll } from '../lib/poll-ui';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -65,7 +66,7 @@ import Portal from '../layouts/Portal.astro';
       container.style.minHeight = container.offsetHeight + 'px';
       document.getElementById('sections-skeleton')?.remove();
       for (const section of sections) {
-        container.appendChild(renderSection(section));
+        container.appendChild(await renderSection(section));
       }
       container.style.minHeight = '';
     } catch (e) {
@@ -75,7 +76,7 @@ import Portal from '../layouts/Portal.astro';
     }
   }
 
-  function renderSection(section: any): HTMLElement {
+  async function renderSection(section: any): Promise<HTMLElement> {
     const cfg = section.config;
     const el = document.createElement('section');
 
@@ -112,6 +113,37 @@ import Portal from '../layouts/Portal.astro';
         el.className = 'section';
         el.innerHTML = `<div class="container"><h2 class="mb-2">FAQ</h2>${(cfg.items || []).map((f: any) => `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600">${esc(f.q || '')}</summary><p class="text-muted mt-1">${esc(f.a || '')}</p></details>`).join('')}</div>`;
         break;
+
+      case 'polls': {
+        if (!isFeatureEnabled('feature_polls')) break;
+        el.className = 'section section-polls';
+        const pollIds: number[] = cfg.poll_ids || [];
+        const session = getSession();
+        const memberId = session?.user?.member?.id ?? null;
+        let pollsHtml = '';
+        for (const pid of pollIds) {
+          try {
+            const result = await fetchAndRenderPoll(pid, session);
+            pollsHtml += `<div class="card mb-1" data-section-poll="${pid}">${result.html}</div>`;
+          } catch {}
+        }
+        el.innerHTML = `<div class="container">${cfg.heading ? `<h2 class="mb-2">${esc(cfg.heading)}</h2>` : ''}${pollsHtml || '<p class="text-muted">No polls to display.</p>'}</div>`;
+        // Bind vote listeners after inserting into DOM
+        requestAnimationFrame(() => {
+          for (const pid of pollIds) {
+            const container = el.querySelector(`[data-section-poll="${pid}"]`) as HTMLElement;
+            if (!container) continue;
+            // Re-fetch to get fresh data for binding
+            (async () => {
+              try {
+                const result = await fetchAndRenderPoll(pid, session);
+                bindPollVoteListeners(container, result.poll, result.votes, memberId, () => renderSections());
+              } catch {}
+            })();
+          }
+        });
+        break;
+      }
 
       default:
         el.className = 'section';
@@ -154,13 +186,41 @@ import Portal from '../layouts/Portal.astro';
       await translateItems('announcement', items, ['title', 'body']);
       if (items.length === 0) { feed.innerHTML = '<p class="text-muted">No announcements yet.</p>'; return; }
       feed.style.minHeight = feed.offsetHeight + 'px';
-      feed.innerHTML = items.map((a: any) => `
+      const session = getSession();
+      const memberId = session?.user?.member?.id ?? null;
+      const pollsEnabled = isFeatureEnabled('feature_polls');
+
+      // Fetch attached polls for all announcements
+      const attachedPolls: Record<number, any> = {};
+      if (pollsEnabled) {
+        for (const a of items) {
+          try {
+            const result = await fetchAttachedPoll('announcement', a.id, session);
+            if (result) attachedPolls[a.id] = result;
+          } catch {}
+        }
+      }
+
+      feed.innerHTML = items.map((a: any) => {
+        const pollHtml = attachedPolls[a.id] ? `<div data-ann-poll="${a.id}">${attachedPolls[a.id].html}</div>` : '';
+        return `
         <div class="announcement card mb-1 ${a.is_pinned ? 'pinned' : ''}" data-id="${a.id}">
           <div class="announcement-title" data-editable="announcements.${a.id}.title">${esc(a.title)}</div>
           <div class="announcement-body" data-editable-rich="announcements.${a.id}.body">${a.body}</div>
+          ${pollHtml}
           <div class="announcement-meta">${a.is_pinned ? '<span class="badge badge-primary">Pinned</span> ' : ''}<span>${formatDate(a.created_at)}</span></div>
           ${isAdmin() ? `<div class="mt-1 flex gap-1"><button class="btn btn-sm btn-secondary ann-pin" data-id="${a.id}" data-pinned="${a.is_pinned}">${a.is_pinned ? 'Unpin' : 'Pin'}</button><button class="btn btn-sm btn-danger ann-delete" data-id="${a.id}">Delete</button></div>` : ''}
-        </div>`).join('');
+        </div>`;
+      }).join('');
+
+      // Bind poll vote listeners
+      for (const [annId, pollData] of Object.entries(attachedPolls)) {
+        const container = feed.querySelector(`[data-ann-poll="${annId}"]`) as HTMLElement;
+        if (container) {
+          bindPollVoteListeners(container, (pollData as any).poll, (pollData as any).votes, memberId, () => renderAnnouncements());
+        }
+      }
+
       feed.querySelectorAll('.ann-pin').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const el = btn as HTMLElement;
@@ -170,7 +230,10 @@ import Portal from '../layouts/Portal.astro';
       });
       feed.querySelectorAll('.ann-delete').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          await del(`announcements?id=eq.${(btn as HTMLElement).dataset.id}`);
+          const annId = (btn as HTMLElement).dataset.id!;
+          // Delete attached poll if any
+          try { await del(`polls?attached_to=eq.announcement&attached_id=eq.${annId}`); } catch {}
+          await del(`announcements?id=eq.${annId}`);
           renderAnnouncements();
         });
       });
@@ -179,21 +242,63 @@ import Portal from '../layouts/Portal.astro';
   }
 
   // --- Admin: announcement creation ---
+  let annPollFormRef: ReturnType<typeof createPollForm> | null = null;
+
   function setupAnnouncementCreate() {
     if (!isAdmin()) return;
     const container = document.getElementById('announcement-create');
     if (!container) return;
     container.classList.remove('hidden');
-    container.innerHTML = `<div class="card"><h4 class="mb-1">New Announcement</h4><div class="form-group"><input class="form-input" id="ann-title" placeholder="Title"></div><div class="form-group"><textarea class="form-textarea" id="ann-body" placeholder="Write your announcement..."></textarea></div><button class="btn btn-primary" id="ann-post">Post</button></div>`;
+    const pollsEnabled = isFeatureEnabled('feature_polls');
+    container.innerHTML = `<div class="card"><h4 class="mb-1">New Announcement</h4><div class="form-group"><input class="form-input" id="ann-title" placeholder="Title"></div><div class="form-group"><textarea class="form-textarea" id="ann-body" placeholder="Write your announcement..."></textarea></div>${pollsEnabled ? '<div id="ann-poll-form-container"></div><button class="btn btn-sm btn-secondary mb-1" id="ann-add-poll" type="button">+ Add Poll</button>' : ''}<button class="btn btn-primary" id="ann-post">Post</button></div>`;
+
+    // Add poll button
+    if (pollsEnabled) {
+      document.getElementById('ann-add-poll')?.addEventListener('click', () => {
+        const formContainer = document.getElementById('ann-poll-form-container')!;
+        if (annPollFormRef) return; // already open
+        annPollFormRef = createPollForm(formContainer, { type: 'announcement', id: null });
+        document.getElementById('ann-add-poll')!.classList.add('hidden');
+        // Watch for form removal (user clicks X)
+        const observer = new MutationObserver(() => {
+          if (formContainer.innerHTML === '') {
+            annPollFormRef = null;
+            document.getElementById('ann-add-poll')?.classList.remove('hidden');
+            observer.disconnect();
+          }
+        });
+        observer.observe(formContainer, { childList: true });
+      });
+    }
+
     document.getElementById('ann-post')?.addEventListener('click', async () => {
       const title = (document.getElementById('ann-title') as HTMLInputElement).value.trim();
       const body = (document.getElementById('ann-body') as HTMLTextAreaElement).value.trim();
       if (!title || !body) return;
       const session = getSession();
       const memberId = session?.user?.member?.id;
-      await post('announcements', { title, body, author_id: memberId });
+      if (!memberId) return;
+
+      const [created] = await post('announcements', { title, body, author_id: memberId });
+
+      // Create attached poll if form is filled
+      if (annPollFormRef) {
+        const pollData = annPollFormRef.getPollData();
+        if (pollData) {
+          try {
+            await submitPoll(pollData, memberId, { type: 'announcement', id: created.id });
+          } catch (e) {
+            console.error('Failed to create attached poll:', e);
+          }
+        }
+        annPollFormRef = null;
+      }
+
       (document.getElementById('ann-title') as HTMLInputElement).value = '';
       (document.getElementById('ann-body') as HTMLTextAreaElement).value = '';
+      const formContainer = document.getElementById('ann-poll-form-container');
+      if (formContainer) formContainer.innerHTML = '';
+      document.getElementById('ann-add-poll')?.classList.remove('hidden');
       renderAnnouncements();
     });
   }

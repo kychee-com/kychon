@@ -1,0 +1,168 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Polls">
+  <div class="container">
+    <h2 class="mb-2">Polls</h2>
+    <div id="poll-create" class="hidden mb-2"></div>
+    <div id="polls-list">
+      <div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div></div>
+    </div>
+  </div>
+</Portal>
+
+<script>
+  import { del, get } from '../lib/api';
+  import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
+  import { isFeatureEnabled, getConfig } from '../lib/config';
+  import {
+    renderPoll,
+    bindPollVoteListeners,
+    createPollForm,
+    submitPoll,
+    checkAutoClose,
+  } from '../lib/poll-ui';
+
+  let pollFormRef: ReturnType<typeof createPollForm> | null = null;
+
+  async function renderPollsList() {
+    const listEl = document.getElementById('polls-list');
+    if (!listEl) return;
+
+    try {
+      // Fetch standalone polls only (not attached)
+      const polls = await get('polls?attached_to=is.null&order=is_open.desc,created_at.desc');
+      if (polls.length === 0) {
+        listEl.innerHTML = '<p class="text-muted">No polls yet.</p>';
+        return;
+      }
+
+      const session = getSession();
+      const memberId = session?.user?.member?.id ?? null;
+
+      // Fetch options and votes for all polls
+      let html = '';
+      for (const poll of polls) {
+        await checkAutoClose(poll);
+        const options = await get(`poll_options?poll_id=eq.${poll.id}&order=position.asc`);
+        const votes = await get(`poll_votes?poll_id=eq.${poll.id}`);
+        const admin = isAdmin();
+
+        html += `<div class="card mb-1" data-poll-container="${poll.id}">`;
+        html += renderPoll(poll, options, votes, session);
+        if (admin) {
+          html += `<div class="mt-1 flex gap-1">`;
+          html += `<button class="btn btn-sm btn-secondary poll-toggle-close" data-poll-id="${poll.id}" data-is-open="${poll.is_open}">${poll.is_open ? 'Close Poll' : 'Reopen Poll'}</button>`;
+          html += `<button class="btn btn-sm btn-danger poll-delete" data-poll-id="${poll.id}">Delete</button>`;
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
+
+      listEl.innerHTML = html;
+
+      // Bind vote listeners for each poll
+      for (const poll of polls) {
+        const container = listEl.querySelector(`[data-poll-container="${poll.id}"]`) as HTMLElement;
+        if (!container) continue;
+        const pollVotes = await get(`poll_votes?poll_id=eq.${poll.id}`);
+        bindPollVoteListeners(container, poll, pollVotes, memberId, () => renderPollsList());
+      }
+
+      // Bind admin actions
+      listEl.querySelectorAll('.poll-toggle-close').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const el = btn as HTMLElement;
+          const pollId = el.dataset.pollId!;
+          const isOpen = el.dataset.isOpen === 'true';
+          const { patch } = await import('../lib/api');
+          await patch(`polls?id=eq.${pollId}`, { is_open: !isOpen });
+          renderPollsList();
+        });
+      });
+
+      listEl.querySelectorAll('.poll-delete').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this poll and all its votes?')) return;
+          const pollId = (btn as HTMLElement).dataset.pollId!;
+          await del(`polls?id=eq.${pollId}`);
+          renderPollsList();
+        });
+      });
+    } catch (e) {
+      console.error('Failed to load polls:', e);
+      listEl.innerHTML = '<p class="text-muted">Could not load polls.</p>';
+    }
+  }
+
+  function setupPollCreate() {
+    const canCreate = isAdmin() || getConfig('polls_member_create') === true;
+    if (!canCreate || !isAuthenticated()) return;
+
+    const container = document.getElementById('poll-create');
+    if (!container) return;
+    container.classList.remove('hidden');
+
+    // Show a "Create Poll" button that expands the form
+    container.innerHTML = '<button class="btn btn-primary" id="poll-create-toggle">Create Poll</button><div id="poll-form-container" class="hidden"></div>';
+
+    document.getElementById('poll-create-toggle')?.addEventListener('click', () => {
+      const formContainer = document.getElementById('poll-form-container')!;
+      const toggleBtn = document.getElementById('poll-create-toggle')!;
+
+      if (formContainer.classList.contains('hidden')) {
+        formContainer.classList.remove('hidden');
+        toggleBtn.classList.add('hidden');
+        pollFormRef = createPollForm(formContainer);
+
+        // Add submit button
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn btn-primary mt-1';
+        submitBtn.textContent = 'Create Poll';
+        submitBtn.addEventListener('click', async () => {
+          if (!pollFormRef) return;
+          const data = pollFormRef.getPollData();
+          if (!data) {
+            alert('Please fill in the question and at least 2 options.');
+            return;
+          }
+          const session = getSession();
+          const memberId = session?.user?.member?.id;
+          if (!memberId) return;
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Creating...';
+          try {
+            await submitPoll(data, memberId);
+            pollFormRef.remove();
+            pollFormRef = null;
+            formContainer.classList.add('hidden');
+            formContainer.innerHTML = '';
+            toggleBtn.classList.remove('hidden');
+            renderPollsList();
+          } catch (e) {
+            console.error('Failed to create poll:', e);
+            alert('Failed to create poll. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Poll';
+          }
+        });
+        formContainer.appendChild(submitBtn);
+      }
+    });
+  }
+
+  async function initPolls() {
+    if (!isFeatureEnabled('feature_polls')) {
+      const listEl = document.getElementById('polls-list');
+      if (listEl) listEl.innerHTML = '';
+      return;
+    }
+    await renderPollsList();
+    setupPollCreate();
+  }
+
+  initPolls();
+  document.addEventListener('astro:after-swap', initPolls);
+  document.addEventListener('wl-auth-changed', initPolls);
+</script>
