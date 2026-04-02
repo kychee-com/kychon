@@ -43,8 +43,12 @@ function clearCache(key) {
 const store = {};
 global.localStorage = {
   getItem: (k) => store[k] ?? null,
-  setItem: (k, v) => { store[k] = v; },
-  removeItem: (k) => { delete store[k]; },
+  setItem: (k, v) => {
+    store[k] = v;
+  },
+  removeItem: (k) => {
+    delete store[k];
+  },
 };
 
 describe('cache utilities', () => {
@@ -86,7 +90,9 @@ describe('cache utilities', () => {
 
     it('handles QuotaExceededError silently', () => {
       const origSet = localStorage.setItem;
-      localStorage.setItem = () => { throw new DOMException('quota', 'QuotaExceededError'); };
+      localStorage.setItem = () => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      };
       expect(() => writeCache('key', 'data')).not.toThrow();
       localStorage.setItem = origSet;
     });

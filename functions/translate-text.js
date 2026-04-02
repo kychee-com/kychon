@@ -53,7 +53,10 @@ export default async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `Translate the following text to ${langName}. Return only the translation, no explanations. Preserve the original tone and meaning. This is a community forum post.` },
+          {
+            role: 'system',
+            content: `Translate the following text to ${langName}. Return only the translation, no explanations. Preserve the original tone and meaning. This is a community forum post.`,
+          },
           { role: 'user', content: trimmed },
         ],
         temperature: 0.3,

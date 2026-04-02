@@ -368,7 +368,9 @@ a:hover {
   margin-top: 0.25rem;
   display: block;
 }
-.translate-link:hover { text-decoration: underline; }
+.translate-link:hover {
+  text-decoration: underline;
+}
 .translated-content {
   margin-top: 0.5rem;
   padding: 0.75rem;
@@ -376,7 +378,9 @@ a:hover {
   border-left: 2px solid var(--color-primary);
   border-radius: var(--radius);
 }
-.translated-text { font-size: 0.9375rem; }
+.translated-text {
+  font-size: 0.9375rem;
+}
 .translated-label {
   display: block;
   font-size: 0.75rem;

@@ -27,8 +27,8 @@ function timeAgo(dateStr) {
 const memberCache = {};
 
 async function enrichWithAvatars(items) {
-  const ids = [...new Set(items.map(i => i.author_id).filter(Boolean))];
-  const uncached = ids.filter(id => !memberCache[id]);
+  const ids = [...new Set(items.map((i) => i.author_id).filter(Boolean))];
+  const uncached = ids.filter((id) => !memberCache[id]);
   if (uncached.length > 0) {
     try {
       const members = await get(`members?id=in.(${uncached.join(',')})&select=id,display_name,avatar_url`);

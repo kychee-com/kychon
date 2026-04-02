@@ -4,7 +4,7 @@
 import { applyA11yPrefs, buildA11yToolbar, trapFocus } from './accessibility.js?v=9';
 import { get } from './api.js?v=9';
 import { getRole, getSession, isAdmin } from './auth.js?v=9';
-import { getLocale, loadLocale, setAvailableLocales, setLanguage, getAvailableLocales, t } from './i18n.js?v=9';
+import { getAvailableLocales, getLocale, loadLocale, setAvailableLocales, setLanguage, t } from './i18n.js?v=9';
 
 // Apply a11y preferences immediately (before config fetch) to prevent flash
 applyA11yPrefs();
@@ -141,16 +141,30 @@ function applyBranding(config) {
 
 // Map common nav labels (any language) to i18n keys
 const NAV_LABEL_KEYS = {
-  Home: 'nav.home', Inicio: 'nav.home',
-  Members: 'nav.members', Miembros: 'nav.members', Residents: 'nav.members',
-  Events: 'nav.events', Eventos: 'nav.events',
-  Resources: 'nav.resources', Recursos: 'nav.resources', Sermons: 'nav.resources', Documents: 'nav.resources',
-  Forum: 'nav.forum', Foro: 'nav.forum',
-  Dashboard: 'nav.dashboard', Panel: 'nav.dashboard',
-  Settings: 'nav.settings', 'Configuración': 'nav.settings',
-  Profile: 'nav.profile', Perfil: 'nav.profile',
-  'About Us': 'nav.about', Nosotros: 'nav.about',
-  Committees: 'nav.committees', Programas: 'nav.committees', Ministries: 'nav.committees',
+  Home: 'nav.home',
+  Inicio: 'nav.home',
+  Members: 'nav.members',
+  Miembros: 'nav.members',
+  Residents: 'nav.members',
+  Events: 'nav.events',
+  Eventos: 'nav.events',
+  Resources: 'nav.resources',
+  Recursos: 'nav.resources',
+  Sermons: 'nav.resources',
+  Documents: 'nav.resources',
+  Forum: 'nav.forum',
+  Foro: 'nav.forum',
+  Dashboard: 'nav.dashboard',
+  Panel: 'nav.dashboard',
+  Settings: 'nav.settings',
+  Configuración: 'nav.settings',
+  Profile: 'nav.profile',
+  Perfil: 'nav.profile',
+  'About Us': 'nav.about',
+  Nosotros: 'nav.about',
+  Committees: 'nav.committees',
+  Programas: 'nav.committees',
+  Ministries: 'nav.committees',
 };
 
 function buildNav(navItems) {
@@ -193,9 +207,10 @@ function buildUserNav() {
   const currentLocale = getLocale();
 
   // Build all nav-user HTML in one write to prevent multiple reflows
-  const langBtn = locales.length >= 2
-    ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
-    : '';
+  const langBtn =
+    locales.length >= 2
+      ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
+      : '';
   const themeBtn = `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}</button>`;
 
   if (!session) {
@@ -256,15 +271,17 @@ async function loadMemberRecord() {
     applyMemberToSession(cached);
     // Background refresh if stale
     if (!isFresh(cacheKey, MEMBER_TTL)) {
-      get(`members?user_id=eq.${session.user.id}&limit=1`).then((members) => {
-        if (members?.[0]) {
-          writeCache(cacheKey, members[0]);
-          if (JSON.stringify(members[0]) !== JSON.stringify(cached)) {
-            applyMemberToSession(members[0]);
-            buildUserNav();
+      get(`members?user_id=eq.${session.user.id}&limit=1`)
+        .then((members) => {
+          if (members?.[0]) {
+            writeCache(cacheKey, members[0]);
+            if (JSON.stringify(members[0]) !== JSON.stringify(cached)) {
+              applyMemberToSession(members[0]);
+              buildUserNav();
+            }
           }
-        }
-      }).catch(() => {});
+        })
+        .catch(() => {});
     }
     return;
   }
@@ -327,18 +344,20 @@ export async function init() {
 
     // Background refresh if stale
     if (!isFresh(WL_CACHE_CONFIG, CONFIG_TTL)) {
-      get('site_config').then((rows) => {
-        writeCache(WL_CACHE_CONFIG, rows);
-        if (JSON.stringify(rows) !== JSON.stringify(cached)) {
-          // Clear and re-populate with fresh data
-          for (const key of Object.keys(siteConfig)) delete siteConfig[key];
-          for (const key of Object.keys(features)) delete features[key];
-          populateConfigFromRows(rows);
-          applyTheme(siteConfig.theme);
-          applyBranding(siteConfig);
-          buildNav(siteConfig.nav);
-        }
-      }).catch(() => {});
+      get('site_config')
+        .then((rows) => {
+          writeCache(WL_CACHE_CONFIG, rows);
+          if (JSON.stringify(rows) !== JSON.stringify(cached)) {
+            // Clear and re-populate with fresh data
+            for (const key of Object.keys(siteConfig)) delete siteConfig[key];
+            for (const key of Object.keys(features)) delete features[key];
+            populateConfigFromRows(rows);
+            applyTheme(siteConfig.theme);
+            applyBranding(siteConfig);
+            buildNav(siteConfig.nav);
+          }
+        })
+        .catch(() => {});
     }
   } else {
     // Cache miss (first visit or admin page) — blocking fetch

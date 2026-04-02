@@ -134,10 +134,13 @@ describe('i18n.js', () => {
 
   it('serves strings from localStorage cache without network fetch', async () => {
     // Pre-populate cache
-    localStorage.setItem('wl_cache_i18n_en', JSON.stringify({
-      data: { 'nav.home': 'Cached Home', 'welcome.greeting': 'Cached {name}' },
-      ts: Date.now(),
-    }));
+    localStorage.setItem(
+      'wl_cache_i18n_en',
+      JSON.stringify({
+        data: { 'nav.home': 'Cached Home', 'welcome.greeting': 'Cached {name}' },
+        ts: Date.now(),
+      }),
+    );
 
     mockFetch.mockClear();
     await loadLocale('en');
