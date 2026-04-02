@@ -10,17 +10,17 @@ PROJECT_ID="${BARRIO_PROJECT_ID:?Set BARRIO_PROJECT_ID env var}"
 echo "=== Barrio Unido Deploy ==="
 echo "Project: $PROJECT_ID"
 
-# Symlink demo assets into site/assets so deploy.js picks them up
+# Copy demo assets into public/assets so Astro build includes them in dist/
 ASSETS_SRC="$SCRIPT_DIR/assets"
-ASSETS_DST="$ROOT/site/assets"
+ASSETS_DST="$ROOT/public/assets"
 
 if [ -d "$ASSETS_SRC" ]; then
-  echo "Copying demo assets into site/assets..."
+  echo "Copying demo assets into public/assets..."
   mkdir -p "$ASSETS_DST"
   cp "$ASSETS_SRC"/* "$ASSETS_DST/"
 fi
 
-# Deploy site + images + seed
+# Deploy site + images + seed (deploy.js runs astro build + collects from dist/)
 cd "$ROOT"
 SEED_FILE="demo/barrio-unido/seed.sql" RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=barrio-unido node deploy.js
 
