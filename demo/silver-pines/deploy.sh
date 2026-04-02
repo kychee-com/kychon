@@ -96,7 +96,16 @@ if (webAssets && existsSync(webAssets)) {
   }
 }
 
-const functions = collectFunctions('functions');
+// Collect functions: exclude check-expirations, add reset-demo
+let functions = collectFunctions('functions').filter(f => f.name !== 'check-expirations');
+const resetPath = join(ROOT, 'demo/silver-pines/reset-demo.js');
+if (existsSync(resetPath)) {
+  const code = readFileSync(resetPath, 'utf-8');
+  const m = code.match(/\\/\\/\\s*schedule:\\s*"([^"]+)"/);
+  const fn = { name: 'reset-demo', code };
+  if (m) fn.schedule = m[1];
+  functions.push(fn);
+}
 
 const rls = {
   template: 'public_read',
