@@ -387,18 +387,11 @@ a:hover {
 /* Sections (homepage) */
 .section {
   padding: 4rem 0;
-  visibility: hidden;
   opacity: 0;
-  transition:
-    opacity 600ms ease-out,
-    visibility 0s 600ms;
+  transition: opacity 600ms ease-out;
 }
 .section-visible {
-  visibility: visible;
   opacity: 1;
-  transition:
-    opacity 600ms ease-out,
-    visibility 0s 0s;
 }
 /* Below-fold sections: reserve space without rendering until near viewport */
 #announcements-section {
