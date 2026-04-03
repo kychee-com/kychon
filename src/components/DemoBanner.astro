@@ -241,7 +241,7 @@
       nextResetTime = new Date(lastReset).getTime() + 60 * 60 * 1000;
     }
 
-    function updateCountdown() {
+    async function updateCountdown() {
       if (!countdownEl) return;
       if (!nextResetTime) {
         countdownEl.textContent = 'Resets hourly';
@@ -252,11 +252,26 @@
       const remaining = nextResetTime - now;
 
       if (remaining <= 0) {
-        // Reset time has passed — show overlay and reload
-        const overlay = document.getElementById('demo-reset-overlay');
-        if (overlay) overlay.classList.remove('hidden');
+        // Re-fetch last_reset to check if the server actually reset
+        try {
+          const rows = await get('site_config?key=eq.last_reset');
+          const fresh = rows[0]?.value;
+          if (fresh) {
+            const freshReset = new Date(fresh).getTime() + 60 * 60 * 1000;
+            if (freshReset > now) {
+              // Server has a newer reset — update and continue countdown
+              nextResetTime = freshReset;
+              const mins = Math.ceil((freshReset - now) / 60000);
+              countdownEl.textContent = `Resets in ${mins}m`;
+              return;
+            }
+          }
+        } catch {
+          // API unavailable — just show static text, don't reload
+        }
+        // Only show "Resets hourly" — never auto-reload
+        countdownEl.textContent = 'Resets hourly';
         if (countdownInterval) clearInterval(countdownInterval);
-        setTimeout(() => window.location.reload(), 2000);
         return;
       }
 
