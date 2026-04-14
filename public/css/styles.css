@@ -412,7 +412,12 @@ a:hover {
   visibility: visible;
   opacity: 1;
 }
-#sections {
+/* Reserve vertical space during initial load so announcements/footer don't
+   flash-in-and-jump-down. Applied to the SKELETON child (not #sections
+   itself) so that once the skeleton is removed, #sections collapses to
+   actual content height instead of holding a 200vh floor → previously
+   created a huge blank gap between the CTA section and Announcements. */
+#sections-skeleton {
   min-height: 200vh;
 }
 .section-hero h1 {
