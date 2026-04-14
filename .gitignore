@@ -9,7 +9,6 @@ app-*.json
 !app.example.json
 demo/*/assets/
 public/js/env.js
-deploy-batched.js
 dist/
 .astro/
 .deploy-minimal.json
