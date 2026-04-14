@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": false,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": [
+    "site/js/types.d.ts",
+    "site/js/api.js",
+    "site/js/auth.js",
+    "site/js/config.js",
+    "site/js/i18n.js"
+  ],
+  "exclude": ["node_modules"]
+}

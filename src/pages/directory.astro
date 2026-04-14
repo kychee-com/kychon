@@ -1,0 +1,170 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Members">
+  <div class="container">
+    <h2 class="mb-2">Member Directory</h2>
+    <div class="flex gap-1 mb-2" style="flex-wrap:wrap">
+      <input class="form-input" id="dir-search" placeholder="Search members..." style="max-width:20rem">
+      <select class="form-select" id="dir-tier-filter" style="max-width:12rem">
+        <option value="">All Tiers</option>
+      </select>
+    </div>
+    <div class="card-grid" id="dir-grid"></div>
+  </div>
+
+  <!-- Member Detail Modal -->
+  <div class="auth-modal hidden" id="member-modal">
+    <div class="auth-panel" style="max-width:28rem">
+      <div class="text-center mb-2">
+        <img id="mm-avatar" class="member-avatar" src="" alt="" style="width:5rem;height:5rem;margin:0 auto;display:block">
+        <h3 id="mm-name" class="mt-1"></h3>
+        <span class="badge badge-primary" id="mm-tier"></span>
+        <p class="text-sm text-muted" id="mm-joined"></p>
+      </div>
+      <p id="mm-bio" class="text-muted"></p>
+      <div id="mm-custom-fields" class="mt-1"></div>
+      <button class="btn btn-secondary mt-2" style="width:100%" id="member-modal-close">Close</button>
+    </div>
+  </div>
+</Portal>
+
+<script>
+  import { get } from '../lib/api';
+  import { requireAuth } from '../lib/auth';
+  import { getConfig } from '../lib/config';
+
+  let allMembers: any[] = [];
+  let tiers: any[] = [];
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+  }
+
+  function formatDate(iso: string): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function applyFilters() {
+    const query = (document.getElementById('dir-search') as HTMLInputElement)?.value?.toLowerCase() || '';
+    const tierId = (document.getElementById('dir-tier-filter') as HTMLSelectElement)?.value || '';
+
+    let filtered = allMembers;
+    if (query) {
+      filtered = filtered.filter(
+        (m) => m.display_name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query),
+      );
+    }
+    if (tierId) {
+      filtered = filtered.filter((m) => String(m.tier_id) === tierId);
+    }
+    renderMembers(filtered);
+  }
+
+  function renderMembers(members: any[]) {
+    const grid = document.getElementById('dir-grid');
+    if (!grid) return;
+
+    if (members.length === 0) {
+      grid.innerHTML = '<p class="text-muted text-center">No members found.</p>';
+      return;
+    }
+
+    grid.innerHTML = members
+      .map(
+        (m) => `
+      <div class="card member-card" data-member-id="${m.id}" style="cursor:pointer">
+        ${
+          m.avatar_url
+            ? `<img class="member-avatar" src="${esc(m.avatar_url)}" alt="">`
+            : `<div class="member-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600">${(m.display_name || '?')[0].toUpperCase()}</div>`
+        }
+        <div class="member-info">
+          <div class="member-name">${esc(m.display_name)}</div>
+          <div class="member-meta">
+            ${m.tier_name ? `<span class="badge badge-primary">${esc(m.tier_name)}</span> ` : ''}
+            Joined ${formatDate(m.joined_at)}
+          </div>
+        </div>
+      </div>`,
+      )
+      .join('');
+
+    grid.querySelectorAll('[data-member-id]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const id = parseInt((card as HTMLElement).dataset.memberId!, 10);
+        showMemberDetail(members.find((m) => m.id === id));
+      });
+    });
+  }
+
+  function showMemberDetail(member: any) {
+    if (!member) return;
+    const modal = document.getElementById('member-modal');
+    if (!modal) return;
+
+    document.getElementById('mm-name')!.textContent = member.display_name;
+    document.getElementById('mm-bio')!.textContent = member.bio || 'No bio yet.';
+    document.getElementById('mm-tier')!.textContent = member.tier_name || 'Member';
+    document.getElementById('mm-joined')!.textContent = `Joined ${formatDate(member.joined_at)}`;
+
+    const avatar = document.getElementById('mm-avatar') as HTMLImageElement;
+    if (member.avatar_url) {
+      avatar.src = member.avatar_url;
+      avatar.style.display = '';
+    } else {
+      avatar.style.display = 'none';
+    }
+
+    const cfEl = document.getElementById('mm-custom-fields');
+    if (cfEl && member.custom_fields) {
+      cfEl.innerHTML = Object.entries(member.custom_fields)
+        .filter(([_, v]) => v)
+        .map(([k, v]) => `<div class="text-sm"><strong>${esc(k)}:</strong> ${esc(v as string)}</div>`)
+        .join('');
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  async function initDirectory() {
+    const isPublic = getConfig('directory_public') === true;
+    if (!isPublic && !requireAuth()) return;
+
+    // Load tiers
+    try {
+      tiers = await get('membership_tiers?order=position.asc');
+      const tierFilter = document.getElementById('dir-tier-filter');
+      if (tierFilter) {
+        tierFilter.innerHTML =
+          '<option value="">All Tiers</option>' +
+          tiers.map((t: any) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+      }
+    } catch {}
+
+    // Load members
+    try {
+      allMembers = await get('members?status=eq.active&order=display_name.asc');
+      const tierMap = Object.fromEntries(tiers.map((t: any) => [t.id, t.name]));
+      allMembers.forEach((m: any) => (m.tier_name = tierMap[m.tier_id] || ''));
+    } catch (e) {
+      console.warn('Failed to load members:', e);
+    }
+
+    renderMembers(allMembers);
+
+    document.getElementById('dir-search')?.addEventListener('input', applyFilters);
+    document.getElementById('dir-tier-filter')?.addEventListener('change', applyFilters);
+    document.getElementById('member-modal-close')?.addEventListener('click', () => {
+      document.getElementById('member-modal')?.classList.add('hidden');
+    });
+  }
+
+  initDirectory();
+  document.addEventListener('astro:after-swap', initDirectory);
+  document.addEventListener('wl-locale-changed', initDirectory);
+  document.addEventListener('wl-auth-changed', initDirectory);
+</script>

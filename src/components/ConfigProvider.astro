@@ -1,0 +1,25 @@
+---
+// ConfigProvider.astro — client:load island that initializes config, theme, nav, i18n
+---
+<div id="config-provider" data-initialized="false" transition:persist></div>
+
+<script>
+  import { init, applyA11yPrefs } from '../lib/config';
+
+  // Apply a11y preferences immediately to prevent flash
+  applyA11yPrefs();
+
+  // Initialize config on first load
+  const el = document.getElementById('config-provider');
+  if (el && el.dataset.initialized !== 'true') {
+    el.dataset.initialized = 'true';
+    await init();
+  }
+
+  // Re-init on view transition navigation
+  document.addEventListener('astro:after-swap', async () => {
+    applyA11yPrefs();
+    // Re-run init to update nav active state and reload admin editor if needed
+    await init();
+  });
+</script>

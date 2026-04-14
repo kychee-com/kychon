@@ -1,0 +1,219 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Admin Dashboard">
+  <div class="container">
+    <h2 class="mb-2">Dashboard</h2>
+
+    <div class="stats-grid mb-2">
+      <div class="card stat-card">
+        <div class="stat-value" id="stat-active">&mdash;</div>
+        <div class="stat-label">Active Members</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value" id="stat-pending">&mdash;</div>
+        <div class="stat-label">Pending Approval</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value" id="stat-announcements">&mdash;</div>
+        <div class="stat-label">Announcements</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-value" id="stat-expiring">&mdash;</div>
+        <div class="stat-label">Expiring (30d)</div>
+      </div>
+    </div>
+
+    <div class="stats-grid mb-2" id="extra-stats"></div>
+
+    <div class="card mb-2 hidden" id="moderation-section">
+      <h3 class="mb-1">Moderation Queue</h3>
+      <div id="moderation-list"></div>
+    </div>
+
+    <div class="card mb-2">
+      <h3 class="mb-1">Quick Actions</h3>
+      <div class="flex gap-1" style="flex-wrap:wrap">
+        <a href="/admin-members" class="btn btn-secondary">Manage Members</a>
+        <a href="/admin-settings" class="btn btn-secondary">Site Settings</a>
+        <a href="/" class="btn btn-secondary">View Site</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="mb-1">Recent Activity</h3>
+      <div id="activity-feed"></div>
+    </div>
+  </div>
+</Portal>
+
+<script>
+  import { count, get, patch } from '../lib/api';
+  import { requireAdmin } from '../lib/auth';
+  import { isFeatureEnabled } from '../lib/config';
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+  }
+
+  function formatDate(iso: string): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  function setText(id: string, val: any) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function thirtyDaysFromNow(): string {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString();
+  }
+
+  function statCard(value: any, label: string): string {
+    return `<div class="card stat-card"><div class="stat-value">${value}</div><div class="stat-label">${label}</div></div>`;
+  }
+
+  async function loadModerationQueue() {
+    const container = document.getElementById('moderation-section');
+    if (!container) return;
+    container.classList.remove('hidden');
+
+    try {
+      const flagged = await get('moderation_log?action=eq.flagged&reviewed_by=is.null&order=created_at.desc&limit=10');
+      const list = document.getElementById('moderation-list');
+      if (!list) return;
+
+      if (flagged.length === 0) {
+        list.innerHTML = '<p class="text-muted">No flagged content.</p>';
+        return;
+      }
+
+      const items: any[] = [];
+      for (const f of flagged) {
+        let preview = '';
+        if (f.content_type === 'forum_topic') {
+          const topics = await get(`forum_topics?id=eq.${f.content_id}&select=title,body&limit=1`);
+          preview = topics[0]?.title || `Topic #${f.content_id}`;
+        } else if (f.content_type === 'forum_reply') {
+          const replies = await get(`forum_replies?id=eq.${f.content_id}&select=body&limit=1`);
+          preview = (replies[0]?.body || '').substring(0, 100);
+        }
+        items.push({ ...f, preview });
+      }
+
+      list.innerHTML = items
+        .map(
+          (i) => `
+        <div class="flex items-center gap-1" style="padding:0.75rem 0;border-bottom:1px solid var(--color-border)">
+          <div style="flex:1">
+            <span class="badge badge-danger">${esc(i.content_type)}</span>
+            <span class="text-sm">${esc(i.preview)}</span>
+            <div class="text-sm text-muted">Reason: ${esc(i.reason)} (${Math.round(i.confidence * 100)}%)</div>
+          </div>
+          <div class="flex gap-1">
+            <button class="btn btn-sm btn-primary mod-action" data-id="${i.id}" data-content-type="${i.content_type}" data-content-id="${i.content_id}" data-action="approve">Approve</button>
+            <button class="btn btn-sm btn-danger mod-action" data-id="${i.id}" data-content-type="${i.content_type}" data-content-id="${i.content_id}" data-action="reject">Reject</button>
+          </div>
+        </div>
+      `,
+        )
+        .join('');
+
+      const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
+      const memberId = session.user?.member?.id;
+
+      list.querySelectorAll('.mod-action').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const el = btn as HTMLElement;
+          const action = el.dataset.action;
+          if (action === 'approve') {
+            const table = el.dataset.contentType === 'forum_topic' ? 'forum_topics' : 'forum_replies';
+            await patch(`${table}?id=eq.${el.dataset.contentId}`, { hidden: false });
+            await patch(`moderation_log?id=eq.${el.dataset.id}`, { action: 'approved', reviewed_by: memberId });
+          } else {
+            await patch(`moderation_log?id=eq.${el.dataset.id}`, { action: 'hidden', reviewed_by: memberId });
+          }
+          loadModerationQueue();
+        });
+      });
+    } catch {}
+  }
+
+  async function initDashboard() {
+    if (!requireAdmin()) return;
+
+    const statPromises: Promise<number>[] = [
+      count('members?status=eq.active').catch(() => 0),
+      count('members?status=eq.pending').catch(() => 0),
+      count('announcements').catch(() => 0),
+      count(`members?status=eq.active&expires_at=lt.${thirtyDaysFromNow()}`).catch(() => 0),
+    ];
+    if (isFeatureEnabled('feature_events'))
+      statPromises.push(count(`events?starts_at=gte.${new Date().toISOString()}`).catch(() => 0));
+    if (isFeatureEnabled('feature_resources')) statPromises.push(count('resources').catch(() => 0));
+    if (isFeatureEnabled('feature_forum')) statPromises.push(count('forum_topics').catch(() => 0));
+
+    const stats = await Promise.all(statPromises);
+    setText('stat-active', stats[0]);
+    setText('stat-pending', stats[1]);
+    setText('stat-announcements', stats[2]);
+    setText('stat-expiring', stats[3]);
+
+    // Extra stats
+    const extraStats = document.getElementById('extra-stats');
+    if (extraStats) {
+      let html = '';
+      let i = 4;
+      if (isFeatureEnabled('feature_events')) {
+        html += statCard(stats[i++], 'Upcoming Events');
+      }
+      if (isFeatureEnabled('feature_resources')) {
+        html += statCard(stats[i++], 'Resources');
+      }
+      if (isFeatureEnabled('feature_forum')) {
+        html += statCard(stats[i++], 'Forum Topics');
+      }
+      extraStats.innerHTML = html;
+    }
+
+    // Activity feed
+    try {
+      const activities = await get('activity_log?order=created_at.desc&limit=20&select=*,members(display_name)');
+      const feed = document.getElementById('activity-feed');
+      if (feed && activities.length > 0) {
+        feed.innerHTML = activities
+          .map(
+            (a: any) => `
+          <div class="flex items-center gap-1" style="padding:0.5rem 0;border-bottom:1px solid var(--color-border)">
+            <span class="badge badge-primary">${esc(a.action)}</span>
+            <span>${esc(a.members?.display_name || 'Unknown')}</span>
+            <span class="text-muted text-sm" style="margin-left:auto">${formatDate(a.created_at)}</span>
+          </div>`,
+          )
+          .join('');
+      } else if (feed) {
+        feed.innerHTML = '<p class="text-muted">No activity yet.</p>';
+      }
+    } catch {}
+
+    // AI Moderation queue
+    if (isFeatureEnabled('feature_ai_moderation')) {
+      await loadModerationQueue();
+    }
+  }
+
+  initDashboard();
+  document.addEventListener('astro:after-swap', initDashboard);
+  document.addEventListener('wl-locale-changed', initDashboard);
+  document.addEventListener('wl-auth-changed', initDashboard);
+</script>

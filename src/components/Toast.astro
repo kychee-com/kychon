@@ -1,0 +1,45 @@
+---
+// Toast.astro — Notification toast system
+---
+<div id="toast-root"></div>
+
+<script>
+  const ICONS: Record<string, string> = {
+    success: '\u2713',
+    error: '\u2717',
+    info: '\u2139',
+  };
+
+  let container: HTMLElement | null = null;
+  let dismissTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function getContainer(): HTMLElement {
+    if (container) return container;
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(container);
+    return container;
+  }
+
+  function showToast(message: string, type = 'info'): void {
+    const c = getContainer();
+
+    if (dismissTimer) clearTimeout(dismissTimer);
+    c.innerHTML = '';
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span class="toast-icon">${ICONS[type] || ICONS.info}</span><span>${message}</span>`;
+    c.appendChild(toast);
+
+    dismissTimer = setTimeout(() => {
+      toast.classList.add('dismissing');
+      toast.addEventListener('animationend', () => toast.remove(), { once: true });
+    }, 3000);
+  }
+
+  // Expose globally for other islands to use
+  (window as any).__wl_showToast = showToast;
+</script>

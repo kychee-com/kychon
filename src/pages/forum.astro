@@ -1,0 +1,714 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Forum">
+  <style is:global>
+    /* Category listing */
+    .forum-category { display: block; text-decoration: none; color: inherit; border-left: 4px solid var(--color-primary); transition: box-shadow var(--transition); }
+    .forum-category:hover { box-shadow: var(--shadow-md); color: inherit; }
+    .forum-category-name { font-weight: 600; font-size: 1.1rem; }
+    .forum-category-desc { color: var(--color-text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
+    .forum-category-count { font-size: 0.8125rem; color: var(--color-text-muted); margin-top: 0.5rem; }
+
+    /* Topic listing rows */
+    .forum-topic-row {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr auto;
+      gap: 0.875rem;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--color-border);
+      transition: background var(--transition);
+      text-decoration: none;
+      color: inherit;
+    }
+    .forum-topic-row:hover { background: var(--color-surface); color: inherit; }
+    .forum-topic-row.pinned { background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg)); }
+    .forum-topic-row.hidden-topic { opacity: 0.5; }
+    .forum-topic-avatar {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .forum-topic-avatar-fallback {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .forum-topic-info { min-width: 0; }
+    .forum-topic-title {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      flex-wrap: wrap;
+    }
+    .forum-topic-row:hover .forum-topic-title { color: var(--color-primary); }
+    .forum-topic-meta {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin-top: 0.25rem;
+    }
+    .forum-topic-stats {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.125rem;
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    .forum-topic-stats .reply-count {
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    /* Topic view posts */
+    .forum-post { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-border); }
+    .forum-post:last-child { border-bottom: none; }
+    .forum-post.hidden-post { opacity: 0.5; background: rgba(239, 68, 68, 0.03); }
+    .forum-post-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .forum-post-author {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      display: flex;
+      align-items: center;
+    }
+    .forum-post-date { font-size: 0.8125rem; color: var(--color-text-muted); }
+    .forum-post-body {
+      font-size: 0.9375rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .forum-post-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .forum-admin-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    /* Topic list card should not lift on hover */
+    .forum-topic-list.card:hover {
+      transform: none;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Breadcrumb */
+    .forum-breadcrumb {
+      font-size: 0.875rem;
+      color: var(--color-text-muted);
+      margin-bottom: 1.5rem;
+    }
+    .forum-breadcrumb a { color: var(--color-primary); }
+
+    /* Forms */
+    .forum-reply-form,
+    .forum-new-topic-form {
+      margin-top: 2rem;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+
+    .forum-locked-notice {
+      padding: 1rem 1.25rem;
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .forum-topic-row {
+        grid-template-columns: 2rem 1fr;
+        gap: 0.625rem;
+        padding: 0.875rem 1rem;
+      }
+      .forum-topic-avatar, .forum-topic-avatar-fallback {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.75rem;
+      }
+      .forum-topic-stats {
+        grid-column: 2;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+      }
+    }
+  </style>
+
+  <div class="container">
+    <div id="forum-root"></div>
+  </div>
+</Portal>
+
+<script>
+  import { del, get, patch, post } from '../lib/api';
+  import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
+  import { addTranslateButton, translateItems, isFeatureEnabled, getConfig } from '../lib/config';
+  import { renderPoll, bindPollVoteListeners, createPollForm, submitPoll, fetchAttachedPoll } from '../lib/poll-ui';
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+  }
+
+  function timeAgo(dateStr: string): string {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString();
+  }
+
+  const memberCache: Record<number, any> = {};
+
+  async function enrichWithAvatars(items: any[]) {
+    const ids = [...new Set(items.map(i => i.author_id).filter(Boolean))];
+    const uncached = ids.filter(id => !memberCache[id]);
+    if (uncached.length > 0) {
+      try {
+        const members = await get(`members?id=in.(${uncached.join(',')})&select=id,display_name,avatar_url`);
+        for (const m of members) memberCache[m.id] = m;
+      } catch {}
+    }
+    for (const item of items) {
+      const m = memberCache[item.author_id];
+      if (m) {
+        if (!item.author_name) item.author_name = m.display_name;
+        item.author_avatar = m.avatar_url;
+      }
+    }
+  }
+
+  function avatarHtml(item: any, size = '1.5rem'): string {
+    if (item.author_avatar) {
+      return `<img src="${esc(item.author_avatar)}" alt="" style="width:${size};height:${size};border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:0.375rem">`;
+    }
+    const initial = (item.author_name || '?')[0].toUpperCase();
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size};height:${size};border-radius:50%;background:var(--color-primary);color:white;font-size:calc(${size} * 0.5);font-weight:600;vertical-align:middle;margin-right:0.375rem">${initial}</span>`;
+  }
+
+  function topicAvatarHtml(item: any): string {
+    if (item.author_avatar) {
+      return `<img src="${esc(item.author_avatar)}" alt="" class="forum-topic-avatar">`;
+    }
+    const initial = (item.author_name || '?')[0].toUpperCase();
+    return `<div class="forum-topic-avatar-fallback">${initial}</div>`;
+  }
+
+  // -- Category Listing --
+  async function renderCategoryListing(root: HTMLElement) {
+    let categories: any[] = [];
+    try {
+      categories = await get('forum_categories?order=position.asc');
+      await translateItems('forum_category', categories, ['name', 'description']);
+    } catch (e) {
+      console.warn('Failed to load forum categories:', e);
+      root.innerHTML = '<p class="text-muted">Could not load forum categories.</p>';
+      return;
+    }
+
+    const counts: Record<number, number> = {};
+    try {
+      const topics = await get('forum_topics?select=category_id');
+      for (const t of topics) {
+        counts[t.category_id] = (counts[t.category_id] || 0) + 1;
+      }
+    } catch (e) {
+      console.warn('Failed to count topics:', e);
+    }
+
+    let html = '<h2 class="mb-2">Forum</h2>';
+
+    if (categories.length === 0) {
+      html += '<p class="text-muted">No categories yet.</p>';
+      root.innerHTML = html;
+      return;
+    }
+
+    html += '<div class="card-grid">';
+    for (const cat of categories) {
+      const color = cat.color || 'var(--color-primary)';
+      const count = counts[cat.id] || 0;
+      html += `
+        <a href="?cat=${esc(cat.id)}" class="card forum-category" style="border-left-color:${esc(color)}">
+          <div class="forum-category-name">${esc(cat.name)}</div>
+          ${cat.description ? `<div class="forum-category-desc">${esc(cat.description)}</div>` : ''}
+          <div class="forum-category-count">${count} topic${count !== 1 ? 's' : ''}</div>
+        </a>`;
+    }
+    html += '</div>';
+    root.innerHTML = html;
+  }
+
+  // -- Topic Listing --
+  async function renderTopicListing(root: HTMLElement, categoryId: string) {
+    let category: any = null;
+    try {
+      const cats = await get(`forum_categories?id=eq.${categoryId}`);
+      category = cats[0] || null;
+    } catch (e) {
+      console.warn('Failed to load category:', e);
+    }
+
+    let query = `forum_topics?category_id=eq.${categoryId}`;
+    if (!isAdmin()) {
+      query += '&hidden=eq.false';
+    }
+    query += '&order=is_pinned.desc,last_reply_at.desc.nullslast';
+
+    let topics: any[] = [];
+    try {
+      topics = await get(query);
+      await enrichWithAvatars(topics);
+    } catch (e) {
+      console.warn('Failed to load topics:', e);
+      root.innerHTML = '<p class="text-muted">Could not load topics.</p>';
+      return;
+    }
+
+    const catName = category ? esc(category.name) : 'Category';
+
+    let html = `
+      <div class="forum-breadcrumb"><a href="/forum">Forum</a> / ${catName}</div>
+      <div class="flex justify-between items-center mb-2">
+        <h2>${catName}</h2>
+      </div>`;
+
+    if (topics.length === 0) {
+      html += '<p class="text-muted">No topics yet. Be the first to start a discussion!</p>';
+    } else {
+      html += '<div class="card forum-topic-list" style="padding:0;overflow:hidden">';
+      for (const t of topics) {
+        const pinnedClass = t.is_pinned ? ' pinned' : '';
+        const hiddenClass = t.hidden ? ' hidden-topic' : '';
+        const replyCount = t.reply_count || 0;
+        html += `
+          <a href="?topic=${esc(t.id)}" class="forum-topic-row${pinnedClass}${hiddenClass}">
+            ${topicAvatarHtml(t)}
+            <div class="forum-topic-info">
+              <div class="forum-topic-title">
+                ${t.is_pinned ? '<span class="badge badge-primary">Pinned</span>' : ''}
+                ${t.locked ? '<span class="badge badge-warning">Locked</span>' : ''}
+                ${t.hidden ? '<span class="badge badge-danger">Hidden</span>' : ''}
+                ${esc(t.title)}
+              </div>
+              <div class="forum-topic-meta">${esc(t.author_name || 'Anonymous')} &middot; ${timeAgo(t.created_at)}</div>
+            </div>
+            <div class="forum-topic-stats">
+              <span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>
+              <span>${t.last_reply_at ? timeAgo(t.last_reply_at) : 'no replies'}</span>
+            </div>
+          </a>`;
+      }
+      html += '</div>';
+    }
+
+    // New topic form
+    if (isAuthenticated()) {
+      const pollsEnabled = isFeatureEnabled('feature_polls');
+      const canCreatePoll = isAdmin() || getConfig('polls_member_create') === true;
+      html += `
+        <div class="forum-new-topic-form">
+          <h3 class="mb-1">New Topic</h3>
+          <form id="new-topic-form">
+            <div class="form-group">
+              <label class="form-label">Title</label>
+              <input class="form-input" id="nt-title" required maxlength="200">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Body</label>
+              <textarea class="form-textarea" id="nt-body" required></textarea>
+            </div>
+            ${pollsEnabled && canCreatePoll ? '<div id="nt-poll-form-container"></div><button class="btn btn-sm btn-secondary mb-1" id="nt-add-poll" type="button">+ Add Poll</button>' : ''}
+            <button type="submit" class="btn btn-primary">Create Topic</button>
+          </form>
+        </div>`;
+    }
+
+    root.innerHTML = html;
+
+    // Bind poll form on new topic
+    let topicPollFormRef: ReturnType<typeof createPollForm> | null = null;
+    const ntAddPoll = document.getElementById('nt-add-poll');
+    if (ntAddPoll) {
+      ntAddPoll.addEventListener('click', () => {
+        const formContainer = document.getElementById('nt-poll-form-container')!;
+        if (topicPollFormRef) return;
+        topicPollFormRef = createPollForm(formContainer);
+        ntAddPoll.classList.add('hidden');
+        const observer = new MutationObserver(() => {
+          if (formContainer.innerHTML === '') {
+            topicPollFormRef = null;
+            ntAddPoll.classList.remove('hidden');
+            observer.disconnect();
+          }
+        });
+        observer.observe(formContainer, { childList: true });
+      });
+    }
+
+    // Bind new topic form
+    const form = document.getElementById('new-topic-form');
+    if (form) {
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const session = getSession();
+        const memberId = session?.user?.member?.id;
+        if (!memberId) {
+          alert('You must be logged in.');
+          return;
+        }
+
+        const title = (document.getElementById('nt-title') as HTMLInputElement).value.trim();
+        const body = (document.getElementById('nt-body') as HTMLTextAreaElement).value.trim();
+        if (!title || !body) return;
+
+        try {
+          const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+          btn.disabled = true;
+          btn.textContent = 'Creating...';
+
+          const [created] = await post('forum_topics', {
+            title,
+            body,
+            author_id: memberId,
+            author_name: session.user.member.display_name || session.user.email,
+            category_id: categoryId,
+          });
+
+          // Create attached poll if form is filled
+          if (topicPollFormRef) {
+            const pollData = topicPollFormRef.getPollData();
+            if (pollData) {
+              try {
+                await submitPoll(pollData, memberId, { type: 'forum_topic', id: created.id });
+              } catch (e) {
+                console.error('Failed to create attached poll:', e);
+              }
+            }
+            topicPollFormRef = null;
+          }
+
+          await post('activity_log', { member_id: memberId, action: 'forum_post', metadata: { title } });
+
+          await renderTopicListing(root, categoryId);
+        } catch (e) {
+          console.error('Failed to create topic:', e);
+          alert('Failed to create topic. Please try again.');
+          const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Create Topic';
+          }
+        }
+      });
+    }
+  }
+
+  // -- Topic View (with replies) --
+  async function renderTopicView(root: HTMLElement, topicId: string) {
+    let topic: any = null;
+    try {
+      const topics = await get(`forum_topics?id=eq.${topicId}`);
+      topic = topics[0] || null;
+    } catch (e) {
+      console.warn('Failed to load topic:', e);
+    }
+
+    if (!topic) {
+      root.innerHTML = '<p class="text-muted">Topic not found.</p>';
+      return;
+    }
+
+    if (topic.hidden && !isAdmin()) {
+      root.innerHTML = '<p class="text-muted">Topic not found.</p>';
+      return;
+    }
+
+    let replyQuery = `forum_replies?topic_id=eq.${topicId}`;
+    if (!isAdmin()) {
+      replyQuery += '&hidden=eq.false';
+    }
+    replyQuery += '&order=created_at.asc';
+
+    let replies: any[] = [];
+    try {
+      replies = await get(replyQuery);
+      await enrichWithAvatars([topic, ...replies]);
+    } catch (e) {
+      console.warn('Failed to load replies:', e);
+    }
+
+    const admin = isAdmin();
+
+    let html = `
+      <div class="forum-breadcrumb">
+        <a href="/forum">Forum</a> /
+        <a href="?cat=${esc(topic.category_id)}">Back to topics</a> /
+        ${esc(topic.title)}
+      </div>`;
+
+    // Fetch attached poll
+    const session = getSession();
+    const memberId = session?.user?.member?.id ?? null;
+    let topicPollData: any = null;
+    if (isFeatureEnabled('feature_polls')) {
+      try {
+        topicPollData = await fetchAttachedPoll('forum_topic', parseInt(topicId, 10), session);
+      } catch (e) { console.warn('Failed to fetch topic poll:', e); }
+    }
+
+    // Topic post
+    const hiddenLabel = topic.hidden ? ' hidden-post' : '';
+    html += `
+      <div class="card${hiddenLabel}" style="margin-bottom:1.5rem">
+        <div class="forum-post-header">
+          <div>
+            <h2 style="margin-bottom:0.25rem">
+              ${topic.is_pinned ? '<span class="badge badge-primary" style="margin-right:0.375rem">Pinned</span>' : ''}
+              ${topic.locked ? '<span class="badge badge-warning" style="margin-right:0.375rem">Locked</span>' : ''}
+              ${topic.hidden ? '<span class="badge badge-danger" style="margin-right:0.375rem">Hidden</span>' : ''}
+              ${esc(topic.title)}
+            </h2>
+            <span class="forum-post-date">${avatarHtml(topic, '2rem')}${esc(topic.author_name || 'Anonymous')} &middot; ${timeAgo(topic.created_at)}</span>
+          </div>
+        </div>
+        <div class="forum-post-body" data-translate-text="${esc(topic.body)}" data-ct="forum_topic" data-ci="${topic.id}" data-cf="body">${esc(topic.body)}</div>
+        ${topicPollData ? `<div data-topic-poll="${topicId}">${topicPollData.html}</div>` : ''}
+        ${admin ? buildTopicAdminBar(topic) : ''}
+      </div>`;
+
+    // Replies
+    if (replies.length > 0) {
+      html += '<div class="card" style="padding:0;overflow:hidden">';
+      for (const r of replies) {
+        const rHidden = r.hidden ? ' hidden-post' : '';
+        html += `
+          <div class="forum-post${rHidden}">
+            <div class="forum-post-header">
+              <span class="forum-post-author">${avatarHtml(r, '1.75rem')}${esc(r.author_name || 'Anonymous')}</span>
+              <span class="forum-post-date">${timeAgo(r.created_at)}${r.hidden ? ' <span class="badge badge-danger">Hidden</span>' : ''}</span>
+            </div>
+            <div class="forum-post-body" data-translate-text="${esc(r.body)}" data-ct="forum_reply" data-ci="${r.id}" data-cf="body">${esc(r.body)}</div>
+            ${admin ? buildReplyAdminBar(r) : ''}
+          </div>`;
+      }
+      html += '</div>';
+    } else {
+      html += '<p class="text-muted mt-2">No replies yet.</p>';
+    }
+
+    // Reply form
+    if (topic.locked) {
+      html += '<div class="forum-locked-notice">This topic is locked. No new replies can be posted.</div>';
+    } else if (isAuthenticated()) {
+      html += `
+        <div class="forum-reply-form">
+          <h3 class="mb-1">Reply</h3>
+          <form id="reply-form">
+            <div class="form-group">
+              <textarea class="form-textarea" id="rf-body" required placeholder="Write your reply..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Post Reply</button>
+          </form>
+        </div>`;
+    }
+
+    root.innerHTML = html;
+
+    // Bind poll vote listeners
+    if (topicPollData) {
+      const pollContainer = root.querySelector(`[data-topic-poll="${topicId}"]`) as HTMLElement;
+      if (pollContainer) {
+        bindPollVoteListeners(pollContainer, topicPollData.poll, topicPollData.votes, memberId, () => renderTopicView(root, topicId));
+      }
+    }
+
+    // Add translate buttons
+    root.querySelectorAll('.forum-post-body[data-translate-text]').forEach((el) => {
+      addTranslateButton(el as HTMLElement, (el as HTMLElement).dataset.translateText!);
+    });
+
+    // Bind reply form
+    const replyForm = document.getElementById('reply-form');
+    if (replyForm) {
+      replyForm.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const session = getSession();
+        const memberId = session?.user?.member?.id;
+        if (!memberId) {
+          alert('You must be logged in.');
+          return;
+        }
+
+        const body = (document.getElementById('rf-body') as HTMLTextAreaElement).value.trim();
+        if (!body) return;
+
+        try {
+          const btn = replyForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+          btn.disabled = true;
+          btn.textContent = 'Posting...';
+
+          await post('forum_replies', {
+            body,
+            author_id: memberId,
+            author_name: session.user.member.display_name || session.user.email,
+            topic_id: topicId,
+          });
+
+          await patch(`forum_topics?id=eq.${topicId}`, {
+            reply_count: (topic.reply_count || 0) + 1,
+            last_reply_at: new Date().toISOString(),
+          });
+
+          await renderTopicView(root, topicId);
+        } catch (e) {
+          console.error('Failed to post reply:', e);
+          alert('Failed to post reply. Please try again.');
+          const btn = replyForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Post Reply';
+          }
+        }
+      });
+    }
+
+    // Bind admin actions
+    if (admin) {
+      bindTopicAdminActions(root, topic);
+      bindReplyAdminActions(root, topicId);
+    }
+  }
+
+  // -- Admin Controls --
+  function buildTopicAdminBar(topic: any): string {
+    return `
+      <div class="forum-admin-bar">
+        <button class="btn btn-sm btn-secondary" data-topic-action="pin" data-topic-id="${esc(topic.id)}">${topic.is_pinned ? 'Unpin' : 'Pin'}</button>
+        <button class="btn btn-sm btn-secondary" data-topic-action="lock" data-topic-id="${esc(topic.id)}">${topic.locked ? 'Unlock' : 'Lock'}</button>
+        <button class="btn btn-sm btn-secondary" data-topic-action="hide" data-topic-id="${esc(topic.id)}">${topic.hidden ? 'Unhide' : 'Hide'}</button>
+        <button class="btn btn-sm btn-danger" data-topic-action="delete" data-topic-id="${esc(topic.id)}">Delete</button>
+      </div>`;
+  }
+
+  function buildReplyAdminBar(reply: any): string {
+    return `
+      <div class="forum-post-actions">
+        <button class="btn btn-sm btn-secondary" data-reply-action="hide" data-reply-id="${esc(reply.id)}">${reply.hidden ? 'Unhide' : 'Hide'}</button>
+        <button class="btn btn-sm btn-danger" data-reply-action="delete" data-reply-id="${esc(reply.id)}">Delete</button>
+      </div>`;
+  }
+
+  function bindTopicAdminActions(root: HTMLElement, topic: any) {
+    root.querySelectorAll('[data-topic-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = (btn as HTMLElement).dataset.topicAction!;
+        const id = (btn as HTMLElement).dataset.topicId!;
+
+        try {
+          if (action === 'pin') {
+            await patch(`forum_topics?id=eq.${id}`, { is_pinned: !topic.is_pinned });
+          } else if (action === 'lock') {
+            await patch(`forum_topics?id=eq.${id}`, { locked: !topic.locked });
+          } else if (action === 'hide') {
+            await patch(`forum_topics?id=eq.${id}`, { hidden: !topic.hidden });
+          } else if (action === 'delete') {
+            if (!confirm('Delete this topic and all its replies?')) return;
+            try { await del(`polls?attached_to=eq.forum_topic&attached_id=eq.${id}`); } catch (e) { console.warn('Failed to delete attached poll:', e); }
+            await del(`forum_replies?topic_id=eq.${id}`);
+            await del(`forum_topics?id=eq.${id}`);
+            const { navigate } = await import('astro:transitions/client');
+            navigate(`/forum.html?cat=${topic.category_id}`);
+            return;
+          }
+
+          await renderTopicView(root, id);
+        } catch (e) {
+          console.error('Admin action failed:', e);
+          alert('Action failed. Please try again.');
+        }
+      });
+    });
+  }
+
+  function bindReplyAdminActions(root: HTMLElement, topicId: string) {
+    root.querySelectorAll('[data-reply-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = (btn as HTMLElement).dataset.replyAction!;
+        const id = (btn as HTMLElement).dataset.replyId!;
+
+        try {
+          if (action === 'hide') {
+            const replies = await get(`forum_replies?id=eq.${id}`);
+            const reply = replies[0];
+            if (!reply) return;
+            await patch(`forum_replies?id=eq.${id}`, { hidden: !reply.hidden });
+          } else if (action === 'delete') {
+            if (!confirm('Delete this reply?')) return;
+            await del(`forum_replies?id=eq.${id}`);
+          }
+
+          await renderTopicView(root, topicId);
+        } catch (e) {
+          console.error('Reply admin action failed:', e);
+          alert('Action failed. Please try again.');
+        }
+      });
+    });
+  }
+
+  async function initForum() {
+    const params = new URLSearchParams(window.location.search);
+    const root = document.getElementById('forum-root');
+    if (!root) return;
+
+    if (params.has('topic')) {
+      await renderTopicView(root, params.get('topic')!);
+    } else if (params.has('cat')) {
+      await renderTopicListing(root, params.get('cat')!);
+    } else {
+      await renderCategoryListing(root);
+    }
+  }
+
+  initForum();
+  document.addEventListener('astro:after-swap', initForum);
+  document.addEventListener('wl-locale-changed', initForum);
+  document.addEventListener('wl-auth-changed', initForum);
+</script>

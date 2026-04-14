@@ -1,0 +1,20 @@
+{
+  "name": "Silver Pines Senior Center",
+  "tagline": "Where every day brings something new",
+  "defaultLanguage": "en",
+  "languages": ["en"],
+  "theme": {
+    "primary": "#5B7F5E",
+    "primary_hover": "#4A6B4D",
+    "accent": "#C4913E",
+    "bg": "#FFFDF7",
+    "surface": "#F5F0E8",
+    "text": "#2C2C2C",
+    "text_muted": "#5A5A5A",
+    "border": "#D5CFC4",
+    "font_heading": "Merriweather",
+    "font_body": "Source Sans 3",
+    "radius": "0.75rem",
+    "max_width": "68rem"
+  }
+}

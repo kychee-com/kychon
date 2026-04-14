@@ -1,0 +1,141 @@
+---
+// AdminEditor.astro — Inline editing for admins (contenteditable + Tiptap + image upload)
+// Loaded with client:idle — only initializes after page settles
+---
+<div id="admin-editor-root"></div>
+
+<script>
+  import { patch } from '../lib/api';
+  import { clearCache } from '../lib/config';
+
+  function getAPI(): string {
+    return window.__KYCHON_API || 'https://api.run402.com';
+  }
+  function getAnonKey(): string {
+    return window.__KYCHON_ANON_KEY || '';
+  }
+
+  // --- Simple text editing via contenteditable ---
+  function initEditableText() {
+    document.querySelectorAll('[data-editable]').forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      htmlEl.addEventListener('click', () => {
+        htmlEl.contentEditable = 'true';
+        htmlEl.focus();
+      });
+      htmlEl.addEventListener('blur', async () => {
+        htmlEl.contentEditable = 'false';
+        const [table, id, field] = htmlEl.dataset.editable!.split('.');
+        if (!table || !id || !field) return;
+        try {
+          await patch(`${table}?id=eq.${id}`, { [field]: htmlEl.textContent?.trim() });
+          if (table === 'site_config') clearCache('wl_cache_site_config');
+        } catch (e) {
+          console.error('Save failed:', e);
+        }
+      });
+      htmlEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          htmlEl.blur();
+        }
+      });
+    });
+  }
+
+  // --- Rich text editing via Tiptap ---
+  let tiptapLoaded = false;
+  let Editor: any, StarterKit: any;
+
+  async function loadTiptap() {
+    if (tiptapLoaded) return;
+    try {
+      const core = await import('https://esm.sh/@tiptap/core@2');
+      const starter = await import('https://esm.sh/@tiptap/starter-kit@2');
+      Editor = core.Editor;
+      StarterKit = starter.default || starter.StarterKit;
+      tiptapLoaded = true;
+    } catch (e) {
+      console.error('Failed to load Tiptap:', e);
+    }
+  }
+
+  function initEditableRich() {
+    document.querySelectorAll('[data-editable-rich]').forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      let editor: any = null;
+      htmlEl.addEventListener('click', async () => {
+        if (editor) return;
+        await loadTiptap();
+        if (!Editor) return;
+        const originalContent = htmlEl.innerHTML;
+        editor = new Editor({
+          element: htmlEl,
+          extensions: [StarterKit],
+          content: originalContent,
+          onBlur: async () => {
+            const [table, id, field] = htmlEl.dataset.editableRich!.split('.');
+            if (!table || !id || !field) return;
+            const html = editor.getHTML();
+            try {
+              await patch(`${table}?id=eq.${id}`, { [field]: html });
+              if (table === 'site_config') clearCache('wl_cache_site_config');
+            } catch (e) {
+              console.error('Rich text save failed:', e);
+            }
+            editor.destroy();
+            editor = null;
+          },
+        });
+      });
+    });
+  }
+
+  // --- Image editing via click-to-upload ---
+  function initEditableImage() {
+    document.querySelectorAll('[data-editable-image]').forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      htmlEl.style.cursor = 'pointer';
+      htmlEl.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.addEventListener('change', async () => {
+          const file = input.files?.[0];
+          if (!file) return;
+          const storagePath = htmlEl.dataset.editableImage!;
+          const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(`${getAPI()}/storage/v1/upload/${storagePath}`, {
+              method: 'POST',
+              headers: { apikey: getAnonKey(), Authorization: `Bearer ${session.access_token}` },
+              body: formData,
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
+              if (img) img.src = data.url || `/storage/${storagePath}`;
+            }
+          } catch (e) {
+            console.error('Image upload failed:', e);
+          }
+        });
+        input.click();
+      });
+    });
+  }
+
+  function initAdminEditor() {
+    const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
+    if (session?.user?.member?.role !== 'admin') return;
+    document.body.classList.add('admin');
+    initEditableText();
+    initEditableRich();
+    initEditableImage();
+  }
+
+  initAdminEditor();
+  document.addEventListener('astro:after-swap', initAdminEditor);
+</script>

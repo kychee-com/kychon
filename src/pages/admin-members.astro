@@ -1,0 +1,221 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Manage Members">
+  <div class="container">
+    <div class="flex justify-between items-center mb-2">
+      <h2>Members</h2>
+      <button class="btn btn-secondary" id="am-export">Export CSV</button>
+    </div>
+
+    <div class="flex gap-1 mb-2" style="flex-wrap:wrap">
+      <input class="form-input" id="am-search" placeholder="Search members..." style="max-width:16rem">
+      <select class="form-select" id="am-status-filter" style="max-width:10rem">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="pending">Pending</option>
+        <option value="expired">Expired</option>
+        <option value="suspended">Suspended</option>
+      </select>
+      <select class="form-select" id="am-tier-filter" style="max-width:10rem">
+        <option value="">All Tiers</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Status</th>
+              <th>Tier</th>
+              <th>Role</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="am-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Portal>
+
+<script>
+  import { get, patch } from '../lib/api';
+  import { requireAdmin } from '../lib/auth';
+
+  let allMembers: any[] = [];
+  let tiers: any[] = [];
+
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+  }
+
+  function formatDate(iso: string): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function statusColor(s: string): string {
+    const map: Record<string, string> = { active: 'success', pending: 'warning', expired: 'danger', suspended: 'danger' };
+    return map[s] || 'primary';
+  }
+
+  function applyFilters() {
+    const query = ((document.getElementById('am-search') as HTMLInputElement)?.value || '').toLowerCase();
+    const status = (document.getElementById('am-status-filter') as HTMLSelectElement)?.value;
+    const tierId = (document.getElementById('am-tier-filter') as HTMLSelectElement)?.value;
+
+    let filtered = allMembers;
+    if (query)
+      filtered = filtered.filter(
+        (m) => m.display_name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query),
+      );
+    if (status) filtered = filtered.filter((m) => m.status === status);
+    if (tierId) filtered = filtered.filter((m) => String(m.tier_id) === tierId);
+
+    renderTable(filtered);
+  }
+
+  function renderTable(members: any[]) {
+    const tbody = document.getElementById('am-tbody');
+    if (!tbody) return;
+
+    if (members.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center">No members found.</td></tr>';
+      return;
+    }
+
+    const tierOpts = tiers.map((t: any) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+
+    tbody.innerHTML = members
+      .map(
+        (m) => `
+      <tr>
+        <td>
+          <div class="flex items-center gap-1">
+            ${
+              m.avatar_url
+                ? `<img class="member-avatar" src="${esc(m.avatar_url)}" alt="" style="width:2rem;height:2rem">`
+                : `<div class="member-avatar" style="width:2rem;height:2rem;background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:600">${(m.display_name || '?')[0].toUpperCase()}</div>`
+            }
+            <div>
+              <div style="font-weight:500">${esc(m.display_name)}</div>
+              <div class="text-sm text-muted">${esc(m.email)}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge badge-${statusColor(m.status)}">${esc(m.status)}</span></td>
+        <td>${esc(m.tier_name)}</td>
+        <td>${esc(m.role)}</td>
+        <td class="text-sm text-muted">${formatDate(m.joined_at)}</td>
+        <td>
+          <div class="flex gap-1" style="flex-wrap:wrap">
+            ${m.status === 'pending' ? `<button class="btn btn-sm btn-primary am-action" data-id="${m.id}" data-action="approve">Approve</button>` : ''}
+            ${m.status === 'active' ? `<button class="btn btn-sm btn-secondary am-action" data-id="${m.id}" data-action="suspend">Suspend</button>` : ''}
+            ${m.status === 'suspended' ? `<button class="btn btn-sm btn-secondary am-action" data-id="${m.id}" data-action="activate">Activate</button>` : ''}
+            <select class="form-select btn-sm am-tier-change" data-id="${m.id}" style="width:auto;padding:0.2rem 0.4rem;font-size:0.8rem">
+              <option value="">Tier...</option>
+              ${tierOpts}
+            </select>
+            <select class="form-select btn-sm am-role-change" data-id="${m.id}" style="width:auto;padding:0.2rem 0.4rem;font-size:0.8rem">
+              <option value="">Role...</option>
+              <option value="member">Member</option>
+              <option value="moderator">Moderator</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </td>
+      </tr>`,
+      )
+      .join('');
+
+    // Actions
+    tbody.querySelectorAll('.am-action').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const el = btn as HTMLElement;
+        const id = el.dataset.id;
+        const action = el.dataset.action!;
+        const statusMap: Record<string, string> = { approve: 'active', suspend: 'suspended', activate: 'active' };
+        await patch(`members?id=eq.${id}`, { status: statusMap[action] });
+        loadMembers();
+      });
+    });
+
+    tbody.querySelectorAll('.am-tier-change').forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        const el = sel as HTMLSelectElement;
+        if (!el.value) return;
+        await patch(`members?id=eq.${el.dataset.id}`, { tier_id: parseInt(el.value, 10) });
+        loadMembers();
+      });
+    });
+
+    tbody.querySelectorAll('.am-role-change').forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        const el = sel as HTMLSelectElement;
+        if (!el.value) return;
+        await patch(`members?id=eq.${el.dataset.id}`, { role: el.value });
+        loadMembers();
+      });
+    });
+  }
+
+  async function loadMembers() {
+    try {
+      allMembers = await get('members?order=created_at.desc');
+      const tierMap = Object.fromEntries(tiers.map((t: any) => [t.id, t.name]));
+      allMembers.forEach((m: any) => (m.tier_name = tierMap[m.tier_id] || ''));
+      applyFilters();
+    } catch (e) {
+      console.warn('Failed to load members:', e);
+    }
+  }
+
+  function exportCSV() {
+    const headers = ['display_name', 'email', 'status', 'role', 'tier', 'joined_at'];
+    const rows = allMembers.map((m) => [m.display_name, m.email, m.status, m.role, m.tier_name, m.joined_at]);
+    const csv = [
+      headers.join(','),
+      ...rows.map((r) => r.map((c: any) => `"${String(c || '').replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'members.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function initAdminMembers() {
+    if (!requireAdmin()) return;
+
+    // Load tiers
+    try {
+      tiers = await get('membership_tiers?order=position.asc');
+      const tierFilter = document.getElementById('am-tier-filter');
+      if (tierFilter) {
+        tierFilter.innerHTML =
+          '<option value="">All Tiers</option>' +
+          tiers.map((t: any) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+      }
+    } catch {}
+
+    await loadMembers();
+
+    document.getElementById('am-search')?.addEventListener('input', applyFilters);
+    document.getElementById('am-status-filter')?.addEventListener('change', applyFilters);
+    document.getElementById('am-tier-filter')?.addEventListener('change', applyFilters);
+    document.getElementById('am-export')?.addEventListener('click', exportCSV);
+  }
+
+  initAdminMembers();
+  document.addEventListener('astro:after-swap', initAdminMembers);
+  document.addEventListener('wl-locale-changed', initAdminMembers);
+  document.addEventListener('wl-auth-changed', initAdminMembers);
+</script>

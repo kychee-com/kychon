@@ -1,0 +1,127 @@
+---
+// Portal.astro — Main layout wrapping all portal pages
+import { ClientRouter } from 'astro:transitions';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import ConfigProvider from '../components/ConfigProvider.astro';
+import AuthProvider from '../components/AuthProvider.astro';
+import AuthModal from '../components/AuthModal.astro';
+import Toast from '../components/Toast.astro';
+import AdminEditor from '../components/AdminEditor.astro';
+import DemoBanner from '../components/DemoBanner.astro';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/a11y.css">
+  <ClientRouter />
+  <script is:inline>
+    (()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()
+  </script>
+  <script is:inline src="/js/env.js"></script>
+</head>
+<body>
+  <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
+  <DemoBanner />
+  <div class="page">
+    <Nav />
+
+    <main class="page-content" id="main-content">
+      <slot />
+    </main>
+
+    <Footer />
+    <AuthModal />
+  </div>
+
+  <AuthProvider />
+  <ConfigProvider />
+  <Toast />
+  <AdminEditor />
+
+  <script>
+    // Scroll animations — observe .section elements, add .section-visible on intersection
+    function initAnimations() {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        || document.documentElement.classList.contains('wl-reduced-motion');
+
+      if (prefersReducedMotion) {
+        document.querySelectorAll('.section').forEach(el => el.classList.add('section-visible'));
+        new MutationObserver(mutations => mutations.forEach(m =>
+          m.addedNodes.forEach(n => { if ((n as Element).classList?.contains('section')) (n as Element).classList.add('section-visible'); })
+        )).observe(document.body, { childList: true, subtree: true });
+        return;
+      }
+
+      let staggerIndex = 0;
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target as HTMLElement;
+          el.style.transitionDelay = `${staggerIndex * 100}ms`;
+          staggerIndex++;
+          el.classList.add('section-visible');
+          observer.unobserve(el);
+          if (el.classList.contains('section-stats')) animateStatCounters(el);
+        });
+        setTimeout(() => { staggerIndex = 0; }, 50);
+      }, { threshold: 0.15 });
+
+      document.querySelectorAll('.section').forEach(el => observer.observe(el));
+
+      new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+          m.addedNodes.forEach((node) => {
+            if ((node as Element).classList?.contains('section')) observer.observe(node as Element);
+          });
+        });
+      }).observe(document.body, { childList: true, subtree: true });
+
+      // Fallback: if IO never fires (background tab, Chrome extensions), show all sections after 2s
+      setTimeout(() => {
+        document.querySelectorAll('.section:not(.section-visible)').forEach(el => el.classList.add('section-visible'));
+      }, 2000);
+    }
+
+    function animateStatCounters(section: Element) {
+      section.querySelectorAll('.stat-value').forEach((el) => {
+        const text = el.textContent?.trim() || '';
+        const match = text.match(/^([^\d]*?)([\d,]+(?:\.\d+)?)(.*)$/);
+        if (!match) return;
+        const prefix = match[1], numStr = match[2].replace(/,/g, ''), suffix = match[3];
+        const target = parseFloat(numStr);
+        const isInteger = numStr.indexOf('.') === -1;
+        const duration = 1500, start = performance.now();
+        function frame(now: number) {
+          const t = Math.min((now - start) / duration, 1);
+          const eased = t >= 1 ? 1 : 1 - 2 ** (-10 * t);
+          const current = eased * target;
+          const formatted = isInteger
+            ? Math.round(current).toLocaleString()
+            : current.toFixed(numStr.split('.')[1].length).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          el.textContent = prefix + formatted + suffix;
+          if (t < 1) requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    initAnimations();
+    document.addEventListener('astro:after-swap', initAnimations);
+  </script>
+
+  <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

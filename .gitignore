@@ -1,0 +1,16 @@
+node_modules/
+app.json
+coverage/
+.env
+*.local
+.migrations*.sql
+app-*.json
+demo/*/assets/
+marketing/.marketing-manifest.json
+site/js/env.js
+public/js/env.js
+deploy-batched.js
+dist/
+.astro/
+.deploy-minimal.json
+.wrangler/
