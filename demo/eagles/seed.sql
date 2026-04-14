@@ -1588,6 +1588,7 @@ INSERT INTO activity_log (member_id, action, metadata, created_at) SELECT (SELEC
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'about', 'About The Eagles', '
 <section class="page-content">
+  <img src="/assets/about-hero.jpg" alt="Eagles volunteers serving the Wichita community" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>About The Eagles — Good Samaritans of Wichita</h1>
 
   <h2>Our Story</h2>
@@ -1637,6 +1638,7 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'about');
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'volunteer', 'Volunteer With Us', '
 <section class="page-content">
+  <img src="/assets/volunteer-hero.jpg" alt="Hands joining together — Eagles volunteers at work" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>Volunteer With The Eagles</h1>
 
   <p>Whether you have an hour or a hundred, there is a place for you with The Eagles. We welcome volunteers of all ages, backgrounds, and skill levels. No experience necessary — just a willingness to help.</p>

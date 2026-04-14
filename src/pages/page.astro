@@ -21,16 +21,23 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initPage() {
+    // Guard: astro:after-swap fires initPage on EVERY navigation, including routes
+    // that don't own these elements. Bail out cleanly if we're not on /page.html.
+    const titleEl = document.getElementById('page-title');
+    const contentEl = document.getElementById('page-content');
+    const sectionsContainer = document.getElementById('page-sections');
+    if (!titleEl || !contentEl || !sectionsContainer) return;
+
     const slug = new URLSearchParams(window.location.search).get('slug');
     if (!slug) {
-      document.getElementById('page-title')!.textContent = 'Page not found';
+      titleEl.textContent = 'Page not found';
       return;
     }
 
     try {
       const pages = await get(`pages?slug=eq.${slug}&published=eq.true&limit=1`);
       if (pages.length === 0) {
-        document.getElementById('page-title')!.textContent = 'Page not found';
+        titleEl.textContent = 'Page not found';
         return;
       }
 
@@ -45,14 +52,13 @@ import Portal from '../layouts/Portal.astro';
       }
 
       document.title = page.title;
-      document.getElementById('page-title')!.textContent = page.title;
+      titleEl.textContent = page.title;
       if (page.content) {
-        document.getElementById('page-content')!.innerHTML = page.content;
+        contentEl.innerHTML = page.content;
       }
 
       // Load sections
       const sections = await get(`sections?page_slug=eq.${slug}&visible=eq.true&order=position.asc`);
-      const container = document.getElementById('page-sections')!;
       for (const s of sections) {
         const el = document.createElement('div');
         el.className = 'section section-visible';
@@ -63,10 +69,10 @@ import Portal from '../layouts/Portal.astro';
             `<details class="card mb-1"><summary style="font-weight:600;cursor:pointer">${esc(f.q)}</summary><p class="text-muted mt-1">${esc(f.a)}</p></details>`
           ).join('');
         }
-        container.appendChild(el);
+        sectionsContainer.appendChild(el);
       }
     } catch (_e) {
-      document.getElementById('page-title')!.textContent = 'Error loading page';
+      titleEl.textContent = 'Error loading page';
     }
   }
 
