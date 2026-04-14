@@ -23,7 +23,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { del, get, patch, post } from '../lib/api';
   import { getSession, isAdmin } from '../lib/auth';
-  import { isFeatureEnabled, getTranslatedContent, translateItems, cacheHeroImage } from '../lib/config';
+  import { isFeatureEnabled, getTranslatedContent, translateItems, cacheHeroImage, preloadHeroImage } from '../lib/config';
   import { getLocale } from '../lib/i18n';
   import { bindPollVoteListeners, createPollForm, submitPoll, fetchAttachedPoll, fetchAndRenderPoll } from '../lib/poll-ui';
 
@@ -305,6 +305,11 @@ import Portal from '../layouts/Portal.astro';
 
   // --- Boot ---
   async function bootHomepage() {
+    // Kick off hero image preload before the sections API round-trip completes.
+    // Only index.astro does this (per-page), since it's the only route that
+    // renders a hero section — prevents "preloaded but not used" warnings on
+    // resources/directory/etc.
+    preloadHeroImage();
     await Promise.all([renderSections(), renderAnnouncements(), loadActivityFeed(15)]);
     setupAnnouncementCreate();
   }

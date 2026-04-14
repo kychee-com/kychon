@@ -300,7 +300,10 @@ export async function init(): Promise<Record<string, any>> {
   const isAdminPage = ADMIN_PATHS.includes(window.location.pathname);
   const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG) : null;
 
-  preloadHeroImage();
+  // NOTE: preloadHeroImage() used to run here, but it only helps the index page
+  // (the only route that renders a hero section). Firing it on every page created
+  // "resource preloaded but not used" console warnings on resources/directory/etc.
+  // Call preloadHeroImage() from index.astro directly when the hero section exists.
 
   if (cached) {
     populateConfigFromRows(cached);

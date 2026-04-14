@@ -22,13 +22,28 @@ const { title } = Astro.props;
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
-  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/a11y.css">
   <ClientRouter />
   <script is:inline>
-    (()=> {var t=localStorage.getItem('wl_theme');if(!t)t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark')})()
+    // Apply theme from localStorage BEFORE first paint (runs on every load + view transition).
+    // Sets OR REMOVES data-theme so state consistently matches the stored preference —
+    // previous version only set 'dark' and never removed it, causing random theme drift
+    // across pages when localStorage said light but a preserved attribute said dark.
+    (function applyTheme() {
+      var t = localStorage.getItem('wl_theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+    })();
+    document.addEventListener('astro:after-swap', function () {
+      var t = localStorage.getItem('wl_theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+    });
   </script>
   <script is:inline src="/js/env.js"></script>
 </head>
