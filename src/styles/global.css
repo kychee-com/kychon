@@ -419,7 +419,12 @@ a:hover {
   visibility: visible;
   opacity: 1;
 }
-#sections {
+/* Reserve vertical space during initial load so the footer / announcements
+   don't flash-in-and-jump-down once sections render. Applied to the skeleton
+   child so that once the skeleton is removed, #sections collapses to its
+   actual content height instead of holding a 200vh floor underneath the
+   real sections (caused a large blank gap before announcements). */
+#sections-skeleton {
   min-height: 200vh;
 }
 .section-hero h1 {
