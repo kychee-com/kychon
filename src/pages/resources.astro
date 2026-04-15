@@ -81,14 +81,22 @@ import Portal from '../layouts/Portal.astro';
         cats.map((c) => `<option value="${esc(c as string)}">${esc(c as string)}</option>`).join('');
     }
 
-    if (resources.length === 0) {
-      grid.innerHTML = '<p class="text-muted">No resources yet.</p>';
+    const visible = isAuthenticated() ? resources : resources.filter((r) => !r.is_members_only);
+
+    if (visible.length === 0) {
+      if (resources.length > 0 && !isAuthenticated()) {
+        grid.innerHTML = `<div class="text-center text-muted"><p class="mb-1">Sign in to view resources.</p><button class="btn btn-primary" id="res-signin-btn">Sign in</button></div>`;
+        document.getElementById('res-signin-btn')?.addEventListener('click', () => {
+          document.getElementById('auth-modal')?.classList.remove('hidden');
+        });
+      } else {
+        grid.innerHTML = '<p class="text-muted">No resources yet.</p>';
+      }
       return;
     }
 
-    grid.innerHTML = resources
+    grid.innerHTML = visible
       .map((r) => {
-        if (r.is_members_only && !isAuthenticated()) return '';
         const icon = fileTypeIcon(r.file_type);
         return `
         <div class="card">
