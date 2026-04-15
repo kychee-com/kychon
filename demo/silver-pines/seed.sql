@@ -61,7 +61,7 @@ INSERT INTO site_config (key, value, category) VALUES
     {"label": "Home", "href": "/", "icon": "home", "public": true},
     {"label": "Daily Schedule", "href": "/page.html?slug=daily-schedule", "icon": "calendar", "public": true},
     {"label": "Getting Here", "href": "/page.html?slug=getting-here", "icon": "map", "public": true},
-    {"label": "Our Members", "href": "/members.html", "icon": "users", "public": true},
+    {"label": "Our Members", "href": "/directory.html", "icon": "users", "public": true},
     {"label": "Events", "href": "/events.html", "icon": "calendar", "feature": "feature_events"},
     {"label": "Resources", "href": "/resources.html", "icon": "book-open", "feature": "feature_resources"},
     {"label": "Forum", "href": "/forum.html", "icon": "message-circle", "feature": "feature_forum"},
@@ -887,7 +887,7 @@ INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
   }', 1, true),
   ('index', 'stats', '{
     "items": [
-      {"value": "22+", "label": "Active Members", "href": "/members.html"},
+      {"value": "22+", "label": "Active Members", "href": "/directory.html"},
       {"value": "12+", "label": "Events This Month", "href": "/events.html"},
       {"value": "5", "label": "Committees"},
       {"value": "8", "label": "Years Serving Asheville"}
