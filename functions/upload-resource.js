@@ -8,14 +8,17 @@ export default async (req) => {
   }
 
   try {
-    const formData = await req.formData();
-    const file = formData.get('file');
-    const metadataStr = formData.get('metadata');
-    const metadata = JSON.parse(metadataStr || '{}');
+    const body = await req.json();
+    const { file, metadata = {} } = body || {};
 
-    if (!file) {
+    if (!file || !file.data || !file.name) {
       return new Response(JSON.stringify({ error: 'No file provided' }), { status: 400 });
     }
+
+    // Decode base64 file data
+    const bin = atob(file.data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
     // Upload file to Run402 storage
     const path = `resources/${Date.now()}_${file.name}`;
@@ -23,8 +26,9 @@ export default async (req) => {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}`,
+        'Content-Type': file.type || 'application/octet-stream',
       },
-      body: file,
+      body: bytes,
     });
 
     if (!uploadRes.ok) {

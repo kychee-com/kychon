@@ -50,7 +50,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { count, get, patch } from '../lib/api';
   import { requireAdmin } from '../lib/auth';
-  import { isFeatureEnabled } from '../lib/config';
+  import { isFeatureEnabled, ready } from '../lib/config';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -150,6 +150,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initDashboard() {
+    await ready;
     if (!requireAdmin()) return;
 
     const statPromises: Promise<number>[] = [

@@ -45,6 +45,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { get, patch } from '../lib/api';
   import { requireAdmin } from '../lib/auth';
+  import { ready } from '../lib/config';
 
   let allMembers: any[] = [];
   let tiers: any[] = [];
@@ -193,6 +194,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initAdminMembers() {
+    await ready;
     if (!requireAdmin()) return;
 
     // Load tiers

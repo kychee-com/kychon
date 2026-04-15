@@ -108,6 +108,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { get, patch } from '../lib/api';
   import { requireAdmin } from '../lib/auth';
+  import { ready } from '../lib/config';
 
   const configMap: Record<string, any> = {};
 
@@ -244,6 +245,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initAdminSettings() {
+    await ready;
     if (!requireAdmin()) return;
 
     // Load current config

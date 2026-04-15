@@ -32,7 +32,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { get } from '../lib/api';
   import { requireAuth } from '../lib/auth';
-  import { getConfig, init } from '../lib/config';
+  import { getConfig, ready } from '../lib/config';
 
   let allMembers: any[] = [];
   let tiers: any[] = [];
@@ -131,7 +131,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initDirectory() {
-    await init();
+    await ready;
     const isPublic = getConfig('directory_public') === true;
     if (!isPublic && !requireAuth()) return;
 

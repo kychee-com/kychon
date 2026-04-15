@@ -1,7 +1,7 @@
 // config.ts — Loads site_config, injects theme, builds nav, manages feature flags
 
 import { get } from './api';
-import { getRole, getSession, isAdmin } from './auth';
+import { getRole, getSession } from './auth';
 import { getAvailableLocales, getLocale, loadLocale, setAvailableLocales, setLanguage, t } from './i18n';
 
 // --- Cache layer (stale-while-revalidate) ---
@@ -64,6 +64,15 @@ export function cacheHeroImage(url: string): void {
 // --- Config state ---
 const siteConfig: Record<string, any> = {};
 const features: Record<string, boolean> = {};
+let lastNavSignature = '';
+let lastUserNavSignature = '';
+
+// Resolves after the first init() completes so page scripts can wait for
+// siteConfig + session.user.member to be populated before auth gates run.
+let resolveReady: () => void;
+export const ready: Promise<void> = new Promise((r) => {
+  resolveReady = r;
+});
 
 export function getConfig(key: string): any {
   const row = siteConfig[key];
@@ -72,6 +81,70 @@ export function getConfig(key: string): any {
 
 export function isFeatureEnabled(flag: string): boolean {
   return features[flag] === true;
+}
+
+function normalizePathname(pathname: string): string {
+  if (!pathname || pathname === '/') return '/';
+  return pathname.replace(/\/+$/, '') || '/';
+}
+
+function normalizeSearch(search: string): string {
+  const raw = search.startsWith('?') ? search.slice(1) : search;
+  if (!raw) return '';
+
+  const params = new URLSearchParams(raw);
+  const entries = [...params.entries()].sort(([aKey, aVal], [bKey, bVal]) => {
+    if (aKey === bKey) return aVal.localeCompare(bVal);
+    return aKey.localeCompare(bKey);
+  });
+
+  return entries.length ? `?${new URLSearchParams(entries).toString()}` : '';
+}
+
+export function getRouteKey(
+  urlLike: string,
+  base = typeof window !== 'undefined' ? window.location.origin : 'https://kychon.local',
+): string {
+  const url = new URL(urlLike, base);
+  return `${normalizePathname(url.pathname)}${normalizeSearch(url.search)}`;
+}
+
+const ACTIVE_ROUTE_ALIASES: Record<string, string[]> = {
+  '/event.html': ['/events.html'],
+};
+
+export function isNavItemActive(
+  itemHref: string,
+  currentHref = typeof window !== 'undefined' ? window.location.href : 'https://kychon.local/',
+): boolean {
+  const current = new URL(currentHref, typeof window !== 'undefined' ? window.location.origin : 'https://kychon.local');
+  const target = new URL(itemHref, current);
+  const currentPath = normalizePathname(current.pathname);
+  const targetPath = normalizePathname(target.pathname);
+
+  if (normalizeSearch(target.search)) {
+    return currentPath === targetPath && normalizeSearch(current.search) === normalizeSearch(target.search);
+  }
+
+  if (currentPath === targetPath) return true;
+
+  return (ACTIVE_ROUTE_ALIASES[currentPath] || []).includes(targetPath);
+}
+
+export function getBrandedTitle(title: string, siteName: string): string {
+  const cleanSiteName = String(siteName || '').trim();
+  if (!cleanSiteName) return String(title || '').trim();
+
+  const cleanTitle = String(title || '').trim();
+  if (!cleanTitle || cleanTitle === cleanSiteName) return cleanSiteName;
+
+  const suffix = ` — ${cleanSiteName}`;
+  let normalizedTitle = cleanTitle;
+  while (normalizedTitle.endsWith(suffix)) {
+    normalizedTitle = normalizedTitle.slice(0, -suffix.length).trimEnd();
+  }
+
+  return normalizedTitle ? `${normalizedTitle}${suffix}` : cleanSiteName;
 }
 
 // --- Theme ---
@@ -115,16 +188,21 @@ export function applyTheme(theme: Record<string, string> | null): void {
 // --- Branding ---
 export function applyBranding(config: Record<string, any>): void {
   const name = config.site_name || 'Kychon';
-  document.title = document.title ? `${document.title} — ${name}` : name;
+  document.title = getBrandedTitle(document.title, name);
 
   const brandEl = document.querySelector('.nav-brand-text');
-  if (brandEl) brandEl.textContent = name;
+  if (brandEl && brandEl.textContent !== name) brandEl.textContent = name;
 
   const logoEl = document.querySelector('.nav-brand img') as HTMLImageElement | null;
   if (logoEl && config.logo_url) {
-    logoEl.src = config.logo_url;
+    if (logoEl.getAttribute('src') !== config.logo_url) {
+      logoEl.src = config.logo_url;
+    }
     logoEl.alt = name;
+    logoEl.style.display = '';
   } else if (logoEl && !config.logo_url) {
+    logoEl.removeAttribute('src');
+    logoEl.alt = '';
     logoEl.style.display = 'none';
   }
 
@@ -152,21 +230,41 @@ export function buildNav(navItems: any[]): void {
 
   const session = getSession();
   const role = getRole();
-  const currentPath = window.location.pathname;
 
-  navEl.innerHTML = '';
+  const visibleItems = [];
   for (const item of navItems) {
     if (item.feature && !isFeatureEnabled(item.feature)) continue;
     if (item.auth && !session) continue;
     if (item.admin && role !== 'admin') continue;
 
-    const a = document.createElement('a');
-    a.className = `nav-link${currentPath === item.href ? ' active' : ''}`;
-    a.href = item.href;
     const labelKey = NAV_LABEL_KEYS[item.label];
-    a.textContent = labelKey ? t(labelKey) : item.label;
-    navEl.appendChild(a);
+    visibleItems.push({
+      ...item,
+      renderedLabel: labelKey ? t(labelKey) : item.label,
+    });
   }
+
+  const signature = JSON.stringify(
+    visibleItems.map((item: any) => ({ href: getRouteKey(item.href), label: item.renderedLabel })),
+  );
+
+  if (signature === lastNavSignature && navEl.children.length === visibleItems.length) {
+    navEl.querySelectorAll<HTMLAnchorElement>('a.nav-link').forEach((link) => {
+      link.classList.toggle('active', isNavItemActive(link.href));
+    });
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const item of visibleItems) {
+    const a = document.createElement('a');
+    a.className = `nav-link${isNavItemActive(item.href) ? ' active' : ''}`;
+    a.href = item.href;
+    a.textContent = item.renderedLabel;
+    fragment.appendChild(a);
+  }
+  navEl.replaceChildren(fragment);
+  lastNavSignature = signature;
 }
 
 // --- User nav ---
@@ -185,6 +283,20 @@ export function buildUserNav(): void {
     ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
     : '';
   const themeBtn = `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}</button>`;
+  const signature = JSON.stringify({
+    isDark,
+    currentLocale,
+    locales,
+    isAuthenticated: !!session,
+    avatar: session?.user?.avatar_url || '',
+    displayName: session?.user?.display_name || '',
+    email: session?.user?.email || '',
+  });
+
+  if (signature === lastUserNavSignature && userEl.childElementCount > 0) {
+    userEl.querySelector<HTMLAnchorElement>('a[href="/profile.html"]')?.classList.toggle('active', isNavItemActive('/profile.html'));
+    return;
+  }
 
   if (!session) {
     userEl.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
@@ -193,8 +305,11 @@ export function buildUserNav(): void {
     const avatar = user.avatar_url
       ? `<img class="nav-avatar" src="${user.avatar_url}" alt="" width="32" height="32">`
       : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
-    userEl.innerHTML = `${langBtn}${themeBtn}<a href="/profile.html" class="nav-link">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
+    const profileActive = isNavItemActive('/profile.html') ? ' active' : '';
+    userEl.innerHTML = `${langBtn}${themeBtn}<a href="/profile.html" class="nav-link${profileActive}">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
   }
+
+  lastUserNavSignature = signature;
 
   document.getElementById('login-btn')?.addEventListener('click', () => {
     const modal = document.getElementById('auth-modal');
@@ -306,6 +421,8 @@ export async function init(): Promise<Record<string, any>> {
   // Call preloadHeroImage() from index.astro directly when the hero section exists.
 
   if (cached) {
+    for (const key of Object.keys(siteConfig)) delete siteConfig[key];
+    for (const key of Object.keys(features)) delete features[key];
     populateConfigFromRows(cached);
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
@@ -328,12 +445,15 @@ export async function init(): Promise<Record<string, any>> {
           applyTheme(siteConfig.theme);
           applyBranding(siteConfig);
           buildNav(siteConfig.nav);
+          buildUserNav();
         }
       }).catch(() => {});
     }
   } else {
     try {
       const rows = await get('site_config');
+      for (const key of Object.keys(siteConfig)) delete siteConfig[key];
+      for (const key of Object.keys(features)) delete features[key];
       populateConfigFromRows(rows);
       writeCache(WL_CACHE_CONFIG, rows);
     } catch (e) {
@@ -352,10 +472,15 @@ export async function init(): Promise<Record<string, any>> {
     buildUserNav();
   }
 
-  document.getElementById('nav-toggle')?.addEventListener('click', () => {
-    document.getElementById('nav-links')?.classList.toggle('open');
-  });
+  const navToggle = document.getElementById('nav-toggle');
+  if (navToggle && navToggle.dataset.bound !== 'true') {
+    navToggle.dataset.bound = 'true';
+    navToggle.addEventListener('click', () => {
+      document.getElementById('nav-links')?.classList.toggle('open');
+    });
+  }
 
+  resolveReady();
   return siteConfig;
 }
 
