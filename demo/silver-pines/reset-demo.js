@@ -55,7 +55,7 @@ INSERT INTO site_config (key, value, category) VALUES
   ('feature_ai_insights', 'false', 'features'),
   ('feature_ai_onboarding', 'false', 'features'),
   ('feature_ai_event_recaps', 'false', 'features'),
-  ('directory_public', 'false', 'features'),
+  ('directory_public', 'true', 'features'),
   ('signup_mode', '"open"', 'features'),
   ('demo_mode', 'true', 'features')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
