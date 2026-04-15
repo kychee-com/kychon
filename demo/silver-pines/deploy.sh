@@ -141,6 +141,11 @@ SCRIPT
 echo "Deploying to $PROJECT_ID..."
 run402 deploy --manifest "$ROOT/app-silver-pines.json" --project "$PROJECT_ID" 2>&1 | tee /dev/stderr | jq -r '.deployment_id // empty'
 
+# Bootstrap demo accounts (idempotent — creates/links demo-admin + demo-member auth users)
+echo ""
+echo "Bootstrapping demo accounts..."
+bash "$ROOT/scripts/bootstrap-demo.sh" "$PROJECT_ID" "$ANON_KEY"
+
 echo ""
 echo "=== Done! ==="
 echo "Live at: https://${SUBDOMAIN}.run402.com"

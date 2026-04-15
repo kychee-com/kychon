@@ -37,6 +37,12 @@ if [ -d "$ASSETS_DST" ]; then
   rm -rf "$ASSETS_DST"
 fi
 
+# Bootstrap demo accounts (idempotent — creates/links demo-admin + demo-member auth users)
+echo ""
+echo "Bootstrapping demo accounts..."
+ANON_KEY=$(run402 projects keys "$PROJECT_ID" | jq -r '.anon_key')
+bash "$ROOT/scripts/bootstrap-demo.sh" "$PROJECT_ID" "$ANON_KEY"
+
 echo ""
 echo "=== Deploy complete ==="
 echo "Live at: https://barrio.kychon.com"
