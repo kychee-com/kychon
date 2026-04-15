@@ -57,7 +57,7 @@ import Portal from '../layouts/Portal.astro';
           committees
             .map(
               (c: any) => `
-          <a href="/committees?id=${c.id}" class="card" style="text-decoration:none;color:inherit">
+          <a href="/committees.html?id=${c.id}" class="card" style="text-decoration:none;color:inherit">
             <h3>${esc(c.name)}</h3>
             <p class="text-sm text-muted">${esc(c.description || '')}</p>
             <span class="badge badge-primary">${countMap[c.id] || 0} members</span>
@@ -93,7 +93,7 @@ import Portal from '../layouts/Portal.astro';
       const allMembers = isAdmin() ? await get('members?status=eq.active&order=display_name.asc') : [];
 
       container.innerHTML = `
-        <p class="mb-1"><a href="/committees">&larr; All Committees</a></p>
+        <p class="mb-1"><a href="/committees.html">&larr; All Committees</a></p>
         <h2>${esc(committee.name)}</h2>
         <p class="text-muted">${esc(committee.description || '')}</p>
 
