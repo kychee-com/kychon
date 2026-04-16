@@ -131,6 +131,13 @@ import Portal from '../layouts/Portal.astro';
       <div id="as-tiers"></div>
     </div>
 
+    <!-- Custom Fields -->
+    <div class="card mb-2">
+      <h3 class="mb-1">Member Custom Fields</h3>
+      <p class="text-sm text-muted mb-1">Fields shown on member profiles and (optionally) in the directory.</p>
+      <div id="as-custom-fields"></div>
+    </div>
+
     <!-- AI Features -->
     <div class="card mb-2">
       <h3 class="mb-1">AI Features</h3>
@@ -162,7 +169,7 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { get, patch } from '../lib/api';
+  import { del, get, patch, post } from '../lib/api';
   import { requireAdmin } from '../lib/auth';
   import { ready, applyTheme, clearCache } from '../lib/config';
 
@@ -226,24 +233,284 @@ import Portal from '../layouts/Portal.astro';
     showSaved('as-theme-save');
   }
 
+  let allTiers: any[] = [];
+
   async function loadTiers() {
     const container = document.getElementById('as-tiers');
     if (!container) return;
     try {
-      const tiers = await get('membership_tiers?order=position.asc');
-      container.innerHTML = tiers
-        .map(
-          (t: any) => `
-        <div class="card mb-1 flex justify-between items-center" style="padding:0.75rem 1rem">
-          <div>
-            <strong>${esc(t.name)}</strong>
-            ${t.is_default ? '<span class="badge badge-primary">Default</span>' : ''}
-            <div class="text-sm text-muted">${esc(t.price_label || 'Free')} — ${(t.benefits || []).join(', ')}</div>
-          </div>
-        </div>`,
-        )
-        .join('');
+      allTiers = await get('membership_tiers?order=position.asc');
+      renderTiers(container);
     } catch {}
+  }
+
+  function renderTiers(container: HTMLElement) {
+    container.innerHTML = allTiers
+      .map(
+        (t: any) => `
+      <div class="card mb-1 flex justify-between items-center" style="padding:0.75rem 1rem;cursor:pointer" data-tier-id="${t.id}">
+        <div>
+          <strong>${esc(t.name)}</strong>
+          ${t.is_default ? '<span class="badge badge-primary">Default</span>' : ''}
+          <div class="text-sm text-muted">${esc(t.price_label || 'Free')} — ${(t.benefits || []).join(', ')}</div>
+        </div>
+        <span class="text-muted" style="font-size:0.8rem">Click to edit</span>
+      </div>`,
+      )
+      .join('') + '<button class="btn btn-secondary btn-sm mt-1" id="as-tier-add">+ Add Tier</button>';
+
+    // Bind click to edit
+    container.querySelectorAll('[data-tier-id]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const id = parseInt((card as HTMLElement).dataset.tierId!);
+        const tier = allTiers.find((t: any) => t.id === id);
+        if (tier) openTierEditor(tier, container);
+      });
+    });
+
+    // Add tier
+    container.querySelector('#as-tier-add')?.addEventListener('click', async () => {
+      try {
+        const [created] = await post('membership_tiers', {
+          name: 'New Tier',
+          price_label: 'Free',
+          benefits: [],
+          position: allTiers.length + 1,
+          is_default: false,
+        });
+        allTiers.push(created);
+        renderTiers(container);
+        openTierEditor(created, container);
+      } catch (e) {
+        console.error('Failed to create tier:', e);
+      }
+    });
+  }
+
+  function openTierEditor(tier: any, container: HTMLElement) {
+    // Remove existing popover
+    document.querySelector('.admin-popover-backdrop')?.remove();
+    document.querySelector('.admin-popover')?.remove();
+
+    const benefits = (tier.benefits || []).slice();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+
+    const popover = document.createElement('div');
+    popover.className = 'admin-popover';
+    popover.innerHTML = `
+      <h3>Edit Tier</h3>
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="te-name" value="${esc(tier.name || '')}"></div>
+      <div class="form-group"><label class="form-label">Price Label</label><input class="form-input" id="te-price" value="${esc(tier.price_label || '')}" placeholder="Free, $10/mo, etc."></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="te-desc" rows="2">${esc(tier.description || '')}</textarea></div>
+      <div class="form-group">
+        <label class="form-label">Benefits</label>
+        <div id="te-benefits"></div>
+        <button class="btn btn-sm btn-secondary mt-1" id="te-add-benefit">+ Add benefit</button>
+      </div>
+      <label class="flex items-center gap-1 mt-1"><input type="checkbox" id="te-default" ${tier.is_default ? 'checked' : ''}> Default tier</label>
+      <div class="popover-actions">
+        <button class="btn btn-sm btn-danger" id="te-delete">Delete</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm btn-secondary" id="te-cancel">Cancel</button>
+        <button class="btn btn-sm btn-primary" id="te-save">Save</button>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(popover);
+
+    function renderBenefits() {
+      const bc = popover.querySelector('#te-benefits')!;
+      bc.innerHTML = benefits.map((b: string, i: number) =>
+        `<div class="flex gap-1 mb-1" style="align-items:center"><input class="form-input" value="${esc(b)}" data-bi="${i}" style="flex:1"><button class="btn btn-sm btn-danger" data-remove="${i}" style="padding:0.25rem 0.5rem">&times;</button></div>`
+      ).join('');
+      bc.querySelectorAll('input').forEach((inp) => {
+        inp.addEventListener('change', () => {
+          benefits[parseInt((inp as HTMLElement).dataset.bi!)] = (inp as HTMLInputElement).value;
+        });
+      });
+      bc.querySelectorAll('[data-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          benefits.splice(parseInt((btn as HTMLElement).dataset.remove!), 1);
+          renderBenefits();
+        });
+      });
+    }
+    renderBenefits();
+
+    popover.querySelector('#te-add-benefit')?.addEventListener('click', () => {
+      benefits.push('');
+      renderBenefits();
+      const inputs = popover.querySelectorAll('#te-benefits input');
+      (inputs[inputs.length - 1] as HTMLInputElement)?.focus();
+    });
+
+    popover.querySelector('#te-save')?.addEventListener('click', async () => {
+      try {
+        await patch(`membership_tiers?id=eq.${tier.id}`, {
+          name: (popover.querySelector('#te-name') as HTMLInputElement).value,
+          price_label: (popover.querySelector('#te-price') as HTMLInputElement).value,
+          description: (popover.querySelector('#te-desc') as HTMLTextAreaElement).value,
+          benefits,
+          is_default: (popover.querySelector('#te-default') as HTMLInputElement).checked,
+        });
+        close();
+        allTiers = await get('membership_tiers?order=position.asc');
+        renderTiers(container);
+      } catch (e) { console.error('Tier save failed:', e); }
+    });
+
+    popover.querySelector('#te-delete')?.addEventListener('click', async () => {
+      if (!confirm(`Delete tier "${tier.name}"?`)) return;
+      try {
+        await del(`membership_tiers?id=eq.${tier.id}`);
+        close();
+        allTiers = await get('membership_tiers?order=position.asc');
+        renderTiers(container);
+      } catch (e) { console.error('Tier delete failed:', e); }
+    });
+
+    popover.querySelector('#te-cancel')?.addEventListener('click', close);
+    backdrop.addEventListener('click', close);
+
+    function close() {
+      popover.remove();
+      backdrop.remove();
+    }
+  }
+
+  // --- Custom fields editor ---
+  let allFields: any[] = [];
+
+  async function loadCustomFields() {
+    const container = document.getElementById('as-custom-fields');
+    if (!container) return;
+    try {
+      allFields = await get('member_custom_fields?order=position.asc');
+      renderFields(container);
+    } catch {}
+  }
+
+  function renderFields(container: HTMLElement) {
+    container.innerHTML = (allFields.length === 0
+      ? '<p class="text-muted mb-1">No custom fields defined.</p>'
+      : allFields.map((f: any) => `
+        <div class="card mb-1 flex justify-between items-center" style="padding:0.5rem 0.75rem;cursor:pointer" data-field-id="${f.id}">
+          <div>
+            <strong>${esc(f.field_label)}</strong>
+            <span class="badge badge-primary" style="margin-left:0.5rem">${esc(f.field_type)}</span>
+            ${f.required ? '<span class="badge badge-warning">Required</span>' : ''}
+            ${f.visible_in_directory ? '<span class="badge badge-secondary">In directory</span>' : ''}
+          </div>
+          <span class="text-muted" style="font-size:0.8rem">Edit</span>
+        </div>`).join(''))
+      + '<button class="btn btn-secondary btn-sm mt-1" id="as-field-add">+ Add Field</button>';
+
+    container.querySelectorAll('[data-field-id]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const id = parseInt((card as HTMLElement).dataset.fieldId!);
+        const field = allFields.find((f: any) => f.id === id);
+        if (field) openFieldEditor(field, container);
+      });
+    });
+
+    container.querySelector('#as-field-add')?.addEventListener('click', async () => {
+      try {
+        const [created] = await post('member_custom_fields', {
+          field_name: 'new_field',
+          field_label: 'New Field',
+          field_type: 'text',
+          required: false,
+          visible_in_directory: false,
+          position: allFields.length + 1,
+        });
+        allFields.push(created);
+        renderFields(container);
+        openFieldEditor(created, container);
+      } catch (e) { console.error('Failed to create field:', e); }
+    });
+  }
+
+  function openFieldEditor(field: any, container: HTMLElement) {
+    document.querySelector('.admin-popover-backdrop')?.remove();
+    document.querySelector('.admin-popover')?.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+
+    const popover = document.createElement('div');
+    popover.className = 'admin-popover';
+    popover.innerHTML = `
+      <h3>Edit Custom Field</h3>
+      <div class="form-group"><label class="form-label">Label</label><input class="form-input" id="fe-label" value="${esc(field.field_label || '')}"></div>
+      <div class="form-group"><label class="form-label">Field Name (slug)</label><input class="form-input" id="fe-name" value="${esc(field.field_name || '')}" placeholder="e.g. phone_number"></div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="fe-type">
+          <option value="text"${field.field_type === 'text' ? ' selected' : ''}>Text</option>
+          <option value="textarea"${field.field_type === 'textarea' ? ' selected' : ''}>Textarea</option>
+          <option value="select"${field.field_type === 'select' ? ' selected' : ''}>Select (dropdown)</option>
+          <option value="checkbox"${field.field_type === 'checkbox' ? ' selected' : ''}>Checkbox</option>
+        </select>
+      </div>
+      <div class="form-group" id="fe-options-group" style="${field.field_type === 'select' ? '' : 'display:none'}">
+        <label class="form-label">Options (one per line)</label>
+        <textarea class="form-textarea" id="fe-options" rows="3">${field.options ? (Array.isArray(field.options) ? field.options.join('\n') : '') : ''}</textarea>
+      </div>
+      <label class="flex items-center gap-1 mt-1"><input type="checkbox" id="fe-required" ${field.required ? 'checked' : ''}> Required</label>
+      <label class="flex items-center gap-1"><input type="checkbox" id="fe-directory" ${field.visible_in_directory ? 'checked' : ''}> Show in member directory</label>
+      <div class="popover-actions">
+        <button class="btn btn-sm btn-danger" id="fe-delete">Delete</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm btn-secondary" id="fe-cancel">Cancel</button>
+        <button class="btn btn-sm btn-primary" id="fe-save">Save</button>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(popover);
+
+    // Show/hide options based on type
+    popover.querySelector('#fe-type')?.addEventListener('change', () => {
+      const isSelect = (popover.querySelector('#fe-type') as HTMLSelectElement).value === 'select';
+      (popover.querySelector('#fe-options-group') as HTMLElement).style.display = isSelect ? '' : 'none';
+    });
+
+    popover.querySelector('#fe-save')?.addEventListener('click', async () => {
+      const fieldType = (popover.querySelector('#fe-type') as HTMLSelectElement).value;
+      const optionsText = (popover.querySelector('#fe-options') as HTMLTextAreaElement).value;
+      const options = fieldType === 'select' ? optionsText.split('\n').map((o: string) => o.trim()).filter(Boolean) : null;
+      try {
+        await patch(`member_custom_fields?id=eq.${field.id}`, {
+          field_label: (popover.querySelector('#fe-label') as HTMLInputElement).value,
+          field_name: (popover.querySelector('#fe-name') as HTMLInputElement).value,
+          field_type: fieldType,
+          options,
+          required: (popover.querySelector('#fe-required') as HTMLInputElement).checked,
+          visible_in_directory: (popover.querySelector('#fe-directory') as HTMLInputElement).checked,
+        });
+        close();
+        allFields = await get('member_custom_fields?order=position.asc');
+        renderFields(container);
+      } catch (e) { console.error('Field save failed:', e); }
+    });
+
+    popover.querySelector('#fe-delete')?.addEventListener('click', async () => {
+      if (!confirm(`Delete field "${field.field_label}"?`)) return;
+      try {
+        await del(`member_custom_fields?id=eq.${field.id}`);
+        close();
+        allFields = await get('member_custom_fields?order=position.asc');
+        renderFields(container);
+      } catch (e) { console.error('Field delete failed:', e); }
+    });
+
+    popover.querySelector('#fe-cancel')?.addEventListener('click', close);
+    backdrop.addEventListener('click', close);
+
+    function close() { popover.remove(); backdrop.remove(); }
   }
 
   function setupAISettings() {
@@ -356,6 +623,7 @@ import Portal from '../layouts/Portal.astro';
     }
 
     await loadTiers();
+    await loadCustomFields();
     setupAISettings();
 
     // Save handlers

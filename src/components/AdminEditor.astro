@@ -9,6 +9,12 @@
   import { patch, get } from '../lib/api';
   import { clearCache } from '../lib/config';
 
+  function esc(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+  }
+
   function getAPI(): string {
     return window.__KYCHON_API || 'https://api.run402.com';
   }
@@ -393,6 +399,148 @@
     });
   }
 
+  // --- Nav editor overlay ---
+  let navEditorOpen = false;
+
+  function initNavEditor() {
+    const btn = document.getElementById('admin-nav-edit-btn');
+    if (!btn || btn.dataset.bound === 'true') return;
+    btn.dataset.bound = 'true';
+    btn.addEventListener('click', openNavEditor);
+  }
+
+  async function openNavEditor() {
+    if (navEditorOpen) return;
+    navEditorOpen = true;
+
+    // Fetch current nav config
+    let navItems: any[] = [];
+    try {
+      const rows = await get('site_config?key=eq.nav');
+      navItems = rows[0]?.value || [];
+      if (typeof navItems === 'string') navItems = JSON.parse(navItems);
+    } catch { navItems = []; }
+
+    // Create overlay
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+
+    const panel = document.createElement('div');
+    panel.className = 'admin-nav-editor';
+    panel.innerHTML = `
+      <div class="admin-nav-editor-header">
+        <h3>Edit Navigation</h3>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-primary btn-sm" id="nav-editor-save">Save</button>
+          <button class="btn btn-secondary btn-sm" id="nav-editor-cancel">Cancel</button>
+        </div>
+      </div>
+      <div id="nav-editor-items"></div>
+      <button class="btn btn-secondary btn-sm mt-1" id="nav-editor-add">+ Add item</button>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+
+    function renderItems() {
+      const container = panel.querySelector('#nav-editor-items')!;
+      container.innerHTML = navItems.map((item: any, i: number) => `
+        <div class="admin-nav-item-row" data-idx="${i}" draggable="true">
+          <div class="drag-handle" title="Drag to reorder">&#9776;</div>
+          <input type="text" value="${esc(item.label || '')}" data-field="label" placeholder="Label">
+          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/page.html">
+          <select data-field="visibility">
+            <option value="public"${item.public ? ' selected' : ''}>Public</option>
+            <option value="auth"${item.auth ? ' selected' : ''}>Members</option>
+            <option value="admin"${item.admin ? ' selected' : ''}>Admin</option>
+          </select>
+          <button class="remove-btn" title="Remove">&times;</button>
+        </div>
+      `).join('');
+
+      // Bind row events
+      container.querySelectorAll('.admin-nav-item-row').forEach((row) => {
+        const idx = parseInt((row as HTMLElement).dataset.idx!);
+
+        // Input changes
+        row.querySelectorAll('input, select').forEach((input) => {
+          input.addEventListener('change', () => {
+            const field = (input as HTMLElement).dataset.field!;
+            if (field === 'visibility') {
+              const val = (input as HTMLSelectElement).value;
+              delete navItems[idx].public;
+              delete navItems[idx].auth;
+              delete navItems[idx].admin;
+              if (val === 'public') navItems[idx].public = true;
+              else if (val === 'auth') navItems[idx].auth = true;
+              else if (val === 'admin') navItems[idx].admin = true;
+            } else {
+              navItems[idx][field] = (input as HTMLInputElement).value;
+            }
+          });
+        });
+
+        // Remove
+        row.querySelector('.remove-btn')?.addEventListener('click', () => {
+          navItems.splice(idx, 1);
+          renderItems();
+        });
+
+        // Drag reorder
+        row.addEventListener('dragstart', (e) => {
+          (e as DragEvent).dataTransfer!.setData('text/plain', String(idx));
+          (row as HTMLElement).style.opacity = '0.4';
+        });
+        row.addEventListener('dragend', () => {
+          (row as HTMLElement).style.opacity = '1';
+        });
+        row.addEventListener('dragover', (e) => { e.preventDefault(); });
+        row.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const fromIdx = parseInt((e as DragEvent).dataTransfer!.getData('text/plain'));
+          if (fromIdx === idx) return;
+          const [moved] = navItems.splice(fromIdx, 1);
+          navItems.splice(idx, 0, moved);
+          renderItems();
+        });
+      });
+    }
+
+    renderItems();
+
+    // Add item
+    panel.querySelector('#nav-editor-add')?.addEventListener('click', () => {
+      navItems.push({ label: 'New Link', href: '/', public: true });
+      renderItems();
+    });
+
+    // Save
+    panel.querySelector('#nav-editor-save')?.addEventListener('click', async () => {
+      try {
+        await patch('site_config?key=eq.nav', { value: navItems });
+        clearCache('wl_cache_site_config');
+        showToast('Navigation saved');
+        closeNavEditor();
+        // Rebuild nav in the page
+        const { buildNav } = await import('../lib/config');
+        buildNav(navItems);
+      } catch (e) {
+        console.error('Nav save failed:', e);
+        showToast('Save failed', 'error');
+      }
+    });
+
+    // Cancel
+    panel.querySelector('#nav-editor-cancel')?.addEventListener('click', closeNavEditor);
+    backdrop.addEventListener('click', closeNavEditor);
+
+    function closeNavEditor() {
+      panel.remove();
+      backdrop.remove();
+      navEditorOpen = false;
+    }
+  }
+
   // --- Main init ---
   function initAdminEditor() {
     const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
@@ -403,9 +551,20 @@
     initEditableRich();
     initEditableImage();
     initSortable();
+    initNavEditor();
     // Show nav edit button for admins
     const navEditBtn = document.getElementById('admin-nav-edit-btn');
     if (navEditBtn) navEditBtn.style.display = '';
+    // Wire logo for admin upload
+    const logoImg = document.querySelector('.nav-brand img') as HTMLImageElement | null;
+    if (logoImg && !logoImg.hasAttribute('data-editable-image')) {
+      logoImg.setAttribute('data-editable-image', 'site_config.logo_url.value');
+      logoImg.style.display = ''; // ensure visible even if no logo set
+      if (!logoImg.src || logoImg.src === window.location.origin + '/') {
+        logoImg.src = '/favicon.svg'; // placeholder
+      }
+      initEditableImage(); // rebind to pick up new attribute
+    }
   }
 
   // Use MutationObserver to re-bind after client-side renders

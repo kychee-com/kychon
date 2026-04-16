@@ -69,6 +69,15 @@ import Portal from '../layouts/Portal.astro';
       for (const el of rendered) {
         container.appendChild(el);
       }
+      // Admin: add section button
+      if (isAdmin()) {
+        const addBtn = document.createElement('div');
+        addBtn.className = 'text-center';
+        addBtn.style.padding = '1.5rem 0';
+        addBtn.innerHTML = '<button class="btn btn-secondary" id="add-section-btn">+ Add Section</button>';
+        container.appendChild(addBtn);
+        document.getElementById('add-section-btn')?.addEventListener('click', openAddSectionPicker);
+      }
       container.style.minHeight = '';
     } catch (e) {
       console.warn('Failed to load sections:', e);
@@ -88,6 +97,22 @@ import Portal from '../layouts/Portal.astro';
     el.setAttribute('data-editable-config', JSON.stringify(cfg));
 
     const admin = isAdmin();
+
+    // Admin: section remove button
+    if (admin) {
+      el.style.position = 'relative';
+      const actions = document.createElement('div');
+      actions.className = 'admin-section-actions';
+      actions.innerHTML = `<button class="admin-section-btn danger" title="Remove section">&times;</button>`;
+      actions.querySelector('.danger')!.addEventListener('click', async () => {
+        if (!confirm('Remove this section?')) return;
+        try {
+          await del(`sections?id=eq.${sid}`);
+          el.remove();
+        } catch (e) { console.error('Failed to remove section:', e); }
+      });
+      el.appendChild(actions);
+    }
 
     switch (section.section_type) {
       case 'hero':
@@ -159,6 +184,63 @@ import Portal from '../layouts/Portal.astro';
         break;
     }
     return el;
+  }
+
+  // --- Admin: add section picker ---
+  const SECTION_TEMPLATES: Record<string, { label: string; icon: string; config: any }> = {
+    hero: { label: 'Hero Banner', icon: '\u{1F3DE}', config: { heading: 'New Hero', subheading: 'Add your subheading here', bg_image: '', cta_text: '', cta_href: '' } },
+    stats: { label: 'Stats', icon: '\u{1F4CA}', config: { items: [{ value: '0', label: 'Stat 1' }, { value: '0', label: 'Stat 2' }, { value: '0', label: 'Stat 3' }] } },
+    features: { label: 'Features', icon: '\u2728', config: { columns: 3, items: [{ icon: 'home', title: 'Feature 1', desc: 'Description' }] } },
+    cta: { label: 'Call to Action', icon: '\u{1F4E2}', config: { heading: 'Ready to join?', text: 'Get started today.', cta_text: 'Join Now', cta_href: '/join.html' } },
+    testimonials: { label: 'Testimonials', icon: '\u{1F4AC}', config: { items: [{ quote: 'Great community!', name: 'Member', role: '' }] } },
+    faq: { label: 'FAQ', icon: '\u2753', config: { items: [{ q: 'Question?', a: 'Answer here.' }] } },
+  };
+
+  async function openAddSectionPicker() {
+    document.querySelector('.admin-popover-backdrop')?.remove();
+    document.querySelector('.admin-popover')?.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+
+    const popover = document.createElement('div');
+    popover.className = 'admin-popover';
+    popover.innerHTML = `
+      <h3>Add Section</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+        ${Object.entries(SECTION_TEMPLATES).map(([type, t]) =>
+          `<button class="card" style="cursor:pointer;text-align:center;padding:1rem" data-section-type="${type}">
+            <div style="font-size:1.5rem;margin-bottom:0.25rem">${t.icon}</div>
+            <div style="font-weight:600">${t.label}</div>
+          </button>`
+        ).join('')}
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(popover);
+
+    popover.querySelectorAll('[data-section-type]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const type = (btn as HTMLElement).dataset.sectionType!;
+        const template = SECTION_TEMPLATES[type];
+        try {
+          const existingSections = document.querySelectorAll('[data-sortable-id]');
+          await post('sections', {
+            page_slug: 'index',
+            section_type: type,
+            config: template.config,
+            position: existingSections.length + 1,
+            visible: true,
+          });
+          close();
+          await renderSections();
+        } catch (e) { console.error('Failed to add section:', e); }
+      });
+    });
+
+    backdrop.addEventListener('click', close);
+    function close() { popover.remove(); backdrop.remove(); }
   }
 
   // --- Activity feed ---

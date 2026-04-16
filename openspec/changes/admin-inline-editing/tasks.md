@@ -42,32 +42,32 @@
 - [x] **3.2 Wire homepage section reorder**
   Wrap each section on index.astro in a sortable container. `data-sortable-group="homepage-sections"`, `data-sortable-id="sections.{id}"`, `data-sortable-field="position"`. Admin can drag sections to reorder. Save updates `sections.position` for affected rows. Page re-renders in new order.
 
-- [ ] **3.3 Wire nav item reorder (within nav editor, see phase 4)**
+- [x] **3.3 Wire nav item reorder (within nav editor, see phase 4)**
   Nav reorder is part of the nav editor overlay — drag handles on nav item rows. Save writes the entire reordered nav array to `site_config.nav`.
 
 ### Phase 4: Structural CRUD
 
-- [ ] **4.1 Nav editor overlay**
+- [x] **4.1 Nav editor overlay**
   New editing mode triggered by pencil icon on nav bar (visible to admins on hover). Slides down a panel below the nav showing all nav items as rows. Each row: drag handle, icon select, label (text input), URL (text input), visibility (public/auth/admin radio), remove button. "Add item" button at bottom. Save button writes the full nav array to `site_config` key `nav`. Cancel discards changes. Panel has backdrop blur and smooth slide animation.
 
-- [ ] **4.2 Membership tier editor**
+- [x] **4.2 Membership tier editor**
   Inline popover attached to tier cards (wherever tiers are displayed — join page, admin-settings tiers section, or a new tiers section type on the homepage). Click a tier card → popover with: name (text), price label (text), description (textarea), benefits (editable list — each item removable, add button), is_default (toggle), position (drag handle). "Add Tier" card at end. "Delete" with confirmation.
 
-- [ ] **4.3 Custom fields editor**
+- [x] **4.3 Custom fields editor**
   Inline popover on the profile page or directory page (where custom fields appear). Admin clicks a custom field → popover with: field label (text), field name (auto-generated slug), field type (select: text/textarea/select/checkbox), options (for select type — editable list), required (toggle), visible in directory (toggle), position (drag). "Add Field" button. "Delete" with confirmation.
 
-- [ ] **4.4 Homepage section add/remove**
+- [x] **4.4 Homepage section add/remove**
   "Add Section" button at the bottom of the homepage (admin-only). Opens a section type picker: hero, stats, features, cta, testimonials, faq, announcements, custom HTML. Inserts a new section row with default config for that type. Each section also gets a "Remove section" button (top-left, visible on hover). Confirm before delete.
 
 ### Phase 5: Asset management integration
 
-- [ ] **5.1 Asset picker component**
+- [x] **5.1 Asset picker component**
   Reusable `AssetPicker` pattern in AdminEditor. When `data-editable-image` is clicked: show overlay with current image thumbnail (if set), "Upload New" button, "Remove" button (if set). Upload calls upload-asset function, returns URL, updates DB field + DOM. Remove calls upload-asset delete, clears DB field + DOM. Shows upload progress ring during upload.
 
-- [ ] **5.2 Wire asset picker to branding**
+- [x] **5.2 Wire asset picker to branding**
   Logo in nav: `data-editable-image="site_config.logo_url.value"` (special site_config pattern). Favicon: accessible from settings page only (not visible inline). Hero images: `data-editable-image` with JSONB path `sections.{id}.config.bg_image`. Event images: `data-editable-image="events.{id}.image_url"`. Committee images: `data-editable-image="committees.{id}.image_url"`.
 
-- [ ] **5.3 Migrate demo seeds to use storage URLs**
+- [ ] **5.3 Migrate demo seeds to use storage URLs** _(deferred: deploy-baked assets work as fallback; admin uploads override)_
   Update bootstrap-demo.sh to upload demo assets (logo, hero, avatars) to Run402 storage during bootstrap. Update seed SQL to reference storage URLs instead of `/assets/` paths. Deploy-time baked assets become fallbacks; runtime uploads override them.
 
 ### Phase 6: Deploy and verify
