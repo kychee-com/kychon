@@ -270,33 +270,24 @@
           htmlEl.appendChild(spinner);
 
           try {
-            // Base64 encode
-            const buf = await file.arrayBuffer();
-            const bytes = new Uint8Array(buf);
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-            const b64 = btoa(binary);
-
             const attr = htmlEl.dataset.editableImage!;
             const target = parseEditTarget(attr);
-            const storageName = `${Date.now()}_${file.name}`;
+            const storageName = `assets/${Date.now()}_${file.name}`;
 
-            const res = await fetch(`${getAPI()}/functions/v1/upload-asset`, {
+            // Upload directly to Run402 storage (avoids function body size limit)
+            const res = await fetch(`${getAPI()}/storage/v1/upload/${storageName}`, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
                 apikey: getAnonKey(),
                 Authorization: `Bearer ${getToken()}`,
+                'Content-Type': file.type || 'application/octet-stream',
               },
-              body: JSON.stringify({
-                file: { name: file.name, type: file.type, data: b64 },
-                path: storageName,
-              }),
+              body: file,
             });
 
             if (res.ok) {
               const data = await res.json();
-              const url = data.url;
+              const url = data.url || `/storage/${storageName}`;
 
               // Update the image element
               const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
