@@ -28,6 +28,10 @@ import Portal from '../layouts/Portal.astro';
     const sectionsContainer = document.getElementById('page-sections');
     if (!titleEl || !contentEl || !sectionsContainer) return;
 
+    titleEl.textContent = '';
+    contentEl.innerHTML = '';
+    sectionsContainer.innerHTML = '';
+
     const slug = new URLSearchParams(window.location.search).get('slug');
     if (!slug) {
       titleEl.textContent = 'Page not found';
