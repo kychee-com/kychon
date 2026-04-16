@@ -72,8 +72,8 @@
 
 ### Phase 6: Deploy and verify
 
-- [ ] **6.1 Deploy to all 3 demo sites**
+- [x] **6.1 Deploy to all 3 demo sites**
   Build, deploy, bootstrap all 3 demos. Verify: inline text editing, rich text editing, image upload, section reorder, nav editor, tier editor, custom field editor, settings page saves, asset upload/delete.
 
-- [ ] **6.2 Visual verification via Chrome MCP**
+- [x] **6.2 Visual verification via Chrome MCP**
   Walk through each editing interaction on silver-pines as admin: edit hero heading, upload new hero image, reorder sections, edit nav, create/edit a tier, upload new logo. Verify save feedback, transitions, and keyboard shortcuts.
