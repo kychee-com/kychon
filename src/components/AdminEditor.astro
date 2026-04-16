@@ -317,10 +317,14 @@
 
   function initSortable() {
     document.querySelectorAll('[data-sortable-group]').forEach((container) => {
-      if (boundSortable.has(container)) return;
-      boundSortable.add(container);
-
       const items = container.querySelectorAll('[data-sortable-id]');
+      if (items.length === 0) return; // not populated yet, retry on next mutation
+      if (boundSortable.has(container)) {
+        // Check for new unbound items
+        const unbound = Array.from(items).filter((el) => !el.querySelector('.admin-drag-handle'));
+        if (unbound.length === 0) return;
+      }
+      boundSortable.add(container);
       let draggedEl: HTMLElement | null = null;
       let dropIndicator: HTMLElement | null = null;
 
