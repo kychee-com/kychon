@@ -141,6 +141,7 @@
       if (boundText.has(el)) return;
       boundText.add(el);
       const htmlEl = el as HTMLElement;
+      htmlEl.setAttribute('data-lpignore', 'true'); // prevent LastPass interference
       let original = '';
 
       htmlEl.addEventListener('click', (e) => {
@@ -149,6 +150,7 @@
         if (htmlEl.contentEditable === 'true') return; // already editing
         original = htmlEl.textContent?.trim() || '';
         htmlEl.contentEditable = 'true';
+        htmlEl.setAttribute('data-lpignore', 'true');
         // Place cursor — first click sets contentEditable but browser already
         // processed the click on a non-editable element, so no cursor appears.
         // Fix by programmatically selecting all text so the user can type.
@@ -214,6 +216,7 @@
       if (boundRich.has(el)) return;
       boundRich.add(el);
       const htmlEl = el as HTMLElement;
+      htmlEl.setAttribute('data-lpignore', 'true');
       let editor: any = null;
 
       htmlEl.addEventListener('click', async () => {
@@ -222,6 +225,7 @@
         if (!Editor) return;
         const originalContent = htmlEl.innerHTML;
         htmlEl.classList.add('tiptap-active');
+        htmlEl.setAttribute('data-lpignore', 'true');
         // Clear original content — Tiptap will render its own editable copy
         htmlEl.innerHTML = '';
 
