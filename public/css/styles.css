@@ -122,7 +122,8 @@ a:hover {
   background: rgba(99, 102, 241, 0.08);
 }
 [data-theme="dark"] .nav-link.active {
-  background: rgba(99, 102, 241, 0.2);
+  color: #fff;
+  background: rgba(99, 102, 241, 0.35);
 }
 .nav-user {
   display: flex;
