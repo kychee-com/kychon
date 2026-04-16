@@ -200,6 +200,10 @@
     const banner = document.getElementById('demo-banner');
     if (!banner) return;
     banner.classList.remove('hidden');
+    // Tell the nav how tall the banner is so it sticks below it
+    requestAnimationFrame(() => {
+      document.documentElement.style.setProperty('--demo-banner-height', banner.offsetHeight + 'px');
+    });
     updateRoleDisplay();
     bindButtonsOnce();
     setupCountdown(lastReset);
