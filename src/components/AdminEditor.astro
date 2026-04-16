@@ -222,6 +222,8 @@
         if (!Editor) return;
         const originalContent = htmlEl.innerHTML;
         htmlEl.classList.add('tiptap-active');
+        // Clear original content — Tiptap will render its own editable copy
+        htmlEl.innerHTML = '';
 
         editor = new Editor({
           element: htmlEl,
@@ -232,13 +234,15 @@
             const target = parseEditTarget(attr);
             if (!target) return;
             const html = editor.getHTML();
+            editor.destroy();
+            editor = null;
+            htmlEl.classList.remove('tiptap-active');
+            // Restore rendered content (either saved or original)
+            htmlEl.innerHTML = html;
             const ok = await saveField(htmlEl, target, html);
             flashSave(htmlEl, ok);
             if (ok) showToast('Saved');
             else showToast('Save failed', 'error');
-            editor.destroy();
-            editor = null;
-            htmlEl.classList.remove('tiptap-active');
           },
         });
       });
