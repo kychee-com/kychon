@@ -29,6 +29,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { get, patch } from '../lib/api';
   import { getSession, requireAuth } from '../lib/auth';
+  import { ready } from '../lib/config';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -84,14 +85,20 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initProfile() {
+    // Guard: only runs on /profile.html — astro:after-swap fires on all navigations
+    const nameEl = document.getElementById('profile-name') as HTMLInputElement | null;
+    const bioEl = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+    if (!nameEl || !bioEl) return;
+
+    await ready;
     if (!requireAuth()) return;
 
     const session = getSession();
     const member = session.user?.member;
     if (!member) return;
 
-    (document.getElementById('profile-name') as HTMLInputElement).value = member.display_name || '';
-    (document.getElementById('profile-bio') as HTMLTextAreaElement).value = member.bio || '';
+    nameEl.value = member.display_name || '';
+    bioEl.value = member.bio || '';
     if (member.avatar_url) {
       (document.getElementById('profile-avatar-img') as HTMLImageElement).src = member.avatar_url;
     }
