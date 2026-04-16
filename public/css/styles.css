@@ -121,6 +121,9 @@ a:hover {
   color: var(--color-primary);
   background: rgba(99, 102, 241, 0.08);
 }
+[data-theme="dark"] .nav-link.active {
+  background: rgba(99, 102, 241, 0.2);
+}
 .nav-user {
   display: flex;
   align-items: center;
