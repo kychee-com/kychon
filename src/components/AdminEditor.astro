@@ -66,26 +66,51 @@
     const parts = attr.split('.');
     if (parts.length === 3) {
       return { table: parts[0], id: parts[1], field: parts[2] };
-    } else if (parts.length === 4) {
-      return { table: parts[0], id: parts[1], field: parts[2], jsonPath: parts[3] };
+    } else if (parts.length >= 4) {
+      // Support nested paths: sections.523.config.items.0.value
+      return { table: parts[0], id: parts[1], field: parts[2], jsonPath: parts.slice(3).join('.') };
     }
     return null;
   }
 
-  // --- Save helper: handles both flat and JSONB columns ---
+  // --- Nested object set: "items.0.value" → config.items[0].value = newValue ---
+  function setNested(obj: any, path: string, value: any) {
+    const keys = path.split('.');
+    let cur = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const k = /^\d+$/.test(keys[i]) ? parseInt(keys[i]) : keys[i];
+      if (cur[k] === undefined) cur[k] = /^\d+$/.test(keys[i + 1]) ? [] : {};
+      cur = cur[k];
+    }
+    const lastKey = /^\d+$/.test(keys[keys.length - 1]) ? parseInt(keys[keys.length - 1]) : keys[keys.length - 1];
+    cur[lastKey] = value;
+  }
+
+  // --- Find closest data-editable-config (on self or parent) ---
+  function findConfig(el: HTMLElement): { configEl: HTMLElement; config: any } | null {
+    let cur: HTMLElement | null = el;
+    while (cur) {
+      const attr = cur.getAttribute('data-editable-config');
+      if (attr) return { configEl: cur, config: JSON.parse(attr) };
+      cur = cur.parentElement;
+    }
+    return null;
+  }
+
+  // --- Save helper: handles flat, JSONB, nested JSONB, and site_config ---
   async function saveField(el: HTMLElement, target: EditTarget, newValue: any): Promise<boolean> {
     try {
       if (target.jsonPath) {
-        // JSONB: read-modify-write
-        const configAttr = el.getAttribute('data-editable-config');
-        if (!configAttr) {
+        // JSONB: read-modify-write with nested path support
+        const found = findConfig(el);
+        if (!found) {
           console.error('Missing data-editable-config for JSONB edit');
           return false;
         }
-        const config = JSON.parse(configAttr);
-        config[target.jsonPath] = newValue;
+        const { configEl, config } = found;
+        setNested(config, target.jsonPath, newValue);
         await patch(`${target.table}?id=eq.${target.id}`, { [target.field]: config });
-        el.setAttribute('data-editable-config', JSON.stringify(config));
+        configEl.setAttribute('data-editable-config', JSON.stringify(config));
       } else if (target.table === 'site_config') {
         // site_config uses key=eq.{id} instead of id=eq.{id}
         await patch(`site_config?key=eq.${target.id}`, { value: newValue });
@@ -378,6 +403,9 @@
     initEditableRich();
     initEditableImage();
     initSortable();
+    // Show nav edit button for admins
+    const navEditBtn = document.getElementById('admin-nav-edit-btn');
+    if (navEditBtn) navEditBtn.style.display = '';
   }
 
   // Use MutationObserver to re-bind after client-side renders

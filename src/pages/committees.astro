@@ -92,10 +92,11 @@ import Portal from '../layouts/Portal.astro';
       const members = await get(`committee_members?committee_id=eq.${id}&select=*,members(display_name,avatar_url)`);
       const allMembers = isAdmin() ? await get('members?status=eq.active&order=display_name.asc') : [];
 
+      const admin = isAdmin();
       container.innerHTML = `
         <p class="mb-1"><a href="/committees.html">&larr; All Committees</a></p>
-        <h2>${esc(committee.name)}</h2>
-        <p class="text-muted">${esc(committee.description || '')}</p>
+        <h2${admin ? ` data-editable="committees.${committee.id}.name"` : ''}>${esc(committee.name)}</h2>
+        <p class="text-muted"${admin ? ` data-editable="committees.${committee.id}.description"` : ''}>${esc(committee.description || '')}</p>
 
         <div class="mt-2">
           <h3 class="mb-1">Members (${members.length})</h3>

@@ -11,7 +11,7 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { get } from '../lib/api';
-  import { isAuthenticated } from '../lib/auth';
+  import { isAdmin, isAuthenticated } from '../lib/auth';
   import { translateItems } from '../lib/config';
 
   function esc(s: string): string {
@@ -57,8 +57,14 @@ import Portal from '../layouts/Portal.astro';
 
       document.title = page.title;
       titleEl.textContent = page.title;
+      if (isAdmin()) {
+        titleEl.setAttribute('data-editable', `pages.${page.id}.title`);
+      }
       if (page.content) {
         contentEl.innerHTML = page.content;
+        if (isAdmin()) {
+          contentEl.setAttribute('data-editable-rich', `pages.${page.id}.content`);
+        }
       }
 
       // Load sections

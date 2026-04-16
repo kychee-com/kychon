@@ -2,7 +2,7 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Home">
-  <div id="sections">
+  <div id="sections" data-sortable-group="homepage-sections">
     <div class="section section-visible" id="sections-skeleton" style="padding:2rem 0">
       <div class="container"><div class="skeleton skeleton-card mb-1"></div><div class="skeleton skeleton-card mb-1"></div></div>
     </div>
@@ -79,40 +79,48 @@ import Portal from '../layouts/Portal.astro';
 
   async function renderSection(section: any): Promise<HTMLElement> {
     const cfg = section.config;
+    const sid = section.id;
+    const cfgJson = JSON.stringify(cfg).replace(/'/g, '&#39;');
     const el = document.createElement('section');
+    // Sortable + config attributes for admin editing
+    el.setAttribute('data-sortable-id', `sections.${sid}`);
+    el.setAttribute('data-sortable-field', 'position');
+    el.setAttribute('data-editable-config', JSON.stringify(cfg));
+
+    const admin = isAdmin();
 
     switch (section.section_type) {
       case 'hero':
         el.className = 'section section-hero';
-        el.innerHTML = `<div class="container"><h1>${esc(cfg.heading || '')}</h1><p>${esc(cfg.subheading || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg">${esc(cfg.cta_text)}</a>` : ''}</div>`;
+        el.innerHTML = `<div class="container"${admin ? ` data-editable-image="sections.${sid}.config.bg_image" style="position:relative"` : ''}><h1${admin ? ` data-editable="sections.${sid}.config.heading"` : ''}>${esc(cfg.heading || '')}</h1><p${admin ? ` data-editable="sections.${sid}.config.subheading"` : ''}>${esc(cfg.subheading || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${admin ? ` data-editable="sections.${sid}.config.cta_text"` : ''}>${esc(cfg.cta_text)}</a>` : ''}</div>`;
         if (cfg.bg_image) { el.style.backgroundImage = `url(${cfg.bg_image})`; cacheHeroImage(cfg.bg_image); }
         break;
 
       case 'features': {
         el.className = 'section section-features';
         const cols = cfg.columns || 3;
-        el.innerHTML = `<div class="container"><div class="features-grid" style="--cols:${cols}">${(cfg.items || []).map((item: any) => `<div class="feature-card"><div class="feature-icon">${featureIcon(item.icon)}</div><h3>${esc(item.title || '')}</h3><p>${esc(item.desc || '')}</p></div>`).join('')}</div></div>`;
+        el.innerHTML = `<div class="container"><div class="features-grid" style="--cols:${cols}">${(cfg.items || []).map((item: any, i: number) => `<div class="feature-card"><div class="feature-icon">${featureIcon(item.icon)}</div><h3${admin ? ` data-editable="sections.${sid}.config.items.${i}.title"` : ''}>${esc(item.title || '')}</h3><p${admin ? ` data-editable="sections.${sid}.config.items.${i}.desc"` : ''}>${esc(item.desc || '')}</p></div>`).join('')}</div></div>`;
         break;
       }
 
       case 'cta':
         el.className = 'section section-cta';
-        el.innerHTML = `<div class="container"><h2>${esc(cfg.heading || '')}</h2><p class="text-muted mt-1">${esc(cfg.text || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg mt-2">${esc(cfg.cta_text)}</a>` : ''}</div>`;
+        el.innerHTML = `<div class="container"><h2${admin ? ` data-editable="sections.${sid}.config.heading"` : ''}>${esc(cfg.heading || '')}</h2><p class="text-muted mt-1"${admin ? ` data-editable="sections.${sid}.config.text"` : ''}>${esc(cfg.text || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg mt-2"${admin ? ` data-editable="sections.${sid}.config.cta_text"` : ''}>${esc(cfg.cta_text)}</a>` : ''}</div>`;
         break;
 
       case 'stats':
         el.className = 'section section-stats';
-        el.innerHTML = `<div class="container"><div class="stats-grid">${(cfg.items || []).map((s: any) => { const inner = `<div class="stat-value">${esc(s.value || '')}</div><div class="stat-label">${esc(s.label || '')}</div>`; return s.href ? `<a href="${esc(s.href)}" class="stat-card" style="text-decoration:none;color:inherit">${inner}</a>` : `<div class="stat-card">${inner}</div>`; }).join('')}</div></div>`;
+        el.innerHTML = `<div class="container"><div class="stats-grid">${(cfg.items || []).map((s: any, i: number) => { const inner = `<div class="stat-value"${admin ? ` data-editable="sections.${sid}.config.items.${i}.value"` : ''}>${esc(s.value || '')}</div><div class="stat-label"${admin ? ` data-editable="sections.${sid}.config.items.${i}.label"` : ''}>${esc(s.label || '')}</div>`; return s.href ? `<a href="${esc(s.href)}" class="stat-card" style="text-decoration:none;color:inherit">${inner}</a>` : `<div class="stat-card">${inner}</div>`; }).join('')}</div></div>`;
         break;
 
       case 'testimonials':
         el.className = 'section';
-        el.innerHTML = `<div class="container"><div class="card-grid">${(cfg.items || []).map((t: any) => `<div class="card"><p style="font-style:italic">"${esc(t.quote || '')}"</p><p class="text-sm text-muted mt-1">- ${esc(t.name || '')}${t.role ? `, ${esc(t.role)}` : ''}</p></div>`).join('')}</div></div>`;
+        el.innerHTML = `<div class="container"><div class="card-grid">${(cfg.items || []).map((t: any, i: number) => `<div class="card"><p style="font-style:italic"${admin ? ` data-editable="sections.${sid}.config.items.${i}.quote"` : ''}>"${esc(t.quote || '')}"</p><p class="text-sm text-muted mt-1"${admin ? ` data-editable="sections.${sid}.config.items.${i}.name"` : ''}>- ${esc(t.name || '')}${t.role ? `, ${esc(t.role)}` : ''}</p></div>`).join('')}</div></div>`;
         break;
 
       case 'faq':
         el.className = 'section';
-        el.innerHTML = `<div class="container"><h2 class="mb-2">FAQ</h2>${(cfg.items || []).map((f: any) => `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600">${esc(f.q || '')}</summary><p class="text-muted mt-1">${esc(f.a || '')}</p></details>`).join('')}</div>`;
+        el.innerHTML = `<div class="container"><h2 class="mb-2">FAQ</h2>${(cfg.items || []).map((f: any, i: number) => `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600"${admin ? ` data-editable="sections.${sid}.config.items.${i}.q"` : ''}>${esc(f.q || '')}</summary><p class="text-muted mt-1"${admin ? ` data-editable="sections.${sid}.config.items.${i}.a"` : ''}>${esc(f.a || '')}</p></details>`).join('')}</div>`;
         break;
 
       case 'polls': {

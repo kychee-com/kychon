@@ -19,27 +19,27 @@
 
 ### Phase 2: Wire inline editing to all pages
 
-- [ ] **2.1 index.astro — homepage sections**
+- [x] **2.1 index.astro — homepage sections**
   Add `data-editable` / `data-editable-rich` / `data-editable-image` + `data-editable-config` attributes to all section types: hero (heading, subheading, bg_image, cta_text, cta_href), stats (each item's value + label), features (each card's title + description + icon), cta (heading, description, button text), testimonials (each quote + author), faq (each question + answer). Wrap each section in a div with `data-sortable-*` attributes for reorder.
 
-- [ ] **2.2 event.astro — event detail**
+- [x] **2.2 event.astro — event detail**
   Add inline editing to: title (`data-editable`), description (`data-editable-rich`), location (`data-editable`), image_url (`data-editable-image`). These are flat columns on the `events` table — simple `table.id.field` format.
 
-- [ ] **2.3 committees.astro — committee detail**
+- [x] **2.3 committees.astro — committee detail**
   Add inline editing to: name (`data-editable`), description (`data-editable-rich`), image_url (`data-editable-image`). Flat columns on `committees` table.
 
-- [ ] **2.4 page.astro — custom pages**
+- [x] **2.4 page.astro — custom pages**
   Add inline editing to: page title (`data-editable` on `pages.{id}.title`), page content (`data-editable-rich` on `pages.{id}.content`), section content within custom pages.
 
-- [ ] **2.5 Portal.astro — logo and site name**
+- [x] **2.5 Portal.astro — logo and site name**
   Add `data-editable-image` to logo (uploads via upload-asset, updates `site_config.logo_url`). Add `data-editable` to site name text (updates `site_config` where `key=site_name`). Site config uses a different PATCH pattern: `PATCH site_config?key=eq.site_name { value: "new name" }`. Handle this in AdminEditor.
 
 ### Phase 3: Drag-to-reorder
 
-- [ ] **3.1 Implement sortable engine in AdminEditor**
+- [x] **3.1 Implement sortable engine in AdminEditor**
   New `initSortable()` function. Finds all `[data-sortable-group]` containers. For each child with `data-sortable-id`, adds a drag handle (grip dots icon, appears on hover), `draggable="true"` attribute. Handles `dragstart`, `dragover`, `drop` events. Shows blue insertion line between items during drag. On drop, calculates new positions, PATCHes each affected row's position field. Smooth CSS transitions for reorder animation.
 
-- [ ] **3.2 Wire homepage section reorder**
+- [x] **3.2 Wire homepage section reorder**
   Wrap each section on index.astro in a sortable container. `data-sortable-group="homepage-sections"`, `data-sortable-id="sections.{id}"`, `data-sortable-field="position"`. Admin can drag sections to reorder. Save updates `sections.position` for affected rows. Page re-renders in new order.
 
 - [ ] **3.3 Wire nav item reorder (within nav editor, see phase 4)**

@@ -78,11 +78,12 @@ import Portal from '../layouts/Portal.astro';
     const spotsLeft = event.capacity ? event.capacity - goingCount : null;
     const isFull = event.capacity && goingCount >= event.capacity;
 
+    const admin = isAdmin();
     container.innerHTML = `
-      ${event.image_url ? `<img src="${esc(event.image_url)}" alt="" style="width:100%;max-height:300px;object-fit:cover;border-radius:var(--radius);margin-bottom:1.5rem">` : ''}
-      <h1>${esc(event.title)}</h1>
+      ${event.image_url ? `<img src="${esc(event.image_url)}" alt="" style="width:100%;max-height:300px;object-fit:cover;border-radius:var(--radius);margin-bottom:1.5rem"${admin ? ` data-editable-image="events.${event.id}.image_url"` : ''}>` : ''}
+      <h1${admin ? ` data-editable="events.${event.id}.title"` : ''}>${esc(event.title)}</h1>
       <p class="text-muted">${dateStr} at ${timeStr}${endStr}</p>
-      ${event.location ? `<p class="text-muted">\u{1F4CD} ${esc(event.location)}</p>` : ''}
+      ${event.location ? `<p class="text-muted"${admin ? ` data-editable="events.${event.id}.location"` : ''}>\u{1F4CD} ${esc(event.location)}</p>` : ''}
       ${event.is_members_only ? '<span class="badge badge-primary mb-1">Members Only</span>' : ''}
 
       <div class="mt-2">${event.description || ''}</div>
