@@ -146,9 +146,22 @@
       htmlEl.addEventListener('click', (e) => {
         // Don't activate if clicking a link inside
         if ((e.target as HTMLElement).closest('a')) return;
+        if (htmlEl.contentEditable === 'true') return; // already editing
         original = htmlEl.textContent?.trim() || '';
         htmlEl.contentEditable = 'true';
-        htmlEl.focus();
+        // Place cursor — first click sets contentEditable but browser already
+        // processed the click on a non-editable element, so no cursor appears.
+        // Fix by programmatically selecting all text so the user can type.
+        requestAnimationFrame(() => {
+          htmlEl.focus();
+          const sel = window.getSelection();
+          if (sel) {
+            const range = document.createRange();
+            range.selectNodeContents(htmlEl);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        });
       });
 
       htmlEl.addEventListener('blur', async () => {
