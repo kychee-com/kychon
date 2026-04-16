@@ -583,10 +583,11 @@
             node.querySelector('[data-editable]') ||
             node.querySelector('[data-editable-rich]') ||
             node.querySelector('[data-editable-image]') ||
-            node.querySelector('[data-sortable-group]') ||
+            node.querySelector('[data-sortable-id]') ||
             node.hasAttribute?.('data-editable') ||
             node.hasAttribute?.('data-editable-rich') ||
-            node.hasAttribute?.('data-editable-image')
+            node.hasAttribute?.('data-editable-image') ||
+            node.hasAttribute?.('data-sortable-id')
           )) {
             shouldRebind = true;
             break;
