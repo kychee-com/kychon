@@ -7,7 +7,7 @@
 
 <script>
   import { patch, get } from '../lib/api';
-  import { clearCache } from '../lib/config';
+  import { clearCache, ready } from '../lib/config';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -542,7 +542,8 @@
   }
 
   // --- Main init ---
-  function initAdminEditor() {
+  async function initAdminEditor() {
+    await ready;
     const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
     if (session?.user?.member?.role !== 'admin') return;
     document.body.classList.add('admin');
