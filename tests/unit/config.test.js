@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js';
+import { getBrandedTitle, getRouteKey, isNavItemActive } from '../../src/lib/config.ts';
 
 // We test the pure logic functions of config.js by testing the patterns they use
 // Since config.js has side effects (DOM manipulation), we test the logic in isolation
@@ -101,6 +102,35 @@ describe('config logic', () => {
       expect(features.feature_events).toBe(true);
       expect(features.feature_forum).toBe(false);
       expect(features.feature_directory).toBe(true);
+    });
+  });
+
+  describe('route matching', () => {
+    it('normalizes route keys including sorted query params', () => {
+      expect(getRouteKey('/page.html?b=2&a=1')).toBe('/page.html?a=1&b=2');
+      expect(getRouteKey('/events.html/')).toBe('/events.html');
+    });
+
+    it('treats query-based nav items as exact matches', () => {
+      expect(isNavItemActive('/page.html?slug=about', 'https://eagles.kychon.com/page.html?slug=about')).toBe(true);
+      expect(isNavItemActive('/page.html?slug=about', 'https://eagles.kychon.com/page.html?slug=volunteer')).toBe(
+        false,
+      );
+    });
+
+    it('keeps parent nav items active for related detail pages', () => {
+      expect(isNavItemActive('/events.html', 'https://eagles.kychon.com/event.html?id=42')).toBe(true);
+    });
+  });
+
+  describe('branding title', () => {
+    it('adds the site name once', () => {
+      expect(getBrandedTitle('About', 'Eagles')).toBe('About — Eagles');
+    });
+
+    it('does not duplicate the site name when init runs repeatedly', () => {
+      expect(getBrandedTitle('About — Eagles', 'Eagles')).toBe('About — Eagles');
+      expect(getBrandedTitle('About — Eagles — Eagles', 'Eagles')).toBe('About — Eagles');
     });
   });
 });

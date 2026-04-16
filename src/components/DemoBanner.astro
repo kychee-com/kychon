@@ -2,7 +2,7 @@
 // DemoBanner.astro — Demo mode banner with role switching, countdown, and CTA
 // Only visible when site_config demo_mode = true
 ---
-<div id="demo-banner" class="demo-banner hidden" role="banner" aria-label="Demo mode">
+<div id="demo-banner" class="demo-banner hidden" role="banner" aria-label="Demo mode" transition:persist>
   <div class="demo-banner-inner">
     <div class="demo-banner-left">
       <span class="demo-badge">DEMO</span>
@@ -133,10 +133,91 @@
 
   let nextResetTime: number | null = null;
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
+  let hasHydratedDemoBanner = false;
+
+  function readCachedDemoState(): { isDemo: boolean; lastReset: string | null } | null {
+    try {
+      const raw = localStorage.getItem('wl_cache_site_config');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const rows = Array.isArray(parsed?.data) ? parsed.data : [];
+      let isDemo = false;
+      let lastReset: string | null = null;
+      for (const row of rows) {
+        if (row?.key === 'demo_mode' && (row.value === true || row.value === 'true')) {
+          isDemo = true;
+        }
+        if (row?.key === 'last_reset' && typeof row.value === 'string') {
+          lastReset = row.value;
+        }
+      }
+      return isDemo ? { isDemo, lastReset } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function bindButtonsOnce() {
+    const actions = document.getElementById('demo-actions');
+    if (!actions || actions.dataset.bound === 'true') return;
+    actions.dataset.bound = 'true';
+
+    document.getElementById('demo-try-admin')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      try {
+        if (getSession()) signOut();
+        await signIn(DEMO_CREDS.admin.email, DEMO_CREDS.admin.password);
+        window.location.reload();
+      } catch {
+        btn.textContent = 'Error - retry';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('demo-try-member')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      try {
+        if (getSession()) signOut();
+        await signIn(DEMO_CREDS.member.email, DEMO_CREDS.member.password);
+        window.location.reload();
+      } catch {
+        btn.textContent = 'Error - retry';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('demo-browse')?.addEventListener('click', () => {
+      localStorage.removeItem('wl_session');
+      window.location.reload();
+    });
+  }
+
+  function applyDemoBanner(lastReset: string | null) {
+    const banner = document.getElementById('demo-banner');
+    if (!banner) return;
+    banner.classList.remove('hidden');
+    updateRoleDisplay();
+    bindButtonsOnce();
+    setupCountdown(lastReset);
+  }
 
   async function initDemoBanner() {
     const banner = document.getElementById('demo-banner');
     if (!banner) return;
+
+    if (!hasHydratedDemoBanner) {
+      const cached = readCachedDemoState();
+      if (cached?.isDemo) {
+        applyDemoBanner(cached.lastReset);
+      }
+    } else {
+      updateRoleDisplay();
+      return;
+    }
 
     // Fetch demo_mode and last_reset from site_config
     let isDemo = false;
@@ -157,10 +238,8 @@
 
     if (!isDemo) return;
 
-    banner.classList.remove('hidden');
-    updateRoleDisplay();
-    setupButtons();
-    setupCountdown(lastReset);
+    hasHydratedDemoBanner = true;
+    applyDemoBanner(lastReset);
   }
 
   function updateRoleDisplay() {
@@ -198,47 +277,17 @@
     }
   }
 
-  function setupButtons() {
-    document.getElementById('demo-try-admin')?.addEventListener('click', async (e) => {
-      const btn = e.currentTarget as HTMLButtonElement;
-      btn.disabled = true;
-      btn.textContent = 'Signing in...';
-      try {
-        if (getSession()) signOut();
-        await signIn(DEMO_CREDS.admin.email, DEMO_CREDS.admin.password);
-        window.location.reload();
-      } catch (err) {
-        btn.textContent = 'Error - retry';
-        btn.disabled = false;
-      }
-    });
-
-    document.getElementById('demo-try-member')?.addEventListener('click', async (e) => {
-      const btn = e.currentTarget as HTMLButtonElement;
-      btn.disabled = true;
-      btn.textContent = 'Signing in...';
-      try {
-        if (getSession()) signOut();
-        await signIn(DEMO_CREDS.member.email, DEMO_CREDS.member.password);
-        window.location.reload();
-      } catch (err) {
-        btn.textContent = 'Error - retry';
-        btn.disabled = false;
-      }
-    });
-
-    document.getElementById('demo-browse')?.addEventListener('click', () => {
-      localStorage.removeItem('wl_session');
-      window.location.reload();
-    });
-  }
-
   function setupCountdown(lastReset: string | null) {
     const countdownEl = document.getElementById('demo-countdown');
     if (!countdownEl) return;
 
     if (lastReset) {
       nextResetTime = new Date(lastReset).getTime() + 60 * 60 * 1000;
+    }
+
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
     }
 
     async function updateCountdown() {
@@ -286,7 +335,7 @@
   // Init on load and on view transition
   initDemoBanner();
   document.addEventListener('astro:after-swap', () => {
-    if (countdownInterval) clearInterval(countdownInterval);
-    initDemoBanner();
+    updateRoleDisplay();
   });
+  document.addEventListener('wl-auth-changed', updateRoleDisplay);
 </script>
