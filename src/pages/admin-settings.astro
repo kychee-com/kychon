@@ -23,11 +23,11 @@ import Portal from '../layouts/Portal.astro';
         </div>
         <div class="form-group">
           <label class="form-label">Logo URL</label>
-          <input class="form-input" id="as-logo-url" type="url" placeholder="https://...">
+          <input class="form-input" id="as-logo-url" type="text" placeholder="/assets/logo.png or https://...">
         </div>
         <div class="form-group">
           <label class="form-label">Favicon URL</label>
-          <input class="form-input" id="as-favicon-url" type="url" placeholder="https://...">
+          <input class="form-input" id="as-favicon-url" type="text" placeholder="/favicon.svg or https://...">
         </div>
         <button type="submit" class="btn btn-primary" id="as-branding-save">Save</button>
       </form>
@@ -37,35 +37,38 @@ import Portal from '../layouts/Portal.astro';
     <div class="card mb-2">
       <h3 class="mb-1">Theme</h3>
       <form id="as-theme-form">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-          <div class="form-group">
-            <label class="form-label">Primary Color</label>
-            <input class="form-input" id="as-primary" type="color">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Primary Hover</label>
-            <input class="form-input" id="as-primary-hover" type="color">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Background</label>
-            <input class="form-input" id="as-bg" type="color">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Surface</label>
-            <input class="form-input" id="as-surface" type="color">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Text</label>
-            <input class="form-input" id="as-text" type="color">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Text Muted</label>
-            <input class="form-input" id="as-text-muted" type="color">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Border</label>
-            <input class="form-input" id="as-border" type="color">
-          </div>
+        <p class="form-label mb-1">Colors</p>
+        <div class="as-color-grid">
+          <label class="as-color-swatch" title="Primary">
+            <input id="as-primary" type="color">
+            <span>Primary</span>
+          </label>
+          <label class="as-color-swatch" title="Primary Hover">
+            <input id="as-primary-hover" type="color">
+            <span>Hover</span>
+          </label>
+          <label class="as-color-swatch" title="Background">
+            <input id="as-bg" type="color">
+            <span>Background</span>
+          </label>
+          <label class="as-color-swatch" title="Surface">
+            <input id="as-surface" type="color">
+            <span>Surface</span>
+          </label>
+          <label class="as-color-swatch" title="Text">
+            <input id="as-text" type="color">
+            <span>Text</span>
+          </label>
+          <label class="as-color-swatch" title="Text Muted">
+            <input id="as-text-muted" type="color">
+            <span>Muted</span>
+          </label>
+          <label class="as-color-swatch" title="Border">
+            <input id="as-border" type="color">
+            <span>Border</span>
+          </label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-top:1rem">
           <div class="form-group">
             <label class="form-label">Border Radius</label>
             <input class="form-input" id="as-radius" placeholder="0.5rem">
@@ -81,6 +84,39 @@ import Portal from '../layouts/Portal.astro';
         </div>
         <button type="submit" class="btn btn-primary" id="as-theme-save">Save</button>
       </form>
+    </div>
+
+    <!-- General Settings -->
+    <div class="card mb-2">
+      <h3 class="mb-1">General</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Signup Mode</label>
+          <select class="form-select" id="as-signup-mode">
+            <option value="open">Open (anyone can join)</option>
+            <option value="approved">Approved (admin approves)</option>
+            <option value="closed">Closed (invite only)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Default Language</label>
+          <select class="form-select" id="as-default-language">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-1">
+        <label class="flex items-center gap-1" style="padding:0.375rem 0">
+          <input type="checkbox" id="as-directory-public">
+          <span>Member directory visible to visitors</span>
+        </label>
+        <label class="flex items-center gap-1" style="padding:0.375rem 0">
+          <input type="checkbox" id="as-polls-member-create">
+          <span>Members can create polls</span>
+        </label>
+      </div>
+      <button class="btn btn-primary mt-1" id="as-general-save">Save</button>
     </div>
 
     <!-- Feature Flags -->
@@ -103,12 +139,32 @@ import Portal from '../layouts/Portal.astro';
       <div class="mt-2" id="as-ai-activity"></div>
     </div>
   </div>
+
+  <style>
+    .as-color-grid {
+      display: flex; flex-wrap: wrap; gap: 1rem;
+    }
+    .as-color-swatch {
+      display: flex; flex-direction: column; align-items: center; gap: 0.25rem; cursor: pointer;
+    }
+    .as-color-swatch input[type="color"] {
+      -webkit-appearance: none; appearance: none;
+      width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--color-border, #e2e8f0);
+      padding: 0; cursor: pointer; overflow: hidden; background: none;
+    }
+    .as-color-swatch input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    .as-color-swatch input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+    .as-color-swatch input[type="color"]::-moz-color-swatch { border: none; border-radius: 50%; }
+    .as-color-swatch input[type="color"]:hover { border-color: var(--color-primary, #3b82f6); transform: scale(1.1); }
+    .as-color-swatch input[type="color"]:focus { outline: 2px solid var(--color-primary, #3b82f6); outline-offset: 2px; }
+    .as-color-swatch span { font-size: 0.7rem; color: var(--color-text-muted, #94a3b8); }
+  </style>
 </Portal>
 
 <script>
   import { get, patch } from '../lib/api';
   import { requireAdmin } from '../lib/auth';
-  import { ready } from '../lib/config';
+  import { ready, applyTheme, clearCache } from '../lib/config';
 
   const configMap: Record<string, any> = {};
 
@@ -135,7 +191,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function patchConfig(key: string, value: any) {
-    await patch(`site_config?key=eq.${key}`, { value: JSON.stringify(value) });
+    await patch(`site_config?key=eq.${key}`, { value });
   }
 
   async function saveBranding(e: Event) {
@@ -165,6 +221,8 @@ import Portal from '../layouts/Portal.astro';
       radius: getVal('as-radius'),
     };
     await patchConfig('theme', theme);
+    applyTheme(theme);
+    clearCache('wl_cache_site_config');
     showSaved('as-theme-save');
   }
 
@@ -274,6 +332,12 @@ import Portal from '../layouts/Portal.astro';
     setVal('as-font-body', theme.font_body);
     setVal('as-radius', theme.radius);
 
+    // Populate general settings
+    setVal('as-signup-mode', configMap.signup_mode || 'approved');
+    setVal('as-default-language', configMap.default_language || 'en');
+    (document.getElementById('as-directory-public') as HTMLInputElement).checked = configMap.directory_public === true;
+    (document.getElementById('as-polls-member-create') as HTMLInputElement).checked = configMap.polls_member_create === true;
+
     // Populate feature flags
     const featureContainer = document.getElementById('as-features');
     if (featureContainer) {
@@ -297,6 +361,15 @@ import Portal from '../layouts/Portal.astro';
     // Save handlers
     document.getElementById('as-branding-form')?.addEventListener('submit', saveBranding);
     document.getElementById('as-theme-form')?.addEventListener('submit', saveTheme);
+    document.getElementById('as-general-save')?.addEventListener('click', async () => {
+      await Promise.all([
+        patchConfig('signup_mode', getVal('as-signup-mode')),
+        patchConfig('default_language', getVal('as-default-language')),
+        patchConfig('directory_public', (document.getElementById('as-directory-public') as HTMLInputElement).checked),
+        patchConfig('polls_member_create', (document.getElementById('as-polls-member-create') as HTMLInputElement).checked),
+      ]);
+      showSaved('as-general-save');
+    });
 
     // Feature flag toggles
     document.querySelectorAll('.feature-toggle').forEach((cb) => {

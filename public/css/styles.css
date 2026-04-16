@@ -661,32 +661,7 @@ a:hover {
   animation: reaction-float 800ms ease-out forwards;
 }
 
-/* Inline editing (admin) */
-[contenteditable="true"] {
-  outline: none;
-  border: none;
-  cursor: text;
-}
-.admin [data-editable]:hover {
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.admin [data-editable-image]:hover {
-  position: relative;
-}
-.admin [data-editable-image]:hover::after {
-  content: "📷";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  padding: 0.5rem;
-  border-radius: var(--radius);
-  font-size: 1.5rem;
-}
+/* Inline editing (admin) — see admin-editing.css for full styles */
 
 /* Auth */
 .auth-modal {

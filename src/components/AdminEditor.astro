@@ -1,11 +1,12 @@
 ---
-// AdminEditor.astro — Inline editing for admins (contenteditable + Tiptap + image upload)
+// AdminEditor.astro — Inline editing for admins
 // Loaded with client:idle — only initializes after page settles
+// Supports: text, rich text (Tiptap), image upload, JSONB paths, drag reorder
 ---
 <div id="admin-editor-root"></div>
 
 <script>
-  import { patch } from '../lib/api';
+  import { patch, get } from '../lib/api';
   import { clearCache } from '../lib/config';
 
   function getAPI(): string {
@@ -14,29 +15,131 @@
   function getAnonKey(): string {
     return window.__KYCHON_ANON_KEY || '';
   }
+  function getToken(): string {
+    const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
+    return session.access_token || '';
+  }
+
+  // --- Admin CSS (loaded once) ---
+  let cssLoaded = false;
+  function loadAdminCSS() {
+    if (cssLoaded) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/css/admin-editing.css';
+    document.head.appendChild(link);
+    cssLoaded = true;
+  }
+
+  // --- Toast notifications ---
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    const existing = document.querySelector('.admin-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = `admin-toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('out');
+      setTimeout(() => toast.remove(), 200);
+    }, 2000);
+  }
+
+  // --- Save animation on element ---
+  function flashSave(el: HTMLElement, success: boolean) {
+    el.classList.remove('admin-save-success', 'admin-save-error');
+    void el.offsetWidth; // force reflow
+    el.classList.add(success ? 'admin-save-success' : 'admin-save-error');
+    setTimeout(() => el.classList.remove('admin-save-success', 'admin-save-error'), 700);
+  }
+
+  // --- Parse data-editable attribute ---
+  // Supports: "table.id.field" (flat) or "table.id.column.jsonpath" (JSONB)
+  interface EditTarget {
+    table: string;
+    id: string;
+    field: string;
+    jsonPath?: string;
+  }
+
+  function parseEditTarget(attr: string): EditTarget | null {
+    const parts = attr.split('.');
+    if (parts.length === 3) {
+      return { table: parts[0], id: parts[1], field: parts[2] };
+    } else if (parts.length === 4) {
+      return { table: parts[0], id: parts[1], field: parts[2], jsonPath: parts[3] };
+    }
+    return null;
+  }
+
+  // --- Save helper: handles both flat and JSONB columns ---
+  async function saveField(el: HTMLElement, target: EditTarget, newValue: any): Promise<boolean> {
+    try {
+      if (target.jsonPath) {
+        // JSONB: read-modify-write
+        const configAttr = el.getAttribute('data-editable-config');
+        if (!configAttr) {
+          console.error('Missing data-editable-config for JSONB edit');
+          return false;
+        }
+        const config = JSON.parse(configAttr);
+        config[target.jsonPath] = newValue;
+        await patch(`${target.table}?id=eq.${target.id}`, { [target.field]: config });
+        el.setAttribute('data-editable-config', JSON.stringify(config));
+      } else if (target.table === 'site_config') {
+        // site_config uses key=eq.{id} instead of id=eq.{id}
+        await patch(`site_config?key=eq.${target.id}`, { value: newValue });
+      } else {
+        await patch(`${target.table}?id=eq.${target.id}`, { [target.field]: newValue });
+      }
+      if (target.table === 'site_config' || target.table === 'sections' || target.table === 'pages') {
+        clearCache('wl_cache_site_config');
+      }
+      return true;
+    } catch (e) {
+      console.error('Save failed:', e);
+      return false;
+    }
+  }
 
   // --- Simple text editing via contenteditable ---
+  const boundText = new WeakSet();
+
   function initEditableText() {
     document.querySelectorAll('[data-editable]').forEach((el) => {
+      if (boundText.has(el)) return;
+      boundText.add(el);
       const htmlEl = el as HTMLElement;
-      htmlEl.addEventListener('click', () => {
+      let original = '';
+
+      htmlEl.addEventListener('click', (e) => {
+        // Don't activate if clicking a link inside
+        if ((e.target as HTMLElement).closest('a')) return;
+        original = htmlEl.textContent?.trim() || '';
         htmlEl.contentEditable = 'true';
         htmlEl.focus();
       });
+
       htmlEl.addEventListener('blur', async () => {
         htmlEl.contentEditable = 'false';
-        const [table, id, field] = htmlEl.dataset.editable!.split('.');
-        if (!table || !id || !field) return;
-        try {
-          await patch(`${table}?id=eq.${id}`, { [field]: htmlEl.textContent?.trim() });
-          if (table === 'site_config') clearCache('wl_cache_site_config');
-        } catch (e) {
-          console.error('Save failed:', e);
-        }
+        const attr = htmlEl.dataset.editable!;
+        const target = parseEditTarget(attr);
+        if (!target) return;
+        const newText = htmlEl.textContent?.trim() || '';
+        if (newText === original) return; // no change
+        const ok = await saveField(htmlEl, target, newText);
+        flashSave(htmlEl, ok);
+        if (ok) showToast('Saved');
+        else showToast('Save failed', 'error');
       });
+
       htmlEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
+          htmlEl.blur();
+        }
+        if (e.key === 'Escape') {
+          htmlEl.textContent = original;
           htmlEl.blur();
         }
       });
@@ -60,42 +163,53 @@
     }
   }
 
+  const boundRich = new WeakSet();
+
   function initEditableRich() {
     document.querySelectorAll('[data-editable-rich]').forEach((el) => {
+      if (boundRich.has(el)) return;
+      boundRich.add(el);
       const htmlEl = el as HTMLElement;
       let editor: any = null;
+
       htmlEl.addEventListener('click', async () => {
         if (editor) return;
         await loadTiptap();
         if (!Editor) return;
         const originalContent = htmlEl.innerHTML;
+        htmlEl.classList.add('tiptap-active');
+
         editor = new Editor({
           element: htmlEl,
           extensions: [StarterKit],
           content: originalContent,
           onBlur: async () => {
-            const [table, id, field] = htmlEl.dataset.editableRich!.split('.');
-            if (!table || !id || !field) return;
+            const attr = htmlEl.dataset.editableRich!;
+            const target = parseEditTarget(attr);
+            if (!target) return;
             const html = editor.getHTML();
-            try {
-              await patch(`${table}?id=eq.${id}`, { [field]: html });
-              if (table === 'site_config') clearCache('wl_cache_site_config');
-            } catch (e) {
-              console.error('Rich text save failed:', e);
-            }
+            const ok = await saveField(htmlEl, target, html);
+            flashSave(htmlEl, ok);
+            if (ok) showToast('Saved');
+            else showToast('Save failed', 'error');
             editor.destroy();
             editor = null;
+            htmlEl.classList.remove('tiptap-active');
           },
         });
       });
     });
   }
 
-  // --- Image editing via click-to-upload ---
+  // --- Image editing via click-to-upload (base64 JSON) ---
+  const boundImage = new WeakSet();
+
   function initEditableImage() {
     document.querySelectorAll('[data-editable-image]').forEach((el) => {
+      if (boundImage.has(el)) return;
+      boundImage.add(el);
       const htmlEl = el as HTMLElement;
-      htmlEl.style.cursor = 'pointer';
+
       htmlEl.addEventListener('click', () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -103,23 +217,63 @@
         input.addEventListener('change', async () => {
           const file = input.files?.[0];
           if (!file) return;
-          const storagePath = htmlEl.dataset.editableImage!;
-          const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
+
+          // Show upload state
+          htmlEl.classList.add('uploading');
+          const spinner = document.createElement('div');
+          spinner.className = 'admin-upload-spinner';
+          htmlEl.style.position = 'relative';
+          htmlEl.appendChild(spinner);
+
           try {
-            const formData = new FormData();
-            formData.append('file', file);
-            const res = await fetch(`${getAPI()}/storage/v1/upload/${storagePath}`, {
+            // Base64 encode
+            const buf = await file.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const b64 = btoa(binary);
+
+            const attr = htmlEl.dataset.editableImage!;
+            const target = parseEditTarget(attr);
+            const storageName = `${Date.now()}_${file.name}`;
+
+            const res = await fetch(`${getAPI()}/functions/v1/upload-asset`, {
               method: 'POST',
-              headers: { apikey: getAnonKey(), Authorization: `Bearer ${session.access_token}` },
-              body: formData,
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: getAnonKey(),
+                Authorization: `Bearer ${getToken()}`,
+              },
+              body: JSON.stringify({
+                file: { name: file.name, type: file.type, data: b64 },
+                path: storageName,
+              }),
             });
+
             if (res.ok) {
               const data = await res.json();
+              const url = data.url;
+
+              // Update the image element
               const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
-              if (img) img.src = data.url || `/storage/${storagePath}`;
+              if (img) img.src = url;
+
+              // Save URL to database
+              if (target) {
+                await saveField(htmlEl, target, url);
+              }
+              showToast('Image uploaded');
+            } else {
+              const err = await res.text();
+              console.error('Upload failed:', err);
+              showToast('Upload failed', 'error');
             }
           } catch (e) {
-            console.error('Image upload failed:', e);
+            console.error('Image upload error:', e);
+            showToast('Upload failed', 'error');
+          } finally {
+            htmlEl.classList.remove('uploading');
+            spinner.remove();
           }
         });
         input.click();
@@ -127,14 +281,137 @@
     });
   }
 
+  // --- Drag-to-reorder ---
+  const boundSortable = new WeakSet();
+
+  function initSortable() {
+    document.querySelectorAll('[data-sortable-group]').forEach((container) => {
+      if (boundSortable.has(container)) return;
+      boundSortable.add(container);
+
+      const items = container.querySelectorAll('[data-sortable-id]');
+      let draggedEl: HTMLElement | null = null;
+      let dropIndicator: HTMLElement | null = null;
+
+      items.forEach((item) => {
+        const el = item as HTMLElement;
+
+        // Add drag handle
+        if (!el.querySelector('.admin-drag-handle')) {
+          const handle = document.createElement('div');
+          handle.className = 'admin-drag-handle';
+          handle.draggable = true;
+          handle.addEventListener('dragstart', (e) => {
+            draggedEl = el;
+            el.classList.add('dragging');
+            e.dataTransfer!.effectAllowed = 'move';
+            e.dataTransfer!.setData('text/plain', el.dataset.sortableId || '');
+          });
+          el.appendChild(handle);
+        }
+
+        el.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer!.dropEffect = 'move';
+          if (!draggedEl || draggedEl === el) return;
+
+          // Show drop indicator
+          if (!dropIndicator) {
+            dropIndicator = document.createElement('div');
+            dropIndicator.className = 'admin-drop-indicator';
+          }
+          const rect = el.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (e.clientY < midY) {
+            el.before(dropIndicator);
+          } else {
+            el.after(dropIndicator);
+          }
+        });
+
+        el.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          if (!draggedEl || draggedEl === el) return;
+
+          // Move element in DOM
+          if (dropIndicator) {
+            dropIndicator.replaceWith(draggedEl);
+          }
+          draggedEl.classList.remove('dragging');
+
+          // Save new positions
+          const positionField = el.dataset.sortableField || 'position';
+          const siblings = container.querySelectorAll('[data-sortable-id]');
+          const updates: Promise<any>[] = [];
+          siblings.forEach((sib, idx) => {
+            const sid = (sib as HTMLElement).dataset.sortableId;
+            if (!sid) return;
+            const [table, id] = sid.split('.');
+            if (table && id) {
+              updates.push(patch(`${table}?id=eq.${id}`, { [positionField]: idx + 1 }));
+            }
+          });
+          await Promise.all(updates);
+          showToast('Order saved');
+
+          draggedEl = null;
+          dropIndicator = null;
+        });
+      });
+
+      container.addEventListener('dragend', () => {
+        if (draggedEl) draggedEl.classList.remove('dragging');
+        if (dropIndicator) dropIndicator.remove();
+        draggedEl = null;
+        dropIndicator = null;
+      });
+    });
+  }
+
+  // --- Main init ---
   function initAdminEditor() {
     const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
     if (session?.user?.member?.role !== 'admin') return;
     document.body.classList.add('admin');
+    loadAdminCSS();
     initEditableText();
     initEditableRich();
     initEditableImage();
+    initSortable();
   }
+
+  // Use MutationObserver to re-bind after client-side renders
+  const observer = new MutationObserver((mutations) => {
+    if (!document.body.classList.contains('admin')) return;
+    let shouldRebind = false;
+    for (const m of mutations) {
+      if (m.type === 'childList' && m.addedNodes.length > 0) {
+        for (const node of m.addedNodes) {
+          if (node instanceof HTMLElement && (
+            node.querySelector('[data-editable]') ||
+            node.querySelector('[data-editable-rich]') ||
+            node.querySelector('[data-editable-image]') ||
+            node.querySelector('[data-sortable-group]') ||
+            node.hasAttribute?.('data-editable') ||
+            node.hasAttribute?.('data-editable-rich') ||
+            node.hasAttribute?.('data-editable-image')
+          )) {
+            shouldRebind = true;
+            break;
+          }
+        }
+      }
+      if (shouldRebind) break;
+    }
+    if (shouldRebind) {
+      initEditableText();
+      initEditableRich();
+      initEditableImage();
+      initSortable();
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
 
   initAdminEditor();
   document.addEventListener('astro:after-swap', initAdminEditor);
