@@ -262,7 +262,10 @@
       boundImage.add(el);
       const htmlEl = el as HTMLElement;
 
-      htmlEl.addEventListener('click', () => {
+      htmlEl.addEventListener('click', (e) => {
+        // Don't trigger image upload if clicking a child text-editable element
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-editable]') || target.closest('[data-editable-rich]')) return;
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';

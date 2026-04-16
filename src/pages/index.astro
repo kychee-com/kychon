@@ -117,7 +117,8 @@ import Portal from '../layouts/Portal.astro';
     switch (section.section_type) {
       case 'hero':
         el.className = 'section section-hero';
-        el.innerHTML = `<div class="container"${admin ? ` data-editable-image="sections.${sid}.config.bg_image" style="position:relative"` : ''}><h1${admin ? ` data-editable="sections.${sid}.config.heading"` : ''}>${esc(cfg.heading || '')}</h1><p${admin ? ` data-editable="sections.${sid}.config.subheading"` : ''}>${esc(cfg.subheading || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${admin ? ` data-editable="sections.${sid}.config.cta_text"` : ''}>${esc(cfg.cta_text)}</a>` : ''}</div>`;
+        if (admin) el.setAttribute('data-editable-image', `sections.${sid}.config.bg_image`);
+        el.innerHTML = `<div class="container"><h1${admin ? ` data-editable="sections.${sid}.config.heading"` : ''}>${esc(cfg.heading || '')}</h1><p${admin ? ` data-editable="sections.${sid}.config.subheading"` : ''}>${esc(cfg.subheading || '')}</p>${cfg.cta_text ? `<a href="${esc(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${admin ? ` data-editable="sections.${sid}.config.cta_text"` : ''}>${esc(cfg.cta_text)}</a>` : ''}</div>`;
         if (cfg.bg_image) { el.style.backgroundImage = `url(${cfg.bg_image})`; cacheHeroImage(cfg.bg_image); }
         break;
 
