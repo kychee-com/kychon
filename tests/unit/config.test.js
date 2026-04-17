@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js';
 import { getBrandedTitle, getRouteKey, isNavItemActive } from '../../src/lib/config.ts';
+import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js';
 
 // We test the pure logic functions of config.js by testing the patterns they use
 // Since config.js has side effects (DOM manipulation), we test the logic in isolation
