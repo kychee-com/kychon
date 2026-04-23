@@ -113,9 +113,9 @@ if (process.env.EXTRA_FUNCTION) {
   functions.push(fn);
 }
 
-// RLS configuration — public_read: anyone reads, authenticated users write
+// RLS configuration — public_read_authenticated_write: anyone reads, authenticated users write
 const rls = {
-  template: 'public_read',
+  template: 'public_read_authenticated_write',
   tables: [
     { table: 'site_config' },
     { table: 'pages' },
