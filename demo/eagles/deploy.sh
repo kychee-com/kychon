@@ -14,6 +14,10 @@ echo "Project: $PROJECT_ID"
 ASSETS_SRC="$SCRIPT_DIR/assets"
 ASSETS_DST="$ROOT/public/assets"
 
+# Clean up copied assets on any exit (success or failure) so a mid-flow failure
+# doesn't leave the working tree dirty.
+trap '[ -d "$ASSETS_DST" ] && rm -rf "$ASSETS_DST"' EXIT
+
 if [ -d "$ASSETS_SRC" ]; then
   echo "Copying demo assets into public/assets..."
   mkdir -p "$ASSETS_DST"
@@ -30,12 +34,6 @@ SEED_FILE="demo/eagles/seed.sql" RUN402_PROJECT_ID="$PROJECT_ID" SUBDOMAIN=eagle
 echo "Deploying reset-demo function separately..."
 run402 functions update "$PROJECT_ID" check-expirations --schedule-remove 2>/dev/null || true
 run402 functions deploy "$PROJECT_ID" reset-demo --file "$SCRIPT_DIR/reset-demo.js" --schedule "0 * * * *"
-
-# Clean up copied assets
-if [ -d "$ASSETS_DST" ]; then
-  echo "Cleaning up copied assets..."
-  rm -rf "$ASSETS_DST"
-fi
 
 # Bootstrap demo accounts (idempotent — creates/links demo-admin + demo-member auth users)
 echo ""
