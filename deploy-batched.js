@@ -128,7 +128,7 @@ if (process.env.EXTRA_FUNCTION) {
 
 // RLS
 const rls = {
-  template: 'public_read',
+  template: 'public_read_authenticated_write',
   tables: [
     { table: 'site_config' }, { table: 'pages' }, { table: 'sections' },
     { table: 'membership_tiers' }, { table: 'member_custom_fields' },

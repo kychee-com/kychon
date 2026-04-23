@@ -2,7 +2,7 @@
   "project_id": "prj_REPLACE_WITH_YOUR_RUN402_PROJECT_ID",
   "migrations_file": ".migrations-silver-pines.sql",
   "rls": {
-    "template": "public_read",
+    "template": "public_read_authenticated_write",
     "tables": [
       {
         "table": "site_config"
