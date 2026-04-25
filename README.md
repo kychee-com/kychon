@@ -34,7 +34,7 @@ A forkable, AI-powered membership portal built on [Run402](https://run402.com). 
 - **Auth:** Google OAuth + password (Run402 built-in)
 - **Testing:** Vitest + happy-dom + fast-check
 - **Linting:** Biome
-- **Deploy:** One-command deploy via `deploy.js`
+- **Deploy:** One-command deploy via `scripts/deploy.ts` (typed `@run402/sdk/node`)
 
 ## Quick Start
 
@@ -49,7 +49,7 @@ run402 tier set prototype
 
 # Provision and deploy
 run402 projects provision --name "my-portal"
-RUN402_PROJECT_ID=<your_project_id> SUBDOMAIN=<your-name> node deploy.js
+RUN402_PROJECT_ID=<your_project_id> SUBDOMAIN=<your-name> npx tsx scripts/deploy.ts
 ```
 
 Your portal is live at `<your-name>.run402.com`.
@@ -58,7 +58,7 @@ Your portal is live at `<your-name>.run402.com`.
 
 ```
 kychon/
-├── deploy.js              # One-command deploy to Run402
+├── scripts/deploy.ts      # One-command deploy to Run402 (typed @run402/sdk)
 ├── schema.sql             # All tables (idempotent migrations)
 ├── seed.sql               # Default config + sample data
 ├── site/                  # Static frontend

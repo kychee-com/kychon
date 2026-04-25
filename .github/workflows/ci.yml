@@ -24,5 +24,8 @@ jobs:
       - name: Lint
         run: npx biome check .
 
-      - name: Type Check
+      - name: Type Check (Astro)
         run: npx astro check
+
+      - name: Type Check (scripts)
+        run: npx tsc --project tsconfig.scripts.json

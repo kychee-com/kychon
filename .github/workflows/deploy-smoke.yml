@@ -1,0 +1,70 @@
+# Deploy smoke-test
+#
+# Runs `npx tsx scripts/deploy.ts --dry-run` against a dedicated scratch Run402
+# project. Catches SDK signature drift, missing required fields in the bundle
+# options, and migration-syntax errors before they hit a real deploy.
+#
+# REQUIRED SECRETS (set in repo settings → secrets and variables → actions):
+#   - RUN402_SMOKE_PROJECT_ID    Project id of the scratch Run402 project.
+#   - RUN402_SMOKE_ALLOWANCE_JSON  Allowance JSON for that project (the
+#                                 contents of `~/.config/run402/allowance.json`
+#                                 from a machine where `run402 init` was run
+#                                 against the scratch project).
+#
+# Once those secrets exist, change the `if:` guard on the job below to
+# `if: ${{ vars.SMOKE_TEST_ENABLED == 'true' }}` and add a repo variable
+# SMOKE_TEST_ENABLED=true. Or remove the guard entirely.
+
+name: Deploy Smoke Test
+
+on:
+  workflow_dispatch:
+  # Uncomment once secrets and the scratch project are configured:
+  # push:
+  #   branches: [main]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    # Hard-gate until secrets are configured. Remove or flip to a vars-based
+    # check after the scratch project + secrets are in place.
+    if: ${{ false }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Write allowance to tmpfile
+        env:
+          RUN402_SMOKE_ALLOWANCE_JSON: ${{ secrets.RUN402_SMOKE_ALLOWANCE_JSON }}
+        run: |
+          mkdir -p "$HOME/.config/run402"
+          printf '%s' "$RUN402_SMOKE_ALLOWANCE_JSON" > "$HOME/.config/run402/allowance.json"
+          chmod 600 "$HOME/.config/run402/allowance.json"
+
+      - name: Pre-flight tier check
+        env:
+          RUN402_PROJECT_ID: ${{ secrets.RUN402_SMOKE_PROJECT_ID }}
+        run: |
+          npx tsx -e "$(cat <<'JS'
+          import { run402 } from "@run402/sdk/node";
+          const r = run402();
+          const status = await r.tier.status();
+          console.log("Tier:", JSON.stringify(status, null, 2));
+          if (!status.active) {
+            console.error("Scratch project tier is inactive. Renew via: run402 tier set <name>");
+            process.exit(1);
+          }
+          JS
+          )"
+
+      - name: Deploy smoke-test (dry-run)
+        env:
+          RUN402_PROJECT_ID: ${{ secrets.RUN402_SMOKE_PROJECT_ID }}
+          SUBDOMAIN: kychon-smoke
+        run: npx tsx scripts/deploy.ts --dry-run

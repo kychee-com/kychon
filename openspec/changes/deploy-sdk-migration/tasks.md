@@ -46,24 +46,25 @@
 
 ## 6. CI smoke-test
 
-- [ ] 6.1 Provision a dedicated scratch Run402 project for CI smoke-testing; store id as GitHub secret `RUN402_SMOKE_PROJECT_ID`
-- [ ] 6.2 Export that project's allowance JSON; store as GitHub secret `RUN402_SMOKE_ALLOWANCE_JSON`
-- [ ] 6.3 Fund the scratch project's wallet with enough USDC to cover ~10 tier renewals at current pricing
-- [ ] 6.4 Add `deploy-smoke-test` job to `.github/workflows/ci.yml`: writes allowance secret to tmpfile, runs `npx tsx scripts/deploy.ts --dry-run` with `RUN402_PROJECT_ID` pointed at scratch project
-- [ ] 6.5 Add a pre-step that runs `r.tier.status()` (via a short helper TS) and fails fast with a readable message if the scratch tier is expired
-- [ ] 6.6 Gate merge of this PR on the smoke-test job passing against the new scripts
+- [ ] 6.1 Provision a dedicated scratch Run402 project for CI smoke-testing; store id as GitHub secret `RUN402_SMOKE_PROJECT_ID` **— USER ACTION**
+- [ ] 6.2 Export that project's allowance JSON; store as GitHub secret `RUN402_SMOKE_ALLOWANCE_JSON` **— USER ACTION**
+- [ ] 6.3 Fund the scratch project's wallet with enough USDC to cover ~10 tier renewals at current pricing **— USER ACTION**
+- [x] 6.4 Add `deploy-smoke-test` job to `.github/workflows/ci.yml`: writes allowance secret to tmpfile, runs `npx tsx scripts/deploy.ts --dry-run` with `RUN402_PROJECT_ID` pointed at scratch project — *Workflow scaffolded at `.github/workflows/deploy-smoke.yml`, gated by `if: ${{ false }}` until secrets are configured. Flip to enable once 6.1–6.3 are done.*
+- [x] 6.5 Add a pre-step that runs `r.tier.status()` (via a short helper TS) and fails fast with a readable message if the scratch tier is expired
+- [ ] 6.6 Gate merge of this PR on the smoke-test job passing against the new scripts **— gated on 6.1–6.3**
 
 ## 7. Documentation
 
-- [ ] 7.1 Add a one-liner in `CLAUDE.md`'s "Key Conventions" section: new Node tooling targeting Run402 uses `@run402/sdk/node` — no new `execSync('run402 …')` call sites
-- [ ] 7.2 Update `CLAUDE.md`'s "File Structure" section to reflect `scripts/deploy.ts` (`deploy.js` references removed)
-- [ ] 7.3 Update any `docs/*.md` references to `deploy.js` → `scripts/deploy.ts`
-- [ ] 7.4 Add a short `scripts/README.md` explaining the deploy scripts, the `--dry-run` flag, and the pinned SDK version
+- [x] 7.1 Add a one-liner in `CLAUDE.md`'s "Key Conventions" section: new Node tooling targeting Run402 uses `@run402/sdk/node` — no new `execSync('run402 …')` call sites
+- [x] 7.2 Update `CLAUDE.md`'s "File Structure" section to reflect `scripts/deploy.ts` (legacy `deploy.js` marked; full removal in group 5)
+- [x] 7.3 Update any `docs/*.md` references to `deploy.js` → `scripts/deploy.ts` (also updated README.md)
+- [x] 7.4 Add a short `scripts/README.md` explaining the deploy scripts, the `--dry-run` flag, and the pinned SDK version
 
 ## 8. Follow-up captures (not in this change)
 
-- [ ] 8.1 File an issue (or propose a separate OpenSpec change) to archive or rewrite `openspec/specs/marketing-deploy/spec.md` since the script now lives in `kychon-private`
-- [ ] 8.2 File an issue to investigate yesterday's `run402 functions deploy reset-demo` HTTP 401 error — blocked on cron reset silently dying
-- [ ] 8.3 File an issue to load-test a single-shot `apps.bundleDeploy` against ~68MB of real production data; goal is removing the batching loop (supersedes the "batching preserved" spec requirement)
-- [ ] 8.4 Bring up cross-repo migration for `kychon-private/marketing/deploy-marketing.js` with private-repo maintainers
-- [ ] 8.5 File an issue to update `openspec/specs/ci-pipeline/spec.md`'s "CI uses Node 20" requirement to "Node 22" to match actual workflow (discovered while writing this change, out of scope)
+- [x] 8.1 File an issue (or propose a separate OpenSpec change) to archive or rewrite `openspec/specs/marketing-deploy/spec.md` since the script now lives in `kychon-private` — kychee-com/kychon#6
+- [x] 8.2 File an issue to investigate yesterday's `run402 functions deploy reset-demo` HTTP 401 error — blocked on cron reset silently dying — kychee-com/kychon#7
+- [x] 8.3 File an issue to load-test a single-shot `apps.bundleDeploy` against ~68MB of real production data; goal is removing the batching loop (supersedes the "batching preserved" spec requirement) — kychee-com/kychon#8
+- [ ] 8.4 Bring up cross-repo migration for `kychon-private/marketing/deploy-marketing.js` with private-repo maintainers **— USER ACTION (cross-team coordination)**
+- [x] 8.5 File an issue to update `openspec/specs/ci-pipeline/spec.md`'s "CI uses Node 20" requirement to "Node 22" to match actual workflow (discovered while writing this change, out of scope) — kychee-com/kychon#9
+- [x] 8.6 *Bonus*: File SDK feature request to re-export `LocalError` from public surface (discovered while writing prettyPrintError) — kychee-com/run402#114
