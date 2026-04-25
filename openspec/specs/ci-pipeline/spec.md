@@ -40,9 +40,9 @@ The CI workflow SHALL run `npx tsc --noEmit` and fail if any type error is found
 - **WHEN** all JSDoc annotations are correct
 - **THEN** the type check step SHALL succeed
 
-### Requirement: CI uses Node 20 with caching
+### Requirement: CI uses Node 22 with caching
 
-The CI workflow SHALL use Node.js 20 and cache `node_modules` to speed up runs.
+The CI workflow SHALL use Node.js 22 (matching `@run402/sdk`'s `engines.node` requirement and current Astro/Vitest baselines) and cache `node_modules` to speed up runs.
 
 #### Scenario: CI completes in under 2 minutes
 - **WHEN** the CI workflow runs with cached dependencies

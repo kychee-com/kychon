@@ -12,6 +12,8 @@ Kychon is an AI-powered membership/community portal template built on the Run402
 
 **Status**: Design complete, ready for implementation. The full spec lives in `docs/spec.md`.
 
+**Cross-repo boundary**: The marketing site at `kychon.com` lives in the sibling private repo `kychee-com/kychon-private`. Marketing-site source, deploy script, copy, and domain config changes go there, not here. See `openspec/specs/marketing-deploy/spec.md`.
+
 ## Architecture
 
 ### Config-Driven Design
