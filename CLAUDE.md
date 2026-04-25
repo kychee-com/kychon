@@ -65,7 +65,6 @@ kychon/
 │   ├── deploy.ts          # Single-project deploy via @run402/sdk/node
 │   ├── deploy-batched.ts  # Batched deploy for demo sites (large image payloads)
 │   └── _lib.ts            # Shared deploy helpers
-├── deploy.js              # LEGACY — being removed; bash wrappers still call this
 ├── schema.sql             # All tables (idempotent)
 ├── seed.sql               # Default config + sample data
 ├── src/

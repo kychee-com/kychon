@@ -46,27 +46,32 @@ const dryRun = isDryRun(process.argv);
 /** Max bytes per file batch before base64 expansion. Matches legacy script. */
 const MAX_BATCH_BYTES = 25 * 1024 * 1024;
 
+interface FileBatch {
+  files: SiteFile[];
+  bytes: number;
+}
+
 /**
- * Slice an array of sized files into batches under `maxBytes`. Each batch is a
- * plain SiteFile[] (sizes dropped — the SDK doesn't need them).
+ * Slice an array of sized files into batches under `maxBytes`. Returns each
+ * batch with its byte total (for observability — the SDK itself only needs files).
  *
  * If a single file exceeds `maxBytes`, it gets its own batch (we don't split
  * within a file).
  */
-function sliceBySize(items: readonly SizedSiteFile[], maxBytes: number): SiteFile[][] {
-  const batches: SiteFile[][] = [];
-  let cur: SiteFile[] = [];
-  let size = 0;
+function sliceBySize(items: readonly SizedSiteFile[], maxBytes: number): FileBatch[] {
+  const batches: FileBatch[] = [];
+  let curFiles: SiteFile[] = [];
+  let curBytes = 0;
   for (const item of items) {
-    if (size + item.bytes > maxBytes && cur.length > 0) {
-      batches.push(cur);
-      cur = [];
-      size = 0;
+    if (curBytes + item.bytes > maxBytes && curFiles.length > 0) {
+      batches.push({ files: curFiles, bytes: curBytes });
+      curFiles = [];
+      curBytes = 0;
     }
-    cur.push(item.file);
-    size += item.bytes;
+    curFiles.push(item.file);
+    curBytes += item.bytes;
   }
-  if (cur.length > 0) batches.push(cur);
+  if (curFiles.length > 0) batches.push({ files: curFiles, bytes: curBytes });
   return batches;
 }
 
@@ -105,8 +110,9 @@ async function main(): Promise<void> {
       totalCalls,
       imageBatches: imageBatches.map((b, i) => ({
         idx: i,
-        files: b.length,
-        bytes: imageBatches[i]?.length ?? 0,
+        files: b.files.length,
+        bytes: b.bytes,
+        mb: +(b.bytes / 1024 / 1024).toFixed(1),
       })),
       codeFiles: code.length,
       functions: functions.length,
@@ -140,14 +146,15 @@ async function main(): Promise<void> {
   const firstOpts: BundleDeployOptions = {
     migrations,
     rls: RLS_CONFIG,
-    files: firstBatch,
+    files: firstBatch.files,
     subdomain: target.subdomain,
     inherit: true,
   };
   if (functions.length > 0) firstOpts.functions = functions;
 
   console.log(
-    `\n--- Batch 1/${totalCalls}: ${firstBatch.length} images + migrations + rls + functions ---`,
+    `\n--- Batch 1/${totalCalls}: ${firstBatch.files.length} images ` +
+      `(~${(firstBatch.bytes / 1024 / 1024).toFixed(1)}MB) + migrations + rls + functions ---`,
   );
   await r.apps.bundleDeploy(target.projectId, firstOpts);
   console.log("  OK");
@@ -156,8 +163,11 @@ async function main(): Promise<void> {
   for (let i = 1; i < imageBatches.length; i++) {
     const batch = imageBatches[i];
     if (!batch) continue;
-    console.log(`\n--- Batch ${i + 1}/${totalCalls}: ${batch.length} images ---`);
-    await r.sites.deploy(target.projectId, { files: batch, inherit: true });
+    console.log(
+      `\n--- Batch ${i + 1}/${totalCalls}: ${batch.files.length} images ` +
+        `(~${(batch.bytes / 1024 / 1024).toFixed(1)}MB) ---`,
+    );
+    await r.sites.deploy(target.projectId, { files: batch.files, inherit: true });
     console.log("  OK");
   }
 
