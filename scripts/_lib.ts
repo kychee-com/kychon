@@ -250,14 +250,9 @@ export function readMigrations(root: string): string {
 
 /**
  * Format an SDK error for human-readable console output. Distinguishes
- * PaymentRequired / Unauthorized / ApiError / NetworkError so the next-action
- * message points at the right CLI fix. Other Run402Error subclasses (e.g.
- * LocalError, ProjectNotFound) fall through to the generic abstract-base handler.
- *
- * NOTE: as of @run402/sdk@1.43.0, `LocalError` is defined in dist/errors.d.ts
- * but not re-exported from `@run402/sdk` or `@run402/sdk/node`'s public surface.
- * Once that re-export lands, add a specific branch here. The Run402Error base
- * class is exported, so instanceof on it still catches LocalError correctly.
+ * PaymentRequired / Unauthorized / ApiError / NetworkError / LocalError so the
+ * next-action message points at the right fix. Other Run402Error subclasses
+ * (e.g. ProjectNotFound) fall through to the abstract-base handler.
  */
 export async function prettyPrintError(err: unknown): Promise<string> {
   const sdk = await import("@run402/sdk");
@@ -280,6 +275,12 @@ export async function prettyPrintError(err: unknown): Promise<string> {
   }
   if (err instanceof sdk.NetworkError) {
     return `Network error while ${err.context}: ${err.message}`;
+  }
+  if (err instanceof sdk.LocalError) {
+    return (
+      `Local error while ${err.context}: ${err.message}\n` +
+      "  No HTTP request was made. Likely an input/filesystem issue (missing file, unreadable dir)."
+    );
   }
   if (err instanceof sdk.Run402Error) {
     const httpHint = err.status ? ` (HTTP ${err.status})` : "";
