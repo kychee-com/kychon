@@ -46,9 +46,9 @@
 
 ## 6. CI smoke-test
 
-- [ ] 6.1 Provision a dedicated scratch Run402 project for CI smoke-testing; store id as GitHub secret `RUN402_SMOKE_PROJECT_ID` **— USER ACTION**
-- [ ] 6.2 Export that project's allowance JSON; store as GitHub secret `RUN402_SMOKE_ALLOWANCE_JSON` **— USER ACTION**
-- [ ] 6.3 Fund the scratch project's wallet with enough USDC to cover ~10 tier renewals at current pricing **— USER ACTION**
+- [x] 6.1 Provision a dedicated scratch Run402 project for CI smoke-testing; store id as GitHub secret `RUN402_SMOKE_PROJECT_ID` — *Provisioned `kychon-smoke-test` (project_id `prj_1777127682656_0592`, prototype tier, public_id `0fnxkn`); GitHub secret `RUN402_SMOKE_PROJECT_ID` set on `kychee-com/kychon` (verified via `gh secret list`).*
+- [ ] 6.2 Export that project's allowance JSON; store as GitHub secret `RUN402_SMOKE_ALLOWANCE_JSON` **— USER ACTION (private-key handling)**
+- [x] 6.3 Fund the scratch project's wallet with enough USDC to cover ~10 tier renewals at current pricing — *Faucet'd $0.25 sepolia USDC; allowance now holds $0.67 = ~6 prototype renewals at $0.10 each. Smoke-test workflow does not auto-renew (fails fast on expired tier), so a renewal is needed only weekly. One more `run402 allowance fund` click extends headroom to ~9 renewals if desired.*
 - [x] 6.4 Add `deploy-smoke-test` job to `.github/workflows/ci.yml`: writes allowance secret to tmpfile, runs `npx tsx scripts/deploy.ts --dry-run` with `RUN402_PROJECT_ID` pointed at scratch project — *Workflow scaffolded at `.github/workflows/deploy-smoke.yml`, gated by `if: ${{ false }}` until secrets are configured. Flip to enable once 6.1–6.3 are done.*
 - [x] 6.5 Add a pre-step that runs `r.tier.status()` (via a short helper TS) and fails fast with a readable message if the scratch tier is expired
 - [ ] 6.6 Gate merge of this PR on the smoke-test job passing against the new scripts **— gated on 6.1–6.3**
