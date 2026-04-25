@@ -13,7 +13,7 @@
 - [x] 2.3 Collect site files via `r.sites.deployDir` or equivalent helper — preserves current `dist/` walk semantics
 - [x] 2.4 Collect functions from `functions/` with `// schedule:` comment parsing, typed as `BundleFunctionSpec[]`
 - [x] 2.5 Assemble `BundleDeployOptions` with `migrations`, `rls`, `functions`, `files`, `subdomain`, `inherit: true`
-- [x] 2.6 Wrap the `apps.bundleDeploy` call in `try/catch` handling `PaymentRequired`, `ApiError`, and `LocalError` distinctly; emit actionable error messages — *Note: LocalError fell through to abstract `Run402Error` base because SDK 1.43.0 doesn't re-export `LocalError` from public surface; follow-up tracked in section 8.*
+- [x] 2.6 Wrap the `apps.bundleDeploy` call in `try/catch` handling `PaymentRequired`, `ApiError`, and `LocalError` distinctly; emit actionable error messages — *All five branches present (PaymentRequired, Unauthorized, ApiError, NetworkError, LocalError) plus generic Run402Error fallthrough.*
 - [x] 2.7 Add a `--dry-run` flag that assembles the options, logs what would be sent, and exits without an API call (used by CI smoke-test)
 - [x] 2.8 Verify `npx tsx scripts/deploy.ts` against a scratch project produces a working site — *Verified via silver-pines deploy through new wrapper: 30s, all routes 200, deployment_id `dpl_1777126444248_499653`*
 
@@ -67,4 +67,4 @@
 - [x] 8.3 File an issue to load-test a single-shot `apps.bundleDeploy` against ~68MB of real production data; goal is removing the batching loop (supersedes the "batching preserved" spec requirement) — kychee-com/kychon#8
 - [ ] 8.4 Bring up cross-repo migration for `kychon-private/marketing/deploy-marketing.js` with private-repo maintainers **— USER ACTION (cross-team coordination)**
 - [x] 8.5 File an issue to update `openspec/specs/ci-pipeline/spec.md`'s "CI uses Node 20" requirement to "Node 22" to match actual workflow (discovered while writing this change, out of scope) — kychee-com/kychon#9
-- [x] 8.6 *Bonus*: File SDK feature request to re-export `LocalError` from public surface (discovered while writing prettyPrintError) — kychee-com/run402#114
+- [x] 8.6 ~~File SDK feature request to re-export `LocalError` from public surface~~ — kychee-com/run402#114, **closed as not-a-bug** (`LocalError` IS exported from both `@run402/sdk` and `@run402/sdk/node` in 1.43.0; my mistake — diff truncation hid the new side of the export line). Apology comment posted; `scripts/_lib.ts` `prettyPrintError` now has a proper `instanceof sdk.LocalError` branch.
