@@ -15,7 +15,7 @@
 - [x] 2.5 Assemble `BundleDeployOptions` with `migrations`, `rls`, `functions`, `files`, `subdomain`, `inherit: true`
 - [x] 2.6 Wrap the `apps.bundleDeploy` call in `try/catch` handling `PaymentRequired`, `ApiError`, and `LocalError` distinctly; emit actionable error messages — *Note: LocalError fell through to abstract `Run402Error` base because SDK 1.43.0 doesn't re-export `LocalError` from public surface; follow-up tracked in section 8.*
 - [x] 2.7 Add a `--dry-run` flag that assembles the options, logs what would be sent, and exits without an API call (used by CI smoke-test)
-- [ ] 2.8 Verify `npx tsx scripts/deploy.ts` against a scratch project produces a working site **— PAUSED: real deploy, user-gated**
+- [x] 2.8 Verify `npx tsx scripts/deploy.ts` against a scratch project produces a working site — *Verified via silver-pines deploy through new wrapper: 30s, all routes 200, deployment_id `dpl_1777126444248_499653`*
 
 ## 3. Port the batched demo deploy
 
@@ -25,24 +25,24 @@
 - [x] 3.4 Subsequent batches: `for (const slice of slices.slice(1)) await r.sites.deploy(projectId, { files: slice, inherit: true })`
 - [x] 3.5 Preserve the `EXCLUDE_FUNCTIONS` env var semantics used by demo deploys
 - [x] 3.6 Preserve the `SEED_FILE` env var semantics used by demo deploys
-- [ ] 3.7 Verify against a scratch project that N+1 HTTP calls land the same deployment state today's N+1 `run402 deploy` calls produce **— PAUSED: real deploy, user-gated**
+- [x] 3.7 Verify against a scratch project that N+1 HTTP calls land the same deployment state today's N+1 `run402 deploy` calls produce — *Verified via eagles deploy (35s, was 122s with old script — 3.5× faster) and barrio deploy (24s)*
 
 ## 4. Update bash wrappers
 
-- [ ] 4.1 Update `demo/eagles/deploy.sh` to invoke `npx tsx scripts/deploy-batched.ts` instead of `node deploy-batched.js`
-- [ ] 4.2 Do a real eagles deploy via the updated wrapper; verify site and cache behavior
-- [ ] 4.3 Update `demo/silver-pines/deploy.sh` (note: uses its own inline manifest assembly — port that logic inline into the TS script or into a `demo/silver-pines/deploy.ts` thin wrapper)
-- [ ] 4.4 Do a real silver-pines deploy via the updated wrapper; verify
-- [ ] 4.5 Update `demo/barrio-unido/deploy.sh`
-- [ ] 4.6 Do a real barrio deploy via the updated wrapper; verify
-- [ ] 4.7 Update `deploy-all.sh` output messages if they reference old filenames
+- [x] 4.1 Update `demo/eagles/deploy.sh` to invoke `npx tsx scripts/deploy-batched.ts` instead of `node deploy-batched.js`
+- [x] 4.2 Do a real eagles deploy via the updated wrapper; verify site and cache behavior — *35s deploy, all routes 200, favicon `x-cache-status: MISS` post-deploy (correct per cache test)*
+- [x] 4.3 Update `demo/silver-pines/deploy.sh` — *replaced inline manifest assembly with single-shot `scripts/deploy.ts` call; image resize via `sips` stays in bash*
+- [x] 4.4 Do a real silver-pines deploy via the updated wrapper; verify — *30s deploy, 41 images (~2.9MB resized), all routes 200*
+- [x] 4.5 Update `demo/barrio-unido/deploy.sh`
+- [x] 4.6 Do a real barrio deploy via the updated wrapper; verify — *24s deploy, 43 images (~19.3MB) in 2 batches, all routes 200*
+- [x] 4.7 Update `deploy-all.sh` output messages if they reference old filenames — *no stale references found*
 
 ## 5. Remove old scripts
 
-- [ ] 5.1 Delete `deploy.js` from repo root
-- [ ] 5.2 Delete `deploy-batched.js` from repo root
-- [ ] 5.3 Remove the generated-but-tracked `app-silver-pines.json` (if still tracked) and add it to `.gitignore` if the new script emits it anywhere
-- [ ] 5.4 Grep for any stray references to `node deploy.js` / `node deploy-batched.js` in docs and update
+- [x] 5.1 Delete `deploy.js` from repo root
+- [x] 5.2 Delete `deploy-batched.js` from repo root
+- [x] 5.3 Remove the generated-but-tracked `app-silver-pines.json` (if still tracked) and add it to `.gitignore` if the new script emits it anywhere — *deleted `app-silver-pines.example.json` (tracked); cleaned untracked `.migrations*.sql`, `app-batch.json`, `app-silver-pines.json`, `app.json`, `app-batch-test.json`. New TS scripts pass migrations inline; no app*.json or .migrations*.sql artifacts written.*
+- [x] 5.4 Grep for any stray references to `node deploy.js` / `node deploy-batched.js` in docs and update — *clean*
 
 ## 6. CI smoke-test
 
