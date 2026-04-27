@@ -1,9 +1,8 @@
 #!/bin/bash
 # Deploy Silver Pines demo to Run402.
 #
-# Resizes the demo's source images via `sips` (web-optimized JPEGs/PNG),
-# copies them into public/assets/ for the Astro build to pick up, then
-# delegates the actual Run402 deploy to scripts/deploy.ts.
+# Copies the demo's source images into public/assets/ at full resolution,
+# then delegates the actual Run402 deploy to scripts/deploy.ts.
 #
 # Usage: bash demo/silver-pines/deploy.sh
 set -e
@@ -12,6 +11,7 @@ PROJECT_ID="${SILVER_PINES_PROJECT_ID:?Set SILVER_PINES_PROJECT_ID env var}"
 SUBDOMAIN="silver-pines"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ASSETS_SRC="$SCRIPT_DIR/assets"
 ASSETS_DST="$ROOT/public/assets"
 
 echo "=== Silver Pines Demo Deploy ==="
@@ -20,25 +20,12 @@ echo "=== Silver Pines Demo Deploy ==="
 # doesn't leave the working tree dirty.
 trap '[ -d "$ASSETS_DST" ] && rm -rf "$ASSETS_DST"' EXIT
 
-# 1. Resize images to web-friendly sizes directly into public/assets/.
-echo "Resizing images into public/assets/..."
-mkdir -p "$ASSETS_DST"
-for f in "$SCRIPT_DIR/assets"/avatar-*.jpg; do
-  [ -f "$f" ] && sips -Z 256 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-done
-for f in "$SCRIPT_DIR/assets"/event-*.jpg; do
-  [ -f "$f" ] && sips -Z 800 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-done
-for f in "$SCRIPT_DIR/assets"/committee-*.jpg; do
-  [ -f "$f" ] && sips -Z 800 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-done
-for f in "$SCRIPT_DIR/assets"/hero.jpg; do
-  [ -f "$f" ] && sips -Z 1200 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-done
-for f in "$SCRIPT_DIR/assets"/logo.png; do
-  [ -f "$f" ] && sips -Z 256 "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-done
-echo "  $(ls "$ASSETS_DST" | wc -l | tr -d ' ') images ($(du -sh "$ASSETS_DST" | cut -f1) web-optimized)"
+# 1. Copy demo assets into public/assets/ at full resolution.
+if [ -d "$ASSETS_SRC" ]; then
+  echo "Copying demo assets into public/assets..."
+  mkdir -p "$ASSETS_DST"
+  cp "$ASSETS_SRC"/* "$ASSETS_DST/"
+fi
 
 # 2. Run the deploy via scripts/deploy.ts.
 #    - SEED_FILE points at the silver-pines seed (concatenated with schema.sql)
