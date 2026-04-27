@@ -19,21 +19,9 @@ ASSETS_DST="$ROOT/public/assets"
 trap '[ -d "$ASSETS_DST" ] && rm -rf "$ASSETS_DST"' EXIT
 
 if [ -d "$ASSETS_SRC" ]; then
-  echo "Resizing demo assets into public/assets..."
+  echo "Copying demo assets into public/assets..."
   mkdir -p "$ASSETS_DST"
-  for f in "$ASSETS_SRC"/avatar-*.jpg; do
-    [ -f "$f" ] && sips -Z 256 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-  done
-  for f in "$ASSETS_SRC"/event-*.jpg "$ASSETS_SRC"/committee-*.jpg; do
-    [ -f "$f" ] && sips -Z 800 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-  done
-  for f in "$ASSETS_SRC"/hero.jpg "$ASSETS_SRC"/about-hero.jpg "$ASSETS_SRC"/volunteer-hero.jpg; do
-    [ -f "$f" ] && sips -Z 1200 -s formatOptions 70 -s format jpeg "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-  done
-  for f in "$ASSETS_SRC"/logo.png; do
-    [ -f "$f" ] && sips -Z 256 "$f" --out "$ASSETS_DST/$(basename "$f")" >/dev/null 2>&1
-  done
-  echo "  $(ls "$ASSETS_DST" | wc -l | tr -d ' ') images ($(du -sh "$ASSETS_DST" | cut -f1) web-optimized)"
+  cp "$ASSETS_SRC"/* "$ASSETS_DST/"
 fi
 
 # Deploy site + images + seed (scripts/deploy.ts runs astro build + collects from dist/)
