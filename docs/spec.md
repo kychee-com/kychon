@@ -861,9 +861,9 @@ Option B is the cleanest platform improvement. Option C is the workaround.
 
 **What would help:** Documented pattern or helper for full-text search. Not a platform gap per se — we can add `tsvector` columns ourselves.
 
-### Gap 4: 10MB File Upload Limit — IMPACT: LOW (v1)
+### Gap 4: ~~10MB File Upload Limit~~ — RESOLVED (SDK 1.44.0)
 
-Fine for photos, PDFs, documents. Limits video and large presentations. Not blocking for v1 but worth noting for photographer/course portal variants.
+The bundle-deploy endpoint now accepts ~50MB+ payloads in a single shot, which removed the deploy-side batching workaround. Per-blob limits for runtime user uploads are governed by the platform default — fine for photos/PDFs, may still constrain large video/presentations for photographer/course portal variants.
 
 ### Gap 5: No Batch REST Operations — IMPACT: LOW
 
