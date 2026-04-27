@@ -54,22 +54,22 @@ New Node scripts or modules under `scripts/` (or elsewhere in this repo) that in
 
 ### Requirement: @run402/sdk version is exact-pinned
 
-The `devDependencies` entry for `@run402/sdk` SHALL use an exact-version specifier (e.g. `"=1.43.0"`) rather than caret (`^`) or tilde (`~`). Bumping the pinned version SHALL be a deliberate code change reviewed on its own.
+The `devDependencies` entry for `@run402/sdk` SHALL use an exact-version specifier (e.g. `"1.44.0"`) rather than caret (`^`) or tilde (`~`). Bumping the pinned version SHALL be a deliberate code change reviewed on its own.
 
 #### Scenario: Caret/tilde specifiers rejected
 - **WHEN** a PR changes `@run402/sdk` in `package.json` to `^x.y.z` or `~x.y.z`
 - **THEN** CI or a reviewer flags the change and the PR is updated to an exact-version pin
 
-### Requirement: Deploy batching is preserved pending single-shot verification
+### Requirement: Deploy is single-shot via apps.bundleDeploy
 
-The deploy script SHALL continue to batch large file payloads across multiple SDK calls (one `apps.bundleDeploy` call for non-file metadata plus the first file slice, then one `sites.deploy` call per remaining slice with `inherit: true`). This requirement SHALL be superseded by a follow-up change once a single-shot `apps.bundleDeploy` against a production-sized (~68MB) payload is demonstrated to complete reliably.
+The deploy script SHALL ship the entire bundle (migrations, RLS, functions, files, subdomain) in a single `apps.bundleDeploy()` call. No batching loop, no `sites.deploy()` follow-ups. This supersedes the earlier "batching preserved" requirement now that `@run402/sdk@1.44.0` removed the legacy `sites.deploy()` inline-bytes path (gateway returns 410 Gone) and `apps.bundleDeploy` accepts production-sized payloads (~50MB+) reliably.
 
-#### Scenario: Large payload is split across batches
-- **WHEN** the total site-file payload exceeds a configured per-batch size threshold
-- **THEN** the script splits the files into N slices
-- **THEN** it calls `apps.bundleDeploy` with the first slice plus migrations/rls/secrets/functions, followed by N-1 `sites.deploy` calls with `inherit: true` for the remaining slices
+#### Scenario: Single SDK call covers everything
+- **WHEN** `npx tsx scripts/deploy.ts` runs against any project (production or demo)
+- **THEN** the script issues exactly one `apps.bundleDeploy` HTTP call
+- **THEN** that call carries the full migrations text, RLS template + tables, every function, every file, and the subdomain
+- **THEN** no `sites.deploy()` follow-up is issued
 
-#### Scenario: Batching loop is removable by contract
-- **WHEN** a maintainer wants to remove the batching loop
-- **THEN** a single grep for the batching helper function locates all call sites
-- **THEN** the code comment on the batching helper references the supersession contract so removal is a mechanical change
+#### Scenario: Demo deploys reuse the same entry point
+- **WHEN** a demo wrapper (`demo/eagles/deploy.sh`, `demo/barrio-unido/deploy.sh`, `demo/silver-pines/deploy.sh`) runs the deploy step
+- **THEN** it invokes `npx tsx scripts/deploy.ts` (with `SUBDOMAIN`, `SEED_FILE`, `EXCLUDE_FUNCTIONS` env vars), not a separate batched script

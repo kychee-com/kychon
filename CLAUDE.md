@@ -64,8 +64,7 @@ Users store `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as project secrets. Schedule
 kychon/
 ├── astro.config.mjs       # Astro config: SSG, build.format: 'file', i18n
 ├── scripts/
-│   ├── deploy.ts          # Single-project deploy via @run402/sdk/node
-│   ├── deploy-batched.ts  # Batched deploy for demo sites (large image payloads)
+│   ├── deploy.ts          # Single-shot deploy via @run402/sdk/node (production + demos)
 │   └── _lib.ts            # Shared deploy helpers
 ├── schema.sql             # All tables (idempotent)
 ├── seed.sql               # Default config + sample data
@@ -110,6 +109,6 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 
 - **~~No webhooks~~** (FIXED): Run402 now has lifecycle hooks. A deployed function named `on-signup` is automatically invoked after first signup with `{ user: { id, email, created_at } }` payload.
 - **No batch REST operations**: Approving 12 members = 12 PATCH requests. Workaround: use an edge function with `db.sql()` for bulk updates.
-- **10MB file upload limit**: Fine for photos/PDFs, limits large video/presentations.
+- **~~10MB file upload limit~~** (RAISED): As of `@run402/sdk@1.44.0` the bundle-deploy endpoint accepts ~50MB+ payloads in a single shot, so the deploy batching workaround is gone. Per-blob upload limits for runtime user uploads (photos/videos) are unchanged from the platform default — check `run402-feedback.md` if you hit one.
 
 See `docs/run402-feedback.md` for the full list (14 items) with suggestions.
