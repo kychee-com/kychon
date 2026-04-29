@@ -64,8 +64,11 @@ Users store `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as project secrets. Schedule
 kychon/
 ├── astro.config.mjs       # Astro config: SSG, build.format: 'file', i18n
 ├── scripts/
-│   ├── deploy.ts          # Single-shot deploy via @run402/sdk/node (production + demos)
-│   └── _lib.ts            # Shared deploy helpers
+│   ├── deploy.ts          # Production deploy entry (kychon.run402.com)
+│   ├── deploy-demo.ts     # Per-demo orchestrator (asset copy + deploy + bootstrap)
+│   ├── deploy-all.ts      # Multi-demo dispatcher (called by deploy-all.sh)
+│   ├── bootstrap-demo.ts  # Demo account setup (signup, on-signup, role-set)
+│   └── _lib.ts            # Shared: runDeploy(), file collection, error formatting
 ├── schema.sql             # All tables (idempotent)
 ├── seed.sql               # Default config + sample data
 ├── src/
@@ -93,6 +96,7 @@ kychon/
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
 - **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. The `@run402/sdk` devDep is exact-pinned because the SDK is <1 month old and has shipped breaking minor bumps. See `openspec/changes/deploy-sdk-migration/` for the migration record.
+  - **Local-only**: this machine's `npm` config has a `before=` cutoff that filters out recently-published packages. Bumping the SDK to a release published after the cutoff requires `npm install --before=null @run402/sdk@<version>` (or temporarily `npm config delete before`). Not a Run402 issue — a personal sandbox knob.
 
 ## Build Phases
 
@@ -109,6 +113,4 @@ Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose
 
 - **~~No webhooks~~** (FIXED): Run402 now has lifecycle hooks. A deployed function named `on-signup` is automatically invoked after first signup with `{ user: { id, email, created_at } }` payload.
 - **No batch REST operations**: Approving 12 members = 12 PATCH requests. Workaround: use an edge function with `db.sql()` for bulk updates.
-- **~~10MB file upload limit~~** (RAISED): As of `@run402/sdk@1.44.0` the bundle-deploy endpoint accepts ~50MB+ payloads in a single shot, so the deploy batching workaround is gone. Per-blob upload limits for runtime user uploads (photos/videos) are unchanged from the platform default — check `run402-feedback.md` if you hit one.
-
-See `docs/run402-feedback.md` for the full list (14 items) with suggestions.
+- **~~10MB file upload limit~~** (RAISED): As of `@run402/sdk@1.44.0` the bundle-deploy endpoint accepts ~50MB+ payloads in a single shot, so the deploy batching workaround is gone. The 1.50.x switch to `r.deploy.apply()` (CAS streaming) lifts that ceiling further — bytes are uploaded only for SHAs the gateway hasn't seen. Per-blob upload limits for runtime user uploads (photos/videos) are unchanged from the platform default.

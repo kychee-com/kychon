@@ -24,7 +24,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
     "@biomejs/biome": "^2.4.10",
-    "@run402/sdk": "1.44.0",
+    "@run402/sdk": "1.50.1",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^3.1.1",
     "astro": "^6.1.3",
