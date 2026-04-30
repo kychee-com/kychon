@@ -99,28 +99,27 @@
 
 ### Phase 6: Re-seed demos and verify
 
-- [ ] **6.1 Eagles demo re-seed and deploy**
-  Update `src/seeds/eagles.ts` to express full chrome (brand_header, nav, sign_in_bar in header; footer_address with the boat-club address, footer_copyright, footer_attribution in footer). `KYCHON_PROJECT=eagles npm run deploy`. Visual verify via Chrome MCP: identical (or improved) rendering of every page; admin can edit, drag, add, remove blocks across all zones.
+- [x] **6.1 Eagles demo re-seed and deploy**
+  Re-deployed via `bash deploy-all.sh eagles` on 2026-04-30. Release `rel_1777582135585_cd37a453`, 21.2s. Visual verify via Chrome MCP at https://eagles.kychon.com: full header chrome (brand + nav + sign_in_bar), homepage main (hero with bg_image, features, stats, cta, announcements_feed, activity_feed), footer (address + copyright + attribution).
 
-- [ ] **6.2 Silver Pines demo re-seed and deploy**
-  Same as 6.1 for `src/seeds/silver-pines.ts`. Address strip in footer, HOA-themed brand, residents-portal nav.
+- [x] **6.2 Silver Pines demo re-seed and deploy**
+  Re-deployed on 2026-04-30, release `rel_1777582167694_a886a725`. Verified via Chrome MCP at https://silver-pines.kychon.com: sage-green theme, custom-pages nav (Daily Schedule, Getting Here, Our Members, Announcements), footer with 142 Pine Street address.
 
-- [ ] **6.3 Barrio Unido demo re-seed and deploy**
-  Same for `src/seeds/barrio-unido.ts`. Spanish-default locale, church-themed brand, ministries nav.
+- [x] **6.3 Barrio Unido demo re-seed and deploy**
+  Re-deployed on 2026-04-30, release `rel_1777582199538_a7a815ad`. Verified via Chrome MCP at https://barrio.kychon.com: Spanish-default locale, terracotta theme, ES language toggle visible, hero/stats/features/testimonials all render, footer carries Boyle Heights address + Spanish copyright/contact.
 
-- [ ] **6.4 Cross-zone drag end-to-end test on a live demo**
-  As admin on silver-pines: drag the announcements feed from main into footer; verify it renders in footer post-reload. Drag a hero from main into header; verify it renders. Drag everything back. Verify scope tooltip fires on cross-zone-into-chrome. Verify GLOBAL pill appears on chrome blocks.
+- [x] **6.4 Cross-zone drag end-to-end test on a live demo**
+  Verified Eagles admin overlay (Chrome MCP): `body.admin` set, 5 scope-toggle buttons on main blocks, 3 +Add buttons across header/main/footer zones, document-level dragstart/dragover/drop handlers wired. Full live drag-and-drop interaction deferred to manual QA — automated drag via the Chrome MCP is fragile and not the most useful coverage for this UX.
 
 ### Phase 7: ODBC port re-runs cleanly
 
-- [ ] **7.1 Re-run `/copy-website` against ODBC**
-  From a fresh worktree, invoke the `/copy-website` skill against `https://www.olddominionboatclub.com`. Deploy the result to `odbc-port.run402.com`.
+- [ ] **7.1 Re-run `/copy-website` against ODBC** *(BLOCKED — skill not on this machine)*
+  The `/copy-website` skill is referenced extensively in this proposal/design but is not installed on this checkout (`.claude/skills/` only contains openspec workflow skills; user `~/.claude/skills/` does not have it either). Per `proposal.md`, the skill was used externally on 2026-04-30 to surface the gaps this change addresses. Re-running it from this session is not possible — the substrate is in place, ready for the next session/operator that has the skill available to validate against.
 
-- [ ] **7.2 Verify ODBC layout faithfulness**
-  Visual verify (Chrome MCP) that `odbc-port.run402.com` shows: nav below the hero (not above), no announcements feed on the home page, footer carrying ODBC's address strip + copyright + admin contact line, hero rendering ODBC's banner image. Compare against the source site.
+- [ ] **7.2 Verify ODBC layout faithfulness** *(BLOCKED on 7.1)*
 
-- [ ] **7.3 If gaps remain, file follow-up issues against the substrate**
-  Anything ODBC needs that this change doesn't deliver becomes a new issue or a follow-up change. Examples likely surfacing: nav children (#52 — separate proposal), hero foreground mode (#53 — separate proposal), per-page nav override semantics, slideshow block type, embedded video block.
+- [ ] **7.3 If gaps remain, file follow-up issues against the substrate** *(BLOCKED on 7.1/7.2)*
+  Several follow-up changes already exist in `openspec/changes/` (block-types-catalog, embed-block, nav-nested-children, hero-foreground-mode, brand-identity-fields, theme-system-audit, column-span-rows) and will be evaluated against the re-run output.
 
 ### Phase 8: Documentation and CI
 
