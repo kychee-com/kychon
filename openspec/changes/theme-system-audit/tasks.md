@@ -51,16 +51,19 @@
 ### Phase 4: Demo theme updates
 
 - [x] **4.1 Eagles**
-  `src/seeds/eagles.ts` — `font_heading: 'Cormorant Garamond'`, `font_body: 'Inter'`. Build emits `family=Cormorant+Garamond:wght@400;700&family=Inter:wght@400;600&display=swap`.
+  `src/seeds/eagles.ts` + `demo/eagles/seed.sql` — `font_heading: 'Cormorant Garamond'`, `font_body: 'Inter'`. Build emits `family=Cormorant+Garamond:wght@400;700&family=Inter:wght@400;600&display=swap`. Live at https://eagles.kychon.com.
 
 - [x] **4.2 Silver Pines**
-  `src/seeds/silver-pines.ts` — `font_heading: 'Bitter'`, `font_body: 'IBM Plex Sans'`. Build emits `family=Bitter:wght@400;700&family=IBM+Plex+Sans:wght@400;600&display=swap`.
+  `src/seeds/silver-pines.ts` + `demo/silver-pines/seed.sql` — `font_heading: 'Bitter'`, `font_body: 'IBM Plex Sans'`. Build emits `family=Bitter:wght@400;700&family=IBM+Plex+Sans:wght@400;600&display=swap`. Live at https://silver-pines.kychon.com.
 
 - [x] **4.3 Barrio Unido**
-  `src/seeds/barrio-unido.ts` — `font_heading: 'Merriweather'`, `font_body: 'Noto Sans'`. Build emits `family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;600&display=swap`. Multi-language verification (Spanish diacritics) handled live in Phase 5.
+  `src/seeds/barrio-unido.ts` + `demo/barrio-unido/seed.sql` — `font_heading: 'Merriweather'`, `font_body: 'Noto Sans'`. Build emits `family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;600&display=swap`. Spanish diacritics render correctly. Live at https://barrio.kychon.com.
 
 - [x] **4.4 Kychon template default**
   `src/seeds/kychon.ts` — already `font_heading: 'Inter'`, `font_body: 'Inter'`. Build emits the deduplicated `family=Inter:wght@400;700&display=swap` (single family, exercising the dedupe path).
+
+- [x] **4.5 Generator change: theme is seed-owned**
+  `scripts/generate-seed-sql.ts` previously emitted `ON CONFLICT (key) DO NOTHING` for every site_config row, so a once-seeded project never tracked upstream theme changes. Generator now splits site_config into "preserve admin edits" rows (`DO NOTHING`) and "seed-owned" rows (`DO UPDATE` — currently just `theme`), so typed-seed font/radius/color changes flow on redeploy. Each `demo/<name>/seed.sql` + regenerated `reset-demo.js` mirrors the same split for the hourly reset.
 
 ### Phase 5: ODBC port re-validation
 
