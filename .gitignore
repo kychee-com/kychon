@@ -7,7 +7,6 @@ app.json
 app-*.json
 !app-*.example.json
 !app.example.json
-demo/*/assets/
 public/js/env.js
 dist/
 .astro/
