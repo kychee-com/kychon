@@ -12,7 +12,7 @@ html {
 }
 
 body {
-  font-family: var(--font-body);
+  font-family: var(--font-body), system-ui, sans-serif;
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.6;
@@ -23,8 +23,10 @@ body {
 h1,
 h2,
 h3,
-h4 {
-  font-family: var(--font-heading);
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading), system-ui, sans-serif;
   line-height: 1.2;
 }
 h1 {
@@ -322,6 +324,17 @@ a:hover {
 .badge-danger {
   background: rgba(239, 68, 68, 0.1);
   color: var(--color-danger);
+}
+.badge-accent {
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--color-bg));
+  color: var(--color-text);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+mark {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 0.15em;
 }
 
 /* Member cards */

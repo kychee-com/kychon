@@ -3,6 +3,7 @@ import { z } from 'astro/zod';
 export const ThemeSchema = z.object({
   primary: z.string().optional(),
   primary_hover: z.string().optional(),
+  accent: z.string().optional(),
   bg: z.string().optional(),
   surface: z.string().optional(),
   text: z.string().optional(),

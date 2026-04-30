@@ -103,7 +103,7 @@ kychon/
 - **Predictable naming**: `src/pages/{feature}.astro`, `src/components/{Name}.astro`, `src/lib/{module}.ts`
 - **Island hydration**: `client:load` (immediate), `client:visible` (on scroll), `client:idle` (after page settles)
 - **Feature flags, not plugins** - all features ship, toggle with booleans in `site_config`
-- **CSS variables for theming** - ConfigProvider reads `theme` from DB and sets custom properties at runtime
+- **CSS variables for theming** - ConfigProvider reads `theme` from DB and sets custom properties at runtime; every theme key has a downstream consumer in `public/css/`. Non-system fonts named in `theme.font_heading` / `theme.font_body` are auto-loaded via Google Fonts at build time (see [THEME.md](THEME.md))
 - **Astro build step** - `astro build` outputs static HTML/JS/CSS to `dist/`, deployed to Run402
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
