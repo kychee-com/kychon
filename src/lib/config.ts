@@ -1,8 +1,11 @@
-// config.ts — Loads site_config, injects theme, builds nav, manages feature flags
+// config.ts — Loads site_config, injects theme, manages feature flags.
+// composable-layout: nav and sign-in rendering moved to block renderers
+// (src/lib/blocks.ts) and per-block hydrators (src/lib/block-hydrators.ts).
+// This module no longer touches #nav-links / #nav-user.
 
 import { get } from './api';
-import { getRole, getSession } from './auth';
-import { getAvailableLocales, getLocale, loadLocale, setAvailableLocales, setLanguage, t } from './i18n';
+import { getSession } from './auth';
+import { loadLocale, setAvailableLocales, t } from './i18n';
 
 // --- Cache layer (stale-while-revalidate) ---
 const WL_CACHE_CONFIG = 'wl_cache_site_config';
@@ -64,11 +67,7 @@ export function cacheHeroImage(url: string): void {
 // --- Config state ---
 const siteConfig: Record<string, any> = {};
 const features: Record<string, boolean> = {};
-let lastNavSignature = '';
-let lastUserNavSignature = '';
 
-// Resolves after the first init() completes so page scripts can wait for
-// siteConfig + session.user.member to be populated before auth gates run.
 let resolveReady: () => void;
 export const ready: Promise<void> = new Promise((r) => {
   resolveReady = r;
@@ -186,163 +185,14 @@ export function applyTheme(theme: Record<string, string> | null): void {
 }
 
 // --- Branding ---
+// Only updates document.title and favicon — the visible brand row in the header
+// is owned by the `brand_header` block.
 export function applyBranding(config: Record<string, any>): void {
   const name = config.site_name || 'Kychon';
   document.title = getBrandedTitle(document.title, name);
 
-  const brandEl = document.querySelector('.nav-brand-text');
-  if (brandEl && brandEl.textContent !== name) brandEl.textContent = name;
-
-  const logoEl = document.querySelector('.nav-brand img') as HTMLImageElement | null;
-  if (logoEl && config.logo_url) {
-    if (logoEl.getAttribute('src') !== config.logo_url) {
-      logoEl.src = config.logo_url;
-    }
-    logoEl.alt = name;
-    logoEl.style.display = '';
-  } else if (logoEl && !config.logo_url) {
-    logoEl.removeAttribute('src');
-    logoEl.alt = '';
-    logoEl.style.display = 'none';
-  }
-
   const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
   if (favicon && config.favicon_url) favicon.href = config.favicon_url;
-}
-
-// --- Navigation ---
-const NAV_LABEL_KEYS: Record<string, string> = {
-  Home: 'nav.home', Inicio: 'nav.home',
-  Members: 'nav.members', Miembros: 'nav.members', Residents: 'nav.members',
-  Events: 'nav.events', Eventos: 'nav.events',
-  Resources: 'nav.resources', Recursos: 'nav.resources', Sermons: 'nav.resources', Documents: 'nav.resources',
-  Forum: 'nav.forum', Foro: 'nav.forum',
-  Dashboard: 'nav.dashboard', Panel: 'nav.dashboard',
-  Settings: 'nav.settings', 'Configuración': 'nav.settings',
-  Profile: 'nav.profile', Perfil: 'nav.profile',
-  'About Us': 'nav.about', Nosotros: 'nav.about',
-  Committees: 'nav.committees', Programas: 'nav.committees', Ministries: 'nav.committees',
-};
-
-export function buildNav(navItems: any[]): void {
-  const navEl = document.getElementById('nav-links');
-  if (!navEl || !navItems) return;
-
-  const session = getSession();
-  const role = getRole();
-
-  const visibleItems = [];
-  for (const item of navItems) {
-    if (item.feature && !isFeatureEnabled(item.feature)) continue;
-    if (item.auth && !session) continue;
-    if (item.admin && role !== 'admin') continue;
-
-    const labelKey = NAV_LABEL_KEYS[item.label];
-    visibleItems.push({
-      ...item,
-      renderedLabel: labelKey ? t(labelKey) : item.label,
-    });
-  }
-
-  const signature = JSON.stringify(
-    visibleItems.map((item: any) => ({ href: getRouteKey(item.href), label: item.renderedLabel })),
-  );
-
-  if (signature === lastNavSignature && navEl.children.length === visibleItems.length) {
-    navEl.querySelectorAll<HTMLAnchorElement>('a.nav-link').forEach((link) => {
-      link.classList.toggle('active', isNavItemActive(link.href));
-    });
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
-  for (const item of visibleItems) {
-    const a = document.createElement('a');
-    a.className = `nav-link${isNavItemActive(item.href) ? ' active' : ''}`;
-    a.href = item.href;
-    a.textContent = item.renderedLabel;
-    fragment.appendChild(a);
-  }
-  navEl.replaceChildren(fragment);
-  lastNavSignature = signature;
-}
-
-// --- User nav ---
-const LANG_LABELS: Record<string, string> = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR', de: 'DE', zh: '中文', ja: '日本語', ko: '한국어' };
-
-export function buildUserNav(): void {
-  const userEl = document.getElementById('nav-user');
-  if (!userEl) return;
-
-  const session = getSession();
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const locales = getAvailableLocales();
-  const currentLocale = getLocale();
-
-  const langBtn = locales.length >= 2
-    ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
-    : '';
-  const themeBtn = `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}</button>`;
-  const signature = JSON.stringify({
-    isDark,
-    currentLocale,
-    locales,
-    isAuthenticated: !!session,
-    avatar: session?.user?.avatar_url || '',
-    displayName: session?.user?.display_name || '',
-    email: session?.user?.email || '',
-  });
-
-  if (signature === lastUserNavSignature && userEl.childElementCount > 0) {
-    userEl.querySelector<HTMLAnchorElement>('a[href="/profile.html"]')?.classList.toggle('active', isNavItemActive('/profile.html'));
-    return;
-  }
-
-  if (!session) {
-    userEl.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
-  } else {
-    const user = session.user || {};
-    const avatar = user.avatar_url
-      ? `<img class="nav-avatar" src="${user.avatar_url}" alt="" width="32" height="32">`
-      : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
-    const profileActive = isNavItemActive('/profile.html') ? ' active' : '';
-    userEl.innerHTML = `${langBtn}${themeBtn}<a href="/profile.html" class="nav-link${profileActive}">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
-  }
-
-  lastUserNavSignature = signature;
-
-  document.getElementById('login-btn')?.addEventListener('click', () => {
-    const modal = document.getElementById('auth-modal');
-    modal?.classList.remove('hidden');
-  });
-  document.getElementById('logout-btn')?.addEventListener('click', () => {
-    localStorage.removeItem('wl_session');
-    window.location.href = '/';
-  });
-  document.getElementById('theme-toggle')?.addEventListener('click', () => {
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const next = dark ? 'light' : 'dark';
-    if (next === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-    localStorage.setItem('wl_theme', next);
-    const btn = document.getElementById('theme-toggle');
-    if (btn) btn.textContent = next === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
-  });
-  if (locales.length >= 2) {
-    document.getElementById('lang-toggle')?.addEventListener('click', async () => {
-      const idx = locales.indexOf(currentLocale);
-      const next = locales[(idx + 1) % locales.length];
-      await setLanguage(next);
-      // Re-render nav with new translations instead of full reload
-      buildNav(siteConfig.nav);
-      buildUserNav();
-      // Dispatch event so page scripts can re-render their content
-      document.dispatchEvent(new CustomEvent('wl-locale-changed', { detail: { locale: next } }));
-    });
-  }
 }
 
 // --- Member record ---
@@ -367,7 +217,8 @@ async function loadMemberRecord(): Promise<void> {
           writeCache(cacheKey, members[0]);
           if (JSON.stringify(members[0]) !== JSON.stringify(cached)) {
             applyMemberToSession(members[0]);
-            buildUserNav();
+            // Page-render hydration will refresh the sign_in_bar block.
+            document.dispatchEvent(new CustomEvent('wl-auth-changed'));
           }
         }
       }).catch(() => {});
@@ -415,11 +266,6 @@ export async function init(): Promise<Record<string, any>> {
   const isAdminPage = ADMIN_PATHS.includes(window.location.pathname);
   const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG) : null;
 
-  // NOTE: preloadHeroImage() used to run here, but it only helps the index page
-  // (the only route that renders a hero section). Firing it on every page created
-  // "resource preloaded but not used" console warnings on resources/directory/etc.
-  // Call preloadHeroImage() from index.astro directly when the hero section exists.
-
   if (cached) {
     for (const key of Object.keys(siteConfig)) delete siteConfig[key];
     for (const key of Object.keys(features)) delete features[key];
@@ -432,9 +278,6 @@ export async function init(): Promise<Record<string, any>> {
 
     await loadMemberRecord();
 
-    buildNav(siteConfig.nav);
-    buildUserNav();
-
     if (!isFresh(WL_CACHE_CONFIG, CONFIG_TTL)) {
       get('site_config').then((rows: any[]) => {
         writeCache(WL_CACHE_CONFIG, rows);
@@ -444,8 +287,8 @@ export async function init(): Promise<Record<string, any>> {
           populateConfigFromRows(rows);
           applyTheme(siteConfig.theme);
           applyBranding(siteConfig);
-          buildNav(siteConfig.nav);
-          buildUserNav();
+          // Notify page-render so chrome blocks can re-hydrate from fresh config.
+          document.dispatchEvent(new CustomEvent('wl-config-changed'));
         }
       }).catch(() => {});
     }
@@ -467,9 +310,6 @@ export async function init(): Promise<Record<string, any>> {
     await loadLocale(null, siteConfig.default_language);
 
     await loadMemberRecord();
-
-    buildNav(siteConfig.nav);
-    buildUserNav();
   }
 
   const navToggle = document.getElementById('nav-toggle');

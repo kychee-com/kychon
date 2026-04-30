@@ -515,3 +515,97 @@
 @keyframes admin-toast-out {
   to { opacity: 0; transform: translateY(8px); }
 }
+
+/* composable-layout: cross-zone drag affordances --- */
+
+/* Empty-zone "drop here" placeholder appears only while admin is dragging. */
+body.admin-dragging [data-zone] .container:empty::before,
+body.admin-dragging #zone-header > .container:empty::before,
+body.admin-dragging #zone-footer > .container:empty::before,
+body.admin-dragging #sections:empty::before {
+  content: 'Drop a block here';
+  display: block;
+  padding: 1.5rem;
+  border: 2px dashed var(--color-border, #d1d5db);
+  border-radius: var(--radius, 0.5rem);
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+  margin: 0.5rem 0;
+}
+
+/* Highlight zones during drag for clarity. */
+body.admin-dragging [data-zone] {
+  outline: 1px dashed transparent;
+  transition: outline-color 120ms ease;
+}
+body.admin-dragging [data-zone]:hover {
+  outline-color: var(--color-primary, #6366f1);
+}
+
+/* Promotion tooltip (cross-zone-into-chrome). */
+.admin-promotion-tooltip {
+  z-index: 1100;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius, 0.5rem);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  animation: admin-toast-in 180ms ease;
+}
+.admin-promotion-tooltip .admin-tooltip-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--color-text-muted, #6b7280);
+  padding: 0 0.25rem;
+}
+
+/* Add-section button in each zone. */
+.admin-zone-add-btn {
+  display: none;
+  margin: 0.5rem auto;
+  padding: 0.4rem 0.9rem;
+  border: 1px dashed var(--color-border, #d1d5db);
+  border-radius: var(--radius, 0.5rem);
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+body.admin .admin-zone-add-btn {
+  display: inline-flex;
+}
+.admin-zone-add-btn:hover {
+  border-color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #6366f1);
+}
+
+/* Scope pill on chrome blocks (visible to admins). */
+.admin-section-actions .admin-scope-pill {
+  display: inline-block;
+  margin-right: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-radius: 999px;
+}
+.admin-section-actions .admin-scope-toggle {
+  background: none;
+  border: 1px solid var(--color-border, #d1d5db);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.6875rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  cursor: pointer;
+  margin-right: 0.25rem;
+}

@@ -1,8 +1,8 @@
 ---
-// Portal.astro — Main layout wrapping all portal pages
+// Portal.astro — Main layout. The page is three zones — header, main, footer —
+// where header/footer chrome is BAKED at build time from the active project's
+// typed seed module, and main content is each page's own slot.
 import { ClientRouter } from 'astro:transitions';
-import Nav from '../components/Nav.astro';
-import Footer from '../components/Footer.astro';
 import ConfigProvider from '../components/ConfigProvider.astro';
 import AuthProvider from '../components/AuthProvider.astro';
 import AuthModal from '../components/AuthModal.astro';
@@ -10,11 +10,58 @@ import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
 
+import { getActiveProjectSeed } from '../seeds';
+import { renderBlock } from '../lib/blocks';
+import type { BlockRenderContext, Section } from '../lib/blocks';
+
 interface Props {
   title: string;
 }
 
 const { title } = Astro.props;
+
+// --- Build-time bake of chrome zones ---
+// Bake context: the build has no auth, so render the public + feature-on view.
+// At runtime, hydrate replaces with the live DB state (which knows admin/auth).
+const seed = await getActiveProjectSeed();
+const featureFromSeed = (flag: string): boolean => {
+  const v = (seed.site_config as Record<string, any>)[flag];
+  if (v === undefined) return true; // default features visible at bake time
+  if (typeof v === 'object' && v && 'value' in v) return Boolean((v as any).value);
+  return Boolean(v);
+};
+const bakeCtx: BlockRenderContext = {
+  admin: false,
+  locale: 'en',
+  authenticated: false,
+  role: null,
+  isFeatureEnabled: featureFromSeed,
+  currentPath: '/',
+  siteName: ((): string => {
+    const v = (seed.site_config as Record<string, any>).site_name;
+    if (typeof v === 'object' && v && 'value' in v) return String((v as any).value);
+    return String(v ?? '');
+  })(),
+  logoUrl: ((): string => {
+    const v = (seed.site_config as Record<string, any>).logo_url;
+    if (typeof v === 'object' && v && 'value' in v) return String((v as any).value);
+    return String(v ?? '');
+  })(),
+};
+
+const seedAsSections = seed.sections as unknown as Section[];
+
+const headerHtml = seedAsSections
+  .filter((s) => s.zone === 'header' && s.visible !== false)
+  .sort((a, b) => a.position - b.position)
+  .map((s) => renderBlock(s, bakeCtx))
+  .join('');
+
+const footerHtml = seedAsSections
+  .filter((s) => s.zone === 'footer' && s.visible !== false)
+  .sort((a, b) => a.position - b.position)
+  .map((s) => renderBlock(s, bakeCtx))
+  .join('');
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -28,10 +75,6 @@ const { title } = Astro.props;
   <link rel="stylesheet" href="/css/a11y.css">
   <ClientRouter />
   <script is:inline>
-    // Apply theme from localStorage BEFORE first paint (runs on every load + view transition).
-    // Sets OR REMOVES data-theme so state consistently matches the stored preference —
-    // previous version only set 'dark' and never removed it, causing random theme drift
-    // across pages when localStorage said light but a preserved attribute said dark.
     (function applyTheme() {
       var t = localStorage.getItem('wl_theme');
       if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
@@ -45,19 +88,38 @@ const { title } = Astro.props;
       else document.documentElement.removeAttribute('data-theme');
     });
   </script>
+  <script is:inline>
+    // Set the current year for footer_copyright blocks. Idempotent across SPA navigations.
+    (function setYear() {
+      var y = new Date().getFullYear();
+      document.querySelectorAll('[data-year="auto"]').forEach(function (el) {
+        el.textContent = String(y);
+      });
+    })();
+    document.addEventListener('astro:after-swap', function () {
+      var y = new Date().getFullYear();
+      document.querySelectorAll('[data-year="auto"]').forEach(function (el) {
+        el.textContent = String(y);
+      });
+    });
+  </script>
   <script is:inline src="/js/env.js"></script>
 </head>
 <body>
   <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
   <DemoBanner />
   <div class="page">
-    <Nav />
+    <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
+      <div class="container" set:html={headerHtml}></div>
+    </nav>
 
     <main class="page-content" id="main-content">
       <slot />
     </main>
 
-    <Footer />
+    <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
+      <div class="container" set:html={footerHtml}></div>
+    </footer>
     <AuthModal />
   </div>
 
@@ -67,7 +129,6 @@ const { title } = Astro.props;
   <AdminEditor />
 
   <script>
-    // Scroll animations — observe .section elements, add .section-visible on intersection
     function initAnimations() {
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
         || document.documentElement.classList.contains('wl-reduced-motion');
@@ -94,19 +155,20 @@ const { title } = Astro.props;
         setTimeout(() => { staggerIndex = 0; }, 50);
       }, { threshold: 0.15 });
 
-      document.querySelectorAll('.section').forEach(el => observer.observe(el));
+      document.querySelectorAll('main .section').forEach(el => observer.observe(el));
 
       new MutationObserver((mutations) => {
         mutations.forEach((m) => {
           m.addedNodes.forEach((node) => {
-            if ((node as Element).classList?.contains('section')) observer.observe(node as Element);
+            if ((node as Element).classList?.contains('section') && (node as Element).closest('main')) {
+              observer.observe(node as Element);
+            }
           });
         });
       }).observe(document.body, { childList: true, subtree: true });
 
-      // Fallback: if IO never fires (background tab, Chrome extensions), show all sections after 2s
       setTimeout(() => {
-        document.querySelectorAll('.section:not(.section-visible)').forEach(el => el.classList.add('section-visible'));
+        document.querySelectorAll('main .section:not(.section-visible)').forEach(el => el.classList.add('section-visible'));
       }, 2000);
     }
 

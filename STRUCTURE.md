@@ -30,20 +30,28 @@ kychon/
 │   │   ├── admin-members.astro  # Member management
 │   │   └── admin-settings.astro # Site settings
 │   ├── layouts/
-│   │   └── Portal.astro    # Main layout: head, nav, footer, auth, config, toast, admin editor
+│   │   └── Portal.astro    # Main layout: zones (header/main/footer) with build-time chrome bake
 │   ├── components/
-│   │   ├── Nav.astro       # Navigation bar (static shell, populated at runtime)
-│   │   ├── Footer.astro    # Site footer
-│   │   ├── ConfigProvider.astro  # client:load — fetches config, injects theme, builds nav, i18n
+│   │   ├── ConfigProvider.astro  # client:load — fetches config, injects theme, i18n
 │   │   ├── AuthProvider.astro    # client:load — handles OAuth callback, session
 │   │   ├── AuthModal.astro       # Sign in / sign up modal
-│   │   ├── AdminEditor.astro     # client:idle — contenteditable + Tiptap + image upload
+│   │   ├── AdminEditor.astro     # client:idle — contenteditable + Tiptap + image upload + cross-zone drag
 │   │   └── Toast.astro           # client:idle — notification toasts
 │   ├── lib/                # Shared TypeScript modules (client-side)
 │   │   ├── api.ts          # REST wrapper: get/post/patch/del/count + typed wrappers (Zod)
 │   │   ├── auth.ts         # Google OAuth PKCE + password auth + session + role checks
-│   │   ├── config.ts       # Loads site_config, injects theme, builds nav, i18n init
+│   │   ├── blocks.ts       # Block-type registry + isomorphic renderBlock (build + runtime)
+│   │   ├── block-hydrators.ts # Browser-only hydration for dynamic blocks (announcements, polls, etc.)
+│   │   ├── page-render.ts  # Runtime zone hydration (cache → fetch → render → hydrate)
+│   │   ├── config.ts       # Loads site_config, injects theme, i18n init
 │   │   └── i18n.ts         # t(key, vars), locale loading, plurals, RTL
+│   ├── seeds/              # Typed ProjectSeed per fork (kychon = default, eagles, silver-pines, barrio-unido)
+│   │   ├── types.ts        # ProjectSeed, SeedSection, TierSeed, PageSeed types
+│   │   ├── kychon.ts       # Default Kychon template
+│   │   ├── eagles.ts       # Eagles demo (chrome + structural; demo content via extraSqlFile)
+│   │   ├── silver-pines.ts # Silver Pines demo
+│   │   ├── barrio-unido.ts # Barrio Unido demo
+│   │   └── index.ts        # getActiveProjectSeed() — resolves KYCHON_PROJECT
 │   ├── schemas/            # Zod schemas for PostgREST responses
 │   │   ├── config.ts       # SiteConfigRow, Theme, NavItem
 │   │   ├── member.ts       # Member, MemberTier, MemberCustomField
@@ -83,17 +91,22 @@ kychon/
 ### Astro SSG + Run402
 Astro builds to static HTML/JS/CSS in `dist/`. Run402 serves these as static files. No SSR — all interactivity is client-side JavaScript in `<script>` tags within .astro pages.
 
+### Composable Layout
+The page is three zones — `header`, `main`, `footer`. Every visible block is a row in `sections` addressed by `(page_slug, zone, scope, position)`. The block-type registry (`src/lib/blocks.ts`) defines one isomorphic `renderBlock(section, ctx): string` that runs both at Astro build (Node) and at runtime (browser). `Portal.astro` bakes header + footer chrome at build time; `src/lib/page-render.ts` rehydrates from the live DB on every page load.
+
+### Typed Seeds
+Each forkable project has a `src/seeds/{project}.ts` module exporting a `ProjectSeed`. `scripts/generate-seed-sql.ts` translates the typed seed into idempotent `seed.sql` (gitignored). `KYCHON_PROJECT` env var picks which project: `kychon` (default), `eagles`, `silver-pines`, `barrio-unido`. Demo content (members, sample events, etc.) lives in per-demo SQL files referenced via `extraSqlFile`.
+
 ### Island Hydration
 Components in the layout use `client:*` directives for progressive hydration:
 - `client:load` — ConfigProvider, AuthProvider (must run before first paint)
 - `client:idle` — AdminEditor, Toast (load after page settles)
-- No directive — Nav, Footer (static HTML, zero JS)
 
 ### View Transitions
-`<ClientRouter />` in the layout provides SPA-like navigation. Pages transition smoothly without full reloads. Nav, footer, and providers persist across navigations via `transition:persist`.
+`<ClientRouter />` in the layout provides SPA-like navigation. Pages transition smoothly without full reloads. Zone wrappers (`#zone-header`, `#zone-footer`) and providers persist across navigations via `transition:persist`.
 
 ### Runtime Config from DB
-Theme, nav, feature flags, and branding are fetched from `site_config` at runtime by ConfigProvider. **SQL changes take effect without rebuilding.** The build produces a static shell; the DB fills it in.
+Theme, feature flags, and branding are fetched from `site_config` at runtime by ConfigProvider. **SQL changes take effect without rebuilding.** Chrome blocks (nav, footer, etc.) follow the same pattern via `page-render.ts`.
 
 ### Type Safety
 Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (`getEvents()`, `getMembers()`, etc.) in `src/lib/api.ts` parse responses through schemas. Build fails on type errors.
@@ -102,9 +115,9 @@ Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `site_config` | All branding, theme, feature flags, nav | key (PK), value (JSONB), category |
+| `site_config` | Branding, theme, feature flags (no `nav` — that's a block) | key (PK), value (JSONB), category |
 | `pages` | Custom pages | slug (unique), title, content, requires_auth, show_in_nav |
-| `sections` | Homepage/page sections | page_slug, section_type, config (JSONB), position |
+| `sections` | Every visible block (chrome + main) | page_slug, zone, scope, section_type, config (JSONB), position |
 | `membership_tiers` | Tier definitions | name, benefits (TEXT[]), price_label, is_default |
 | `member_custom_fields` | Custom profile fields | field_name, field_type, options (JSONB), visible_in_directory |
 | `members` | All members | user_id (UUID), email, display_name, role, status, tier_id, custom_fields (JSONB) |
@@ -143,18 +156,25 @@ All boolean. Toggle with: `UPDATE site_config SET value = 'true' WHERE key = 'fe
 ## How to Add a New Feature
 
 1. Add tables to `schema.sql` (use `CREATE TABLE IF NOT EXISTS`)
-2. Add seed data to `seed.sql` (use `ON CONFLICT`)
+2. Add structural seed (config keys, default sections, tiers) to `src/seeds/{project}.ts`
 3. Add Zod schema to `src/schemas/{feature}.ts`, re-export from `src/schemas/index.ts`
 4. Add typed API wrapper to `src/lib/api.ts`
 5. Create `src/pages/{feature}.astro` — import Portal layout, add page content + `<script>`
-6. Add nav item to `seed.sql` nav config
-7. Add feature flag to `seed.sql` (e.g., `feature_myfeature`)
+6. Add a nav item to the `nav` block's `config.items` in the project's seed
+7. Add feature flag to the project's seed (e.g., `feature_myfeature: { value: false, category: 'features' }`)
 8. Add i18n keys to `public/custom/strings/en.json`
-9. Run `node deploy.js`
+9. Run `npm run deploy`
 
 ## How to Add a New Page
 
-1. Insert into `pages` table (SQL or via admin settings)
-2. Optionally insert `sections` rows for structured content
+1. Insert into `pages` table (or add to `pages` array in the project's seed)
+2. Optionally insert `sections` rows for structured content (use `zone: 'main', scope: 'page'`)
 3. Page renders automatically via `page.html?slug=your-slug`
-4. Add to nav by inserting into the `nav` config in `site_config`
+4. Add to nav by editing the `nav` block's `config.items` (in the seed or via the admin nav editor)
+
+## How to Add a New Block Type
+
+1. Add an entry to `BLOCK_TYPES` in `src/lib/blocks.ts` with `render`, `defaultConfig`, `label`, `icon`, `dynamic`, optional `zoneHints`
+2. If dynamic, add the hydrator to `src/lib/block-hydrators.ts` and reference it from the block's `hydrate` function
+3. Document the block's `config` shape near its registry entry
+4. Optionally seed an instance in `src/seeds/{project}.ts`

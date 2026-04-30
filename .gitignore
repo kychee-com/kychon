@@ -13,3 +13,5 @@ dist/
 .deploy-minimal.json
 .wrangler/
 tmp/
+# composable-layout: seed.sql is generated from src/seeds/{project}.ts
+seed.sql

@@ -4,9 +4,10 @@
   "description": "AI-powered membership/community portal template for Run402",
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "tsx scripts/generate-seed-sql.ts && astro dev",
+    "build": "tsx scripts/generate-seed-sql.ts && astro build",
     "preview": "astro preview",
+    "generate-seed": "tsx scripts/generate-seed-sql.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -14,7 +15,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "astro check && tsc --noEmit",
-    "check": "vitest run && biome check . && astro check"
+    "check:seeds": "tsx scripts/smoke-check-seeds.ts",
+    "check": "tsx scripts/smoke-check-seeds.ts && vitest run && biome check . && astro check"
   },
   "repository": {
     "type": "git",

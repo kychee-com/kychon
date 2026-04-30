@@ -327,117 +327,250 @@
     });
   }
 
-  // --- Drag-to-reorder ---
-  const boundSortable = new WeakSet();
+  // --- Drag-to-reorder (document-level, supports cross-zone) ---
+  // composable-layout: one document-level handler. Source zone is determined
+  // from `closest('[data-zone]')`; target zone the same. Cross-zone drops PATCH
+  // both `zone` and `position` together. Empty zones acquire a "Drop here"
+  // placeholder via the body.admin-dragging class (CSS rule below).
+  let draggedEl: HTMLElement | null = null;
+  let dropIndicator: HTMLElement | null = null;
+  let sourceZone: string | null = null;
+
+  function ensureIndicator(): HTMLElement {
+    if (!dropIndicator) {
+      dropIndicator = document.createElement('div');
+      dropIndicator.className = 'admin-drop-indicator';
+    }
+    return dropIndicator;
+  }
+
+  function findZoneContainer(el: Element | null): HTMLElement | null {
+    if (!el) return null;
+    return (el.closest('[data-zone]') as HTMLElement | null);
+  }
+
+  function findZoneItemHost(zone: HTMLElement): HTMLElement {
+    // Header / footer: the inner .container holds blocks. Main: the #sections
+    // child or the page <main> itself.
+    const inner = zone.querySelector(':scope > .container') as HTMLElement | null;
+    if (inner) return inner;
+    const sections = zone.querySelector('#sections') as HTMLElement | null;
+    if (sections) return sections;
+    return zone;
+  }
+
+  function ensureDragHandle(el: HTMLElement) {
+    if (el.querySelector(':scope > .admin-drag-handle')) return;
+    const handle = document.createElement('div');
+    handle.className = 'admin-drag-handle';
+    handle.draggable = true;
+    handle.addEventListener('dragstart', (e) => {
+      draggedEl = el;
+      const zone = findZoneContainer(el);
+      sourceZone = zone?.dataset.zone || null;
+      document.body.classList.add('admin-dragging');
+      el.classList.add('dragging');
+      e.dataTransfer!.effectAllowed = 'move';
+      e.dataTransfer!.setData('text/plain', el.dataset.sortableId || '');
+    });
+    el.appendChild(handle);
+  }
+
+  function bindSortableHandles() {
+    document.querySelectorAll<HTMLElement>('[data-sortable-id]').forEach(ensureDragHandle);
+  }
 
   function initSortable() {
-    document.querySelectorAll('[data-sortable-group]').forEach((container) => {
-      const items = container.querySelectorAll('[data-sortable-id]');
-      if (items.length === 0) return; // not populated yet, retry on next mutation
-      if (boundSortable.has(container)) {
-        // Check for new unbound items
-        const unbound = Array.from(items).filter((el) => !el.querySelector('.admin-drag-handle'));
-        if (unbound.length === 0) return;
-      }
-      boundSortable.add(container);
-      let draggedEl: HTMLElement | null = null;
-      let dropIndicator: HTMLElement | null = null;
+    bindSortableHandles();
+    if ((document as any).__sortableDocBound) return;
+    (document as any).__sortableDocBound = true;
 
-      items.forEach((item) => {
-        const el = item as HTMLElement;
+    document.addEventListener('dragover', (e) => {
+      if (!draggedEl) return;
+      const target = e.target as HTMLElement | null;
+      const zone = findZoneContainer(target);
+      if (!zone) return;
+      e.preventDefault();
+      (e as DragEvent).dataTransfer!.dropEffect = 'move';
 
-        // Add drag handle
-        if (!el.querySelector('.admin-drag-handle')) {
-          const handle = document.createElement('div');
-          handle.className = 'admin-drag-handle';
-          handle.draggable = true;
-          handle.addEventListener('dragstart', (e) => {
-            draggedEl = el;
-            el.classList.add('dragging');
-            e.dataTransfer!.effectAllowed = 'move';
-            e.dataTransfer!.setData('text/plain', el.dataset.sortableId || '');
-          });
-          el.appendChild(handle);
+      const indicator = ensureIndicator();
+      const itemHost = findZoneItemHost(zone);
+      const overItem = (target?.closest('[data-sortable-id]') as HTMLElement | null);
+      if (overItem && overItem !== draggedEl && itemHost.contains(overItem)) {
+        const rect = overItem.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if ((e as DragEvent).clientY < midY) overItem.before(indicator);
+        else overItem.after(indicator);
+      } else if (itemHost.children.length === 0 || (itemHost.children.length === 1 && itemHost.contains(indicator))) {
+        if (!itemHost.contains(indicator)) itemHost.appendChild(indicator);
+      } else {
+        const last = itemHost.lastElementChild as HTMLElement | null;
+        if (last && last !== indicator) {
+          itemHost.appendChild(indicator);
         }
+      }
+    });
 
-        el.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          e.dataTransfer!.dropEffect = 'move';
-          if (!draggedEl || draggedEl === el) return;
+    document.addEventListener('drop', async (e) => {
+      if (!draggedEl) return;
+      const targetZoneEl = findZoneContainer(e.target as HTMLElement | null);
+      const indicator = dropIndicator;
+      if (!targetZoneEl || !indicator || !indicator.parentElement) {
+        cleanupDrag();
+        return;
+      }
+      e.preventDefault();
+      const targetZone = targetZoneEl.dataset.zone!;
+      indicator.replaceWith(draggedEl);
+      const moved = draggedEl;
+      const wasCrossZone = sourceZone !== targetZone;
+      cleanupDrag();
+      await persistOrder(moved, sourceZone || 'main', targetZone);
+      if (wasCrossZone) maybeOfferGlobalPromotion(moved, targetZone as 'header' | 'main' | 'footer');
+    });
 
-          // Show drop indicator
-          if (!dropIndicator) {
-            dropIndicator = document.createElement('div');
-            dropIndicator.className = 'admin-drop-indicator';
-          }
-          const rect = el.getBoundingClientRect();
-          const midY = rect.top + rect.height / 2;
-          if (e.clientY < midY) {
-            el.before(dropIndicator);
-          } else {
-            el.after(dropIndicator);
-          }
-        });
+    document.addEventListener('dragend', cleanupDrag);
+  }
 
-        el.addEventListener('drop', async (e) => {
-          e.preventDefault();
-          if (!draggedEl || draggedEl === el) return;
+  function cleanupDrag() {
+    if (draggedEl) draggedEl.classList.remove('dragging');
+    if (dropIndicator) dropIndicator.remove();
+    document.body.classList.remove('admin-dragging');
+    draggedEl = null;
+    dropIndicator = null;
+    sourceZone = null;
+  }
 
-          // Move element in DOM
-          if (dropIndicator) {
-            dropIndicator.replaceWith(draggedEl);
-          }
-          draggedEl.classList.remove('dragging');
-
-          // Save new positions
-          const positionField = el.dataset.sortableField || 'position';
-          const siblings = container.querySelectorAll('[data-sortable-id]');
-          const updates: Promise<any>[] = [];
-          siblings.forEach((sib, idx) => {
-            const sid = (sib as HTMLElement).dataset.sortableId;
+  async function persistOrder(moved: HTMLElement, fromZone: string, toZone: string) {
+    const targetZoneEl = findZoneContainer(moved);
+    if (!targetZoneEl) return;
+    const targetHost = findZoneItemHost(targetZoneEl);
+    const targetSiblings = Array.from(targetHost.querySelectorAll<HTMLElement>('[data-sortable-id]'));
+    const updates: Promise<any>[] = [];
+    targetSiblings.forEach((sib, idx) => {
+      const sid = sib.dataset.sortableId;
+      if (!sid) return;
+      const [table, id] = sid.split('.');
+      if (!table || !id) return;
+      const body: Record<string, any> = { position: idx + 1 };
+      if (sib === moved && fromZone !== toZone) body.zone = toZone;
+      updates.push(patch(`${table}?id=eq.${id}`, body));
+    });
+    // Renumber source zone too (close the gap left behind)
+    if (fromZone !== toZone) {
+      const sourceZoneEl = document.querySelector(`[data-zone="${fromZone}"]`) as HTMLElement | null;
+      if (sourceZoneEl) {
+        const sourceHost = findZoneItemHost(sourceZoneEl);
+        Array.from(sourceHost.querySelectorAll<HTMLElement>('[data-sortable-id]')).forEach(
+          (sib, idx) => {
+            const sid = sib.dataset.sortableId;
             if (!sid) return;
             const [table, id] = sid.split('.');
-            if (table && id) {
-              updates.push(patch(`${table}?id=eq.${id}`, { [positionField]: idx + 1 }));
-            }
-          });
-          await Promise.all(updates);
-          showToast('Order saved');
+            if (!table || !id) return;
+            updates.push(patch(`${table}?id=eq.${id}`, { position: idx + 1 }));
+          },
+        );
+      }
+    }
+    try {
+      await Promise.all(updates);
+      // Bust caches so subsequent navigations see the new order/zone.
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('wl_cache_sections_'))
+        .forEach((k) => localStorage.removeItem(k));
+      showToast('Order saved');
+    } catch (e) {
+      console.error('Failed to persist order:', e);
+      showToast('Save failed', 'error');
+    }
+  }
 
-          draggedEl = null;
-          dropIndicator = null;
-        });
-      });
+  function maybeOfferGlobalPromotion(moved: HTMLElement, targetZone: 'header' | 'main' | 'footer') {
+    if (targetZone !== 'header' && targetZone !== 'footer') return;
+    const sid = moved.dataset.sortableId;
+    if (!sid) return;
+    const [table, id] = sid.split('.');
+    if (table !== 'sections' || !id) return;
+    // Look up scope from the row.
+    get(`sections?id=eq.${id}&select=scope`).then((rows: any[]) => {
+      const scope = rows[0]?.scope || 'page';
+      if (scope === 'global') return;
+      showPromotionTooltip(moved, parseInt(id, 10));
+    }).catch(() => {});
+  }
 
-      container.addEventListener('dragend', () => {
-        if (draggedEl) draggedEl.classList.remove('dragging');
-        if (dropIndicator) dropIndicator.remove();
-        draggedEl = null;
-        dropIndicator = null;
-      });
+  function showPromotionTooltip(target: HTMLElement, sectionId: number) {
+    document.querySelector('.admin-promotion-tooltip')?.remove();
+    const tip = document.createElement('div');
+    tip.className = 'admin-promotion-tooltip';
+    tip.innerHTML = `
+      <span>This now appears here only.</span>
+      <button class="btn btn-sm btn-primary" type="button" data-make-global="${sectionId}">Make global</button>
+      <button class="admin-tooltip-close" type="button" aria-label="Dismiss">&times;</button>
+    `;
+    document.body.appendChild(tip);
+    const rect = target.getBoundingClientRect();
+    tip.style.position = 'fixed';
+    tip.style.top = `${Math.max(8, rect.top - 56)}px`;
+    tip.style.left = `${Math.max(8, rect.left)}px`;
+    const dismiss = () => tip.remove();
+    setTimeout(dismiss, 5000);
+    tip.querySelector('.admin-tooltip-close')?.addEventListener('click', dismiss);
+    tip.querySelector('[data-make-global]')?.addEventListener('click', async () => {
+      try {
+        await patch(`sections?id=eq.${sectionId}`, { scope: 'global' });
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
+        showToast('Saved — appears on all pages');
+      } catch (e) {
+        console.error('Promotion failed:', e);
+        showToast('Save failed', 'error');
+      } finally {
+        dismiss();
+      }
     });
   }
 
   // --- Nav editor overlay ---
+  // composable-layout: nav lives as a block in `sections` (zone='header',
+  // section_type='nav'). The popover edits `config.items` on that block.
   let navEditorOpen = false;
+  let navBlockId: number | null = null;
 
   function initNavEditor() {
-    const btn = document.getElementById('admin-nav-edit-btn');
-    if (!btn || btn.dataset.bound === 'true') return;
-    btn.dataset.bound = 'true';
-    btn.addEventListener('click', openNavEditor);
+    // Document-level delegation so newly hydrated nav blocks pick up the click.
+    if ((document.body as any).__navEditorBound) return;
+    (document.body as any).__navEditorBound = true;
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement | null;
+      const btn = t?.closest('[data-nav-edit]') as HTMLElement | null;
+      if (!btn) return;
+      e.preventDefault();
+      const sid = parseInt(btn.dataset.navEdit || '', 10);
+      if (Number.isFinite(sid)) {
+        navBlockId = sid;
+        openNavEditor();
+      }
+    });
   }
 
   async function openNavEditor() {
     if (navEditorOpen) return;
     navEditorOpen = true;
 
-    // Fetch current nav config
+    // Fetch current nav block config
     let navItems: any[] = [];
     try {
-      const rows = await get('site_config?key=eq.nav');
-      navItems = rows[0]?.value || [];
-      if (typeof navItems === 'string') navItems = JSON.parse(navItems);
+      const id = navBlockId;
+      const rows = id != null
+        ? await get(`sections?id=eq.${id}`)
+        : await get(`sections?section_type=eq.nav&zone=eq.header&order=position.asc&limit=1`);
+      const row = rows[0];
+      if (row) {
+        navBlockId = row.id;
+        navItems = (row.config && Array.isArray(row.config.items)) ? row.config.items : [];
+      }
     } catch { navItems = []; }
 
     // Create overlay
@@ -533,16 +666,22 @@
       renderItems();
     });
 
-    // Save
+    // Save — PATCH the nav block's `config.items`. read-modify-write so we
+    // don't clobber other config keys on the row.
     panel.querySelector('#nav-editor-save')?.addEventListener('click', async () => {
       try {
-        await patch('site_config?key=eq.nav', { value: navItems });
-        clearCache('wl_cache_site_config');
+        if (navBlockId == null) throw new Error('No nav block id resolved');
+        const rows = await get(`sections?id=eq.${navBlockId}`);
+        const current = rows[0]?.config || {};
+        const newConfig = { ...current, items: navItems };
+        await patch(`sections?id=eq.${navBlockId}`, { config: newConfig });
+        // Bust per-slug section caches so chrome blocks re-render with new nav.
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
         showToast('Navigation saved');
         closeNavEditor();
-        // Rebuild nav in the page
-        const { buildNav } = await import('../lib/config');
-        buildNav(navItems);
+        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
       } catch (e) {
         console.error('Nav save failed:', e);
         showToast('Save failed', 'error');
@@ -560,6 +699,178 @@
     }
   }
 
+  // --- Section actions: remove / scope-toggle / add-section (delegated) ---
+  function initSectionActions() {
+    if ((document.body as any).__sectionActionsBound) return;
+    (document.body as any).__sectionActionsBound = true;
+
+    document.addEventListener('click', async (e) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+
+      // Remove section
+      const removeBtn = t.closest('[data-section-remove]') as HTMLElement | null;
+      if (removeBtn) {
+        e.preventDefault();
+        const id = removeBtn.dataset.sectionRemove;
+        if (!id) return;
+        if (!confirm('Remove this section?')) return;
+        try {
+          const { del } = await import('../lib/api');
+          await del(`sections?id=eq.${id}`);
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith('wl_cache_sections_'))
+            .forEach((k) => localStorage.removeItem(k));
+          removeBtn.closest('[data-sortable-id]')?.remove();
+          showToast('Section removed');
+        } catch (err) {
+          console.error('Failed to remove section:', err);
+          showToast('Remove failed', 'error');
+        }
+        return;
+      }
+
+      // Scope toggle
+      const scopeBtn = t.closest('[data-scope-toggle]') as HTMLElement | null;
+      if (scopeBtn) {
+        e.preventDefault();
+        const id = scopeBtn.dataset.scopeToggle;
+        const next = scopeBtn.dataset.scopeNext as 'page' | 'global' | undefined;
+        if (!id || !next) return;
+        try {
+          await patch(`sections?id=eq.${id}`, { scope: next });
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith('wl_cache_sections_'))
+            .forEach((k) => localStorage.removeItem(k));
+          showToast(next === 'global' ? 'Saved — appears on all pages' : 'Saved — appears on this page only');
+          // Update DOM attributes so subsequent toggles reflect new state.
+          const sectionEl = scopeBtn.closest('[data-sortable-id]') as HTMLElement | null;
+          if (sectionEl) {
+            sectionEl.setAttribute('data-section-scope', next);
+            const flipped = next === 'global' ? 'page' : 'global';
+            scopeBtn.dataset.scopeNext = flipped;
+            scopeBtn.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
+            scopeBtn.title = scopeBtn.textContent;
+            const existingPill = sectionEl.querySelector('.admin-section-actions .admin-scope-pill');
+            if (next === 'global' && !existingPill) {
+              const pill = document.createElement('span');
+              pill.className = 'admin-scope-pill';
+              pill.textContent = 'Global';
+              scopeBtn.before(pill);
+            } else if (next === 'page' && existingPill) {
+              existingPill.remove();
+            }
+          }
+        } catch (err) {
+          console.error('Scope toggle failed:', err);
+          showToast('Save failed', 'error');
+        }
+        return;
+      }
+
+      // Add section in zone
+      const addBtn = t.closest('[data-zone-add]') as HTMLElement | null;
+      if (addBtn) {
+        e.preventDefault();
+        const zone = addBtn.dataset.zoneAdd as 'header' | 'main' | 'footer' | undefined;
+        if (!zone) return;
+        openZoneAddPicker(zone);
+        return;
+      }
+    });
+  }
+
+  function ensureZoneAddButtons() {
+    document.querySelectorAll<HTMLElement>('[data-zone]').forEach((zoneEl) => {
+      const zone = zoneEl.dataset.zone;
+      if (!zone) return;
+      if (zoneEl.querySelector(':scope > .admin-zone-add-btn')) return;
+      const btn = document.createElement('button');
+      btn.className = 'admin-zone-add-btn';
+      btn.type = 'button';
+      btn.dataset.zoneAdd = zone;
+      btn.textContent = `+ Add to ${zone}`;
+      zoneEl.appendChild(btn);
+    });
+  }
+
+  async function openZoneAddPicker(zone: 'header' | 'main' | 'footer') {
+    const { BLOCK_TYPES } = await import('../lib/blocks');
+    document.querySelector('.admin-popover-backdrop')?.remove();
+    document.querySelector('.admin-popover')?.remove();
+
+    const candidates = Object.entries(BLOCK_TYPES).filter(
+      ([, t]) => !t.zoneHints || t.zoneHints.includes(zone),
+    );
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+    const popover = document.createElement('div');
+    popover.className = 'admin-popover';
+    popover.innerHTML = `
+      <h3>Add block to ${zone}</h3>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem">
+        ${candidates.map(([type, def]) => `
+          <button class="card" type="button" style="cursor:pointer;text-align:center;padding:1rem" data-block-type="${type}">
+            <div style="font-size:1.5rem">${def.icon}</div>
+            <div style="font-weight:600">${def.label}</div>
+          </button>
+        `).join('')}
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    document.body.appendChild(popover);
+
+    const close = () => { popover.remove(); backdrop.remove(); };
+    backdrop.addEventListener('click', close);
+
+    popover.querySelectorAll<HTMLElement>('[data-block-type]').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const type = el.dataset.blockType!;
+        const def = BLOCK_TYPES[type];
+        if (!def) return;
+        // Determine slug + scope based on zone:
+        // - header / footer → global, page_slug='*'
+        // - main → page-scoped, slug from URL
+        let pageSlug: string;
+        let scope: 'page' | 'global';
+        if (zone === 'header' || zone === 'footer') {
+          pageSlug = '*';
+          scope = 'global';
+        } else {
+          scope = 'page';
+          const path = window.location.pathname;
+          if (path === '/' || path === '/index.html') pageSlug = 'index';
+          else if (path === '/page.html') pageSlug = new URLSearchParams(window.location.search).get('slug') || 'index';
+          else pageSlug = path.replace(/^\//, '').replace(/\.html$/, '') || 'index';
+        }
+        const zoneEl = document.querySelector(`[data-zone="${zone}"]`) as HTMLElement | null;
+        const existingCount = zoneEl?.querySelectorAll('[data-sortable-id]').length || 0;
+        try {
+          const { post } = await import('../lib/api');
+          await post('sections', {
+            page_slug: pageSlug,
+            zone,
+            scope,
+            section_type: type,
+            config: def.defaultConfig,
+            position: existingCount + 1,
+            visible: true,
+          });
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith('wl_cache_sections_'))
+            .forEach((k) => localStorage.removeItem(k));
+          showToast('Block added');
+          close();
+          document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+        } catch (err) {
+          console.error('Failed to add block:', err);
+          showToast('Add failed', 'error');
+        }
+      });
+    });
+  }
+
   // --- Main init ---
   async function initAdminEditor() {
     await ready;
@@ -572,19 +883,11 @@
     initEditableImage();
     initSortable();
     initNavEditor();
-    // Show nav edit button for admins
-    const navEditBtn = document.getElementById('admin-nav-edit-btn');
-    if (navEditBtn) navEditBtn.style.display = '';
-    // Wire logo for admin upload
-    const logoImg = document.querySelector('.nav-brand img') as HTMLImageElement | null;
-    if (logoImg && !logoImg.hasAttribute('data-editable-image')) {
-      logoImg.setAttribute('data-editable-image', 'site_config.logo_url.value');
-      logoImg.style.display = ''; // ensure visible even if no logo set
-      if (!logoImg.src || logoImg.src === window.location.origin + '/') {
-        logoImg.src = '/favicon.svg'; // placeholder
-      }
-      initEditableImage(); // rebind to pick up new attribute
-    }
+    initSectionActions();
+    ensureZoneAddButtons();
+    // composable-layout: brand logo and nav are now blocks rendered with
+    // their own data-editable / data-editable-image attributes — no extra
+    // wiring needed here.
   }
 
   // Use MutationObserver to re-bind after client-side renders
@@ -616,6 +919,7 @@
       initEditableRich();
       initEditableImage();
       initSortable();
+      ensureZoneAddButtons();
     }
   });
 
