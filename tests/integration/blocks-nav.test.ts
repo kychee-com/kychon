@@ -160,9 +160,7 @@ describe('nav block — nested children', () => {
 
 describe('nav block — ARIA attributes', () => {
   it('chevron carries role=button (implicit), aria-haspopup=menu, aria-expanded=false', () => {
-    const section = makeSection([
-      { label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] },
-    ]);
+    const section = makeSection([{ label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] }]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
     const chevron = root.querySelector('.nav-chevron-toggle, .nav-parent-button') as HTMLElement;
@@ -173,9 +171,7 @@ describe('nav block — ARIA attributes', () => {
   });
 
   it('dropdown carries role=menu and items have role=menuitem with role=none on <li>', () => {
-    const section = makeSection([
-      { label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] },
-    ]);
+    const section = makeSection([{ label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] }]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
     const ul = root.querySelector('.nav-dropdown') as HTMLElement;
@@ -187,13 +183,11 @@ describe('nav block — ARIA attributes', () => {
   });
 
   it('aria-controls links chevron to its own dropdown id', () => {
-    const section = makeSection([
-      { label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] },
-    ]);
+    const section = makeSection([{ label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] }]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
     const chevron = root.querySelector('.nav-chevron-toggle, .nav-parent-button') as HTMLElement;
-    const controls = chevron.getAttribute('aria-controls')!;
+    const controls = chevron.getAttribute('aria-controls') ?? '';
     expect(controls).toBeTruthy();
     const menu = root.querySelector(`#${CSS.escape(controls)}`);
     expect(menu).toBeTruthy();
@@ -231,7 +225,7 @@ describe('nav block — runtime keyboard + click', () => {
 
   it('clicking the chevron opens the dropdown (sets aria-expanded=true, removes [hidden])', () => {
     const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
-    const menu = document.getElementById(chevron.getAttribute('aria-controls')!) as HTMLElement;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(true);
     chevron.click();
     expect(menu.hasAttribute('hidden')).toBe(false);
@@ -242,7 +236,7 @@ describe('nav block — runtime keyboard + click', () => {
     const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
     chevron.focus();
     chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-    const menu = document.getElementById(chevron.getAttribute('aria-controls')!) as HTMLElement;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(false);
     const items = menu.querySelectorAll('a[role="menuitem"]');
     expect(document.activeElement).toBe(items[0]);
@@ -252,7 +246,7 @@ describe('nav block — runtime keyboard + click', () => {
     const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
     chevron.focus();
     chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-    const menu = document.getElementById(chevron.getAttribute('aria-controls')!) as HTMLElement;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     const items = Array.from(menu.querySelectorAll<HTMLElement>('a[role="menuitem"]'));
     items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect(document.activeElement).toBe(items[1]);
@@ -267,8 +261,8 @@ describe('nav block — runtime keyboard + click', () => {
     const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
     chevron.focus();
     chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-    const menu = document.getElementById(chevron.getAttribute('aria-controls')!) as HTMLElement;
-    const firstItem = menu.querySelector<HTMLElement>('a[role="menuitem"]')!;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
+    const firstItem = menu.querySelector<HTMLElement>('a[role="menuitem"]') as HTMLElement;
     firstItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(document.activeElement).toBe(chevron);
@@ -277,7 +271,7 @@ describe('nav block — runtime keyboard + click', () => {
   it('clicking outside the dropdown closes it', () => {
     const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
     chevron.click();
-    const menu = document.getElementById(chevron.getAttribute('aria-controls')!) as HTMLElement;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(false);
     // Click elsewhere.
     const outside = document.createElement('button');
@@ -292,7 +286,7 @@ describe('nav block — runtime keyboard + click', () => {
     bindNavDropdowns(host);
     bindNavDropdowns(host);
     chevron.click();
-    const menu = document.getElementById(chevron.getAttribute('aria-controls')!) as HTMLElement;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     // After a single click, menu should be open (toggled once, not three times).
     expect(menu.hasAttribute('hidden')).toBe(false);
     chevron.click();
