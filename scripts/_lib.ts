@@ -23,16 +23,18 @@ export { fileSetFromDir };
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
- * Tables reachable via `/rest/v1/*`. Sent as `database.expose.tables: string[]`
- * in the v2 release spec.
+ * Tables reachable via `/rest/v1/*`, sent as `database.expose.tables` in the
+ * v2 release spec. Rich-object shape per the published manifest schema at
+ * https://run402.com/schemas/manifest.v1.json.
  *
- * The SDK's `ExposeManifest.tables` type is `Array<Record<string, unknown>>`
- * (matching the published schema at https://run402.com/schemas/manifest.v1.json,
- * which describes objects with `{name, expose, policy}`), but the gateway
- * runtime validator rejects that shape with `"tables must be an array of strings"`.
- * Strings is what works today — see kychee-com/run402#155 / #156.
+ * The previous workaround (sending bare strings + structural cast) is no
+ * longer needed: the gateway's v2 validator was relaxed to delegate to the
+ * same `validateManifest()` the imperative `/expose` route uses (kychee-com/run402#154).
+ * Setting `policy` explicitly here also pins the RLS template — strings
+ * implicitly default to `public_read_authenticated_write` server-side, which
+ * is what we want, but explicit beats implicit.
  */
-export const EXPOSE_TABLES: readonly string[] = [
+const TABLE_NAMES = [
   "site_config",
   "pages",
   "sections",
@@ -54,7 +56,11 @@ export const EXPOSE_TABLES: readonly string[] = [
   "member_insights",
   "newsletter_drafts",
   "reactions",
-];
+] as const;
+
+export const EXPOSE_TABLES: ReadonlyArray<Record<string, unknown>> = TABLE_NAMES.map(
+  (name) => ({ name, expose: true, policy: "public_read_authenticated_write" }),
+);
 
 export interface CollectFunctionsOptions {
   /** Function names to skip (e.g. `["check-expirations"]` for demos). */
@@ -234,22 +240,11 @@ export async function runDeploy(
   const fnNames = Object.keys(functionsMap);
   const scheduledFns = fnNames.filter((n) => functionsMap[n]?.schedule);
 
-  // SDK type says `Array<Record<string, unknown>>`; gateway requires `string[]`.
-  // See kychee-com/run402#155 / #156.
-  const expose = {
-    version: "1",
-    tables: EXPOSE_TABLES,
-  } as unknown as ReleaseSpec["database"] extends infer D
-    ? D extends { expose?: infer E }
-      ? E
-      : never
-    : never;
-
   const spec: ReleaseSpec = {
     project: opts.projectId,
     database: {
       migrations: [{ id: migrationId, sql }],
-      expose,
+      expose: { version: "1", tables: [...EXPOSE_TABLES] },
     },
     site: { replace: fileSet },
     subdomains: { set: [opts.subdomain] },

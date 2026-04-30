@@ -75,7 +75,7 @@ When npm refuses to install a recently-published SDK release because of a `befor
 
 The deploy goes through `r.deploy.apply(spec)` — the v2 unified deploy primitive. The SDK builds a `ReleaseSpec` (migrations, expose manifest, functions, site, subdomains), uploads bytes through CAS (only the SHAs the gateway hasn't seen), commits, and polls until `ready`. Re-deploying an unchanged tree issues no S3 PUTs.
 
-We migrated off `apps.bundleDeploy()` in 1.50.1 because the compat shim's `translateRlsToExpose` emits `{name, expose, policy}` objects (matching the published manifest schema at https://run402.com/schemas/manifest.v1.json) but the gateway runtime validator now rejects that shape with `"tables must be an array of strings"`. We send `tables: string[]` directly via `r.deploy.apply()` — probe-verified on 2026-04-29. Tracked upstream at kychee-com/run402#154 / #155 / #156.
+We migrated off `apps.bundleDeploy()` in 1.50.1 (kychee-com/run402#154) because its compat shim was emitting an `expose.tables` shape the v2 deploy validator briefly rejected. The gateway validator was relaxed in 2026-04-30 to delegate to the same `validateManifest()` the imperative `/expose` route uses, so both bare strings and the rich `{name, expose, policy}` shape now work. We send the rich shape (matches the published schema, type-checks cleanly, and pins the policy explicitly).
 
 ## Service-key writes
 
