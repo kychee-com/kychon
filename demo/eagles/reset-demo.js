@@ -32,12 +32,12 @@ INSERT INTO site_config (key, value, category) VALUES
     "text": "#1a1a2e",
     "text_muted": "#6b7280",
     "border": "#d4d0c8",
-    "font_heading": "Nunito",
-    "font_body": "Open Sans",
+    "font_heading": "Cormorant Garamond",
+    "font_body": "Inter",
     "radius": "0.5rem",
     "max_width": "72rem"
   }', 'theme')
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
 
 -- Feature flags (ALL enabled)
 INSERT INTO site_config (key, value, category) VALUES

@@ -4,7 +4,7 @@
 import { db } from 'run402-functions';
 
 const SEED_SQL = `-- ============================================
--- Wild Lychee — Silver Pines Demo Seed (idempotent)
+-- Kychon — Silver Pines Demo Seed (idempotent)
 -- "Silver Pines Senior Center — Asheville, NC"
 -- Active-adult community center, accessibility-first
 -- ============================================
@@ -32,8 +32,8 @@ INSERT INTO site_config (key, value, category) VALUES
     "text": "#2C2C2C",
     "text_muted": "#5A5A5A",
     "border": "#D5CFC4",
-    "font_heading": "Merriweather",
-    "font_body": "Source Sans 3",
+    "font_heading": "Bitter",
+    "font_body": "IBM Plex Sans",
     "radius": "0.75rem",
     "max_width": "68rem"
   }', 'theme')

@@ -44,8 +44,15 @@ function isEntry(v: unknown): v is SiteConfigEntry {
   );
 }
 
+// Keys whose value is owned by the seed and should track upstream changes
+// across redeploys. Listed here to avoid surprising operators: most
+// site_config rows preserve admin edits via ON CONFLICT DO NOTHING; entries
+// in this set use DO UPDATE so the typed seed remains source-of-truth.
+const SEED_OWNED_KEYS = new Set(['theme']);
+
 function emitSiteConfig(siteConfig: Record<string, unknown>): string {
-  const rows: string[] = [];
+  const preserveRows: string[] = [];
+  const upsertRows: string[] = [];
   for (const [key, raw] of Object.entries(siteConfig)) {
     if (key === 'nav') {
       throw new Error(
@@ -60,18 +67,28 @@ function emitSiteConfig(siteConfig: Record<string, unknown>): string {
     } else {
       value = raw;
     }
-    rows.push(
-      `  ('${escSql(key)}', ${jsonbLiteral(value)}, '${escSql(category)}')`,
-    );
+    const row = `  ('${escSql(key)}', ${jsonbLiteral(value)}, '${escSql(category)}')`;
+    (SEED_OWNED_KEYS.has(key) ? upsertRows : preserveRows).push(row);
   }
-  if (rows.length === 0) return '';
-  return [
-    '-- site_config',
-    `INSERT INTO site_config (key, value, category) VALUES`,
-    rows.join(',\n'),
-    `ON CONFLICT (key) DO NOTHING;`,
-    '',
-  ].join('\n');
+  const blocks: string[] = [];
+  if (preserveRows.length > 0) {
+    blocks.push([
+      '-- site_config (admin edits preserved)',
+      `INSERT INTO site_config (key, value, category) VALUES`,
+      preserveRows.join(',\n'),
+      `ON CONFLICT (key) DO NOTHING;`,
+    ].join('\n'));
+  }
+  if (upsertRows.length > 0) {
+    blocks.push([
+      '-- site_config (seed-owned: theme updates flow on every deploy)',
+      `INSERT INTO site_config (key, value, category) VALUES`,
+      upsertRows.join(',\n'),
+      `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;`,
+    ].join('\n'));
+  }
+  if (blocks.length === 0) return '';
+  return blocks.join('\n\n') + '\n';
 }
 
 function emitTiers(tiers: TierSeed[]): string {

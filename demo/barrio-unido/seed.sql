@@ -28,12 +28,12 @@ INSERT INTO site_config (key, value, category) VALUES
     "text": "#2D1810",
     "text_muted": "#7A6B5E",
     "border": "#D4C4B0",
-    "font_heading": "Playfair Display",
-    "font_body": "Source Sans 3",
+    "font_heading": "Merriweather",
+    "font_body": "Noto Sans",
     "radius": "0.75rem",
     "max_width": "72rem"
   }', 'theme')
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
 
 -- Feature flags (AI features OFF)
 INSERT INTO site_config (key, value, category) VALUES
