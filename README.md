@@ -39,6 +39,10 @@ A forkable, AI-powered membership portal built on [Run402](https://run402.com). 
 ## Quick Start
 
 ```bash
+# Pull demo images (Git LFS, one-time per machine)
+git lfs install
+git lfs pull
+
 # Install dependencies
 npm install
 
