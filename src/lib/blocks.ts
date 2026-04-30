@@ -483,6 +483,17 @@ const ACTIVITY_FEED: BlockType = {
 
 // --- Header chrome renderers ---
 
+export interface NavItem {
+  label: string;
+  href?: string;
+  icon?: string;
+  public?: boolean;
+  auth?: boolean;
+  feature?: string;
+  admin?: boolean;
+  children?: NavItem[];
+}
+
 const NAV_LABEL_KEYS: Record<string, string> = {
   Home: 'nav.home',
   Inicio: 'nav.home',
@@ -512,6 +523,62 @@ const NAV_LABEL_KEYS: Record<string, string> = {
 
 export { NAV_LABEL_KEYS };
 
+function navItemVisible(item: NavItem, ctx: BlockRenderContext): boolean {
+  if (item.feature && ctx.isFeatureEnabled && !ctx.isFeatureEnabled(item.feature)) return false;
+  if (item.auth && !ctx.authenticated) return false;
+  if (item.admin && ctx.role !== 'admin') return false;
+  return true;
+}
+
+function navMenuId(item: NavItem, path: string): string {
+  const slug = String(item.label || 'menu')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'menu';
+  return `nav-menu-${slug}-${path}`;
+}
+
+function renderNavChildren(children: NavItem[], ctx: BlockRenderContext, parentPath: string, depth: number): string {
+  const visible = children.filter((c) => navItemVisible(c, ctx));
+  if (visible.length === 0) return '';
+  const items = visible
+    .map((child, i) => renderNavChild(child, ctx, `${parentPath}-${i}`, depth))
+    .join('');
+  return items;
+}
+
+function renderNavChild(item: NavItem, ctx: BlockRenderContext, path: string, depth: number): string {
+  const hasKids = Array.isArray(item.children) && item.children.length > 0
+    && item.children.some((c) => navItemVisible(c, ctx));
+  const href = item.href || '#';
+  const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
+  if (!hasKids) {
+    return `<li role="none"><a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a></li>`;
+  }
+  const menuId = navMenuId(item, path);
+  const childrenHtml = renderNavChildren(item.children!, ctx, path, depth + 1);
+  const linkPart = item.href
+    ? `<a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`
+    : `<span class="nav-menuitem nav-menuitem-parent">${escHtml(item.label)}</span>`;
+  return `<li role="none" class="nav-dropdown-parent">${linkPart}<button class="nav-chevron-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}" aria-label="Open ${escAttr(item.label)} submenu"><span class="nav-chevron" aria-hidden="true">▾</span></button><ul class="nav-dropdown nav-dropdown-nested" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></li>`;
+}
+
+function renderNavTopItem(item: NavItem, ctx: BlockRenderContext, idx: number): string {
+  const hasKids = Array.isArray(item.children) && item.children.length > 0
+    && item.children.some((c) => navItemVisible(c, ctx));
+  const href = item.href || '';
+  const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
+  if (!hasKids) {
+    return `<a class="nav-link${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`;
+  }
+  const menuId = navMenuId(item, `top-${idx}`);
+  const childrenHtml = renderNavChildren(item.children!, ctx, `top-${idx}`, 1);
+  const trigger = item.href
+    ? `<a class="nav-link nav-parent${active}" href="${escAttr(href)}">${escHtml(item.label)}</a><button class="nav-chevron-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}" aria-label="Open ${escAttr(item.label)} submenu"><span class="nav-chevron" aria-hidden="true">▾</span></button>`
+    : `<button class="nav-link nav-parent nav-parent-button${active}" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}">${escHtml(item.label)}<span class="nav-chevron" aria-hidden="true">▾</span></button>`;
+  return `<div class="nav-item-wrap">${trigger}<ul class="nav-dropdown" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></div>`;
+}
+
 const NAV: BlockType = {
   label: 'Navigation',
   icon: '\u{1F9ED}',
@@ -524,19 +591,9 @@ const NAV: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const items: any[] = cfg.items || [];
-    const visible = items.filter((item: any) => {
-      if (item.feature && ctx.isFeatureEnabled && !ctx.isFeatureEnabled(item.feature)) return false;
-      if (item.auth && !ctx.authenticated) return false;
-      if (item.admin && ctx.role !== 'admin') return false;
-      return true;
-    });
-    const links = visible
-      .map((item: any) => {
-        const active = isPageActive(item.href, ctx.currentPath) ? ' active' : '';
-        return `<a class="nav-link${active}" href="${escAttr(item.href)}">${escHtml(item.label)}</a>`;
-      })
-      .join('');
+    const items: NavItem[] = cfg.items || [];
+    const visible = items.filter((item) => navItemVisible(item, ctx));
+    const links = visible.map((item, i) => renderNavTopItem(item, ctx, i)).join('');
     const sid = section.id;
     const editAttrs = sid != null && ctx.admin
       ? ` data-block-id="${sid}" data-block-type="nav"`
