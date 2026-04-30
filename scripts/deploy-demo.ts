@@ -70,12 +70,29 @@ export const DEMOS: Record<string, DemoConfig> = {
  * Copy `<src>/*` (top-level files only, no recursion — matches `cp src/* dst/`)
  * into `<dst>/`. Returns a cleanup function that removes `<dst>` if it was
  * created here. Caller must run cleanup in a try/finally.
+ *
+ * `demo/<name>/assets/` is gitignored and machine-local (`generate-images.sh`
+ * produces it from OPENAI_API_KEY). Fail loud if it's missing for a demo
+ * deploy — silently skipping ships demo sites with broken /assets/ refs.
  */
 function copyAssets(src: string, dst: string): () => void {
-  if (!existsSync(src)) return () => undefined;
-  console.log("Copying demo assets into public/assets...");
+  if (!existsSync(src)) {
+    throw new Error(
+      `Demo assets dir not found: ${src}\n` +
+        "  Generate it via the demo's `bash demo/<name>/generate-images.sh` (needs OPENAI_API_KEY),\n" +
+        "  or symlink it from another checkout that already has the images.",
+    );
+  }
+  const entries = readdirSync(src);
+  if (entries.length === 0) {
+    throw new Error(
+      `Demo assets dir is empty: ${src}\n` +
+        "  Did `generate-images.sh` complete? Check for a partial run.",
+    );
+  }
+  console.log(`Copying ${entries.length} demo asset(s) into public/assets...`);
   mkdirSync(dst, { recursive: true });
-  for (const name of readdirSync(src)) {
+  for (const name of entries) {
     copyFileSync(join(src, name), join(dst, name));
   }
   return () => {
