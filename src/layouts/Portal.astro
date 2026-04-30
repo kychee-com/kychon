@@ -13,6 +13,7 @@ import DemoBanner from '../components/DemoBanner.astro';
 import { getActiveProjectSeed } from '../seeds';
 import { renderBlock } from '../lib/blocks';
 import type { BlockRenderContext, Section } from '../lib/blocks';
+import { buildCspValue } from '../lib/csp';
 
 interface Props {
   title: string;
@@ -51,6 +52,8 @@ const bakeCtx: BlockRenderContext = {
 
 const seedAsSections = seed.sections as unknown as Section[];
 
+const cspValue = buildCspValue();
+
 const headerHtml = seedAsSections
   .filter((s) => s.zone === 'header' && s.visible !== false)
   .sort((a, b) => a.position - b.position)
@@ -68,6 +71,8 @@ const footerHtml = seedAsSections
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content={cspValue}>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>{title}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/theme.css">

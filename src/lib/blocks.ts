@@ -65,7 +65,7 @@ export function escHtml(s: any): string {
     .replace(/'/g, '&#39;');
 }
 
-function escAttr(s: any): string {
+export function escAttr(s: any): string {
   return escHtml(s);
 }
 
@@ -751,6 +751,8 @@ const CUSTOM: BlockType = {
 
 // --- Registry ---
 
+import EMBED from './blocks/embed';
+
 export const BLOCK_TYPES: Record<string, BlockType> = {
   hero: HERO,
   features: FEATURES,
@@ -762,6 +764,7 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   event_countdown: EVENT_COUNTDOWN,
   announcements_feed: ANNOUNCEMENTS_FEED,
   activity_feed: ACTIVITY_FEED,
+  embed: EMBED,
   custom: CUSTOM,
   nav: NAV,
   brand_header: BRAND_HEADER,

@@ -178,3 +178,59 @@ All boolean. Toggle with: `UPDATE site_config SET value = 'true' WHERE key = 'fe
 2. If dynamic, add the hydrator to `src/lib/block-hydrators.ts` and reference it from the block's `hydrate` function
 3. Document the block's `config` shape near its registry entry
 4. Optionally seed an instance in `src/seeds/{project}.ts`
+
+## Embed Block + Provider Registry
+
+The `embed` block type renders third-party iframes via an allowlist registered in `src/lib/blocks/embed-providers.ts`. Adding a provider is a code change by design — that is the security model.
+
+### Verified providers (v1)
+
+| id | Use | Required params | Sandbox |
+|---|---|---|---|
+| `youtube` | YouTube video player | `video_id` (+ `start`, `autoplay`) | `allow-scripts allow-same-origin allow-presentation` |
+| `vimeo` | Vimeo video player | `video_id` (numeric) | `allow-scripts allow-same-origin allow-presentation` |
+| `calendly` | Booking widget | `username` (+ `event_type`) | `allow-scripts allow-same-origin allow-popups allow-forms` |
+| `map` | Google Maps embed | `address` OR `lat` + `lng` | `allow-scripts allow-same-origin allow-popups allow-forms` |
+| `weather` | Windy weather chart | `lat` + `lon` (+ `units`) | `allow-scripts allow-same-origin` |
+| `tide_chart` | NOAA tide predictions | `station_id` (NOAA) | `allow-scripts allow-same-origin allow-popups` |
+
+### Generic provider
+
+`iframe` is the escape hatch: admin pastes any HTTPS URL. Its `trustLevel` is `'generic'`, so the renderer refuses to emit the iframe until `config.trust_acknowledged === true` (the admin checks "I trust {hostname}" in the edit popover). The `<small class="block-embed__pill">External content</small>` pill is rendered on these blocks for admins only — verified providers never carry the pill.
+
+### Adding a provider
+
+1. Add a `EmbedProvider` entry to `src/lib/blocks/embed-providers.ts` exporting `id`, `label`, `icon`, `buildSrc(params)`, `paramsSchema`, `sandbox`, `frameAncestor`, `defaultHeight`, `responsive`, and `trustLevel: 'verified'`.
+2. The `getProviderHosts()` helper auto-includes the new `frameAncestor` in the deploy-time CSP `frame-src`. No manual `_headers` edit needed.
+3. Add a unit test in `tests/unit/embed-providers.test.ts` covering the URL builder's hostile-input rejection.
+4. The deploy-time validator in `scripts/_lib.ts:generateAndValidateHeaders` aborts the deploy if any registered `frameAncestor` is missing from the CSP — so a forgotten host is a build-time error, not a silent runtime block.
+
+## Content Security Policy (CSP) Baseline
+
+Every deploy ships a CSP scoped to the registered embed providers:
+
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' https://esm.sh;
+style-src 'self' 'unsafe-inline';
+img-src 'self' https: data:;
+font-src 'self' https://fonts.gstatic.com;
+frame-src <registered provider hosts>;
+connect-src 'self' https://*.run402.com https://esm.sh;
+```
+
+Plus adjacent headers `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
+
+### Delivery mechanism (Run402 platform note)
+
+Run402 v1.50 has no mechanism for custom HTTP response headers on static assets, so v1 delivers what it can via meta tags:
+
+- **CSP** — `<meta http-equiv="Content-Security-Policy">` injected at build time by `Portal.astro` (W3C CSP3 alternative delivery; equivalent to the response header for every directive used here).
+- **Referrer-Policy** — `<meta name="referrer">` in Portal.astro.
+- **`X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy`** — bundled in `dist/_headers` but not yet served as response headers (platform gap; once Run402 honors `_headers`, they become real response headers automatically).
+
+Source of truth is `public/_headers` (template with `{PROVIDER_HOSTS}` placeholder). `src/lib/csp.ts` substitutes the placeholder using `getProviderHosts()` and feeds both the meta tag and the bundled `_headers` file. The deploy validator runs against the substituted content.
+
+### Why `'unsafe-inline'` for v1
+
+Existing inline scripts in `Portal.astro` (theme initializer, year setter, animation init) and Astro-emitted inline styles need `'unsafe-inline'`. Tightening to nonce-based or hash-based CSP requires auditing and externalizing every inline script — a separate effort. The rest of the CSP (default-src, frame-src, connect-src, img-src) provides meaningful defense even with inline scripts allowed.

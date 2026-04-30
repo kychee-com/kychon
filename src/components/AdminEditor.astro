@@ -871,6 +871,335 @@
     });
   }
 
+  // --- Embed-block edit popover ---
+  // Triggered by clicking the pencil button (data-embed-edit) on any embed
+  // block. Renders a provider selector + dynamic params form + trust gate
+  // (for the generic iframe provider). Reads the section row, lets the admin
+  // change provider/params/heading, then PATCHes the row's `config`.
+  let embedEditorOpen = false;
+
+  function initEmbedEditor() {
+    if ((document.body as any).__embedEditorBound) return;
+    (document.body as any).__embedEditorBound = true;
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement | null;
+      const btn = t?.closest('[data-embed-edit]') as HTMLElement | null;
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const sid = parseInt(btn.dataset.embedEdit || '', 10);
+      if (Number.isFinite(sid)) openEmbedEditor(sid);
+    });
+  }
+
+  function extractVideoId(provider: string, raw: string): string | null {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if (provider === 'youtube') {
+      const patterns = [
+        /youtube\.com\/watch\?v=([\w-]{6,})/,
+        /youtu\.be\/([\w-]{6,})/,
+        /youtube\.com\/embed\/([\w-]{6,})/,
+        /youtube\.com\/shorts\/([\w-]{6,})/,
+      ];
+      for (const re of patterns) {
+        const m = trimmed.match(re);
+        if (m) return m[1];
+      }
+      // Already a bare ID?
+      if (/^[\w-]{6,}$/.test(trimmed)) return trimmed;
+    }
+    if (provider === 'vimeo') {
+      const m = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      if (m) return m[1];
+      if (/^\d+$/.test(trimmed)) return trimmed;
+    }
+    return null;
+  }
+
+  async function openEmbedEditor(sectionId: number) {
+    if (embedEditorOpen) return;
+    embedEditorOpen = true;
+
+    const { PROVIDERS } = await import('../lib/blocks/embed-providers');
+
+    let row: any = null;
+    try {
+      const rows = await get(`sections?id=eq.${sectionId}`);
+      row = rows[0];
+    } catch (err) {
+      console.error('Failed to load embed block:', err);
+      showToast('Could not load embed', 'error');
+      embedEditorOpen = false;
+      return;
+    }
+    if (!row) {
+      showToast('Block not found', 'error');
+      embedEditorOpen = false;
+      return;
+    }
+
+    const cfg: any = row.config || {};
+    let providerId: string = cfg.provider || 'youtube';
+    let params: any = { ...(cfg.params || {}) };
+    let heading: string = cfg.heading || '';
+    let trustAck: boolean = cfg.trust_acknowledged === true;
+    let trustedHost: string = '';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+    const panel = document.createElement('div');
+    panel.className = 'admin-popover admin-embed-editor';
+
+    function trustHostFor(srcVal: string): string {
+      try {
+        return new URL(srcVal).host;
+      } catch {
+        return '';
+      }
+    }
+
+    function renderForm() {
+      const provider = PROVIDERS[providerId];
+      if (!provider) return;
+      const fields = Object.entries(provider.paramsSchema)
+        .map(([key, schema]) => {
+          const labelText = schema.label || key;
+          const required = schema.required ? ' <span class="admin-embed__req">*</span>' : '';
+          const helpHtml = schema.help
+            ? `<div class="admin-embed__help">${esc(schema.help)}</div>`
+            : '';
+          const value = params[key] != null ? String(params[key]) : '';
+          let input = '';
+          if (schema.type === 'select' && schema.options) {
+            const opts = schema.options
+              .map((o) => {
+                const sel = String(value) === o ? ' selected' : '';
+                return `<option value="${esc(o)}"${sel}>${esc(o)}</option>`;
+              })
+              .join('');
+            input = `<select data-param="${esc(key)}"><option value=""></option>${opts}</select>`;
+          } else if (schema.type === 'number') {
+            input =
+              `<input type="number" data-param="${esc(key)}" value="${esc(value)}" ` +
+              `placeholder="${esc(schema.placeholder || '')}" ${schema.required ? 'required' : ''}>`;
+          } else {
+            input =
+              `<input type="text" data-param="${esc(key)}" value="${esc(value)}" ` +
+              `placeholder="${esc(schema.placeholder || '')}" ${schema.required ? 'required' : ''}>`;
+          }
+          return `
+            <div class="admin-embed__field">
+              <label>${esc(labelText)}${required}</label>
+              ${input}
+              ${helpHtml}
+            </div>
+          `;
+        })
+        .join('');
+
+      // Provider-specific helper UI
+      let helperUi = '';
+      if (providerId === 'youtube' || providerId === 'vimeo') {
+        helperUi = `
+          <div class="admin-embed__helper">
+            <label>Paste a ${providerId === 'youtube' ? 'YouTube' : 'Vimeo'} URL to extract the ID</label>
+            <div style="display:flex;gap:0.5rem">
+              <input type="text" id="embed-url-helper" placeholder="https://${providerId === 'youtube' ? 'www.youtube.com/watch?v=...' : 'vimeo.com/...'}" style="flex:1">
+              <button type="button" class="btn btn-secondary btn-sm" id="embed-url-extract">Extract</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Trust gate for generic iframe
+      let trustUi = '';
+      if (providerId === 'iframe') {
+        trustedHost = trustHostFor(String(params.src || ''));
+        const labelHost = trustedHost || 'this source';
+        trustUi = `
+          <div class="admin-embed__trust" role="alert">
+            <strong>⚠ External content</strong>
+            <p>This block embeds content from a source Kychon hasn't verified.
+               Visitors run any scripts the source serves.</p>
+            <label class="admin-embed__trust-check">
+              <input type="checkbox" id="embed-trust-check" ${trustAck && trustedHost ? 'checked' : ''}>
+              <span>I trust <code id="embed-trust-host">${esc(labelHost)}</code></span>
+            </label>
+          </div>
+        `;
+      }
+
+      panel.innerHTML = `
+        <div class="admin-embed__header">
+          <h3>Edit embed</h3>
+          <div class="admin-embed__actions">
+            <button class="btn btn-primary btn-sm" id="embed-save">Save</button>
+            <button class="btn btn-secondary btn-sm" id="embed-cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="admin-embed__field">
+          <label>Provider</label>
+          <select id="embed-provider">
+            ${Object.entries(PROVIDERS)
+              .map(
+                ([id, p]) =>
+                  `<option value="${esc(id)}"${
+                    id === providerId ? ' selected' : ''
+                  }>${esc(p.icon)} ${esc(p.label)}</option>`,
+              )
+              .join('')}
+          </select>
+        </div>
+        <div class="admin-embed__field">
+          <label>Heading (optional)</label>
+          <input type="text" id="embed-heading" value="${esc(heading)}" placeholder="Block heading shown above the embed">
+        </div>
+        ${helperUi}
+        <fieldset class="admin-embed__params">
+          <legend>Provider params</legend>
+          ${fields}
+        </fieldset>
+        ${trustUi}
+      `;
+
+      // Bind input changes
+      panel.querySelectorAll<HTMLElement>('[data-param]').forEach((el) => {
+        el.addEventListener('input', () => {
+          const key = el.dataset.param!;
+          if (el instanceof HTMLInputElement) {
+            params[key] = el.type === 'number' ? (el.value === '' ? undefined : Number(el.value)) : el.value;
+          } else if (el instanceof HTMLSelectElement) {
+            params[key] = el.value;
+          }
+          // Re-evaluate trust host when iframe src changes
+          if (providerId === 'iframe' && key === 'src') {
+            const newHost = trustHostFor(String(params.src || ''));
+            const hostEl = panel.querySelector('#embed-trust-host');
+            if (hostEl) hostEl.textContent = newHost || 'this source';
+            if (newHost !== trustedHost) {
+              trustedHost = newHost;
+              trustAck = false;
+              const cb = panel.querySelector('#embed-trust-check') as HTMLInputElement | null;
+              if (cb) cb.checked = false;
+              updateSaveEnabled();
+            }
+          }
+          updateSaveEnabled();
+        });
+      });
+
+      panel.querySelector('#embed-provider')?.addEventListener('change', (ev) => {
+        const newId = (ev.target as HTMLSelectElement).value;
+        if (newId !== providerId) {
+          providerId = newId;
+          // Reset params when switching providers
+          params = {};
+          trustAck = false;
+          trustedHost = '';
+          renderForm();
+          updateSaveEnabled();
+        }
+      });
+
+      panel.querySelector('#embed-heading')?.addEventListener('input', (ev) => {
+        heading = (ev.target as HTMLInputElement).value;
+      });
+
+      panel.querySelector('#embed-url-extract')?.addEventListener('click', () => {
+        const helper = panel.querySelector('#embed-url-helper') as HTMLInputElement | null;
+        if (!helper) return;
+        const id = extractVideoId(providerId, helper.value);
+        if (id) {
+          params.video_id = id;
+          const target = panel.querySelector('[data-param="video_id"]') as HTMLInputElement | null;
+          if (target) target.value = id;
+          showToast('Video ID extracted', 'success');
+          updateSaveEnabled();
+        } else {
+          showToast('Could not extract video ID from that URL', 'error');
+        }
+      });
+
+      panel.querySelector('#embed-trust-check')?.addEventListener('change', (ev) => {
+        trustAck = (ev.target as HTMLInputElement).checked;
+        updateSaveEnabled();
+      });
+
+      panel.querySelector('#embed-save')?.addEventListener('click', save);
+      panel.querySelector('#embed-cancel')?.addEventListener('click', close);
+
+      updateSaveEnabled();
+    }
+
+    function updateSaveEnabled() {
+      const btn = panel.querySelector('#embed-save') as HTMLButtonElement | null;
+      if (!btn) return;
+      let enabled = true;
+      const provider = PROVIDERS[providerId];
+      if (!provider) enabled = false;
+      else {
+        for (const [key, schema] of Object.entries(provider.paramsSchema)) {
+          if (schema.required && (params[key] == null || params[key] === '')) {
+            enabled = false;
+            break;
+          }
+        }
+      }
+      // Trust gate for iframe blocks the save until checked.
+      if (providerId === 'iframe' && (!trustedHost || !trustAck)) enabled = false;
+      btn.disabled = !enabled;
+    }
+
+    async function save() {
+      const provider = PROVIDERS[providerId];
+      if (!provider) return;
+      // Optimistic-validate by running buildSrc here so we surface errors
+      // before saving.
+      try {
+        provider.buildSrc(params);
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Invalid params', 'error');
+        return;
+      }
+      const newConfig: any = {
+        ...row.config,
+        provider: providerId,
+        params,
+        heading,
+      };
+      if (providerId === 'iframe') {
+        newConfig.trust_acknowledged = trustAck;
+      } else {
+        // Strip trust flag when switching to a verified provider.
+        delete newConfig.trust_acknowledged;
+      }
+      try {
+        await patch(`sections?id=eq.${row.id}`, { config: newConfig });
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
+        showToast('Embed saved');
+        close();
+        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+      } catch (err) {
+        console.error('Embed save failed:', err);
+        showToast('Save failed', 'error');
+      }
+    }
+
+    function close() {
+      panel.remove();
+      backdrop.remove();
+      embedEditorOpen = false;
+    }
+
+    backdrop.addEventListener('click', close);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+    renderForm();
+  }
+
   // --- Main init ---
   async function initAdminEditor() {
     await ready;
@@ -883,6 +1212,7 @@
     initEditableImage();
     initSortable();
     initNavEditor();
+    initEmbedEditor();
     initSectionActions();
     ensureZoneAddButtons();
     // composable-layout: brand logo and nav are now blocks rendered with
