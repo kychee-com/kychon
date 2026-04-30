@@ -30,8 +30,12 @@ export interface DemoConfig {
   liveUrl: string;
   /** Demo-specific assets dir, copied into public/assets/ before the build. */
   assetsDir: string;
-  /** Path to the demo's seed.sql (relative to repo root). */
-  seedFile: string;
+  /**
+   * KYCHON_PROJECT value — picks the typed seed module under
+   * `src/seeds/{project}.ts`. The bake + the seed-SQL generator both read
+   * this. Maps 1:1 with the demo's TS seed.
+   */
+  kychonProject: string;
   /** Path to the demo's reset-demo.js (relative to repo root). */
   resetDemoFile: string;
 }
@@ -43,7 +47,7 @@ export const DEMOS: Record<string, DemoConfig> = {
     subdomain: "eagles",
     liveUrl: "https://eagles.kychon.com",
     assetsDir: "demo/eagles/assets",
-    seedFile: "demo/eagles/seed.sql",
+    kychonProject: "eagles",
     resetDemoFile: "demo/eagles/reset-demo.js",
   },
   "silver-pines": {
@@ -52,7 +56,7 @@ export const DEMOS: Record<string, DemoConfig> = {
     subdomain: "silver-pines",
     liveUrl: "https://silver-pines.kychon.com",
     assetsDir: "demo/silver-pines/assets",
-    seedFile: "demo/silver-pines/seed.sql",
+    kychonProject: "silver-pines",
     resetDemoFile: "demo/silver-pines/reset-demo.js",
   },
   barrio: {
@@ -61,7 +65,7 @@ export const DEMOS: Record<string, DemoConfig> = {
     subdomain: "barrio-unido",
     liveUrl: "https://barrio.kychon.com",
     assetsDir: "demo/barrio-unido/assets",
-    seedFile: "demo/barrio-unido/seed.sql",
+    kychonProject: "barrio-unido",
     resetDemoFile: "demo/barrio-unido/reset-demo.js",
   },
 };
@@ -121,6 +125,13 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
     join(ROOT, "public/assets"),
   );
 
+  // composable-layout: pick the matching TS seed module so that:
+  //   1) the pre-build generator (`tsx scripts/generate-seed-sql.ts` chained
+  //      into `npm run build`) emits the demo's chrome+structural seed;
+  //   2) Portal.astro's bake reads the same module via `getActiveProjectSeed()`.
+  const previousProject = process.env.KYCHON_PROJECT;
+  process.env.KYCHON_PROJECT = config.kychonProject;
+
   try {
     const keys = await r.projects.keys(projectId);
     const anonKey = keys.anon_key;
@@ -130,7 +141,8 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
       projectId,
       anonKey,
       subdomain: config.subdomain,
-      seedFile: config.seedFile,
+      // No seedFile — runDeploy reads the generated `./seed.sql` which now
+      // contains the chrome blocks + the demo's `extraSqlFile` content.
       excludeFunctions: ["check-expirations"],
       extraFunction: config.resetDemoFile,
     });
@@ -142,6 +154,8 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
     console.log(`Live at: ${config.liveUrl}`);
   } finally {
     cleanupAssets();
+    if (previousProject === undefined) delete process.env.KYCHON_PROJECT;
+    else process.env.KYCHON_PROJECT = previousProject;
   }
 }
 

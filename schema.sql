@@ -306,3 +306,14 @@ DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN locked BOOLEAN DEFAULT false; EX
 DO $$ BEGIN ALTER TABLE forum_replies ADD COLUMN hidden BOOLEAN DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE forum_topics ADD COLUMN search_vector TSVECTOR; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 CREATE INDEX IF NOT EXISTS idx_forum_topics_search ON forum_topics USING GIN (search_vector);
+
+-- composable-layout: zone + scope on sections so chrome blocks live in the same table as main content
+DO $$ BEGIN
+  ALTER TABLE sections ADD COLUMN zone TEXT NOT NULL DEFAULT 'main'
+    CHECK (zone IN ('header', 'main', 'footer'));
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE sections ADD COLUMN scope TEXT NOT NULL DEFAULT 'page'
+    CHECK (scope IN ('page', 'global'));
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_sections_zone_scope_slug ON sections (zone, scope, page_slug, position);

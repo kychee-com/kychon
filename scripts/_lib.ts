@@ -109,8 +109,18 @@ function makeFunctionSpec(code: string): FunctionSpec {
   return spec;
 }
 
-/** Run `npx astro build` from the repo root, streaming output. */
+/**
+ * Generate `seed.sql` from the active project's TS seed module, then run
+ * `npx astro build`. The generator is required because `seed.sql` is gitignored
+ * and the bake in `Portal.astro` and the migration reader both expect a
+ * project-matched `seed.sql` to exist.
+ */
 export function buildAstro(): void {
+  console.log("Generating seed.sql from active project's TS seed...");
+  execSync("npx tsx scripts/generate-seed-sql.ts", {
+    stdio: "inherit",
+    cwd: ROOT,
+  });
   console.log("Building Astro project...");
   execSync("npx astro build", { stdio: "inherit", cwd: ROOT });
 }

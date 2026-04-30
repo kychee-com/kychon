@@ -5,27 +5,20 @@ import Portal from '../layouts/Portal.astro';
   <div class="container">
     <h1 id="page-title"></h1>
     <div id="page-content" class="mt-2"></div>
-    <div id="page-sections" class="mt-2"></div>
   </div>
+  <div id="sections" class="mt-2" data-sortable-group="page-sections" data-zone="main"></div>
 </Portal>
 
 <script>
   import { get } from '../lib/api';
   import { isAdmin, isAuthenticated } from '../lib/auth';
   import { translateItems } from '../lib/config';
-
-  function esc(s: string): string {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
+  import { hydratePage } from '../lib/page-render';
 
   async function initPage() {
-    // Guard: astro:after-swap fires initPage on EVERY navigation, including routes
-    // that don't own these elements. Bail out cleanly if we're not on /page.html.
     const titleEl = document.getElementById('page-title');
     const contentEl = document.getElementById('page-content');
-    const sectionsContainer = document.getElementById('page-sections');
+    const sectionsContainer = document.getElementById('sections');
     if (!titleEl || !contentEl || !sectionsContainer) return;
 
     titleEl.textContent = '';
@@ -48,7 +41,6 @@ import Portal from '../layouts/Portal.astro';
       const page = pages[0];
       await translateItems('page', [page], ['title', 'content']);
 
-      // Auth gate
       if (page.requires_auth && !isAuthenticated()) {
         const { navigate } = await import('astro:transitions/client');
         navigate('/');
@@ -66,24 +58,12 @@ import Portal from '../layouts/Portal.astro';
           contentEl.setAttribute('data-editable-rich', `pages.${page.id}.content`);
         }
       }
-
-      // Load sections
-      const sections = await get(`sections?page_slug=eq.${slug}&visible=eq.true&order=position.asc`);
-      for (const s of sections) {
-        const el = document.createElement('div');
-        el.className = 'section section-visible';
-        if (s.config?.html) {
-          el.innerHTML = s.config.html;
-        } else if (s.section_type === 'faq') {
-          el.innerHTML = (s.config.items || []).map((f: any) =>
-            `<details class="card mb-1"><summary style="font-weight:600;cursor:pointer">${esc(f.q)}</summary><p class="text-muted mt-1">${esc(f.a)}</p></details>`
-          ).join('');
-        }
-        sectionsContainer.appendChild(el);
-      }
     } catch (_e) {
       titleEl.textContent = 'Error loading page';
+      return;
     }
+
+    await hydratePage(slug);
   }
 
   initPage();
