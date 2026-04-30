@@ -1,4 +1,4 @@
-import type { ProjectSeed } from './types';
+import type { ProjectSeed } from './types.js';
 
 const EAGLES_NAV = [
   { label: 'Home', href: '/', icon: 'home', public: true },

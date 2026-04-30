@@ -15,7 +15,7 @@ import { get } from './api';
 import { getSession, getRole } from './auth';
 import { isFeatureEnabled, ready } from './config';
 import { getLocale } from './i18n';
-import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks';
+import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;

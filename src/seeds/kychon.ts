@@ -1,4 +1,4 @@
-import type { ProjectSeed } from './types';
+import type { ProjectSeed } from './types.js';
 
 const DEFAULT_NAV_ITEMS = [
   { label: 'Home', href: '/', icon: 'home', public: true },

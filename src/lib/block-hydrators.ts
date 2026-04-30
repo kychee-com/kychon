@@ -2,7 +2,7 @@
 // Kept separate from blocks.ts so the registry stays import-safe at build time
 // (Astro frontmatter runs in Node and shouldn't pull in localStorage/auth).
 
-import type { Section, BlockRenderContext } from './blocks';
+import type { Section, BlockRenderContext } from './blocks.js';
 
 function esc(s: any): string {
   const d = document.createElement('div');

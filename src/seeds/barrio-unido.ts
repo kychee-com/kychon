@@ -1,4 +1,4 @@
-import type { ProjectSeed } from './types';
+import type { ProjectSeed } from './types.js';
 
 const BARRIO_NAV = [
   { label: 'Inicio', href: '/', icon: 'home', public: true },
