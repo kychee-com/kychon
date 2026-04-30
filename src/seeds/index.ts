@@ -2,7 +2,7 @@
 // `ProjectSeed` exported from `./{project}.ts`. Used by both
 // `scripts/generate-seed-sql.ts` and `Portal.astro`'s build-time bake.
 
-import type { ProjectSeed } from './types';
+import type { ProjectSeed } from './types.js';
 
 const PROJECTS = ['kychon', 'eagles', 'silver-pines', 'barrio-unido'] as const;
 export type ProjectName = (typeof PROJECTS)[number];
@@ -20,12 +20,12 @@ export async function getActiveProjectSeed(): Promise<ProjectSeed> {
   const name = getProjectName();
   switch (name) {
     case 'kychon':
-      return (await import('./kychon')).seed;
+      return (await import('./kychon.js')).seed;
     case 'eagles':
-      return (await import('./eagles')).seed;
+      return (await import('./eagles.js')).seed;
     case 'silver-pines':
-      return (await import('./silver-pines')).seed;
+      return (await import('./silver-pines.js')).seed;
     case 'barrio-unido':
-      return (await import('./barrio-unido')).seed;
+      return (await import('./barrio-unido.js')).seed;
   }
 }
