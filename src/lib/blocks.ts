@@ -168,6 +168,250 @@ function renderMarkdownLine(text: string): string {
 
 // --- Main-zone renderers ---
 
+// Hero block config — both modes share heading/subheading/cta_*, with mode-specific keys layered on top.
+export type HeroMode = 'background' | 'foreground';
+export type HeroAspect = 'auto' | '16/9' | '4/3' | '21/9';
+export type HeroLogoPosition = 'left' | 'center' | 'right';
+export type HeroCaptionPosition =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'right-middle'
+  | 'bottom-right'
+  | 'bottom-center'
+  | 'bottom-left'
+  | 'left-middle';
+export type HeroTextPosition = 'over_image' | 'below_image';
+
+export interface HeroConfig {
+  // Common
+  heading?: string;
+  subheading?: string;
+  cta_text?: string;
+  cta_href?: string;
+  // Mode selector
+  mode?: HeroMode;
+  // Background mode
+  bg_image?: string;
+  // Foreground mode
+  image_url?: string;
+  image_alt?: string;
+  image_aspect?: HeroAspect;
+  logo_overlay_url?: string;
+  logo_position?: HeroLogoPosition;
+  logo_max_height?: string;
+  caption_html?: string;
+  caption_position?: HeroCaptionPosition;
+  text_position?: HeroTextPosition;
+}
+
+const VALID_CAPTION_POSITIONS: HeroCaptionPosition[] = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'right-middle',
+  'bottom-right',
+  'bottom-center',
+  'bottom-left',
+  'left-middle',
+];
+
+const VALID_ASPECTS: HeroAspect[] = ['auto', '16/9', '4/3', '21/9'];
+
+// Caption HTML sanitizer — allowlist permits <br>, <strong>, <em>, <a href>.
+// Strips all other tags; strips all attributes except href on <a>; restricts
+// href to http(s):, mailto:, and relative paths (rejects scheme-relative
+// `//host`). For dangerous container tags (script/style/iframe/etc.) the tag
+// AND its contents are dropped. No HTML parser dependency — the input is
+// admin-supplied and the allowlist is narrow.
+const SANITIZER_DROP_BLOCK_TAGS = new Set([
+  'script', 'style', 'iframe', 'object', 'embed', 'svg', 'noscript', 'template', 'xml',
+]);
+
+export function sanitizeCaptionHtml(html: string): string {
+  if (!html) return '';
+  const allowedTags = new Set(['br', 'strong', 'em', 'a', '/strong', '/em', '/a']);
+  const out: string[] = [];
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf('<', i);
+    if (lt === -1) {
+      out.push(html.slice(i));
+      break;
+    }
+    // Plain text up to the tag
+    out.push(html.slice(i, lt));
+    const gt = html.indexOf('>', lt);
+    if (gt === -1) {
+      // Unclosed tag — drop everything after
+      break;
+    }
+    const tagContent = html.slice(lt + 1, gt).trim();
+    // Self-closing form: "br/" or "br /"
+    const selfClose = /\/$/.test(tagContent);
+    const cleaned = tagContent.replace(/\/$/, '').trim();
+    // Tag name is first whitespace-delimited token; preserve a leading slash
+    // for closing tags.
+    const tagMatch = cleaned.match(/^(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([\s\S]*)$/);
+    if (!tagMatch) {
+      i = gt + 1;
+      continue;
+    }
+    const closingSlash = tagMatch[1] || '';
+    const tagName = tagMatch[2].toLowerCase();
+    const rest = tagMatch[3] || '';
+    // Dangerous container tags — skip the tag AND its contents up to the
+    // matching closer. Case-insensitive search.
+    if (!closingSlash && SANITIZER_DROP_BLOCK_TAGS.has(tagName)) {
+      const closerPattern = new RegExp(`</\\s*${tagName}\\s*>`, 'i');
+      const remainder = html.slice(gt + 1);
+      const match = remainder.match(closerPattern);
+      if (match && match.index != null) {
+        i = gt + 1 + match.index + match[0].length;
+      } else {
+        // No closer — drop everything after.
+        break;
+      }
+      continue;
+    }
+    const tagKey = closingSlash + tagName;
+    if (!allowedTags.has(tagKey) && tagName !== 'br') {
+      // Unknown tag — strip entirely (keep inner text via subsequent passes).
+      i = gt + 1;
+      continue;
+    }
+    if (tagName === 'br') {
+      out.push('<br>');
+      i = gt + 1;
+      continue;
+    }
+    if (closingSlash) {
+      out.push(`</${tagName}>`);
+      i = gt + 1;
+      continue;
+    }
+    // Opening tag — emit allowed attributes only.
+    if (tagName === 'a') {
+      const hrefMatch = rest.match(/\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      const rawHref = hrefMatch ? (hrefMatch[2] ?? hrefMatch[3] ?? hrefMatch[4] ?? '') : '';
+      const href = sanitizeHref(rawHref);
+      out.push(`<a href="${escAttr(href)}">`);
+    } else {
+      out.push(`<${tagName}>`);
+    }
+    if (selfClose) {
+      // Treat as self-closing for allowed inline tags — emit closer immediately
+      // (rare case, e.g. '<em/>').
+      out.push(`</${tagName}>`);
+    }
+    i = gt + 1;
+  }
+  return out.join('');
+}
+
+function sanitizeHref(href: string): string {
+  const trimmed = href.trim();
+  if (!trimmed) return '';
+  // Scheme-relative URLs (//evil.com) inherit the current scheme — reject.
+  if (trimmed.startsWith('//')) return '';
+  // Relative paths and anchors are allowed.
+  if (trimmed.startsWith('/') || trimmed.startsWith('#') || trimmed.startsWith('?')) {
+    return trimmed;
+  }
+  // Allow http(s) and mailto schemes only.
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('mailto:')) {
+    return trimmed;
+  }
+  // Anything else (javascript:, data:, vbscript:, file:, etc.) → empty href.
+  return '';
+}
+
+function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string {
+  const cfg = section.config || {};
+  const sid = section.id;
+  const heading = `<h1${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h1>`;
+  const sub = `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`;
+  const cta = cfg.cta_text
+    ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+    : '';
+  const inner = `<div class="container">${heading}${sub}${cta}</div>`;
+  const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
+  const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
+  const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
+  const styleAttr = cfg.bg_image ? ` style="background-image:url(${escAttr(cfg.bg_image)})"` : '';
+  const adminCtrls = sid != null && ctx.admin
+    ? `<div class="admin-section-actions"><button class="admin-section-btn" data-hero-edit="${sid}" title="Hero settings">⚙</button><button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    : '';
+  return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${adminCtrls}${inner}</section>`;
+}
+
+function renderForegroundHero(section: Section, ctx: BlockRenderContext): string {
+  const cfg = (section.config || {}) as HeroConfig;
+  const sid = section.id;
+
+  const aspect = (cfg.image_aspect && (VALID_ASPECTS as string[]).includes(cfg.image_aspect))
+    ? cfg.image_aspect
+    : 'auto';
+  const textPosition: HeroTextPosition = cfg.text_position === 'below_image' ? 'below_image' : 'over_image';
+  const captionPosition: HeroCaptionPosition = (cfg.caption_position && (VALID_CAPTION_POSITIONS as string[]).includes(cfg.caption_position))
+    ? cfg.caption_position
+    : 'bottom-right';
+  const logoPosition: HeroLogoPosition = (['left', 'center', 'right'] as HeroLogoPosition[]).includes(cfg.logo_position as HeroLogoPosition)
+    ? (cfg.logo_position as HeroLogoPosition)
+    : 'left';
+  const logoMaxHeight = cfg.logo_max_height || '120px';
+
+  // Image alt — required in foreground mode. Empty alt is allowed at runtime
+  // (still emits valid HTML, decorative semantics) but warn.
+  const imageUrl = cfg.image_url || '';
+  const imageAlt = cfg.image_alt ?? '';
+  if (!imageAlt && imageUrl && typeof console !== 'undefined') {
+    console.warn(`Hero block ${sid ?? '(unsaved)'} is in foreground mode without image_alt — provide alt text for accessibility.`);
+  }
+
+  const imgAttr = sid != null && ctx.admin
+    ? ` data-editable-image="sections.${sid}.config.image_url"`
+    : '';
+  const pictureMarkup = imageUrl
+    ? `<picture class="hero-picture" data-aspect="${escAttr(aspect)}"${imgAttr}><img src="${escAttr(imageUrl)}" alt="${escAttr(imageAlt)}" loading="eager" decoding="async" /></picture>`
+    : `<picture class="hero-picture" data-aspect="${escAttr(aspect)}"${imgAttr}></picture>`;
+
+  const logoMarkup = cfg.logo_overlay_url
+    ? `<div class="hero-logo-overlay" data-position="${escAttr(logoPosition)}"><img src="${escAttr(cfg.logo_overlay_url)}" alt="" style="max-height:${escAttr(logoMaxHeight)}" /></div>`
+    : '';
+
+  const safeCaption = cfg.caption_html ? sanitizeCaptionHtml(cfg.caption_html) : '';
+  const captionMarkup = safeCaption
+    ? `<div class="hero-caption" data-position="${escAttr(captionPosition)}">${safeCaption}</div>`
+    : '';
+
+  const heading = cfg.heading
+    ? `<h1${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h1>`
+    : '';
+  const sub = cfg.subheading
+    ? `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`
+    : '';
+  const cta = cfg.cta_text
+    ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+    : '';
+  const headingGroup = heading || sub || cta
+    ? `<div class="hero-text"><div class="container">${heading}${sub}${cta}</div></div>`
+    : '';
+
+  const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
+  const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
+  const adminCtrls = sid != null && ctx.admin
+    ? `<div class="admin-section-actions"><button class="admin-section-btn" data-hero-edit="${sid}" title="Hero settings">⚙</button><button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    : '';
+
+  // Body order: picture first, then overlays/captions, then heading group.
+  // For below_image, headingGroup falls below the picture in document order.
+  const body = `${pictureMarkup}${logoMarkup}${captionMarkup}${headingGroup}`;
+
+  return `<section class="section section-hero hero-foreground" data-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${adminCtrls}${body}</section>`;
+}
+
 const HERO: BlockType = {
   label: 'Hero Banner',
   icon: '\u{1F3DE}',
@@ -181,22 +425,10 @@ const HERO: BlockType = {
     cta_href: '',
   },
   render(section, ctx) {
-    const cfg = section.config || {};
-    const sid = section.id;
-    const heading = `<h1${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h1>`;
-    const sub = `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`;
-    const cta = cfg.cta_text
-      ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
-      : '';
-    const inner = `<div class="container">${heading}${sub}${cta}</div>`;
-    const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
-    const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
-    const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
-    const styleAttr = cfg.bg_image ? ` style="background-image:url(${escAttr(cfg.bg_image)})"` : '';
-    const adminCtrls = sid != null && ctx.admin
-      ? `<div class="admin-section-actions"><button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
-      : '';
-    return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${adminCtrls}${inner}</section>`;
+    const mode: HeroMode = (section.config || {}).mode === 'foreground' ? 'foreground' : 'background';
+    return mode === 'foreground'
+      ? renderForegroundHero(section, ctx)
+      : renderBackgroundHero(section, ctx);
   },
 };
 

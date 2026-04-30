@@ -609,3 +609,120 @@ body.admin .admin-zone-add-btn {
   cursor: pointer;
   margin-right: 0.25rem;
 }
+
+/* ═══════════════════════════════════════════════════
+   12. HERO EDITOR POPOVER
+   ═══════════════════════════════════════════════════ */
+
+.admin-hero-editor .popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.admin-hero-editor .popover-header h3 {
+  margin: 0;
+}
+.admin-hero-editor fieldset {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.75rem 1rem 1rem;
+  margin-bottom: 1rem;
+}
+.admin-hero-editor fieldset legend {
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0 0.4rem;
+}
+.admin-hero-editor .hero-mode-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.admin-hero-editor .hero-mode-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.admin-hero-editor .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+.admin-hero-editor .field span em {
+  color: var(--color-text-muted, #6b7280);
+  font-style: italic;
+  font-weight: 400;
+}
+.admin-hero-editor .field input[type="text"],
+.admin-hero-editor .field textarea,
+.admin-hero-editor .field select {
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.admin-hero-editor .field textarea {
+  resize: vertical;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+.admin-hero-editor .field-radio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.admin-hero-editor .field-radio label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* Caption position: 3x3 grid picker. Center cell is disabled (no caption
+   over the heading). */
+.admin-hero-editor .caption-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  width: 9rem;
+  aspect-ratio: 1 / 1;
+  padding: 0.4rem;
+  background: var(--color-surface, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+}
+.admin-hero-editor .caption-grid-cell {
+  background: #fff;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #94a3b8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.admin-hero-editor .caption-grid-cell:hover {
+  background: var(--color-surface, #f1f5f9);
+}
+.admin-hero-editor .caption-grid-cell.selected {
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-color: var(--color-primary, #6366f1);
+}
+.admin-hero-editor .caption-grid-cell.caption-grid-disabled {
+  background: transparent;
+  border: 1px dashed var(--color-border, #e2e8f0);
+  cursor: default;
+  pointer-events: none;
+}

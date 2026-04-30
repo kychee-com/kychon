@@ -47,7 +47,29 @@ export function clearCache(key: string): void {
 }
 
 // --- Hero image preload ---
+// The active hero section's image (background `bg_image` OR foreground
+// `image_url`) is cached to localStorage on every page render so that the
+// next visit's <link rel="preload" as="image"> can fire before the section
+// fetch completes. Both modes warm the same key — the resolution happens at
+// cache-write time via getHeroImageUrl().
 const WL_CACHE_HERO_IMG = 'wl_cache_hero_img';
+
+interface HeroSectionLike {
+  section_type?: string;
+  config?: Record<string, any> | null;
+}
+
+/** Extract the active hero image URL from a hero section's config. Returns
+ * `image_url` for foreground mode, `bg_image` for background mode. Returns
+ * null when neither is set. */
+export function getHeroImageUrl(section: HeroSectionLike | null | undefined): string | null {
+  if (!section) return null;
+  const cfg = section.config || {};
+  if (cfg.mode === 'foreground') {
+    return typeof cfg.image_url === 'string' && cfg.image_url ? cfg.image_url : null;
+  }
+  return typeof cfg.bg_image === 'string' && cfg.bg_image ? cfg.bg_image : null;
+}
 
 export function preloadHeroImage(): void {
   const url = readCache(WL_CACHE_HERO_IMG);
@@ -60,7 +82,11 @@ export function preloadHeroImage(): void {
   }
 }
 
-export function cacheHeroImage(url: string): void {
+/** Persist the active hero image URL for the next page's preload hint.
+ * Accepts either a URL string (legacy) or a hero section whose mode-aware
+ * URL is resolved via getHeroImageUrl(). */
+export function cacheHeroImage(input: string | HeroSectionLike): void {
+  const url = typeof input === 'string' ? input : getHeroImageUrl(input);
   if (url) writeCache(WL_CACHE_HERO_IMG, url);
 }
 
