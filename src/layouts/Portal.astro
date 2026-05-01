@@ -21,6 +21,12 @@ interface Props {
 }
 
 const { title } = Astro.props;
+// Build-time cache-buster for /js/env.js. The deploy injects fresh
+// __KYCHON_* globals into env.js, but the file's URL is otherwise stable —
+// browsers from a previous deploy can ship a stale cached copy that
+// references retired globals (e.g. __WILDLYCHEE_API). The build-id query
+// string changes on every build, forcing a refetch.
+const BUILD_ID = String(Date.now());
 
 // --- Build-time bake of chrome zones ---
 // Bake context: the build has no auth, so render the public + feature-on view.
@@ -59,14 +65,18 @@ const seedAsSections = seed.sections as unknown as Section[];
 
 const cspValue = buildCspValue();
 
+// Bake only global-scoped chrome — page-scoped header/footer blocks
+// (e.g. page_banner) belong to a single page and would otherwise leak into
+// the static HTML of every other page until the runtime hydrate corrects
+// them. Page-scoped chrome paints in the first hydrate frame instead.
 const headerHtml = seedAsSections
-  .filter((s) => s.zone === 'header' && s.visible !== false)
+  .filter((s) => s.zone === 'header' && s.scope === 'global' && s.visible !== false)
   .sort((a, b) => a.position - b.position)
   .map((s) => renderBlock(s, bakeCtx))
   .join('');
 
 const footerHtml = seedAsSections
-  .filter((s) => s.zone === 'footer' && s.visible !== false)
+  .filter((s) => s.zone === 'footer' && s.scope === 'global' && s.visible !== false)
   .sort((a, b) => a.position - b.position)
   .map((s) => renderBlock(s, bakeCtx))
   .join('');
@@ -143,7 +153,7 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
       });
     });
   </script>
-  <script is:inline src="/js/env.js"></script>
+  <script is:inline src={`/js/env.js?b=${BUILD_ID}`}></script>
 </head>
 <body>
   <a href="#main-content" class="wl-skip-nav">Skip to main content</a>

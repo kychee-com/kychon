@@ -1368,17 +1368,26 @@
         // Determine slug + scope based on zone:
         // - header / footer → global, page_slug='*'
         // - main → page-scoped, slug from URL
+        // Exception: `page_banner` always defaults to page-scoped + current
+        // slug, even when added through the header zone picker (per
+        // composable-layout's page-scoped chrome contract).
+        const currentSlugFromPath = (() => {
+          const path = window.location.pathname;
+          if (path === '/' || path === '/index.html') return 'index';
+          if (path === '/page.html') return new URLSearchParams(window.location.search).get('slug') || 'index';
+          return path.replace(/^\//, '').replace(/\.html$/, '') || 'index';
+        })();
         let pageSlug: string;
         let scope: 'page' | 'global';
-        if (zone === 'header' || zone === 'footer') {
+        if (type === 'page_banner') {
+          pageSlug = currentSlugFromPath;
+          scope = 'page';
+        } else if (zone === 'header' || zone === 'footer') {
           pageSlug = '*';
           scope = 'global';
         } else {
           scope = 'page';
-          const path = window.location.pathname;
-          if (path === '/' || path === '/index.html') pageSlug = 'index';
-          else if (path === '/page.html') pageSlug = new URLSearchParams(window.location.search).get('slug') || 'index';
-          else pageSlug = path.replace(/^\//, '').replace(/\.html$/, '') || 'index';
+          pageSlug = currentSlugFromPath;
         }
         const zoneEl = document.querySelector(`[data-zone="${zone}"]`) as HTMLElement | null;
         const existingCount = zoneEl?.querySelectorAll('[data-sortable-id]').length || 0;

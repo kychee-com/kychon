@@ -278,3 +278,37 @@ Source of truth is `public/_headers` (template with `{PROVIDER_HOSTS}` placehold
 ### Why `'unsafe-inline'` for v1
 
 Existing inline scripts in `Portal.astro` (theme initializer, year setter, animation init) and Astro-emitted inline styles need `'unsafe-inline'`. Tightening to nonce-based or hash-based CSP requires auditing and externalizing every inline script — a separate effort. The rest of the CSP (default-src, frame-src, connect-src, img-src) provides meaningful defense even with inline scripts allowed.
+
+## Block-Type Catalog
+
+The `BLOCK_TYPES` registry covers the canonical patterns for community / member sites. Each block is selectable from the AdminEditor picker (filtered by `zoneHints`).
+
+### `tagline_strip` (main)
+A full-bleed band of text — heritage / mission / tagline / "since X." Pure HTML+CSS, no JS.
+- Config: `text` (required), `color_scheme` (`'dark' | 'light' | 'primary' | 'accent'`, default `'primary'`), `size` (`'small' | 'medium' | 'large'`), `alignment` (`'left' | 'center' | 'right'`), optional `icon`.
+
+### `page_banner` (header, page-scoped)
+Per-page banner image. Use for interior pages — About, Services, etc. Renders only on the page whose slug it carries (`scope: 'page', page_slug: '<slug>'`).
+- Config: `image_url`, `image_alt`, optional sanitized `caption_html` (allowlist: `<br>`, `<strong>`, `<em>`, `<a href>` with safe schemes), `height` (`'small' | 'medium' | 'large' | 'auto'`), optional `overlay_color`.
+
+### `link_list` (main; dynamic in resources mode)
+Curated bullet links or live feed from the `resources` table. Two source modes via `config.source`:
+- `'manual'`: render from `config.items[]` (each: `label`, `href`, optional `external`, optional `badge: 'PDF'|'NEW'|'MEMBERS'`, optional `date`).
+- `'resources'`: hydrator fetches `resources?category=eq.<cat>&order=...&limit=...` and renders the response. Empty result hides the section.
+- Layouts: `'bullets' | 'rows' | 'compact'`.
+
+### `promo_cards` (main)
+Responsive CSS-Grid of image-card links. Each card is a single `<a>` wrapping a background image, title, and CTA visual.
+- Config: `heading` (optional), `columns` (`2 | 3 | 4`, default `3`), `items[]` with `image_url`, `image_alt` (required — generator warns on empty), `title`, `title_position` (`'top' | 'bottom'`), `cta_text`, `cta_href`, optional `overlay_color`.
+- Responsive collapse: cols → 2 ≤ 1024px → 1 ≤ 640px.
+
+### `events_list` (main; dynamic)
+Live list of events from the `events` table.
+- Config: `heading`, `count` (default `4`), `filter` (`'upcoming' | 'past' | 'this_week'`; `'featured'` reserved for future schema addition), `layout` (`'sidebar' | 'grid' | 'list'`), `show_image`, `show_location`, `show_time`, `color_scheme`.
+- Times render in the visitor's locale + timezone via `toLocaleString`.
+- Empty: `<p class="text-muted">No upcoming events.</p>` replaces the skeleton.
+
+### `slideshow` (main; dynamic)
+Auto-rotating image carousel. Vanilla JS controller (~3 kB) at `src/lib/blocks/slideshow.ts`.
+- Config: `heading`, `items[]` (each: `src`, `alt`, optional `caption`, optional `href`), `auto_rotate_seconds` (default `5`, `0` disables auto), `show_arrows`, `show_dots`, `aspect_ratio` (default `'16/9'`), `fit` (`'cover' | 'contain'`), `transition` (`'fade' | 'slide'`).
+- Pauses on hover, focus-within, and tab-hidden. Respects `prefers-reduced-motion: reduce`. Arrow keys navigate when slideshow has focus. Dots are buttons with `aria-label="Slide N of M"`. Live region (`aria-live="polite"`) announces transitions. First slide is `loading="eager"`; subsequent are `loading="lazy"`. Cleans up intervals on `astro:before-swap` and `wl-content-rendered`.
