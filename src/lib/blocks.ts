@@ -72,7 +72,7 @@ export function escHtml(s: any): string {
     .replace(/'/g, '&#39;');
 }
 
-function escAttr(s: any): string {
+export function escAttr(s: any): string {
   return escHtml(s);
 }
 
@@ -127,11 +127,6 @@ function editableAttr(section: Section, path: string, ctx: BlockRenderContext): 
 function richEditableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
   return ` data-editable-rich="sections.${section.id}.config.${path}"`;
-}
-
-function imageEditableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
-  if (!ctx.admin || section.id == null) return '';
-  return ` data-editable-image="sections.${section.id}.config.${path}"`;
 }
 
 function featureIcon(name: string): string {
@@ -376,8 +371,8 @@ const POLLS: BlockType = {
     const skeleton = container.querySelector('.polls-skeleton');
     if (skeleton) skeleton.remove();
     const [{ fetchAndRenderPoll, bindPollVoteListeners }, { getSession }] = await Promise.all([
-      import('./poll-ui'),
-      import('./auth'),
+      import('./poll-ui.js'),
+      import('./auth.js'),
     ]);
     const session = getSession();
     const memberId = session?.user?.member?.id ?? null;
@@ -427,7 +422,7 @@ const EVENT_COUNTDOWN: BlockType = {
     }
     const container = el.querySelector('[data-block-hydrate="event_countdown"]') as HTMLElement | null;
     if (!container) return;
-    const { get } = await import('./api');
+    const { get } = await import('./api.js');
     try {
       const events = await get('events?starts_at=gte.now()&order=starts_at.asc&limit=1');
       const skeleton = container.querySelector('.skeleton');
@@ -475,7 +470,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
     );
   },
   async hydrate(el, section, ctx) {
-    const { hydrateAnnouncementsFeed } = await import('./block-hydrators');
+    const { hydrateAnnouncementsFeed } = await import('./block-hydrators.js');
     await hydrateAnnouncementsFeed(el, section, ctx);
   },
 };
@@ -504,7 +499,7 @@ const ACTIVITY_FEED: BlockType = {
       el.style.display = 'none';
       return;
     }
-    const { hydrateActivityFeed } = await import('./block-hydrators');
+    const { hydrateActivityFeed } = await import('./block-hydrators.js');
     await hydrateActivityFeed(el, section, ctx);
   },
 };
@@ -667,7 +662,7 @@ const SIGN_IN_BAR: BlockType = {
     return `<div class="nav-user" id="nav-user" data-block-hydrate="sign_in_bar"></div>`;
   },
   async hydrate(el, _section, ctx) {
-    const { hydrateSignInBar } = await import('./block-hydrators');
+    const { hydrateSignInBar } = await import('./block-hydrators.js');
     await hydrateSignInBar(el, ctx);
   },
 };
@@ -845,6 +840,8 @@ const CUSTOM: BlockType = {
 
 // --- Registry ---
 
+import EMBED from './blocks/embed.js';
+
 export const BLOCK_TYPES: Record<string, BlockType> = {
   hero: HERO,
   features: FEATURES,
@@ -856,6 +853,7 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   event_countdown: EVENT_COUNTDOWN,
   announcements_feed: ANNOUNCEMENTS_FEED,
   activity_feed: ACTIVITY_FEED,
+  embed: EMBED,
   custom: CUSTOM,
   nav: NAV,
   brand_header: BRAND_HEADER,

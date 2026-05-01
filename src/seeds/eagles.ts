@@ -301,12 +301,14 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
-      section_type: 'cta',
+      section_type: 'embed',
       config: {
-        heading: 'Ready to make a difference?',
-        text: 'Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.',
-        cta_text: 'Get Started',
-        cta_href: '/join.html',
+        heading: 'Soar with The Eagles',
+        provider: 'youtube',
+        // Big Buck Bunny — widely embeddable open-source clip used here as a
+        // placeholder fly-through video. Admins replace with their own footage.
+        params: { video_id: 'aqz-KE-bpKQ' },
+        responsive: true,
       },
       position: 4,
     },
@@ -314,9 +316,22 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'cta',
+      config: {
+        heading: 'Ready to make a difference?',
+        text: 'Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.',
+        cta_text: 'Get Started',
+        cta_href: '/join.html',
+      },
+      position: 5,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
-      position: 5,
+      position: 6,
       // column-span-rows: pair the announcements feed with the activity feed
       // sidebar — news on the left at 2/3, recent activity on the right at 1/3.
       column_span: '2/3',
@@ -327,7 +342,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { heading: 'Recent Activity', limit: 15 },
-      position: 6,
+      position: 7,
       column_span: '1/3',
     },
     // --- Footer chrome (global) ---

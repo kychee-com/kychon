@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kychon-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "dist", "-p", "8765", "-s", "--no-dotfiles"],
+      "port": 8765
+    }
+  ]
+}
