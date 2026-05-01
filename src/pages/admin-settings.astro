@@ -187,7 +187,8 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { del, get, patch, post } from '../lib/api';
-  import { requireAdmin } from '../lib/auth';
+  import { isAdmin } from '../lib/auth';
+  import { showAuthGate } from '../lib/auth-gate';
   import { ready, applyTheme, clearCache } from '../lib/config';
 
   const configMap: Record<string, any> = {};
@@ -601,7 +602,10 @@ import Portal from '../layouts/Portal.astro';
 
   async function initAdminSettings() {
     await ready;
-    if (!requireAdmin()) return;
+    if (!isAdmin()) {
+      showAuthGate('#main-content', 'admin');
+      return;
+    }
 
     // Load current config
     try {

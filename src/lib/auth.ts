@@ -48,20 +48,12 @@ export function isAuthenticated(): boolean {
   return !!getSession();
 }
 
-export function requireAuth(redirectTo = '/'): boolean {
-  if (!isAuthenticated()) {
-    window.location.href = redirectTo;
-    return false;
-  }
-  return true;
+export function requireAuth(): boolean {
+  return isAuthenticated();
 }
 
-export function requireAdmin(redirectTo = '/'): boolean {
-  if (!isAdmin()) {
-    window.location.href = redirectTo;
-    return false;
-  }
-  return true;
+export function requireAdmin(): boolean {
+  return isAdmin();
 }
 
 // Google OAuth

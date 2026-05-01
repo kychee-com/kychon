@@ -25,6 +25,15 @@
   "auth.login_error": "No pudimos iniciar sesi\u00f3n. Verifica tus datos e int\u00e9ntalo de nuevo.",
   "auth.password_mismatch": "Las contrase\u00f1as no coinciden. Int\u00e9ntalo de nuevo.",
 
+  "auth.gate.directory.title": "Inicia sesi\u00f3n para ver el directorio de miembros",
+  "auth.gate.directory.body": "El directorio de miembros es privado. Inicia sesi\u00f3n para ver qui\u00e9n forma parte de la comunidad.",
+  "auth.gate.profile.title": "Inicia sesi\u00f3n para ver tu perfil",
+  "auth.gate.profile.body": "Tu perfil es privado. Inicia sesi\u00f3n para verlo y editarlo.",
+  "auth.gate.admin.title": "Acceso de administrador requerido",
+  "auth.gate.admin.body": "Esta p\u00e1gina es solo para administradores. Si crees que deber\u00edas tener acceso, pide a un administrador actual que te invite.",
+  "auth.gate.signIn": "Iniciar sesi\u00f3n",
+  "auth.gate.backHome": "Volver al inicio",
+
   "profile.title": "Tu Perfil",
   "profile.display_name": "Nombre",
   "profile.email": "Correo",
