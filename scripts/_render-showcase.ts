@@ -28,7 +28,6 @@ const ctx: BlockRenderContext = {
   isFeatureEnabled: () => true,
   currentPath: '/page.html?slug=showcase',
   siteName: 'Silver Pines Senior Center',
-  logoUrl: '/assets/logo.png',
 };
 
 async function main(): Promise<void> {
@@ -45,14 +44,12 @@ async function main(): Promise<void> {
     .filter((s) => s.zone === 'main' && s.page_slug === 'showcase' && s.visible !== false)
     .sort((a, b) => a.position - b.position);
 
-  const headerHtml = headerBlocks.map((s) => renderBlock(s, ctx)).join('');
   const footerHtml = footerBlocks.map((s) => renderBlock(s, ctx)).join('');
   const mainHtml = showcaseMain.map((s) => renderBlock(s, ctx)).join('');
 
   const themeCss = readFileSync(join(ROOT, 'public/css/theme.css'), 'utf-8');
   const stylesCss = readFileSync(join(ROOT, 'public/css/styles.css'), 'utf-8');
   const a11yCss = readFileSync(join(ROOT, 'public/css/a11y.css'), 'utf-8');
-  const slideshowJs = readFileSync(join(ROOT, 'src/lib/blocks/slideshow.ts'), 'utf-8');
 
   // Inject silver-pines theme overrides (matches what ConfigProvider does at runtime).
   const sp = (seed.site_config as Record<string, any>).theme?.value || {};

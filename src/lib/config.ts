@@ -3,9 +3,9 @@
 // (src/lib/blocks.ts) and per-block hydrators (src/lib/block-hydrators.ts).
 // This module no longer touches #nav-links / #nav-user.
 
-import { get } from './api';
-import { getSession } from './auth';
-import { loadLocale, setAvailableLocales, t } from './i18n';
+import { get } from './api.js';
+import { getSession } from './auth.js';
+import { loadLocale, setAvailableLocales, t } from './i18n.js';
 
 // --- Cache layer (stale-while-revalidate) ---
 const WL_CACHE_CONFIG = 'wl_cache_site_config';

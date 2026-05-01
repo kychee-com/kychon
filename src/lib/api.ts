@@ -105,6 +105,7 @@ export async function count(path: string): Promise<number> {
   const range = res.headers.get('Content-Range');
   if (range) {
     const total = range.split('/')[1];
+    if (!total) return 0;
     return total === '*' ? 0 : parseInt(total, 10);
   }
   return 0;
@@ -113,20 +114,20 @@ export async function count(path: string): Promise<number> {
 // --- Typed wrappers (Zod-validated) ---
 
 import { z } from 'astro/zod';
-import { EventSchema, EventRSVPSchema } from '../schemas/event';
-import { MemberSchema, MemberTierSchema } from '../schemas/member';
-import { SiteConfigRowSchema } from '../schemas/config';
-import { AnnouncementSchema, ResourceSchema, SectionSchema, PageSchema, ReactionSchema } from '../schemas/content';
-import { ForumCategorySchema, ForumTopicSchema, ForumReplySchema } from '../schemas/forum';
-import { CommitteeSchema, CommitteeMemberSchema } from '../schemas/committee';
-import { PollSchema, PollOptionSchema, PollVoteSchema } from '../schemas/poll';
-import type { Event, EventRSVP } from '../schemas/event';
-import type { Member, MemberTier } from '../schemas/member';
-import type { SiteConfigRow } from '../schemas/config';
-import type { Announcement, Resource, Section, Page, Reaction } from '../schemas/content';
-import type { ForumCategory, ForumTopic, ForumReply } from '../schemas/forum';
-import type { Committee, CommitteeMember } from '../schemas/committee';
-import type { Poll, PollOption, PollVote } from '../schemas/poll';
+import { EventSchema, EventRSVPSchema } from '../schemas/event.js';
+import { MemberSchema, MemberTierSchema } from '../schemas/member.js';
+import { SiteConfigRowSchema } from '../schemas/config.js';
+import { AnnouncementSchema, ResourceSchema, SectionSchema, PageSchema, ReactionSchema } from '../schemas/content.js';
+import { ForumCategorySchema, ForumTopicSchema, ForumReplySchema } from '../schemas/forum.js';
+import { CommitteeSchema, CommitteeMemberSchema } from '../schemas/committee.js';
+import { PollSchema, PollOptionSchema, PollVoteSchema } from '../schemas/poll.js';
+import type { Event, EventRSVP } from '../schemas/event.js';
+import type { Member, MemberTier } from '../schemas/member.js';
+import type { SiteConfigRow } from '../schemas/config.js';
+import type { Announcement, Resource, Section, Page, Reaction } from '../schemas/content.js';
+import type { ForumCategory, ForumTopic, ForumReply } from '../schemas/forum.js';
+import type { Committee, CommitteeMember } from '../schemas/committee.js';
+import type { Poll, PollOption, PollVote } from '../schemas/poll.js';
 
 export async function getConfig(): Promise<SiteConfigRow[]> {
   const data = await get('site_config');
