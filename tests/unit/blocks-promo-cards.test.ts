@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from '../../src/lib/blocks';
+import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 
@@ -28,9 +28,7 @@ describe('promo_cards block-type', () => {
       promoSection({
         heading: '',
         columns: 4,
-        items: [
-          { image_url: '/a.jpg', image_alt: 'A', title: 'T1', cta_text: 'Learn', cta_href: '/a' },
-        ],
+        items: [{ image_url: '/a.jpg', image_alt: 'A', title: 'T1', cta_text: 'Learn', cta_href: '/a' }],
       }),
       ctx,
     );
@@ -43,7 +41,14 @@ describe('promo_cards block-type', () => {
       promoSection({
         columns: 3,
         items: [
-          { image_url: '/m.jpg', image_alt: 'mem', title: 'Membership', title_position: 'top', cta_text: 'Click Here to Learn More', cta_href: '/join' },
+          {
+            image_url: '/m.jpg',
+            image_alt: 'mem',
+            title: 'Membership',
+            title_position: 'top',
+            cta_text: 'Click Here to Learn More',
+            cta_href: '/join',
+          },
         ],
       }),
       ctx,
@@ -82,9 +87,7 @@ describe('promo_cards block-type', () => {
   it('admin context emits per-item editable image attribute', () => {
     const html = renderBlock(
       promoSection({
-        items: [
-          { image_url: '/a.jpg', image_alt: 'A', title: 'T', cta_text: 'Go', cta_href: '/x' },
-        ],
+        items: [{ image_url: '/a.jpg', image_alt: 'A', title: 'T', cta_text: 'Go', cta_href: '/x' }],
       }),
       { ...ctx, admin: true },
     );

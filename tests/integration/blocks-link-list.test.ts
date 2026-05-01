@@ -35,12 +35,19 @@ describe('hydrateLinkListResources', () => {
   it('replaces skeleton with fetched items and tags hydrated', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
-      text: () => Promise.resolve(
-        JSON.stringify([
-          { id: 1, title: 'A doc', file_url: '/r/a.pdf', file_type: 'pdf', created_at: '2026-04-01T00:00:00Z' },
-          { id: 2, title: 'External', file_url: 'https://www.example.com/blog', file_type: 'link', created_at: '2026-03-01T00:00:00Z' },
-        ]),
-      ),
+      text: () =>
+        Promise.resolve(
+          JSON.stringify([
+            { id: 1, title: 'A doc', file_url: '/r/a.pdf', file_type: 'pdf', created_at: '2026-04-01T00:00:00Z' },
+            {
+              id: 2,
+              title: 'External',
+              file_url: 'https://www.example.com/blog',
+              file_type: 'link',
+              created_at: '2026-03-01T00:00:00Z',
+            },
+          ]),
+        ),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -58,14 +65,18 @@ describe('hydrateLinkListResources', () => {
     document.body.appendChild(wrapper);
 
     const { hydrateLinkListResources } = await loadHydrator();
-    await hydrateLinkListResources(wrapper as HTMLElement, {
-      page_slug: 'index',
-      zone: 'main',
-      scope: 'page',
-      section_type: 'link_list',
-      config: {},
-      position: 1,
-    }, { admin: false, locale: 'en' });
+    await hydrateLinkListResources(
+      wrapper as HTMLElement,
+      {
+        page_slug: 'index',
+        zone: 'main',
+        scope: 'page',
+        section_type: 'link_list',
+        config: {},
+        position: 1,
+      },
+      { admin: false, locale: 'en' },
+    );
 
     expect(fetchMock).toHaveBeenCalled();
     const calledUrl = fetchMock.mock.calls[0][0] as string;
@@ -87,10 +98,13 @@ describe('hydrateLinkListResources', () => {
   });
 
   it('hides the section when no resources match', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
-      ok: true,
-      text: () => Promise.resolve('[]'),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve('[]'),
+      }),
+    );
 
     const wrapper = document.createElement('section');
     wrapper.innerHTML = `
@@ -105,14 +119,18 @@ describe('hydrateLinkListResources', () => {
     document.body.appendChild(wrapper);
 
     const { hydrateLinkListResources } = await loadHydrator();
-    await hydrateLinkListResources(wrapper as HTMLElement, {
-      page_slug: 'index',
-      zone: 'main',
-      scope: 'page',
-      section_type: 'link_list',
-      config: {},
-      position: 1,
-    }, { admin: false, locale: 'en' });
+    await hydrateLinkListResources(
+      wrapper as HTMLElement,
+      {
+        page_slug: 'index',
+        zone: 'main',
+        scope: 'page',
+        section_type: 'link_list',
+        config: {},
+        position: 1,
+      },
+      { admin: false, locale: 'en' },
+    );
 
     expect(wrapper.style.display).toBe('none');
   });
