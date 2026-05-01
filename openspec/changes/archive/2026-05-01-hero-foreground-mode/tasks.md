@@ -36,7 +36,7 @@
 - [x] **2.1 Extend `cacheHeroImage` and `preloadHeroImage`**
   In `src/lib/config.ts`, added `getHeroImageUrl(section)` helper that returns `image_url` for foreground mode and `bg_image` for background. `cacheHeroImage` now accepts either a URL string (legacy) or a hero section. `src/lib/page-render.ts` calls it on every hydratePage with the first visible main-zone hero so the next page load's `<link rel="preload" as="image">` fires before the section fetch completes.
 
-- [ ] **2.2 Verify warm-up still saves first-paint time**
+- [ ] **2.2 Verify warm-up still saves first-paint time** *(BLOCKED — Lighthouse run requires live demo)*
   Lighthouse run on a foreground-hero page (deferred to user's deploy verification — needs the live `eagles.run402.com` to measure). The renderer + cache wiring is asserted by `tests/integration/blocks-hero-a11y.test.ts` (foreground `<img loading="eager" decoding="async">`) and `tests/unit/blocks-hero.test.ts`.
 
 ### Phase 3: Editor popover
@@ -67,8 +67,8 @@
 - [x] **4.4 Update one demo with a foreground hero**
   Updated `src/seeds/eagles.ts`: homepage hero now uses `mode: 'foreground'` with `image_url: '/assets/hero.jpg'`, logo overlay (left, 110px max-height), bottom-right caption "Founded 1995 · **Sedgwick County, KS**", and over-image text. Seed regenerates cleanly via `KYCHON_PROJECT=eagles tsx scripts/generate-seed-sql.ts`. Real-device verification deferred to deploy.
 
-- [ ] **4.5 ODBC port verification — foreground hero from source**
-  Blocked by [composable-layout](../composable-layout/tasks.md) Phase 7 (`/copy-website` ODBC re-port). When that ships, this change unblocks the hero portion of the verification — ODBC's banner will render at native aspect (no cropping), ship's-wheel logo overlaid on the left, "Founded 1880" caption anchored bottom-right.
+- [ ] **4.5 ODBC port verification — foreground hero from source** *(BLOCKED — `/copy-website` skill not on this machine)*
+  Blocked by composable-layout Phase 7 (`/copy-website` ODBC re-port). When that ships, this change unblocks the hero portion of the verification — ODBC's banner will render at native aspect (no cropping), ship's-wheel logo overlaid on the left, "Founded 1880" caption anchored bottom-right.
 
 ### Phase 5: Documentation
 

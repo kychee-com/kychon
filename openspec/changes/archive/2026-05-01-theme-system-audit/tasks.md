@@ -69,13 +69,13 @@
 
 > Phases 5.1–5.3 require re-running the `/copy-website` skill against ODBC and pushing to the ODBC port project. That happens in a follow-up user-driven session — the implementation here ships the platform plumbing the ODBC port needs. The three demos (Phase 4) exercise the same code path end-to-end and are deployed in this change to confirm the injector works in production.
 
-- [ ] **5.1 Re-run `/copy-website` against ODBC** *(deferred to user-driven session)*
+- [ ] **5.1 Re-run `/copy-website` against ODBC** *(BLOCKED — `/copy-website` skill not on this machine)*
   After this change merges, re-run `/copy-website` against ODBC and deploy to `odbc-port.run402.com`.
 
-- [ ] **5.2 Verify Playfair + Source Sans load** *(deferred — depends on 5.1)*
+- [ ] **5.2 Verify Playfair + Source Sans load** *(BLOCKED on 5.1)*
   Confirm `<link rel="stylesheet" href="…fonts.googleapis.com…family=Playfair+Display…&family=Source+Sans+3…">` is present. Visual: headings in Playfair Display, body in Source Sans 3.
 
-- [ ] **5.3 Verify all theme keys flow** *(deferred — depends on 5.1)*
+- [ ] **5.3 Verify all theme keys flow** *(BLOCKED on 5.1)*
   Inspect `document.documentElement.style.getPropertyValue('--radius')` etc. on the live ODBC port; confirm every seeded key appears as a custom property and reflects visually.
 
 ### Phase 6: Documentation

@@ -130,13 +130,13 @@
 
 ### Phase 7: ODBC port re-validation + docs
 
-- [ ] **7.1 Re-run `/copy-website` against ODBC**
+- [ ] **7.1 Re-run `/copy-website` against ODBC** *(BLOCKED — `/copy-website` skill not on this machine)*
   After all six block types land, re-run the skill against `https://www.olddominionboatclub.com`. Deploy result to `odbc-port.run402.com` (overwriting the previous port). User-driven; the skill is interactive and not a part of this implementation pass.
 
-- [ ] **7.2 Visually verify ODBC layout faithfulness**
+- [ ] **7.2 Visually verify ODBC layout faithfulness** *(BLOCKED on 7.1)*
   Chrome MCP walkthrough: home page shows 4-up `promo_cards` (Membership / Events / Store / Tap Room), `events_list` for upcoming events, `link_list` (News Updates) with curated PDF links, `tagline_strip` ("A Proud Part of Alexandria's History Since 1880"), `slideshow` (gallery photos). Interior pages (Marina, About) show `page_banner` with their banner images.
 
-- [ ] **7.3 Compare against source**
+- [ ] **7.3 Compare against source** *(BLOCKED on 7.1)*
   Side-by-side comparison with the source site. Note any remaining gaps. Side-by-side rendering of two slideshows or events-sidebar-next-to-main is expected to be missing (covered by separate G_GRID issue).
 
 - [x] **7.4 Update CUSTOMIZING.md (if present) or STRUCTURE.md**

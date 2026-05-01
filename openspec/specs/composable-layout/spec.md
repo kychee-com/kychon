@@ -1,5 +1,7 @@
-## ADDED Requirements
+## Purpose
 
+Every visible block on every Kychon page — including chrome (header, navigation, footer) and main content — is a row in the `sections` table addressed by `(page_slug, zone, scope, position, column_span)`. One isomorphic `renderBlock()` registry serves both the build-time bake and the runtime hydrate. Admins compose pages — including chrome — through drag-reorder across zones, inline edit, span selection, and add/remove from a block-type picker.
+## Requirements
 ### Requirement: Every visible block on every page is a row in `sections`
 
 Every paintable element on every Kychon page — including chrome (header, navigation, footer) and main content — SHALL be expressed as a row in the `sections` table addressed by the four-tuple `(page_slug, zone, scope, position)`. No chrome SHALL be hard-coded in `.astro` layout or component files.
@@ -149,7 +151,7 @@ When an admin drops a `scope = 'page'` block into a chrome zone (`'header'` or `
 
 The `BLOCK_TYPES` registry in `src/lib/blocks.ts` SHALL include, at minimum, the following block types:
 
-**Main-zone (carried over from existing renderers):** `hero`, `features`, `cta`, `stats`, `testimonials`, `faq`, `polls` (dynamic), `event_countdown`, `activity_feed` (dynamic), `announcements_feed` (dynamic).
+**Main-zone:** `hero`, `features`, `cta`, `stats`, `testimonials`, `faq`, `polls` (dynamic), `event_countdown`, `activity_feed` (dynamic), `announcements_feed` (dynamic), `embed`.
 
 **Header-zone:** `nav`, `brand_header`, `sign_in_bar`.
 
@@ -157,12 +159,13 @@ The `BLOCK_TYPES` registry in `src/lib/blocks.ts` SHALL include, at minimum, the
 
 Each entry SHALL define `defaultConfig` providing a working starting point when an admin adds a new block of that type via the picker.
 
+#### Scenario: Embed block defaultConfig represents a safe starting state
+- **WHEN** an admin adds a new embed block via the picker
+- **THEN** the new section's `config` is `{ provider: 'youtube', params: {}, height: '320px', responsive: true }` or similar — a known-safe verified provider with empty params, NOT the generic iframe with trust pre-acknowledged
+
 #### Scenario: Admin adds a footer address block
 - **WHEN** an admin opens the block picker in the footer zone
 - **THEN** `footer_address` appears as an option
-- **WHEN** the admin selects it
-- **THEN** a new sections row is created with `BLOCK_TYPES.footer_address.defaultConfig` as its starting config
-- **THEN** the footer renders the new block immediately
 
 #### Scenario: Footer attribution block defaults to Powered-by-Kychon
 - **WHEN** the kychon template seed is generated
@@ -175,7 +178,7 @@ Each entry SHALL define `defaultConfig` providing a working starting point when 
 
 ### Requirement: `nav` block carries the navigation that used to live in `site_config.nav`
 
-The `site_config.nav` key SHALL be removed from the system. Navigation SHALL be expressed as a `nav` block in `zone = 'header'`. The `nav` block's `config.items` SHALL be the array shape previously stored under `site_config.nav` (each item carries `label`, `href`, `icon`, and optional `public`, `auth`, `feature`, `admin`, `children` properties). The block edit popover SHALL be the editor surface for nav items, replacing the separate nav editor that wrote to `site_config`.
+The `site_config.nav` key SHALL be removed from the system. Navigation SHALL be expressed as a `nav` block in `zone = 'header'`. The `nav` block's `config.items` SHALL be an array of nav items, each carrying `label`, `href`, `icon`, optional `public`, `auth`, `feature`, `admin` properties, AND an optional `children: NavItem[]` field that recursively contains nav items. When `children` is present and non-empty, the item SHALL be rendered as a hover/focus dropdown trigger; when `children` is absent, empty, or undefined, the item SHALL render as today's flat nav link. The block edit popover SHALL be the editor surface for nav items, replacing the separate nav editor that wrote to `site_config`. The popover SHALL support adding, removing, editing, and drag-reordering child items (scoped within their parent's `children` array).
 
 #### Scenario: Site nav comes from a sections row, not site_config
 - **WHEN** a Kychon page loads
@@ -187,6 +190,69 @@ The `site_config.nav` key SHALL be removed from the system. Navigation SHALL be 
 - **THEN** a popover opens with the nav items as editable rows (label, href, visibility flags, drag-reorder)
 - **WHEN** the admin saves
 - **THEN** the system PATCHes the `nav` block's `config.items`
+
+#### Scenario: Flat nav configs continue to work
+- **WHEN** a `nav` block has items with no `children` field set
+- **THEN** the rendered nav is flat — each item is an `<a class="nav-link">` with no chevron and no dropdown
+
+#### Scenario: An item with children renders as a dropdown trigger
+- **WHEN** a `nav` block has an item `{ label: 'Marina', children: [{ label: 'Layout', href: '/marina/layout' }, { label: 'How-To', href: '/marina/howto' }] }`
+- **THEN** the rendered HTML contains a chevron toggle: `<button class="nav-chevron-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="..."`
+- **THEN** the rendered HTML contains an `<ul class="nav-dropdown" role="menu" hidden>` with two `<li role="none"><a role="menuitem" href>...</a></li>` children
+- **THEN** if the parent also has `href` set, an additional `<a class="nav-link" href={href}>` is rendered alongside the chevron
+
+#### Scenario: Hover opens the dropdown on pointer devices
+- **WHEN** a user with a pointer device hovers a parent nav item with children
+- **THEN** the dropdown becomes visible (CSS-driven via `@media (hover: hover) and (pointer: fine)`)
+- **THEN** `aria-expanded` is updated to `"true"` by the runtime handler
+
+#### Scenario: Focus opens the dropdown for keyboard users
+- **WHEN** a keyboard user tabs to the chevron of a parent nav item
+- **WHEN** the user presses `↓` (Down arrow) or `Enter`
+- **THEN** the dropdown opens and focus moves to the first menu item
+
+#### Scenario: Keyboard navigation inside an open dropdown
+- **WHEN** a user presses `↓` while focus is on a menu item
+- **THEN** focus moves to the next menu item (wrapping at the end)
+- **WHEN** a user presses `↑`
+- **THEN** focus moves to the previous menu item (wrapping at the start)
+- **WHEN** a user presses `Enter` or `Space` on a menu item
+- **THEN** the link is activated and the menu closes
+
+#### Scenario: Escape closes the menu and returns focus
+- **WHEN** a dropdown is open with a menu item focused
+- **WHEN** the user presses `Escape`
+- **THEN** the dropdown closes
+- **THEN** focus returns to the chevron trigger
+
+#### Scenario: Tab advances out of the menu
+- **WHEN** a dropdown is open with a menu item focused
+- **WHEN** the user presses `Tab`
+- **THEN** the dropdown closes
+- **THEN** focus advances to the next top-level nav item
+
+#### Scenario: Click outside closes any open dropdown
+- **WHEN** a dropdown is open
+- **WHEN** the user clicks anywhere outside the dropdown subtree (and outside the chevron)
+- **THEN** the dropdown closes
+
+#### Scenario: Mobile renders inline expansion, not hover fly-out
+- **WHEN** the viewport matches `@media (hover: none) or (max-width: 768px)`
+- **WHEN** a user taps the parent of a nav item with children
+- **THEN** the dropdown expands inline below the parent (not absolutely positioned)
+- **THEN** the chevron rotates 180° via CSS transform
+- **THEN** child items are indented to indicate hierarchy
+
+#### Scenario: Recursive children render at depth ≥ 2
+- **WHEN** a `nav` block has a parent item whose child has its own `children` array
+- **THEN** the rendered HTML supports a second-level dropdown
+- **THEN** keyboard and pointer handling work the same way at every depth
+
+#### Scenario: Removing a parent in the editor prompts about its children
+- **WHEN** an admin clicks the remove affordance on a parent nav item that has children
+- **THEN** the editor prompts: `"Remove this item and its N children?"`
+- **WHEN** the admin confirms
+- **THEN** the parent and its entire subtree are removed from `config.items`
 
 ### Requirement: Typed seed modules are the canonical source for default content
 
@@ -208,7 +274,7 @@ Each forkable Kychon project SHALL have a typed seed module under `src/seeds/{pr
 - **WHEN** the build runs with `KYCHON_PROJECT=eagles`
 - **THEN** the generator reads `src/seeds/eagles.ts`
 - **THEN** the bake in `Portal.astro` reads the same module
-## Requirements
+
 ### Requirement: Main and footer zones render as a 6-column responsive grid
 
 The main-zone container (`#sections` when present, otherwise `#main-content`) and the footer-zone container (`[data-zone="footer"] > .container`) SHALL render as a CSS Grid with `grid-template-columns: repeat(6, 1fr)` on viewports above 900px wide. On viewports between 600px and 900px the grid SHALL drop to 4 columns. On viewports at or below 600px the grid SHALL collapse to a single column so all blocks stack vertically.
@@ -363,4 +429,56 @@ When a block moves between zones via drag, the system SHALL preserve its `column
 - **THEN** the system PATCHes `{ zone: 'footer', position: <new> }`
 - **THEN** the row's `column_span` is unchanged
 - **THEN** the block renders at half the footer zone's row width on desktop
+
+### Requirement: `embed` block-type with provider routing
+
+The `BLOCK_TYPES` registry SHALL include an `embed` entry that renders a third-party iframe via a registered provider. The block SHALL be `dynamic: false` (renderer emits the iframe markup directly; no API fetch). Configuration SHALL include `heading` (optional), `provider` (one of the registered provider ids), `params` (provider-specific parameter object validated against the provider's `paramsSchema`), `height` (used for non-responsive providers), `responsive` (boolean), and — for the `iframe` provider only — `trust_acknowledged` (boolean, defaulting `false` until the admin opts in).
+
+The renderer SHALL dispatch to the provider's `buildSrc(params)` to construct the iframe URL. The renderer SHALL emit `<iframe>` with the provider's declared `sandbox` attribute, `loading="lazy"`, and a `title` attribute derived from `heading` or the provider label. The renderer SHALL refuse to emit the iframe and SHALL emit a visible error placeholder if (a) the provider is not in the registry, (b) `buildSrc` throws, or (c) the provider is `iframe` and `trust_acknowledged !== true`.
+
+#### Scenario: YouTube embed renders with provider URL
+- **WHEN** an embed block has `provider = 'youtube', params = { video_id: 'abcd1234' }`
+- **THEN** the rendered HTML contains `<iframe src="https://www.youtube.com/embed/abcd1234" sandbox="allow-scripts allow-same-origin allow-presentation" loading="lazy" ...>`
+
+#### Scenario: Weather embed renders with location param
+- **WHEN** an embed block has `provider = 'weather', params = { location: 'Alexandria, VA', units: 'imperial', days: 5 }`
+- **THEN** the rendered iframe `src` is built by the weather provider's `buildSrc` from those params
+
+#### Scenario: Iframe provider without trust acknowledgment renders error
+- **WHEN** an embed block has `provider = 'iframe', params = { src: 'https://example.com' }, trust_acknowledged = false`
+- **THEN** the rendered HTML is an error placeholder (`<section class="block-embed block-embed--error">`)
+- **THEN** no `<iframe>` element is emitted
+
+#### Scenario: Unknown provider renders error
+- **WHEN** an embed block has `provider = 'unregistered'`
+- **THEN** the renderer emits the error placeholder identifying the unknown provider
+
+#### Scenario: Responsive video providers use aspect-ratio
+- **WHEN** an embed block has `provider = 'youtube'` and `responsive: true`
+- **THEN** the rendered section uses CSS `aspect-ratio: 16 / 9` so the iframe scales fluidly with viewport width
+
+#### Scenario: Fixed-height non-responsive providers use config.height
+- **WHEN** an embed block has `provider = 'calendly'` and `height: '700px'`
+- **THEN** the rendered iframe has style `height: 700px`
+
+### Requirement: Embed block edit popover routes by provider
+
+The embed block's edit popover in `AdminEditor` SHALL render a provider selector at the top. Selecting a provider SHALL render a params form generated from the provider's `paramsSchema`. The form SHALL render appropriate input types (`text`, `number`, `select`) per schema entry, with required-field markers and inline help text.
+
+For YouTube and Vimeo providers, the popover SHALL include a helper button that extracts the video ID from a pasted URL. For the `iframe` provider, the popover SHALL render the trust-acknowledgment gate and SHALL disable the Save button until the admin checks the "I trust {hostname}" checkbox.
+
+#### Scenario: Provider selector drives the params form
+- **WHEN** an admin opens the embed block popover and selects `vimeo`
+- **THEN** the params form shows a single `video_id` text input (per the vimeo provider's paramsSchema)
+
+#### Scenario: YouTube URL helper extracts video ID
+- **WHEN** an admin clicks the "Paste URL" helper and pastes `https://www.youtube.com/watch?v=abcd1234`
+- **THEN** the `video_id` field is auto-filled with `abcd1234`
+
+#### Scenario: Trust gate hostname matches src
+- **WHEN** an admin selects the iframe provider and types `https://example.com/widget`
+- **THEN** the trust checkbox label reads "I trust example.com"
+- **WHEN** the admin changes the URL to `https://other.com/widget`
+- **THEN** the checkbox label updates to "I trust other.com"
+- **THEN** any prior check is cleared (the admin must re-acknowledge for the new host)
 
