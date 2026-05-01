@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from '../../src/lib/blocks';
+import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 
@@ -36,19 +36,13 @@ describe('events_list block-type', () => {
   });
 
   it('skeleton card count matches config.count', () => {
-    const html = renderBlock(
-      eventsSection({ heading: '', count: 6, filter: 'upcoming', layout: 'list' }),
-      ctx,
-    );
+    const html = renderBlock(eventsSection({ heading: '', count: 6, filter: 'upcoming', layout: 'list' }), ctx);
     const cards = html.match(/event-skeleton-card/g) || [];
     expect(cards.length).toBe(6);
   });
 
   it.each(['sidebar', 'grid', 'list'])('layout=%s emits modifier class', (layout) => {
-    const html = renderBlock(
-      eventsSection({ heading: '', count: 1, filter: 'upcoming', layout }),
-      ctx,
-    );
+    const html = renderBlock(eventsSection({ heading: '', count: 1, filter: 'upcoming', layout }), ctx);
     expect(html).toContain(`block-events-list--${layout}`);
   });
 
@@ -65,10 +59,7 @@ describe('events_list block-type', () => {
   });
 
   it('color_scheme adds modifier class', () => {
-    const html = renderBlock(
-      eventsSection({ count: 1, layout: 'sidebar', color_scheme: 'accent' }),
-      ctx,
-    );
+    const html = renderBlock(eventsSection({ count: 1, layout: 'sidebar', color_scheme: 'accent' }), ctx);
     expect(html).toContain('block-events-list--accent');
   });
 

@@ -120,17 +120,21 @@ describe('hydrateEventsList', () => {
 
   it('renders cards with localized date strings', async () => {
     const future = new Date(Date.now() + 86400000 * 3).toISOString();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          JSON.stringify([
-            { id: 1, title: 'Picnic', location: 'Park', starts_at: future },
-          ]),
-        ),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
+      }),
+    );
 
-    const wrapper = makeWrapper({ count: 1, filter: 'upcoming', layout: 'sidebar', show_location: true, show_time: true });
+    const wrapper = makeWrapper({
+      count: 1,
+      filter: 'upcoming',
+      layout: 'sidebar',
+      show_location: true,
+      show_time: true,
+    });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
       wrapper,

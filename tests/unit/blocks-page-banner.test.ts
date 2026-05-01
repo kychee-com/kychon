@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BLOCK_TYPES,
-  renderBlock,
-  type BlockRenderContext,
-  type Section,
-} from '../../src/lib/blocks';
+import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 

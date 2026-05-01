@@ -1,7 +1,7 @@
 // Integration test: page_banner is page-scoped — it must not appear on
 // other pages' renderZone output.
 import { describe, expect, it } from 'vitest';
-import { renderZone, type Section, type BlockRenderContext } from '../../src/lib/blocks';
+import { type BlockRenderContext, renderZone, type Section } from '../../src/lib/blocks';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 

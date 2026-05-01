@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from '../../src/lib/blocks';
+import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 
@@ -116,10 +116,7 @@ describe('slideshow block-type', () => {
   });
 
   it('live region for slide announcements is present', () => {
-    const html = renderBlock(
-      slideshowSection({ items: [{ src: '/a.jpg', alt: 'A' }] }),
-      ctx,
-    );
+    const html = renderBlock(slideshowSection({ items: [{ src: '/a.jpg', alt: 'A' }] }), ctx);
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('block-slideshow__live');
   });
