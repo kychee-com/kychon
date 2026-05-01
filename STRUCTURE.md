@@ -193,6 +193,36 @@ All boolean. Toggle with: `UPDATE site_config SET value = 'true' WHERE key = 'fe
 3. Document the block's `config` shape near its registry entry
 4. Optionally seed an instance in `src/seeds/{project}.ts`
 
+## Hero Block Modes
+
+The `hero` block supports two rendering modes via `config.mode`:
+
+### `mode: 'background'` (default)
+Background-image-as-mood. The image is rendered as `background-image: cover center` on a fixed-height section; heading + subheading + CTA are overlaid in the center with a gradient tint. Use when the image is decorative and the text is the message.
+
+Config keys: `heading`, `subheading`, `cta_text`, `cta_href`, `bg_image`. Existing demos with no `mode` field render in this mode. Compatible with the [hero-parallax capability](openspec/specs/composable-layout/spec.md): parallax applies only when `mode === 'background'`.
+
+### `mode: 'foreground'`
+Image-as-content. The image renders inside a `<picture>` at native (or a configured) aspect ratio; the section flows around it. Optional logo overlay (`logo_overlay_url` + `logo_position`), corner caption (`caption_html` at one of 8 positions), and heading-over-or-below (`text_position`). Use when the image, logo, and inscription are themselves the brand mark — e.g. a wide banner photo with a circular logo overlaid on the left and a "Founded 1880" tag in the bottom-right corner. Foreground mode is static; parallax does not apply.
+
+Foreground config keys (all optional except `image_url`):
+
+| Key | Default | Notes |
+|---|---|---|
+| `image_url` | — | The banner image |
+| `image_alt` | `''` | Accessible alt text. Renderer logs `console.warn` if missing |
+| `image_aspect` | `'auto'` | One of `'auto'`, `'16/9'`, `'4/3'`, `'21/9'`. Non-auto applies `object-fit: cover` |
+| `logo_overlay_url` | — | Optional logo placed over the banner |
+| `logo_position` | `'left'` | One of `'left'`, `'center'`, `'right'` |
+| `logo_max_height` | `'120px'` | CSS value for the overlay's max-height |
+| `caption_html` | — | Allowlist-sanitized HTML (`<br>`, `<strong>`, `<em>`, `<a href>`) |
+| `caption_position` | `'bottom-right'` | 8 positions: `top-left`, `top-center`, `top-right`, `right-middle`, `bottom-right`, `bottom-center`, `bottom-left`, `left-middle` |
+| `text_position` | `'over_image'` | `'over_image'` (absolute, with text-shadow) or `'below_image'` (normal flow under the picture) |
+
+Caption HTML is passed through an allowlist sanitizer (see `sanitizeCaptionHtml` in `src/lib/blocks.ts`) that strips all tags except `<br>`, `<strong>`, `<em>`, `<a>`, removes all attributes except `href` on `<a>`, and rejects `href` schemes other than `http(s):`, `mailto:`, and relative paths.
+
+The hero block carries `supportedSpans: ['1']` — heroes always span the full row regardless of the column-span-rows generic span picker. The hero edit popover (admin gear icon on the section toolbar) provides a mode toggle and conditional fields. Switching modes when the previous mode's fields are populated prompts a confirmation before clearing them.
+
 ## Embed Block + Provider Registry
 
 The `embed` block type renders third-party iframes via an allowlist registered in `src/lib/blocks/embed-providers.ts`. Adding a provider is a code change by design — that is the security model.

@@ -13,7 +13,7 @@
 
 import { get } from './api';
 import { getSession, getRole } from './auth';
-import { isFeatureEnabled, ready, siteConfig } from './config';
+import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 
@@ -176,6 +176,15 @@ async function rebindAdminEditing(): Promise<void> {
   document.dispatchEvent(new CustomEvent('wl-content-rendered'));
 }
 
+function warmHeroImageCache(sections: Section[]): void {
+  // Cache the first visible hero section's image URL so the NEXT page load's
+  // <link rel="preload" as="image"> fires before sections fetch completes.
+  const hero = sections.find(
+    (s) => s.section_type === 'hero' && s.zone === 'main' && s.visible !== false,
+  );
+  if (hero) cacheHeroImage(hero);
+}
+
 export async function hydratePage(slug: string): Promise<void> {
   await ready;
   const ctx = getRenderContext();
@@ -186,6 +195,7 @@ export async function hydratePage(slug: string): Promise<void> {
     renderZoneInto('header', cached, ctx);
     renderZoneInto('footer', cached, ctx);
     renderZoneInto('main', cached, ctx);
+    warmHeroImageCache(cached);
     await hydrateDynamic(cached, ctx);
     rebindAdminEditing();
   }
@@ -226,6 +236,7 @@ async function fetchAndUpdate(
   renderZoneInto('header', fresh, ctx);
   renderZoneInto('footer', fresh, ctx);
   renderZoneInto('main', fresh, ctx);
+  warmHeroImageCache(fresh);
   await hydrateDynamic(fresh, ctx);
   rebindAdminEditing();
 }
