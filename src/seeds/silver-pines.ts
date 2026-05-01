@@ -6,7 +6,17 @@ const SILVER_PINES_NAV = [
   { label: 'Getting Here', href: '/page.html?slug=getting-here', icon: 'map', public: true },
   { label: 'Our Members', href: '/directory.html', icon: 'users', public: true },
   { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
-  { label: 'Resources', href: '/resources.html', icon: 'book-open', feature: 'feature_resources' },
+  {
+    label: 'Resources',
+    href: '/resources.html',
+    icon: 'book-open',
+    feature: 'feature_resources',
+    children: [
+      { label: 'Documents', href: '/resources.html#documents', public: true },
+      { label: 'Forms', href: '/resources.html#forms', public: true },
+      { label: 'Calendar', href: '/resources.html#calendar', public: true },
+    ],
+  },
   { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
   { label: 'Committees', href: '/committees.html', icon: 'briefcase', feature: 'feature_committees' },
   { label: 'Announcements', href: '/#announcements-section', icon: 'bell', public: true },

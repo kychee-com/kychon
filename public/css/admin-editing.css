@@ -328,8 +328,9 @@
 }
 
 .admin-nav-item-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 28px 1fr 1.5fr auto auto;
+  grid-template-columns: 28px 1fr 1.5fr auto auto auto;
   gap: 0.5rem;
   align-items: center;
   padding: 0.5rem;
@@ -338,6 +339,37 @@
   margin-bottom: 0.5rem;
   background: white;
   transition: box-shadow 150ms ease;
+}
+
+.admin-nav-children {
+  /* Grouping container for nested rows. Inheritance of margin-left on the
+     individual rows handles indentation; the container itself is structural. */
+  margin-bottom: 0.5rem;
+}
+
+.admin-nav-row-depth-1,
+.admin-nav-row-depth-2 {
+  background: var(--color-surface, #f8fafc);
+}
+
+.admin-nav-guide {
+  position: absolute;
+  left: -0.75rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-border, #e2e8f0);
+  border-radius: 2px;
+}
+
+.admin-nav-row-depth-1 .admin-nav-guide,
+.admin-nav-row-depth-2 .admin-nav-guide {
+  background: var(--color-primary, #3b82f6);
+  opacity: 0.4;
+}
+
+.admin-nav-depth-warn {
+  grid-column: 2 / -1;
 }
 
 .admin-nav-item-row:hover {
