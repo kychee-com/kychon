@@ -55,6 +55,32 @@ export interface SiteConfigEntry {
   category?: string;
 }
 
+/**
+ * Brand identity keys consumed by the `brand_header` block and the favicon
+ * fallback chain. Picker rules (priority order):
+ *   1. `brand_icon_url` set → render icon + text
+ *   2. else `brand_wordmark_url` set → render wordmark alone
+ *   3. else → render `brand_text` only
+ *
+ * `brand_text` is required (always-set source-of-truth string used for aria
+ * labels, alt text, and the text-only fallback). `brand_text_short` is an
+ * optional one-line abbreviation swapped in via CSS at narrow viewports.
+ *
+ * The single legacy `logo_url` key is gone — no aliasing.
+ */
+export interface BrandConfig {
+  /** Square mark (any URL form, including `data:image/svg+xml,…`). */
+  brand_icon_url?: string;
+  /** Wide horizontal logo image. */
+  brand_wordmark_url?: string;
+  /** Org's full name. Required. */
+  brand_text: string;
+  /** Optional one-line abbreviation. */
+  brand_text_short?: string;
+  /** Explicit favicon override; falls back to `brand_icon_url` then `/favicon.svg`. */
+  favicon_url?: string;
+}
+
 export interface ProjectSeed {
   /** Map of site_config rows, keyed by config key (no `nav` here — nav is a block). */
   site_config: Record<string, SiteConfigEntry | unknown>;

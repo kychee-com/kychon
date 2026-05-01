@@ -256,6 +256,77 @@
   // --- Image editing via click-to-upload (base64 JSON) ---
   const boundImage = new WeakSet();
 
+  // brand-identity-fields: client-side aspect-ratio check for brand_icon_url
+  // uploads. Mirrors functions/upload-asset.js's server-side heuristic. When
+  // the uploaded image's intrinsic width exceeds 1.5× its height, we surface a
+  // hint offering a one-click reroute to brand_wordmark_url. Hint, not gate —
+  // the upload to brand_icon_url still succeeds; admin can dismiss.
+  const WORDMARK_ASPECT_THRESHOLD = 1.5;
+
+  async function readImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+    return new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        URL.revokeObjectURL(objectUrl);
+        if (w > 0 && h > 0) resolve({ width: w, height: h });
+        else resolve(null);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      };
+      img.src = objectUrl;
+    });
+  }
+
+  function isBrandIconTarget(target: EditTarget | null): boolean {
+    return !!target && target.table === 'site_config' && target.id === 'brand_icon_url';
+  }
+
+  function showWordmarkHint(htmlEl: HTMLElement, savedUrl: string, dims: { width: number; height: number }) {
+    document.querySelector('.admin-wordmark-hint')?.remove();
+    const tip = document.createElement('div');
+    tip.className = 'admin-wordmark-hint admin-promotion-tooltip';
+    tip.innerHTML = `
+      <span>This image looks like a wordmark (${dims.width}×${dims.height}). Move it to <code>brand_wordmark_url</code> instead?</span>
+      <button class="btn btn-sm btn-primary" type="button" data-move-to-wordmark>Move to wordmark</button>
+      <button class="admin-tooltip-close" type="button" aria-label="Keep in icon slot">&times;</button>
+    `;
+    document.body.appendChild(tip);
+    const rect = htmlEl.getBoundingClientRect();
+    tip.style.position = 'fixed';
+    tip.style.top = `${Math.max(8, rect.bottom + 8)}px`;
+    tip.style.left = `${Math.max(8, rect.left)}px`;
+    tip.style.zIndex = '9999';
+    const dismiss = () => tip.remove();
+    setTimeout(dismiss, 12000);
+    tip.querySelector('.admin-tooltip-close')?.addEventListener('click', dismiss);
+    tip.querySelector('[data-move-to-wordmark]')?.addEventListener('click', async () => {
+      try {
+        // Reroute: clear the icon slot, set the wordmark slot.
+        await Promise.all([
+          patch(`site_config?key=eq.brand_icon_url`, { value: '' }),
+          patch(`site_config?key=eq.brand_wordmark_url`, { value: savedUrl }),
+        ]);
+        clearCache('wl_cache_site_config');
+        showToast('Saved to brand_wordmark_url');
+        // Remove the now-orphan icon image so the chrome re-renders cleanly
+        // on next hydration.
+        const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
+        if (img) img.removeAttribute('src');
+        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+      } catch (e) {
+        console.error('Reroute to wordmark failed:', e);
+        showToast('Reroute failed', 'error');
+      } finally {
+        dismiss();
+      }
+    });
+  }
+
   function initEditableImage() {
     document.querySelectorAll('[data-editable-image]').forEach((el) => {
       if (boundImage.has(el)) return;
@@ -285,6 +356,12 @@
             const target = parseEditTarget(attr);
             const storageName = `assets/${Date.now()}_${file.name}`;
 
+            // Read dimensions in parallel with the upload — it's a hint, so we
+            // don't block the upload on it. (Failures are silent.)
+            const dimsPromise = isBrandIconTarget(target)
+              ? readImageDimensions(file).catch(() => null)
+              : Promise.resolve(null);
+
             // Upload directly to Run402 storage (avoids function body size limit)
             const res = await fetch(`${getAPI()}/storage/v1/upload/${storageName}`, {
               method: 'POST',
@@ -309,6 +386,19 @@
                 await saveField(htmlEl, target, url);
               }
               showToast('Image uploaded');
+
+              // brand_icon_url aspect-ratio hint (client-side mirror of the
+              // server-side check in functions/upload-asset.js). Surfaces only
+              // when uploading to the icon slot AND the image is much wider
+              // than tall.
+              const dims = await dimsPromise;
+              if (
+                isBrandIconTarget(target) &&
+                dims &&
+                dims.width > WORDMARK_ASPECT_THRESHOLD * dims.height
+              ) {
+                showWordmarkHint(htmlEl, url, dims);
+              }
             } else {
               const err = await res.text();
               console.error('Upload failed:', err);

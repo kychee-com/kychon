@@ -14,9 +14,15 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Centro Comunitario Barrio Unido"', 'branding'),
   ('site_tagline', '"Juntos, somos más fuertes"', 'branding'),
   ('site_description', '"Barrio Unido es un centro comunitario en el corazón de Boyle Heights, Los Ángeles. Ofrecemos clases de inglés, preparación para la ciudadanía, clínica legal gratuita, despensa de alimentos y eventos culturales. Desde 2018, hemos servido a más de 2,400 familias."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"Centro Comunitario Barrio Unido"', 'branding'),
+  ('brand_text_short', '"Barrio Unido"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding')
 ON CONFLICT (key) DO NOTHING;
+
+-- Drop legacy logo_url row if it exists (brand-identity-fields migration).
+DELETE FROM site_config WHERE key = 'logo_url';
 
 -- Theme (terracotta + warm cream)
 INSERT INTO site_config (key, value, category) VALUES

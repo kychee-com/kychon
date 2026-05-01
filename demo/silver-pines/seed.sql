@@ -13,9 +13,15 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Silver Pines Senior Center"', 'branding'),
   ('site_tagline', '"Where every day brings something new"', 'branding'),
   ('site_description', '"Silver Pines is Asheville''s favorite community center for active adults. From tai chi to tech help, watercolors to book clubs, there''s always something happening. Join your neighbors for classes, events, and great conversation in the heart of the Blue Ridge."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"Silver Pines Senior Center"', 'branding'),
+  ('brand_text_short', '"Silver Pines"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
+
+-- Drop legacy logo_url row if it exists (brand-identity-fields migration).
+DELETE FROM site_config WHERE key = 'logo_url';
 
 -- Theme (sage green + warm cream + amber)
 INSERT INTO site_config (key, value, category) VALUES

@@ -114,6 +114,49 @@ a:hover {
 .nav-brand img {
   height: 2rem;
 }
+
+/* brand-identity-fields: three render modes for the brand_header block.
+   Picker rules in src/lib/blocks.ts decide which class lands on the <a>.
+   Icon mode shows a square mark + text. Wordmark mode is the wide image
+   alone (no separate text). Text mode is the universal fallback. */
+.brand-header--icon .brand-icon {
+  height: 2rem;
+  width: 2rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.brand-header--wordmark .brand-wordmark {
+  /* Wordmark images are constrained by height so the chrome row stays tidy
+     regardless of intrinsic width. */
+  height: 2.25rem;
+  width: auto;
+  max-width: min(60vw, 24rem);
+  object-fit: contain;
+  display: block;
+}
+.brand-header--text {
+  /* Pure text mode inherits .nav-brand sizing — nothing extra. */
+}
+.brand-header .brand-text {
+  display: inline-flex;
+  align-items: center;
+}
+.brand-header .brand-text--full {
+  display: inline;
+}
+.brand-header .brand-text--short {
+  display: none;
+}
+@media (max-width: 600px) {
+  /* Swap full text → short text on narrow viewports only when a short variant
+     exists. CSS-only, no JS — see brand-identity-fields/design.md §2. */
+  .brand-header .brand-text--full:has(+ .brand-text--short) {
+    display: none;
+  }
+  .brand-header .brand-text--short {
+    display: inline;
+  }
+}
 .nav-links {
   display: flex;
   gap: 0.25rem;
