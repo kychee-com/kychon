@@ -341,6 +341,11 @@
       dropIndicator = document.createElement('div');
       dropIndicator.className = 'admin-drop-indicator';
     }
+    // column-span-rows: indicator width tracks the dragged block's span so the
+    // preview matches what'll actually land. Default to '1' when nothing is
+    // being dragged or the dragged block has no span attribute.
+    const span = draggedEl?.getAttribute('data-column-span') || '1';
+    dropIndicator.setAttribute('data-column-span', span);
     return dropIndicator;
   }
 
@@ -777,6 +782,15 @@
         openZoneAddPicker(zone);
         return;
       }
+
+      // column-span-rows: per-block edit popover (span radio + scope + remove)
+      const editBtn = t.closest('[data-section-edit]') as HTMLElement | null;
+      if (editBtn) {
+        e.preventDefault();
+        const id = parseInt(editBtn.dataset.sectionEdit || '', 10);
+        if (Number.isFinite(id)) openSectionEditPopover(id);
+        return;
+      }
     });
   }
 
@@ -868,6 +882,176 @@
           showToast('Add failed', 'error');
         }
       });
+    });
+  }
+
+  // column-span-rows: per-block edit popover. Surfaces span radio (filtered
+  // by BlockType.supportedSpans), scope toggle, and remove. Each interaction
+  // PATCHes the row, busts wl_cache_sections_*, and dispatches
+  // `wl-content-rendered` so page-render.ts re-renders the zone.
+  async function openSectionEditPopover(sectionId: number) {
+    const { BLOCK_TYPES, getSupportedSpans } = await import('../lib/blocks');
+    document.querySelector('.admin-popover-backdrop')?.remove();
+    document.querySelector('.admin-popover')?.remove();
+
+    let row: any = null;
+    try {
+      const rows = await get(`sections?id=eq.${sectionId}`);
+      row = rows[0];
+    } catch (err) {
+      console.error('Failed to load section row:', err);
+      showToast('Could not load block', 'error');
+      return;
+    }
+    if (!row) {
+      showToast('Block not found', 'error');
+      return;
+    }
+
+    const def = BLOCK_TYPES[row.section_type] || null;
+    const spans = getSupportedSpans(row.section_type);
+    const currentSpan: string = row.column_span || '1';
+    const currentScope: 'page' | 'global' = row.scope === 'global' ? 'global' : 'page';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+    const popover = document.createElement('div');
+    popover.className = 'admin-popover';
+
+    const spanLabels: Record<string, string> = {
+      '1': 'Full',
+      '1/2': 'Half',
+      '1/3': 'Third',
+      '2/3': 'Two-thirds',
+    };
+    const spanRadioHtml = spans
+      .map((s) => `<button type="button" class="admin-span-radio-btn${s === currentSpan ? ' active' : ''}" data-span="${s}">${esc(spanLabels[s] || s)}</button>`)
+      .join('');
+
+    const scopeLabel = currentScope === 'global' ? 'Make page-only' : 'Make global';
+    const scopeNext = currentScope === 'global' ? 'page' : 'global';
+
+    popover.innerHTML = `
+      <div class="admin-section-edit-header">
+        <h3>${esc(def?.label || row.section_type)}${currentScope === 'global' ? ' <span class="admin-scope-pill">Global</span>' : ''}</h3>
+        <button class="admin-tooltip-close" type="button" aria-label="Close" data-edit-close>&times;</button>
+      </div>
+      <div class="admin-section-edit-body">
+        <label class="admin-section-edit-label">Width</label>
+        <div class="admin-span-radio">${spanRadioHtml}</div>
+        <label class="admin-section-edit-label mt-2">Scope</label>
+        <button type="button" class="btn btn-secondary btn-sm" data-edit-scope-toggle data-edit-scope-next="${scopeNext}">${esc(scopeLabel)}</button>
+        <div class="mt-2">
+          <button type="button" class="btn btn-secondary btn-sm danger" data-edit-remove>Remove block</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(popover);
+
+    const close = () => {
+      popover.remove();
+      backdrop.remove();
+    };
+    backdrop.addEventListener('click', close);
+    popover.querySelector('[data-edit-close]')?.addEventListener('click', close);
+
+    // Span radio change → PATCH column_span
+    popover.querySelectorAll<HTMLElement>('[data-span]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const newSpan = btn.dataset.span;
+        if (!newSpan || newSpan === row.column_span) return;
+        try {
+          await patch(`sections?id=eq.${sectionId}`, { column_span: newSpan });
+          row.column_span = newSpan;
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith('wl_cache_sections_'))
+            .forEach((k) => localStorage.removeItem(k));
+          popover.querySelectorAll<HTMLElement>('[data-span]').forEach((b) =>
+            b.classList.toggle('active', b.dataset.span === newSpan),
+          );
+          // Update the rendered block's data-column-span attribute live so the
+          // grid re-flows immediately without waiting for a network re-fetch.
+          const blockEl = document.querySelector(`[data-sortable-id="sections.${sectionId}"]`) as HTMLElement | null;
+          if (blockEl) blockEl.setAttribute('data-column-span', newSpan);
+          showToast('Width saved');
+          document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+        } catch (err) {
+          console.error('Span save failed:', err);
+          showToast('Save failed', 'error');
+        }
+      });
+    });
+
+    // Scope toggle
+    popover.querySelector('[data-edit-scope-toggle]')?.addEventListener('click', async (ev) => {
+      const targetBtn = ev.currentTarget as HTMLElement;
+      const next = targetBtn.dataset.editScopeNext as 'page' | 'global' | undefined;
+      if (!next) return;
+      try {
+        await patch(`sections?id=eq.${sectionId}`, { scope: next });
+        row.scope = next;
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
+        showToast(next === 'global' ? 'Saved — appears on all pages' : 'Saved — appears on this page only');
+        const flipped = next === 'global' ? 'page' : 'global';
+        targetBtn.dataset.editScopeNext = flipped;
+        targetBtn.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
+        // Update the popover header pill.
+        const heading = popover.querySelector('.admin-section-edit-header h3');
+        if (heading) {
+          const existingPill = heading.querySelector('.admin-scope-pill');
+          if (next === 'global' && !existingPill) {
+            heading.insertAdjacentHTML('beforeend', ' <span class="admin-scope-pill">Global</span>');
+          } else if (next === 'page' && existingPill) {
+            existingPill.remove();
+          }
+        }
+        // Mirror onto the inline scope toggle if it's still in the DOM.
+        const inlineToggle = document.querySelector(`[data-scope-toggle="${sectionId}"]`) as HTMLElement | null;
+        if (inlineToggle) {
+          inlineToggle.dataset.scopeNext = flipped;
+          inlineToggle.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
+          inlineToggle.title = inlineToggle.textContent;
+          const sectionEl = inlineToggle.closest('[data-sortable-id]') as HTMLElement | null;
+          if (sectionEl) {
+            sectionEl.setAttribute('data-section-scope', next);
+            const existingInlinePill = sectionEl.querySelector('.admin-section-actions .admin-scope-pill');
+            if (next === 'global' && !existingInlinePill) {
+              const pill = document.createElement('span');
+              pill.className = 'admin-scope-pill';
+              pill.textContent = 'Global';
+              inlineToggle.before(pill);
+            } else if (next === 'page' && existingInlinePill) {
+              existingInlinePill.remove();
+            }
+          }
+        }
+        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+      } catch (err) {
+        console.error('Scope save failed:', err);
+        showToast('Save failed', 'error');
+      }
+    });
+
+    // Remove
+    popover.querySelector('[data-edit-remove]')?.addEventListener('click', async () => {
+      if (!confirm('Remove this block?')) return;
+      try {
+        const { del } = await import('../lib/api');
+        await del(`sections?id=eq.${sectionId}`);
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
+        document.querySelector(`[data-sortable-id="sections.${sectionId}"]`)?.remove();
+        showToast('Block removed');
+        close();
+      } catch (err) {
+        console.error('Remove failed:', err);
+        showToast('Remove failed', 'error');
+      }
     });
   }
 

@@ -222,6 +222,8 @@ export const seed: ProjectSeed = {
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
       position: 5,
+      // column-span-rows: announcements + recent activity side-by-side.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -230,6 +232,7 @@ export const seed: ProjectSeed = {
       section_type: 'activity_feed',
       config: { limit: 15 },
       position: 6,
+      column_span: '1/3',
     },
     {
       page_slug: 'index',
@@ -245,6 +248,7 @@ export const seed: ProjectSeed = {
       position: 7,
     },
     // --- Footer chrome (global) ---
+    // column-span-rows: address + copyright share a row.
     {
       page_slug: '*',
       zone: 'footer',
@@ -258,6 +262,7 @@ export const seed: ProjectSeed = {
         hours: 'Mon–Fri 8am–5pm (6:30pm Movie Fridays)',
       },
       position: 1,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
@@ -271,6 +276,7 @@ export const seed: ProjectSeed = {
         admin_contact_href: 'mailto:hello@silverpines.org',
       },
       position: 2,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
