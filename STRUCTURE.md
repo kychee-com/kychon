@@ -117,7 +117,7 @@ Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `site_config` | Branding, theme, feature flags (no `nav` — that's a block) | key (PK), value (JSONB), category |
+| `site_config` | Branding, theme (see [THEME.md](THEME.md)), feature flags (no `nav` — that's a block) | key (PK), value (JSONB), category |
 | `pages` | Custom pages | slug (unique), title, content, requires_auth, show_in_nav |
 | `sections` | Every visible block (chrome + main) | page_slug, zone, scope, section_type, config (JSONB), position |
 | `membership_tiers` | Tier definitions | name, benefits (TEXT[]), price_label, is_default |

@@ -599,65 +599,170 @@
     document.body.appendChild(backdrop);
     document.body.appendChild(panel);
 
-    function renderItems() {
-      const container = panel.querySelector('#nav-editor-items')!;
-      container.innerHTML = navItems.map((item: any, i: number) => `
-        <div class="admin-nav-item-row" data-idx="${i}" draggable="true">
+    // Resolve a navItem object given its dotted path: e.g. "0" → navItems[0],
+    // "0.children.2" → navItems[0].children[2].
+    function getByPath(path: string): any {
+      const parts = path.split('.');
+      let cur: any = { children: navItems };
+      for (let i = 0; i < parts.length; i++) {
+        const key = parts[i];
+        if (key === 'children') {
+          cur = cur.children;
+        } else {
+          const idx = parseInt(key, 10);
+          cur = cur[idx];
+        }
+      }
+      return cur;
+    }
+    // Resolve the parent array (the array that contains the indexed item).
+    function getParentArray(path: string): { arr: any[]; idx: number } {
+      const parts = path.split('.');
+      const lastIdx = parseInt(parts[parts.length - 1], 10);
+      const parentParts = parts.slice(0, -1);
+      let cur: any = { children: navItems };
+      for (let i = 0; i < parentParts.length; i++) {
+        const key = parentParts[i];
+        if (key === 'children') {
+          cur = cur.children;
+        } else {
+          const idx = parseInt(key, 10);
+          cur = cur[idx];
+        }
+      }
+      // cur is the parent object. The array is cur (if we went into children/navItems).
+      const arr = Array.isArray(cur) ? cur : cur.children;
+      return { arr, idx: lastIdx };
+    }
+    function countDescendants(item: any): number {
+      const kids = Array.isArray(item.children) ? item.children : [];
+      let n = kids.length;
+      for (const k of kids) n += countDescendants(k);
+      return n;
+    }
+    function renderRow(item: any, path: string, depth: number): string {
+      const tooDeep = depth >= 2
+        ? `<div class="admin-nav-depth-warn" style="font-size:0.75rem;color:var(--color-warning,#b08000);margin:0.125rem 0 0.25rem 0">Nested deeper than 2 levels — may not render well on mobile</div>`
+        : '';
+      const childCount = Array.isArray(item.children) ? item.children.length : 0;
+      const guide = depth > 0 ? '<div class="admin-nav-guide" aria-hidden="true"></div>' : '';
+      const childRows = (Array.isArray(item.children) ? item.children : [])
+        .map((c: any, ci: number) => renderRow(c, `${path}.children.${ci}`, depth + 1))
+        .join('');
+      const childContainer = childCount > 0
+        ? `<div class="admin-nav-children" data-children-of="${path}">${childRows}</div>`
+        : '';
+      return `
+        <div class="admin-nav-item-row admin-nav-row-depth-${depth}" data-path="${path}" data-depth="${depth}" draggable="true" style="margin-left:${depth * 1.5}rem">
+          ${guide}
           <div class="drag-handle" title="Drag to reorder">&#9776;</div>
           <input type="text" value="${esc(item.label || '')}" data-field="label" placeholder="Label">
-          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/page.html">
+          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/page.html (optional if has children)">
           <select data-field="visibility">
             <option value="public"${item.public ? ' selected' : ''}>Public</option>
             <option value="auth"${item.auth ? ' selected' : ''}>Members</option>
             <option value="admin"${item.admin ? ' selected' : ''}>Admin</option>
           </select>
+          <button class="btn btn-secondary btn-sm" data-add-child="${path}" title="Add child item">+ child</button>
           <button class="remove-btn" title="Remove">&times;</button>
+          ${tooDeep}
         </div>
-      `).join('');
+        ${childContainer}
+      `;
+    }
+
+    function renderItems() {
+      const container = panel.querySelector('#nav-editor-items')!;
+      container.innerHTML = navItems
+        .map((item: any, i: number) => renderRow(item, String(i), 0))
+        .join('');
 
       // Bind row events
       container.querySelectorAll('.admin-nav-item-row').forEach((row) => {
-        const idx = parseInt((row as HTMLElement).dataset.idx!);
+        const path = (row as HTMLElement).dataset.path!;
 
         // Input changes
-        row.querySelectorAll('input, select').forEach((input) => {
+        row.querySelectorAll(':scope > input, :scope > select').forEach((input) => {
           input.addEventListener('change', () => {
             const field = (input as HTMLElement).dataset.field!;
+            const item = getByPath(path);
+            if (!item) return;
             if (field === 'visibility') {
               const val = (input as HTMLSelectElement).value;
-              delete navItems[idx].public;
-              delete navItems[idx].auth;
-              delete navItems[idx].admin;
-              if (val === 'public') navItems[idx].public = true;
-              else if (val === 'auth') navItems[idx].auth = true;
-              else if (val === 'admin') navItems[idx].admin = true;
+              delete item.public;
+              delete item.auth;
+              delete item.admin;
+              if (val === 'public') item.public = true;
+              else if (val === 'auth') item.auth = true;
+              else if (val === 'admin') item.admin = true;
             } else {
-              navItems[idx][field] = (input as HTMLInputElement).value;
+              item[field] = (input as HTMLInputElement).value;
             }
           });
         });
 
-        // Remove
-        row.querySelector('.remove-btn')?.addEventListener('click', () => {
-          navItems.splice(idx, 1);
+        // Add child
+        row.querySelector(':scope > [data-add-child]')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const item = getByPath(path);
+          if (!item) return;
+          if (!Array.isArray(item.children)) item.children = [];
+          item.children.push({ label: 'New Link', href: '/', public: true });
           renderItems();
         });
 
-        // Drag reorder
+        // Remove (with subtree confirmation if children present)
+        row.querySelector(':scope > .remove-btn')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const { arr, idx } = getParentArray(path);
+          const item = arr[idx];
+          if (!item) return;
+          const descendants = countDescendants(item);
+          if (descendants > 0) {
+            const word = descendants === 1 ? 'child' : 'children';
+            if (!confirm(`Remove this item and its ${descendants} ${word}?`)) return;
+          }
+          arr.splice(idx, 1);
+          renderItems();
+        });
+
+        // Drag reorder — scoped to the same parent array.
         row.addEventListener('dragstart', (e) => {
-          (e as DragEvent).dataTransfer!.setData('text/plain', String(idx));
+          (e as DragEvent).dataTransfer!.setData('text/plain', path);
+          (e as DragEvent).dataTransfer!.effectAllowed = 'move';
           (row as HTMLElement).style.opacity = '0.4';
         });
         row.addEventListener('dragend', () => {
           (row as HTMLElement).style.opacity = '1';
         });
-        row.addEventListener('dragover', (e) => { e.preventDefault(); });
+        row.addEventListener('dragover', (e) => {
+          const dt = (e as DragEvent).dataTransfer;
+          if (!dt) return;
+          const fromPath = dt.getData('text/plain') || '';
+          // Only accept drops within the same parent scope.
+          const fromParent = fromPath.split('.').slice(0, -1).join('.');
+          const toParent = path.split('.').slice(0, -1).join('.');
+          if (fromParent === toParent) {
+            e.preventDefault();
+            dt.dropEffect = 'move';
+          }
+        });
         row.addEventListener('drop', (e) => {
+          const dt = (e as DragEvent).dataTransfer;
+          if (!dt) return;
+          const fromPath = dt.getData('text/plain');
+          if (!fromPath || fromPath === path) return;
+          const fromParent = fromPath.split('.').slice(0, -1).join('.');
+          const toParent = path.split('.').slice(0, -1).join('.');
+          if (fromParent !== toParent) return;
           e.preventDefault();
-          const fromIdx = parseInt((e as DragEvent).dataTransfer!.getData('text/plain'));
-          if (fromIdx === idx) return;
-          const [moved] = navItems.splice(fromIdx, 1);
-          navItems.splice(idx, 0, moved);
+          const fromIdx = parseInt(fromPath.split('.').pop()!, 10);
+          const toIdx = parseInt(path.split('.').pop()!, 10);
+          const fromCtx = getParentArray(fromPath);
+          const [moved] = fromCtx.arr.splice(fromIdx, 1);
+          fromCtx.arr.splice(toIdx, 0, moved);
           renderItems();
         });
       });
@@ -665,7 +770,7 @@
 
     renderItems();
 
-    // Add item
+    // Add top-level item
     panel.querySelector('#nav-editor-add')?.addEventListener('click', () => {
       navItems.push({ label: 'New Link', href: '/', public: true });
       renderItems();

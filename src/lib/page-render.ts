@@ -62,7 +62,9 @@ function getRenderContext(): BlockRenderContext {
     authenticated: !!session,
     role: (role as BlockRenderContext['role']) ?? null,
     isFeatureEnabled,
-    currentPath: typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/',
+    currentPath: typeof window !== 'undefined'
+      ? window.location.pathname + window.location.search + window.location.hash
+      : '/',
     session,
   };
 }
