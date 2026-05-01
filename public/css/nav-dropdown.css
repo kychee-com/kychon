@@ -5,7 +5,11 @@
 .nav-item-wrap {
   position: relative;
   display: inline-flex;
-  align-items: center;
+  /* No align-items here: let the inner <a class="nav-link nav-parent"> stretch
+     to the same cross-axis height as its plain `.nav-link` siblings in the
+     `.nav-links` flex row. With `align-items: center` (previous value) the
+     link shrunk to its content height and centered, which pushed its text
+     ~11px lower than the rest of the nav. */
 }
 
 .nav-link.nav-parent,
