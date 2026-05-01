@@ -899,6 +899,333 @@
     }
   }
 
+  // --- Hero editor overlay ---
+  // Surfaced by the generic section-edit popover for hero blocks (the
+  // "Hero settings…" link). Also retains its own document-level click
+  // listener on `data-hero-edit="<sid>"` for legacy callers/tests. The
+  // popover contains: mode toggle (Background/Foreground), and when
+  // foreground is selected, fields for image_url/alt/aspect, logo
+  // overlay/position/max_height, caption_html (textarea), 3x3 caption
+  // position picker, and text_position toggle. Switching modes when the
+  // previous mode's fields are dirty prompts a confirm.
+  let heroEditorOpen = false;
+
+  type HeroMode = 'background' | 'foreground';
+  type HeroAspect = 'auto' | '16/9' | '4/3' | '21/9';
+  type HeroLogoPos = 'left' | 'center' | 'right';
+  type HeroCaptionPos =
+    | 'top-left' | 'top-center' | 'top-right'
+    | 'right-middle' | 'bottom-right' | 'bottom-center'
+    | 'bottom-left' | 'left-middle';
+  type HeroTextPos = 'over_image' | 'below_image';
+
+  interface HeroDraft {
+    heading?: string;
+    subheading?: string;
+    cta_text?: string;
+    cta_href?: string;
+    mode?: HeroMode;
+    bg_image?: string;
+    image_url?: string;
+    image_alt?: string;
+    image_aspect?: HeroAspect;
+    logo_overlay_url?: string;
+    logo_position?: HeroLogoPos;
+    logo_max_height?: string;
+    caption_html?: string;
+    caption_position?: HeroCaptionPos;
+    text_position?: HeroTextPos;
+    [k: string]: any;
+  }
+
+  function initHeroEditor() {
+    if ((document.body as any).__heroEditorBound) return;
+    (document.body as any).__heroEditorBound = true;
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement | null;
+      const btn = t?.closest('[data-hero-edit]') as HTMLElement | null;
+      if (!btn) return;
+      e.preventDefault();
+      const sid = parseInt(btn.dataset.heroEdit || '', 10);
+      if (Number.isFinite(sid)) openHeroEditor(sid);
+    });
+  }
+
+  function hasForegroundFieldsSet(cfg: HeroDraft): boolean {
+    return Boolean(
+      cfg.image_url || cfg.image_alt || cfg.logo_overlay_url ||
+      cfg.caption_html ||
+      (cfg.image_aspect && cfg.image_aspect !== 'auto') ||
+      (cfg.caption_position && cfg.caption_position !== 'bottom-right') ||
+      (cfg.text_position && cfg.text_position !== 'over_image') ||
+      (cfg.logo_position && cfg.logo_position !== 'left') ||
+      (cfg.logo_max_height && cfg.logo_max_height !== '120px'),
+    );
+  }
+
+  function hasBackgroundFieldsSet(cfg: HeroDraft): boolean {
+    return Boolean(cfg.bg_image);
+  }
+
+  async function openHeroEditor(sid: number) {
+    if (heroEditorOpen) return;
+    heroEditorOpen = true;
+
+    let cfg: HeroDraft = {};
+    try {
+      const rows = await get(`sections?id=eq.${sid}`);
+      cfg = (rows[0]?.config as HeroDraft) || {};
+    } catch {
+      cfg = {};
+    }
+    if (!cfg.mode) cfg.mode = 'background';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+    const panel = document.createElement('div');
+    panel.className = 'admin-popover admin-hero-editor';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Hero settings');
+    panel.style.maxWidth = '560px';
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+
+    function close() {
+      panel.remove();
+      backdrop.remove();
+      heroEditorOpen = false;
+    }
+    backdrop.addEventListener('click', close);
+
+    function captionGridHtml(selected: HeroCaptionPos | undefined): string {
+      const positions: (HeroCaptionPos | null)[] = [
+        'top-left', 'top-center', 'top-right',
+        'left-middle', null, 'right-middle',
+        'bottom-left', 'bottom-center', 'bottom-right',
+      ];
+      const sel = selected || 'bottom-right';
+      const cells = positions.map((p) => {
+        if (p === null) return `<div class="caption-grid-cell caption-grid-disabled" aria-hidden="true"></div>`;
+        const isSelected = p === sel ? ' aria-pressed="true"' : ' aria-pressed="false"';
+        const cls = p === sel ? 'caption-grid-cell selected' : 'caption-grid-cell';
+        return `<button type="button" class="${cls}" data-caption-pos="${p}"${isSelected} title="${p}">●</button>`;
+      }).join('');
+      return `<div class="caption-grid">${cells}</div>`;
+    }
+
+    function render() {
+      const mode = cfg.mode || 'background';
+      panel.innerHTML = `
+        <div class="popover-header">
+          <h3>Hero settings</h3>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-primary btn-sm" data-action="save">Save</button>
+            <button class="btn btn-secondary btn-sm" data-action="cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="hero-editor-body">
+          <fieldset class="hero-mode-toggle">
+            <legend>Mode</legend>
+            <label><input type="radio" name="hero-mode" value="background"${mode === 'background' ? ' checked' : ''}> Background image</label>
+            <label><input type="radio" name="hero-mode" value="foreground"${mode === 'foreground' ? ' checked' : ''}> Foreground image</label>
+          </fieldset>
+          ${mode === 'foreground' ? renderForegroundFieldset() : renderBackgroundFieldset()}
+        </div>
+      `;
+      bindForm();
+    }
+
+    function renderBackgroundFieldset(): string {
+      return `
+        <fieldset class="hero-mode-fields">
+          <legend>Background image</legend>
+          <label class="field">
+            <span>Background image URL</span>
+            <input type="text" data-field="bg_image" value="${esc(cfg.bg_image || '')}" placeholder="/assets/hero.jpg">
+          </label>
+          <p class="text-muted text-sm">The image is rendered as a CSS <code>background-image: cover</code> at fixed height. Use this for mood/decoration. Switch to Foreground for banners that must show their full content.</p>
+        </fieldset>
+      `;
+    }
+
+    function renderForegroundFieldset(): string {
+      const aspect = cfg.image_aspect || 'auto';
+      const logoPos = cfg.logo_position || 'left';
+      const textPos = cfg.text_position || 'over_image';
+      return `
+        <fieldset class="hero-mode-fields">
+          <legend>Foreground image</legend>
+          <label class="field">
+            <span>Image URL</span>
+            <input type="text" data-field="image_url" value="${esc(cfg.image_url || '')}" placeholder="/assets/banner.png">
+          </label>
+          <label class="field">
+            <span>Image alt text <em>(required for a11y)</em></span>
+            <input type="text" data-field="image_alt" value="${esc(cfg.image_alt || '')}" placeholder="Founded 1880, banner">
+          </label>
+          <label class="field">
+            <span>Aspect ratio</span>
+            <select data-field="image_aspect">
+              <option value="auto"${aspect === 'auto' ? ' selected' : ''}>Auto (native)</option>
+              <option value="16/9"${aspect === '16/9' ? ' selected' : ''}>16:9</option>
+              <option value="4/3"${aspect === '4/3' ? ' selected' : ''}>4:3</option>
+              <option value="21/9"${aspect === '21/9' ? ' selected' : ''}>21:9 (cinema)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Logo overlay URL <em>(optional)</em></span>
+            <input type="text" data-field="logo_overlay_url" value="${esc(cfg.logo_overlay_url || '')}" placeholder="/assets/logo.svg">
+          </label>
+          <fieldset class="field-radio">
+            <legend>Logo position</legend>
+            <label><input type="radio" name="logo_position" value="left"${logoPos === 'left' ? ' checked' : ''}> Left</label>
+            <label><input type="radio" name="logo_position" value="center"${logoPos === 'center' ? ' checked' : ''}> Center</label>
+            <label><input type="radio" name="logo_position" value="right"${logoPos === 'right' ? ' checked' : ''}> Right</label>
+          </fieldset>
+          <label class="field">
+            <span>Logo max height (CSS, e.g. 120px)</span>
+            <input type="text" data-field="logo_max_height" value="${esc(cfg.logo_max_height || '120px')}">
+          </label>
+          <label class="field">
+            <span>Caption HTML <em>(allowed: &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;a&gt;)</em></span>
+            <textarea data-field="caption_html" rows="3" placeholder="Founded 1880&lt;br&gt;Alexandria, VA">${esc(cfg.caption_html || '')}</textarea>
+          </label>
+          <div class="field">
+            <span>Caption position</span>
+            ${captionGridHtml(cfg.caption_position)}
+          </div>
+          <fieldset class="field-radio">
+            <legend>Heading position</legend>
+            <label><input type="radio" name="text_position" value="over_image"${textPos === 'over_image' ? ' checked' : ''}> Over the image</label>
+            <label><input type="radio" name="text_position" value="below_image"${textPos === 'below_image' ? ' checked' : ''}> Below the image</label>
+          </fieldset>
+        </fieldset>
+      `;
+    }
+
+    function bindForm() {
+      panel.querySelectorAll<HTMLInputElement>('input[name="hero-mode"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+          const newMode = radio.value as HeroMode;
+          if (newMode === cfg.mode) return;
+          // Confirm on switch when previous mode is dirty.
+          const prevDirty = cfg.mode === 'background'
+            ? hasBackgroundFieldsSet(cfg)
+            : hasForegroundFieldsSet(cfg);
+          if (prevDirty) {
+            const ok = confirm(`Switching modes will clear the ${cfg.mode}-specific fields. Continue?`);
+            if (!ok) {
+              // Restore the radio.
+              const prev = panel.querySelector<HTMLInputElement>(`input[name="hero-mode"][value="${cfg.mode}"]`);
+              if (prev) prev.checked = true;
+              return;
+            }
+          }
+          if (newMode === 'foreground') {
+            // Clear background-only fields.
+            delete cfg.bg_image;
+          } else {
+            // Clear foreground-only fields.
+            delete cfg.image_url;
+            delete cfg.image_alt;
+            delete cfg.image_aspect;
+            delete cfg.logo_overlay_url;
+            delete cfg.logo_position;
+            delete cfg.logo_max_height;
+            delete cfg.caption_html;
+            delete cfg.caption_position;
+            delete cfg.text_position;
+          }
+          cfg.mode = newMode;
+          render();
+        });
+      });
+
+      panel.querySelectorAll<HTMLElement>('[data-field]').forEach((el) => {
+        const field = (el as HTMLElement).dataset.field!;
+        el.addEventListener('input', () => {
+          cfg[field] = (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
+        });
+        el.addEventListener('change', () => {
+          cfg[field] = (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
+        });
+      });
+
+      panel.querySelectorAll<HTMLInputElement>('input[name="logo_position"]').forEach((r) => {
+        r.addEventListener('change', () => {
+          if (r.checked) cfg.logo_position = r.value as HeroLogoPos;
+        });
+      });
+      panel.querySelectorAll<HTMLInputElement>('input[name="text_position"]').forEach((r) => {
+        r.addEventListener('change', () => {
+          if (r.checked) cfg.text_position = r.value as HeroTextPos;
+        });
+      });
+
+      panel.querySelectorAll<HTMLElement>('[data-caption-pos]').forEach((cell) => {
+        cell.addEventListener('click', () => {
+          const pos = cell.dataset.captionPos as HeroCaptionPos;
+          cfg.caption_position = pos;
+          panel.querySelectorAll<HTMLElement>('[data-caption-pos]').forEach((c) => {
+            const same = c === cell;
+            c.classList.toggle('selected', same);
+            c.setAttribute('aria-pressed', same ? 'true' : 'false');
+          });
+        });
+      });
+
+      panel.querySelector<HTMLButtonElement>('[data-action="cancel"]')?.addEventListener('click', close);
+      panel.querySelector<HTMLButtonElement>('[data-action="save"]')?.addEventListener('click', async () => {
+        try {
+          // Read current config so we don't clobber unrelated keys (heading,
+          // subheading, cta_text/href live outside this popover).
+          const rows = await get(`sections?id=eq.${sid}`);
+          const current = (rows[0]?.config as HeroDraft) || {};
+          const merged: HeroDraft = { ...current };
+          // Common scalar fields preserved from the row.
+          // Apply popover-specific fields.
+          merged.mode = cfg.mode;
+          if (cfg.mode === 'foreground') {
+            delete merged.bg_image;
+            merged.image_url = cfg.image_url || '';
+            merged.image_alt = cfg.image_alt || '';
+            merged.image_aspect = cfg.image_aspect || 'auto';
+            merged.logo_overlay_url = cfg.logo_overlay_url || '';
+            merged.logo_position = cfg.logo_position || 'left';
+            merged.logo_max_height = cfg.logo_max_height || '120px';
+            merged.caption_html = cfg.caption_html || '';
+            merged.caption_position = cfg.caption_position || 'bottom-right';
+            merged.text_position = cfg.text_position || 'over_image';
+          } else {
+            delete merged.image_url;
+            delete merged.image_alt;
+            delete merged.image_aspect;
+            delete merged.logo_overlay_url;
+            delete merged.logo_position;
+            delete merged.logo_max_height;
+            delete merged.caption_html;
+            delete merged.caption_position;
+            delete merged.text_position;
+            merged.bg_image = cfg.bg_image || '';
+          }
+          await patch(`sections?id=eq.${sid}`, { config: merged });
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith('wl_cache_sections_'))
+            .forEach((k) => localStorage.removeItem(k));
+          showToast('Hero saved');
+          close();
+          document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+        } catch (e) {
+          console.error('Hero save failed:', e);
+          showToast('Save failed', 'error');
+        }
+      });
+    }
+
+    render();
+  }
+
   // --- Section actions: remove / scope-toggle / add-section (delegated) ---
   function initSectionActions() {
     if ((document.body as any).__sectionActionsBound) return;
@@ -1456,6 +1783,12 @@
     const scopeLabel = currentScope === 'global' ? 'Make page-only' : 'Make global';
     const scopeNext = currentScope === 'global' ? 'page' : 'global';
 
+    // hero-foreground-mode: hero blocks get a "Hero settings…" link that
+    // opens the type-specific popover (mode toggle + foreground fields).
+    const heroLink = row.section_type === 'hero'
+      ? `<div class="hero-settings-link"><label class="admin-section-edit-label">Hero</label><button type="button" class="btn btn-secondary btn-sm" data-edit-hero-settings>Hero settings…</button></div>`
+      : '';
+
     popover.innerHTML = `
       <div class="admin-section-edit-header">
         <h3>${esc(def?.label || row.section_type)}${currentScope === 'global' ? ' <span class="admin-scope-pill">Global</span>' : ''}</h3>
@@ -1466,6 +1799,7 @@
         <div class="admin-span-radio">${spanRadioHtml}</div>
         <label class="admin-section-edit-label mt-2">Scope</label>
         <button type="button" class="btn btn-secondary btn-sm" data-edit-scope-toggle data-edit-scope-next="${scopeNext}">${esc(scopeLabel)}</button>
+        ${heroLink}
         <div class="mt-2">
           <button type="button" class="btn btn-secondary btn-sm danger" data-edit-remove>Remove block</button>
         </div>
@@ -1481,6 +1815,13 @@
     };
     backdrop.addEventListener('click', close);
     popover.querySelector('[data-edit-close]')?.addEventListener('click', close);
+
+    // hero-foreground-mode: open the hero-specific popover (mode + foreground
+    // fields). Closing the generic popover first prevents two stacked dialogs.
+    popover.querySelector('[data-edit-hero-settings]')?.addEventListener('click', () => {
+      close();
+      void openHeroEditor(sectionId);
+    });
 
     // Span radio change → PATCH column_span
     popover.querySelectorAll<HTMLElement>('[data-span]').forEach((btn) => {
@@ -1593,6 +1934,7 @@
     initEditableImage();
     initSortable();
     initNavEditor();
+    initHeroEditor();
     initEmbedEditor();
     initSectionActions();
     ensureZoneAddButtons();

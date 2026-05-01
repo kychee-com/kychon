@@ -541,6 +541,208 @@ mark {
   max-width: 40rem;
   margin-inline: auto;
 }
+
+/* ----- Hero foreground mode -----
+   When mode === 'foreground', the picture is the visual centerpiece. Renders
+   at native aspect (image_aspect: 'auto') or a configured ratio. Logo overlay
+   and corner caption are absolutely positioned; heading group can render over
+   the image (default) or below it in normal flow. */
+
+.section-hero.hero-foreground {
+  padding: 0;
+  text-align: center;
+  background: none;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+.section-hero.hero-foreground::before {
+  display: none;
+}
+.section-hero.hero-foreground .hero-picture {
+  display: block;
+  position: relative;
+  width: 100%;
+  margin: 0;
+  line-height: 0;
+}
+.section-hero.hero-foreground .hero-picture > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+.section-hero.hero-foreground .hero-picture[data-aspect="auto"] > img {
+  aspect-ratio: auto;
+}
+.section-hero.hero-foreground .hero-picture[data-aspect="16/9"] > img {
+  aspect-ratio: 16 / 9;
+  height: auto;
+  object-fit: cover;
+}
+.section-hero.hero-foreground .hero-picture[data-aspect="4/3"] > img {
+  aspect-ratio: 4 / 3;
+  height: auto;
+  object-fit: cover;
+}
+.section-hero.hero-foreground .hero-picture[data-aspect="21/9"] > img {
+  aspect-ratio: 21 / 9;
+  height: auto;
+  object-fit: cover;
+}
+
+/* aspect-ratio fallback for browsers without support (~5%). Use the
+   padding-bottom ratio trick on the <picture> wrapper so the <img> can be
+   absolutely positioned to fill it. */
+@supports not (aspect-ratio: 16 / 9) {
+  .section-hero.hero-foreground .hero-picture[data-aspect="16/9"],
+  .section-hero.hero-foreground .hero-picture[data-aspect="4/3"],
+  .section-hero.hero-foreground .hero-picture[data-aspect="21/9"] {
+    height: 0;
+  }
+  .section-hero.hero-foreground .hero-picture[data-aspect="16/9"] {
+    padding-bottom: 56.25%;
+  }
+  .section-hero.hero-foreground .hero-picture[data-aspect="4/3"] {
+    padding-bottom: 75%;
+  }
+  .section-hero.hero-foreground .hero-picture[data-aspect="21/9"] {
+    padding-bottom: 42.857%;
+  }
+  .section-hero.hero-foreground .hero-picture[data-aspect="16/9"] > img,
+  .section-hero.hero-foreground .hero-picture[data-aspect="4/3"] > img,
+  .section-hero.hero-foreground .hero-picture[data-aspect="21/9"] > img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/* Logo overlay — absolutely positioned over the picture. */
+.section-hero.hero-foreground .hero-logo-overlay {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.section-hero.hero-foreground .hero-logo-overlay > img {
+  display: block;
+  width: auto;
+}
+.section-hero.hero-foreground .hero-logo-overlay[data-position="left"] {
+  left: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.section-hero.hero-foreground .hero-logo-overlay[data-position="center"] {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.section-hero.hero-foreground .hero-logo-overlay[data-position="right"] {
+  right: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Caption — absolutely positioned in one of 8 positions. */
+.section-hero.hero-foreground .hero-caption {
+  position: absolute;
+  z-index: 2;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  padding: 0.5rem 1rem;
+  max-width: 60%;
+}
+.section-hero.hero-foreground .hero-caption a {
+  color: inherit;
+  text-decoration: underline;
+}
+.section-hero.hero-foreground .hero-caption[data-position="top-left"] {
+  top: 1rem;
+  left: 1rem;
+  text-align: left;
+}
+.section-hero.hero-foreground .hero-caption[data-position="top-center"] {
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.section-hero.hero-foreground .hero-caption[data-position="top-right"] {
+  top: 1rem;
+  right: 1rem;
+  text-align: right;
+}
+.section-hero.hero-foreground .hero-caption[data-position="right-middle"] {
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  text-align: right;
+}
+.section-hero.hero-foreground .hero-caption[data-position="bottom-right"] {
+  bottom: 1rem;
+  right: 1rem;
+  text-align: right;
+}
+.section-hero.hero-foreground .hero-caption[data-position="bottom-center"] {
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.section-hero.hero-foreground .hero-caption[data-position="bottom-left"] {
+  bottom: 1rem;
+  left: 1rem;
+  text-align: left;
+}
+.section-hero.hero-foreground .hero-caption[data-position="left-middle"] {
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  text-align: left;
+}
+
+/* Heading group — over (absolute, with text-shadow) or below (normal flow). */
+.section-hero.hero-foreground .hero-text {
+  z-index: 1;
+}
+.section-hero.hero-foreground[data-text-position="over_image"] .hero-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.section-hero.hero-foreground[data-text-position="over_image"] .hero-text .container {
+  pointer-events: auto;
+}
+.section-hero.hero-foreground[data-text-position="over_image"] .hero-text h1 {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.section-hero.hero-foreground[data-text-position="over_image"] .hero-text p {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.section-hero.hero-foreground[data-text-position="below_image"] .hero-text {
+  position: relative;
+  padding: 2rem 0 3rem;
+}
+.section-hero.hero-foreground[data-text-position="below_image"] .hero-text h1 {
+  /* Inherit the gradient-text treatment from the default hero h1 — set in
+     `.section-hero h1` above — no override needed. */
+}
+
 .section-features .features-grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), 1fr);
