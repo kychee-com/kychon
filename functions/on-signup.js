@@ -1,6 +1,6 @@
 // Lifecycle hook: called automatically by Run402 after first signup (fire-and-forget).
 // Also supports direct invocation with auth token for backward compatibility.
-import { db, getUser } from 'run402-functions';
+import { adminDb, getUser } from '@run402/functions';
 
 export default async (req) => {
   // Determine user identity from lifecycle hook payload or auth token
@@ -34,7 +34,7 @@ export default async (req) => {
   }
 
   // Check if user already has a member record
-  const existing = await db.from('members').select('id,role,status').eq('user_id', userId).limit(1);
+  const existing = await adminDb().from('members').select('id,role,status').eq('user_id', userId).limit(1);
   if (existing.length > 0) {
     return new Response(
       JSON.stringify({
@@ -62,14 +62,14 @@ export default async (req) => {
   const avatarUrl = authUser.avatar_url || null;
 
   // Check if this is the first user (becomes admin)
-  const countResult = await db.sql('SELECT count(*)::int as count FROM members');
+  const countResult = await adminDb().sql('SELECT count(*)::int as count FROM members');
   const isFirst = countResult.rows.length === 0 || countResult.rows[0].count === 0;
 
   const role = isFirst ? 'admin' : 'member';
   const memberStatus = isFirst ? 'active' : 'pending';
 
   // Get default tier
-  const defaultTier = await db.from('membership_tiers').select('id').eq('is_default', true).limit(1);
+  const defaultTier = await adminDb().from('membership_tiers').select('id').eq('is_default', true).limit(1);
   const tierId = defaultTier.length > 0 ? defaultTier[0].id : null;
 
   // Create member record
@@ -93,11 +93,13 @@ export default async (req) => {
   const member = created[0];
 
   // Log activity
-  await db.from('activity_log').insert({
-    member_id: member.id,
-    action: 'signup',
-    metadata: { role, is_first: isFirst },
-  });
+  await adminDb()
+    .from('activity_log')
+    .insert({
+      member_id: member.id,
+      action: 'signup',
+      metadata: { role, is_first: isFirst },
+    });
 
   return new Response(
     JSON.stringify({

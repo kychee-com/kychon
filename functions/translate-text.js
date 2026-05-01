@@ -1,6 +1,6 @@
 // On-demand text translation for user-generated content (Twitter-style "Translate" button)
 // Caches results in content_translations table. Uses OpenAI API via OPENAI_API_KEY secret.
-import { db } from 'run402-functions';
+import { adminDb } from '@run402/functions';
 
 export default async (req) => {
   let body;
@@ -74,13 +74,15 @@ export default async (req) => {
     // Store in cache (if content_type/content_id/field provided)
     if (content_type && content_id && field) {
       try {
-        await db.from('content_translations').insert({
-          content_type,
-          content_id: Number(content_id),
-          language: target_lang,
-          field,
-          translated_text: translated,
-        });
+        await adminDb()
+          .from('content_translations')
+          .insert({
+            content_type,
+            content_id: Number(content_id),
+            language: target_lang,
+            field,
+            translated_text: translated,
+          });
       } catch {
         // cache write failed (maybe duplicate), not critical
       }

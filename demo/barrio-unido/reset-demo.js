@@ -1,9 +1,132 @@
 // schedule: "0 * * * *"
 // Reset demo site to seed state — auto-generated, do not edit manually
 // Regenerate with: node scripts/generate-reset-function.js <seed.sql>
-import { db } from 'run402-functions';
+import { adminDb } from '@run402/functions';
 
 const SEED_SQL = `-- ============================================
+-- Kychon — Generated Seed Data (idempotent)
+-- DO NOT EDIT BY HAND. Edit src/seeds/{project}.ts and re-run
+--   tsx scripts/generate-seed-sql.ts
+-- ============================================
+
+-- site_config (admin edits preserved)
+INSERT INTO site_config (key, value, category) VALUES
+  ('site_name', '"Centro Comunitario Barrio Unido"', 'branding'),
+  ('site_tagline', '"Juntos, somos más fuertes"', 'branding'),
+  ('site_description', '"Barrio Unido es un centro comunitario en el corazón de Boyle Heights, Los Ángeles. Ofrecemos clases de inglés, preparación para la ciudadanía, clínica legal gratuita, despensa de alimentos y eventos culturales. Desde 2018, hemos servido a más de 2,400 familias."', 'branding'),
+  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('favicon_url', '"/assets/logo.png"', 'branding'),
+  ('feature_events', 'true', 'features'),
+  ('feature_forum', 'true', 'features'),
+  ('feature_directory', 'true', 'features'),
+  ('feature_resources', 'true', 'features'),
+  ('feature_blog', 'false', 'features'),
+  ('feature_committees', 'true', 'features'),
+  ('feature_ai_moderation', 'false', 'features'),
+  ('feature_ai_translation', 'false', 'features'),
+  ('feature_ai_newsletter', 'false', 'features'),
+  ('feature_ai_insights', 'false', 'features'),
+  ('feature_ai_onboarding', 'false', 'features'),
+  ('feature_ai_event_recaps', 'false', 'features'),
+  ('feature_activity_feed', 'true', 'features'),
+  ('feature_reactions', 'true', 'features'),
+  ('directory_public', 'false', 'features'),
+  ('signup_mode', '"approved"', 'features'),
+  ('demo_mode', 'true', 'features'),
+  ('languages', '["es","en"]', 'i18n'),
+  ('default_language', '"es"', 'i18n')
+ON CONFLICT (key) DO NOTHING;
+
+-- site_config (seed-owned: theme updates flow on every deploy)
+INSERT INTO site_config (key, value, category) VALUES
+  ('theme', '{"primary":"#C2553A","primary_hover":"#A8432D","bg":"#FFF8F0","surface":"#F0E6D8","text":"#2D1810","text_muted":"#7A6B5E","border":"#D4C4B0","font_heading":"Merriweather","font_body":"Noto Sans","radius":"0.75rem","max_width":"72rem"}', 'theme')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
+
+-- membership_tiers
+INSERT INTO membership_tiers (name, description, benefits, price_label, position, is_default)
+SELECT 'Vecino/a', 'Cualquier persona del barrio es bienvenida', ARRAY['Ver avisos', 'Calendario de eventos', 'Foro comunitario']::text[], 'Gratis', 1, true
+WHERE NOT EXISTS (SELECT 1 FROM membership_tiers WHERE name = 'Vecino/a');
+INSERT INTO membership_tiers (name, description, benefits, price_label, position, is_default)
+SELECT 'Voluntario/a', 'Miembros activos que donan su tiempo', ARRAY['Directorio de miembros', 'Recursos', 'Inscripción a eventos', 'Foro', 'Programas']::text[], 'Gratis', 2, false
+WHERE NOT EXISTS (SELECT 1 FROM membership_tiers WHERE name = 'Voluntario/a');
+INSERT INTO membership_tiers (name, description, benefits, price_label, position, is_default)
+SELECT 'Promotor/a', 'Líderes comunitarios que coordinan programas', ARRAY['Todos los beneficios', 'Coordinar eventos', 'Moderar foro', 'Acceso a reportes']::text[], 'Gratis', 3, false
+WHERE NOT EXISTS (SELECT 1 FROM membership_tiers WHERE name = 'Promotor/a');
+INSERT INTO membership_tiers (name, description, benefits, price_label, position, is_default)
+SELECT 'Consejero/a', 'Miembros de la mesa directiva', ARRAY['Acceso completo', 'Herramientas de administración', 'Reuniones de mesa directiva', 'Planificación estratégica']::text[], 'Por nombramiento', 4, false
+WHERE NOT EXISTS (SELECT 1 FROM membership_tiers WHERE name = 'Consejero/a');
+
+-- member_custom_fields
+INSERT INTO member_custom_fields (field_name, field_label, field_type, options, required, visible_in_directory, position)
+SELECT 'telefono', 'Teléfono', 'text', NULL, false, false, 1
+WHERE NOT EXISTS (SELECT 1 FROM member_custom_fields WHERE field_name = 'telefono');
+INSERT INTO member_custom_fields (field_name, field_label, field_type, options, required, visible_in_directory, position)
+SELECT 'colonia', 'Colonia / Barrio', 'text', NULL, false, true, 2
+WHERE NOT EXISTS (SELECT 1 FROM member_custom_fields WHERE field_name = 'colonia');
+INSERT INTO member_custom_fields (field_name, field_label, field_type, options, required, visible_in_directory, position)
+SELECT 'idiomas', 'Idiomas', 'multi_select', '["español","inglés","portugués","mixteco","zapoteco","náhuatl"]', false, true, 3
+WHERE NOT EXISTS (SELECT 1 FROM member_custom_fields WHERE field_name = 'idiomas');
+INSERT INTO member_custom_fields (field_name, field_label, field_type, options, required, visible_in_directory, position)
+SELECT 'habilidades', 'Habilidades', 'multi_select', '["enseñanza","traducción","legal","cocina","organización","tecnología","cuidado de niños","construcción"]', false, true, 4
+WHERE NOT EXISTS (SELECT 1 FROM member_custom_fields WHERE field_name = 'habilidades');
+
+-- pages
+INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
+SELECT 'nosotros', 'Sobre Barrio Unido', '<img src="/assets/about.jpg" alt="Comunidad de Barrio Unido" style="width:100%;border-radius:0.75rem;margin-bottom:2rem"><h2>Nuestra Historia</h2><p>Barrio Unido nació en 2018 cuando un grupo de vecinos de Boyle Heights decidió que nuestra comunidad merecía un espacio propio — un lugar donde cualquier persona pudiera encontrar ayuda, aprender, conectar y celebrar.</p><p>Lo que empezó como una mesa con café y formularios de inmigración en el garaje de Lucía Ramírez, hoy es un centro comunitario que sirve a más de 2,400 familias al año.</p><h2>Nuestra Misión</h2><p>Empoderar a las familias inmigrantes y latinx de East Los Angeles proporcionando servicios legales, educación, alimentos y espacios culturales — todo gratuito, todo con dignidad.</p><h2>Cómo Participar</h2><p>No importa si hablas español, inglés o ambos. No importa tu estatus migratorio. No importa cuánto tiempo lleves en el barrio. <strong>Aquí hay un lugar para ti.</strong></p><ul><li>Ven a un evento y conoce a la comunidad</li><li>Inscríbete como voluntario/a</li><li>Dona a nuestra despensa de alimentos</li><li>Comparte nuestros recursos con alguien que los necesite</li></ul>', false, false, NULL, true
+WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'nosotros');
+
+-- sections (chrome + main blocks).
+-- Idempotent on (page_slug, zone, scope, section_type, position).
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'brand_header', '{"name":"Centro Comunitario Barrio Unido","logo_url":"/assets/logo.png","href":"/"}', 1, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Inicio","href":"/","icon":"home","public":true},{"label":"Nosotros","href":"/page.html?slug=nosotros","icon":"info","public":true},{"label":"Miembros","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Eventos","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Recursos","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Foro","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Programas","href":"/committees.html","icon":"heart","feature":"feature_committees"},{"label":"Panel","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Miembros","href":"/admin-members.html","icon":"users","admin":true},{"label":"Configuración","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'nav' AND position = 2);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'sign_in_bar' AND position = 3);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'hero', '{"heading":"Bienvenidos a Barrio Unido","subheading":"Tu centro comunitario en el corazón de Boyle Heights. Clases de inglés, clínica legal, despensa de alimentos, eventos culturales y más — todo gratis, todo para ti.","cta_text":"Únete a la comunidad","cta_href":"/page.html?slug=nosotros","bg_image":"/assets/hero.jpg"}', 1, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'stats', '{"items":[{"value":"2,400+","label":"Familias servidas"},{"value":"850+","label":"Clases de inglés completadas"},{"value":"340+","label":"Consultas legales"},{"value":"60+","label":"Eventos al año"}]}', 2, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'stats' AND position = 2);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'features', '{"columns":3,"items":[{"icon":"shield","title":"Clínica Legal","desc":"Consultas gratuitas con abogados de inmigración. DACA, permisos de trabajo, asilo, ciudadanía."},{"icon":"book-open","title":"Clases de Inglés","desc":"ESL para adultos, desde principiante hasta avanzado. Clases de conversación y gramática."},{"icon":"file-text","title":"Ciudadanía","desc":"Talleres mensuales de preparación para el examen. Simulacros de entrevista y ayuda con formularios."},{"icon":"heart","title":"Despensa de Alimentos","desc":"Distribución semanal de alimentos frescos para familias del barrio. Martes y jueves, 4-7 PM."},{"icon":"users","title":"Jóvenes Unidos","desc":"Mentoría, tutoría escolar, arte y deportes para jóvenes de 12 a 18 años."},{"icon":"calendar","title":"Cultura y Fiestas","desc":"Día de los Muertos, Posada Navideña, mercaditos, noches de cine y más."}]}', 3, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'features' AND position = 3);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'testimonials', '{"items":[{"quote":"Barrio Unido me ayudó a conseguir mi ciudadanía después de 18 años en este país. No tengo palabras para agradecer a Lucía y a Ana.","name":"María Elena Ríos","role":"Promotora"},{"quote":"My kids found a second family in the youth program. Adriana and Óscar have been incredible mentors. This place changes lives.","name":"Jennifer Tran","role":"Social Worker & Volunteer"},{"quote":"Llegué sin hablar una palabra de inglés. Ahora puedo hablar con el doctor, con la maestra de mis hijos, con mi jefe. Gracias, profesor Carlos.","name":"Pedro Gutiérrez","role":"Voluntario de construcción"}]}', 4, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'testimonials' AND position = 4);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'embed', '{"heading":"Clima en Boyle Heights (Windy)","provider":"iframe","params":{"src":"https://embed.windy.com/embed2.html?lat=34.0334&lon=-118.2073&zoom=10&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"},"trust_acknowledged":true,"height":"480px","responsive":false}', 5, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'embed' AND position = 5);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Avisos","limit":20}', 6, true, '2/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 7, true, '1/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'cta', '{"heading":"El barrio te necesita — y tú nos necesitas a nosotros","text":"Ya seas vecino/a nuevo o de toda la vida, hay un lugar para ti en Barrio Unido. Ven a conocernos.","cta_text":"Hazte voluntario/a","cta_href":"/page.html?slug=nosotros"}', 8, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 8);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_address', '{"name":"Centro Comunitario Barrio Unido","address_lines":["Boyle Heights, Los Ángeles, CA"],"phone":"323-555-0100","email":"hola@barriounido.org","hours":"Lun–Vie 9am–6pm · Sábados 10am–2pm"}', 1, true, '1/2'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_copyright', '{"year":"auto","org_name":"Centro Comunitario Barrio Unido","admin_contact_label":"Contáctanos","admin_contact_href":"mailto:hola@barriounido.org"}', 2, true, '1/2'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_attribution' AND position = 99);
+-- column-span-rows: re-assert spans on rows that pre-existed the seed change.
+UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6;
+UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7;
+UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1;
+UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2;
+
+-- Appended from demo/barrio-unido/seed.sql
+-- ============================================
 -- Kychon — Barrio Unido Demo Seed (idempotent)
 -- "Centro Comunitario Barrio Unido"
 -- Latino immigrant services hub, East LA
@@ -1495,6 +1618,11 @@ INSERT INTO activity_log (action, member_id, metadata, created_at)
 SELECT 'rsvp', m.id, '{"event": "Noche de Ciudadanía", "status": "going"}', now() - interval '3 days'
 FROM members m WHERE m.email = 'ana.delgado@gmail.com'
 AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::text LIKE '%Ciudadanía%' AND member_id = m.id);
+
+-- composable-layout: clear legacy site_config.nav row.
+-- nav is now a block (see sections above); this guards against stale DBs
+-- and against any extraSqlFile that still inserts the legacy row.
+DELETE FROM site_config WHERE key = 'nav';
 `;
 
 const MUTABLE_TABLES = [
@@ -1507,54 +1635,67 @@ const MUTABLE_TABLES = [
 
 export default async (_req) => {
   // 1. Read demo account user_ids
-  const configResult = await db.sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
+  const configResult = await adminDb().sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
   const demoAccounts = configResult.rows?.[0]?.value || {};
   const adminUserId = demoAccounts.admin_user_id;
   const memberUserId = demoAccounts.member_user_id;
 
   // 2. TRUNCATE mutable content tables (order matters for FK constraints)
   for (const table of MUTABLE_TABLES) {
-    await db.sql(`TRUNCATE ${table} CASCADE`);
+    await adminDb().sql(`TRUNCATE ${table} CASCADE`);
   }
 
   // 3. Delete non-demo members (keep demo accounts by user_id)
   // First nullify tier_id on kept members to avoid FK constraint on membership_tiers
   if (adminUserId || memberUserId) {
     const keepIds = [adminUserId, memberUserId].filter(Boolean).map(id => `'${id}'`).join(',');
-    await db.sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
-    await db.sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
+    await adminDb().sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
+    await adminDb().sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
   } else {
-    await db.sql('DELETE FROM members');
+    await adminDb().sql('DELETE FROM members');
   }
 
   // 4. Reset membership_tiers, pages, sections, custom_fields
-  await db.sql('DELETE FROM membership_tiers');
-  await db.sql('DELETE FROM sections');
-  await db.sql('DELETE FROM pages');
-  await db.sql('DELETE FROM member_custom_fields');
+  await adminDb().sql('DELETE FROM membership_tiers');
+  await adminDb().sql('DELETE FROM sections');
+  await adminDb().sql('DELETE FROM pages');
+  await adminDb().sql('DELETE FROM member_custom_fields');
 
-  // 5. Re-run seed SQL (idempotent INSERTs)
-  await db.sql(SEED_SQL);
+  // 5. Re-run seed SQL (idempotent INSERTs). Capture any error so reset still
+  //    reports success for non-section work; the caller surfaces seed_error.
+  let seedError = null;
+  try {
+    await adminDb().sql(SEED_SQL);
+  } catch (e) {
+    seedError = String(e?.message ?? e);
+  }
+  // Diagnostic: count sections by zone after seed.
+  const zoneCounts = await adminDb().sql("SELECT zone, COUNT(*)::int AS n FROM sections GROUP BY zone");
 
   // 6. Re-link demo accounts to seed member records
   if (adminUserId) {
     // Link admin user_id to the first admin member record
-    const adminMembers = await db.sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
+    const adminMembers = await adminDb().sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
     if (adminMembers.rows?.length) {
-      await db.sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
+      await adminDb().sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
     }
   }
   if (memberUserId) {
     // Link member user_id to the first non-admin active member
-    const memberRecords = await db.sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
+    const memberRecords = await adminDb().sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
     if (memberRecords.rows?.length) {
-      await db.sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
+      await adminDb().sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
     }
   }
 
   // 7. Write last_reset timestamp
   const now = new Date().toISOString();
-  await db.sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
+  await adminDb().sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
 
-  return new Response(JSON.stringify({ status: 'ok', reset_at: now }));
+  return new Response(JSON.stringify({
+    status: 'ok',
+    reset_at: now,
+    seed_error: seedError,
+    section_zones: zoneCounts.rows ?? zoneCounts,
+  }));
 };

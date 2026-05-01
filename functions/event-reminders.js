@@ -1,5 +1,5 @@
 // prototype-schedule: "0 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { db, email } from 'run402-functions';
+import { adminDb, email } from '@run402/functions';
 
 export default async (_req) => {
   const now = new Date();
@@ -15,7 +15,7 @@ export default async (_req) => {
 
   for (const event of events) {
     // Get RSVPd members (going or maybe)
-    const rsvps = await db.sql(`
+    const rsvps = await adminDb().sql(`
       SELECT m.email, m.display_name FROM event_rsvps r
       JOIN members m ON m.id = r.member_id
       WHERE r.event_id = ${event.id} AND r.status IN ('going', 'maybe') AND m.email != ''

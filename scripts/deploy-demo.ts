@@ -11,6 +11,7 @@
  *   <name> ∈ { eagles, silver-pines, barrio }
  */
 
+import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
@@ -136,6 +137,25 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
     const keys = await r.projects.keys(projectId);
     const anonKey = keys.anon_key;
     if (!anonKey) throw new Error(`No anon_key for project ${projectId}`);
+
+    // Regenerate reset-demo.js from the full combined seed.sql (which has
+    // chrome rows + page-specific main + demo extras). The hourly reset
+    // function wipes `sections` and re-runs this embedded seed; without this
+    // step it re-runs a stale embedded SQL that lacks chrome, leaving the
+    // header zone empty after the next reset tick. generate-seed-sql.ts is
+    // run by buildAstro inside runDeploy, but we need seed.sql ON DISK first
+    // so we can embed it — invoke the generator here too. Re-invoking it
+    // inside runDeploy is a no-op (same KYCHON_PROJECT, same content).
+    console.log("Generating seed.sql for reset-demo embed...");
+    execSync("npx tsx scripts/generate-seed-sql.ts", {
+      stdio: "inherit",
+      cwd: ROOT,
+    });
+    console.log(`Regenerating ${config.resetDemoFile} from full seed.sql...`);
+    execSync(
+      `node scripts/generate-reset-function.js seed.sql > ${config.resetDemoFile}`,
+      { stdio: "inherit", cwd: ROOT },
+    );
 
     await runDeploy(r, {
       projectId,

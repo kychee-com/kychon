@@ -1,5 +1,5 @@
 // schedule: none (triggered by client after content publish)
-import { ai, db, getUser } from 'run402-functions';
+import { ai, db, getUser } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -8,7 +8,7 @@ export default async (req) => {
   }
 
   // Check if feature is enabled
-  const flag = await db.from('site_config').select('value').eq('key', 'feature_ai_translation').limit(1);
+  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_translation').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_translation disabled' }));
   }
@@ -28,13 +28,13 @@ export default async (req) => {
   // Read the content
   let content = {};
   if (content_type === 'announcement') {
-    const rows = await db.from('announcements').select('title,body').eq('id', content_id).limit(1);
+    const rows = await adminDb().from('announcements').select('title,body').eq('id', content_id).limit(1);
     if (rows.length > 0) content = rows[0];
   } else if (content_type === 'event') {
-    const rows = await db.from('events').select('title,description').eq('id', content_id).limit(1);
+    const rows = await adminDb().from('events').select('title,description').eq('id', content_id).limit(1);
     if (rows.length > 0) content = { title: rows[0].title, body: rows[0].description };
   } else if (content_type === 'page') {
-    const rows = await db.from('pages').select('title,content').eq('id', content_id).limit(1);
+    const rows = await adminDb().from('pages').select('title,content').eq('id', content_id).limit(1);
     if (rows.length > 0) content = { title: rows[0].title, body: rows[0].content };
   }
 
@@ -63,9 +63,12 @@ export default async (req) => {
             .limit(1);
 
           if (existing.length > 0) {
-            await db.from('content_translations').update({ translated_text: result.text }).eq('id', existing[0].id);
+            await adminDb()
+              .from('content_translations')
+              .update({ translated_text: result.text })
+              .eq('id', existing[0].id);
           } else {
-            await db.from('content_translations').insert({
+            await adminDb().from('content_translations').insert({
               content_type,
               content_id,
               language: lang,

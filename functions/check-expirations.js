@@ -1,5 +1,5 @@
 // schedule: "0 8 * * *"
-import { db, email } from 'run402-functions';
+import { adminDb, email } from '@run402/functions';
 
 export default async (_req) => {
   const _now = new Date().toISOString();
@@ -42,7 +42,7 @@ export default async (_req) => {
   if (process.env.AI_API_KEY) {
     try {
       // Check if feature is enabled
-      const flag = await db.from('site_config').select('value').eq('key', 'feature_ai_insights').limit(1);
+      const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_insights').limit(1);
       if (flag.length > 0 && (flag[0].value === true || flag[0].value === 'true')) {
         results.insights_generated = await generateInsights();
       }
@@ -83,20 +83,22 @@ async function generateInsights() {
       `Generate a brief, friendly outreach suggestion for a community admin. The member "${m.display_name}" has their membership expiring on ${m.expires_at}. Suggest what to say to encourage renewal. Keep it under 200 characters.`,
     );
 
-    await db.from('member_insights').insert({
-      member_id: m.id,
-      insight_type: 'expiring',
-      message:
-        message || `${m.display_name}'s membership is expiring soon. Consider reaching out to encourage renewal.`,
-      priority: 'high',
-    });
+    await adminDb()
+      .from('member_insights')
+      .insert({
+        member_id: m.id,
+        insight_type: 'expiring',
+        message:
+          message || `${m.display_name}'s membership is expiring soon. Consider reaching out to encourage renewal.`,
+        priority: 'high',
+      });
     count++;
   }
 
   // Inactive members (30+ days no activity)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const result = await db.sql(`
+  const result = await adminDb().sql(`
     SELECT m.id, m.display_name FROM members m
     WHERE m.status = 'active'
     AND NOT EXISTS (
@@ -121,12 +123,14 @@ async function generateInsights() {
       `Generate a brief re-engagement suggestion for community admin. Member "${m.display_name}" has been inactive for 30+ days. Suggest how to bring them back. Under 200 characters.`,
     );
 
-    await db.from('member_insights').insert({
-      member_id: m.id,
-      insight_type: 'inactive',
-      message: message || `${m.display_name} hasn't been active in 30+ days. Consider a personal check-in.`,
-      priority: 'medium',
-    });
+    await adminDb()
+      .from('member_insights')
+      .insert({
+        member_id: m.id,
+        insight_type: 'inactive',
+        message: message || `${m.display_name} hasn't been active in 30+ days. Consider a personal check-in.`,
+        priority: 'medium',
+      });
     count++;
   }
 
