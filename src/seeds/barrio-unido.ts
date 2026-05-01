@@ -24,7 +24,11 @@ export const seed: ProjectSeed = {
         'Barrio Unido es un centro comunitario en el corazón de Boyle Heights, Los Ángeles. Ofrecemos clases de inglés, preparación para la ciudadanía, clínica legal gratuita, despensa de alimentos y eventos culturales. Desde 2018, hemos servido a más de 2,400 familias.',
       category: 'branding',
     },
-    logo_url: { value: '/assets/logo.png', category: 'branding' },
+    // Logo is square 256×256 → brand_icon_url. Picker rule: icon + text.
+    brand_text: { value: 'Centro Comunitario Barrio Unido', category: 'branding' },
+    brand_text_short: { value: 'Barrio Unido', category: 'branding' },
+    brand_icon_url: { value: '/assets/logo.png', category: 'branding' },
+    brand_wordmark_url: { value: '', category: 'branding' },
     favicon_url: { value: '/assets/logo.png', category: 'branding' },
     theme: {
       value: {
@@ -125,7 +129,7 @@ export const seed: ProjectSeed = {
       zone: 'header',
       scope: 'global',
       section_type: 'brand_header',
-      config: { name: 'Centro Comunitario Barrio Unido', logo_url: '/assets/logo.png', href: '/' },
+      config: { href: '/' },
       position: 1,
     },
     {

@@ -22,12 +22,29 @@ import Portal from '../layouts/Portal.astro';
           <textarea class="form-textarea" id="as-site-description" rows="2"></textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Logo URL</label>
-          <input class="form-input" id="as-logo-url" type="text" placeholder="/assets/logo.png or https://...">
+          <label class="form-label">Brand Text <span class="text-muted text-sm">(required)</span></label>
+          <input class="form-input" id="as-brand-text" type="text" placeholder="Your organization's full name" required>
+          <p class="form-help text-sm text-muted">Always-set source-of-truth for the brand name. Shown next to the icon, used as alt text and aria labels.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand Text (Short)</label>
+          <input class="form-input" id="as-brand-text-short" type="text" placeholder="Optional 1-line abbreviation for narrow screens">
+          <p class="form-help text-sm text-muted">Swapped in via CSS at viewports below 600px. Leave blank to keep the full text everywhere.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand Icon URL</label>
+          <input class="form-input" id="as-brand-icon-url" type="text" placeholder="/assets/icon.svg or data:image/svg+xml,...">
+          <p class="form-help text-sm text-muted">Square mark used in the header (icon + text mode) and as the favicon fallback. Accepts inline <code>data:image/svg+xml,...</code> URLs.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand Wordmark URL</label>
+          <input class="form-input" id="as-brand-wordmark-url" type="text" placeholder="/assets/wordmark.svg (wide horizontal logo)">
+          <p class="form-help text-sm text-muted">Wide horizontal logo. Used alone (no separate text) when no icon is set.</p>
         </div>
         <div class="form-group">
           <label class="form-label">Favicon URL</label>
-          <input class="form-input" id="as-favicon-url" type="text" placeholder="/favicon.svg or https://...">
+          <input class="form-input" id="as-favicon-url" type="text" placeholder="/favicon.svg or data:image/svg+xml,...">
+          <p class="form-help text-sm text-muted">Optional explicit favicon. Falls back to brand icon, then to the engine default <code>/favicon.svg</code>.</p>
         </div>
         <button type="submit" class="btn btn-primary" id="as-branding-save">Save</button>
       </form>
@@ -203,13 +220,26 @@ import Portal from '../layouts/Portal.astro';
 
   async function saveBranding(e: Event) {
     e.preventDefault();
+    const brandText = getVal('as-brand-text').trim();
+    if (!brandText) {
+      const btn = document.getElementById('as-branding-save');
+      if (btn) {
+        btn.textContent = 'Brand Text required';
+        setTimeout(() => (btn.textContent = 'Save'), 2000);
+      }
+      return;
+    }
     await Promise.all([
       patchConfig('site_name', getVal('as-site-name')),
       patchConfig('site_tagline', getVal('as-site-tagline')),
       patchConfig('site_description', getVal('as-site-description')),
-      patchConfig('logo_url', getVal('as-logo-url')),
+      patchConfig('brand_text', brandText),
+      patchConfig('brand_text_short', getVal('as-brand-text-short')),
+      patchConfig('brand_icon_url', getVal('as-brand-icon-url')),
+      patchConfig('brand_wordmark_url', getVal('as-brand-wordmark-url')),
       patchConfig('favicon_url', getVal('as-favicon-url')),
     ]);
+    clearCache('wl_cache_site_config');
     showSaved('as-branding-save');
   }
 
@@ -583,7 +613,10 @@ import Portal from '../layouts/Portal.astro';
     setVal('as-site-name', configMap.site_name);
     setVal('as-site-tagline', configMap.site_tagline);
     setVal('as-site-description', configMap.site_description);
-    setVal('as-logo-url', configMap.logo_url);
+    setVal('as-brand-text', configMap.brand_text || configMap.site_name || '');
+    setVal('as-brand-text-short', configMap.brand_text_short);
+    setVal('as-brand-icon-url', configMap.brand_icon_url);
+    setVal('as-brand-wordmark-url', configMap.brand_wordmark_url);
     setVal('as-favicon-url', configMap.favicon_url);
 
     // Populate theme

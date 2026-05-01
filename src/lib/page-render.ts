@@ -13,7 +13,7 @@
 
 import { get } from './api';
 import { getSession, getRole } from './auth';
-import { cacheHeroImage, isFeatureEnabled, ready } from './config';
+import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 
@@ -66,6 +66,12 @@ function getRenderContext(): BlockRenderContext {
       ? window.location.pathname + window.location.search + window.location.hash
       : '/',
     session,
+    siteName: siteConfig.site_name ? String(siteConfig.site_name) : undefined,
+    // brand_header reads these via the picker rules.
+    brandText: siteConfig.brand_text ? String(siteConfig.brand_text) : undefined,
+    brandTextShort: siteConfig.brand_text_short ? String(siteConfig.brand_text_short) : undefined,
+    brandIconUrl: siteConfig.brand_icon_url ? String(siteConfig.brand_icon_url) : undefined,
+    brandWordmarkUrl: siteConfig.brand_wordmark_url ? String(siteConfig.brand_wordmark_url) : undefined,
   };
 }
 
