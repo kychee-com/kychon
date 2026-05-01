@@ -3,7 +3,7 @@
 // and click-outside dismissal.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BLOCK_TYPES, type BlockRenderContext, type Section } from '../../src/lib/blocks';
+import { BLOCK_TYPES, type BlockRenderContext, isPageActive, type Section } from '../../src/lib/blocks';
 import { bindNavDropdowns } from '../../src/lib/nav-dropdown';
 
 const baseCtx: BlockRenderContext = {
@@ -32,6 +32,35 @@ function renderInto(html: string): HTMLElement {
   wrap.innerHTML = html;
   return wrap.firstElementChild as HTMLElement;
 }
+
+describe('isPageActive — hash-aware active link detection', () => {
+  it('matches the same pathname when no hash and no search', () => {
+    expect(isPageActive('/', '/')).toBe(true);
+    expect(isPageActive('/about', '/about')).toBe(true);
+  });
+
+  it('does not mark anchor-only links active when no hash on current path', () => {
+    // The original bug: at `/`, both `/` and `/#announcements-section` lit up.
+    expect(isPageActive('/#announcements-section', '/')).toBe(false);
+    expect(isPageActive('/', '/')).toBe(true);
+  });
+
+  it('marks an anchor link active only when current path has the same hash', () => {
+    expect(isPageActive('/#announcements-section', '/#announcements-section')).toBe(true);
+    expect(isPageActive('/#announcements-section', '/#other')).toBe(false);
+    expect(isPageActive('/#announcements-section', '/about')).toBe(false);
+  });
+
+  it('hash-less links remain active regardless of current URL hash', () => {
+    // Home should still be active when user has scrolled to /#announcements
+    expect(isPageActive('/', '/#announcements-section')).toBe(true);
+  });
+
+  it('respects search param mismatches', () => {
+    expect(isPageActive('/page.html?slug=foo', '/page.html?slug=foo')).toBe(true);
+    expect(isPageActive('/page.html?slug=foo', '/page.html?slug=bar')).toBe(false);
+  });
+});
 
 describe('nav block — flat behavior preserved', () => {
   it('renders flat items as plain anchors', () => {
