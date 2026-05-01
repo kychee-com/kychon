@@ -960,3 +960,14 @@ INSERT INTO activity_log (member_id, action, metadata, created_at)
 SELECT m.id, 'rsvp', '{"event_title": "Watercolor Wednesday"}', now() - interval '1 day'
 FROM members m WHERE m.email = 'charles.robinson@gmail.com'
 AND NOT EXISTS (SELECT 1 FROM activity_log WHERE member_id = m.id AND action = 'rsvp' AND metadata->>'event_title' = 'Watercolor Wednesday');
+
+-- Public previews: one resource per category visible to anonymous visitors,
+-- so the nested-nav dropdown's category jumps land on actual content. The
+-- rest stay members-only — the demo banner's "Try as Member" button still
+-- unlocks the full library.
+UPDATE resources SET is_members_only = false WHERE title IN (
+  'Silver Pines Shuttle Schedule',
+  'Medicare Basics Guide',
+  'Weekly Meal Program Menu',
+  'Tablet Basics: Getting Started'
+);
