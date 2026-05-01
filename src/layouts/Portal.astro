@@ -14,6 +14,7 @@ import { getActiveProjectSeed } from '../seeds';
 import { renderBlock } from '../lib/blocks';
 import type { BlockRenderContext, Section } from '../lib/blocks';
 import { buildCspValue } from '../lib/csp';
+import { renderFontHead } from '../lib/theme/fonts';
 
 interface Props {
   title: string;
@@ -65,6 +66,20 @@ const footerHtml = seedAsSections
   .sort((a, b) => a.position - b.position)
   .map((s) => renderBlock(s, bakeCtx))
   .join('');
+
+// --- Build-time Google Fonts injection (theme-fonts-injection) ---
+// When the active seed names a non-system font in `theme.font_heading` /
+// `theme.font_body`, emit preconnect + stylesheet <link> tags into <head>
+// so the named font has its CSS request in flight before first paint.
+const themeRaw = (seed.site_config as Record<string, any>).theme;
+const themeValue: Record<string, unknown> =
+  themeRaw && typeof themeRaw === 'object' && 'value' in themeRaw
+    ? ((themeRaw as { value: Record<string, unknown> }).value ?? {})
+    : (themeRaw ?? {});
+const fontHead = renderFontHead(
+  themeValue.font_heading as string | undefined,
+  themeValue.font_body as string | undefined,
+);
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -75,8 +90,11 @@ const footerHtml = seedAsSections
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>{title}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  {fontHead && <Fragment set:html={fontHead} />}
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/nav-dropdown.css">
+  <link rel="stylesheet" href="/css/zone-grid.css">
   <link rel="stylesheet" href="/css/a11y.css">
   <ClientRouter />
   <script is:inline>
@@ -202,6 +220,14 @@ const footerHtml = seedAsSections
 
     initAnimations();
     document.addEventListener('astro:after-swap', initAnimations);
+  </script>
+
+  <script>
+    import { bindNavDropdowns } from '../lib/nav-dropdown';
+    function bind() { bindNavDropdowns(); }
+    bind();
+    document.addEventListener('astro:after-swap', bind);
+    document.addEventListener('wl-content-rendered', bind);
   </script>
 
   <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>

@@ -341,6 +341,11 @@
       dropIndicator = document.createElement('div');
       dropIndicator.className = 'admin-drop-indicator';
     }
+    // column-span-rows: indicator width tracks the dragged block's span so the
+    // preview matches what'll actually land. Default to '1' when nothing is
+    // being dragged or the dragged block has no span attribute.
+    const span = draggedEl?.getAttribute('data-column-span') || '1';
+    dropIndicator.setAttribute('data-column-span', span);
     return dropIndicator;
   }
 
@@ -594,65 +599,170 @@
     document.body.appendChild(backdrop);
     document.body.appendChild(panel);
 
-    function renderItems() {
-      const container = panel.querySelector('#nav-editor-items')!;
-      container.innerHTML = navItems.map((item: any, i: number) => `
-        <div class="admin-nav-item-row" data-idx="${i}" draggable="true">
+    // Resolve a navItem object given its dotted path: e.g. "0" → navItems[0],
+    // "0.children.2" → navItems[0].children[2].
+    function getByPath(path: string): any {
+      const parts = path.split('.');
+      let cur: any = { children: navItems };
+      for (let i = 0; i < parts.length; i++) {
+        const key = parts[i];
+        if (key === 'children') {
+          cur = cur.children;
+        } else {
+          const idx = parseInt(key, 10);
+          cur = cur[idx];
+        }
+      }
+      return cur;
+    }
+    // Resolve the parent array (the array that contains the indexed item).
+    function getParentArray(path: string): { arr: any[]; idx: number } {
+      const parts = path.split('.');
+      const lastIdx = parseInt(parts[parts.length - 1], 10);
+      const parentParts = parts.slice(0, -1);
+      let cur: any = { children: navItems };
+      for (let i = 0; i < parentParts.length; i++) {
+        const key = parentParts[i];
+        if (key === 'children') {
+          cur = cur.children;
+        } else {
+          const idx = parseInt(key, 10);
+          cur = cur[idx];
+        }
+      }
+      // cur is the parent object. The array is cur (if we went into children/navItems).
+      const arr = Array.isArray(cur) ? cur : cur.children;
+      return { arr, idx: lastIdx };
+    }
+    function countDescendants(item: any): number {
+      const kids = Array.isArray(item.children) ? item.children : [];
+      let n = kids.length;
+      for (const k of kids) n += countDescendants(k);
+      return n;
+    }
+    function renderRow(item: any, path: string, depth: number): string {
+      const tooDeep = depth >= 2
+        ? `<div class="admin-nav-depth-warn" style="font-size:0.75rem;color:var(--color-warning,#b08000);margin:0.125rem 0 0.25rem 0">Nested deeper than 2 levels — may not render well on mobile</div>`
+        : '';
+      const childCount = Array.isArray(item.children) ? item.children.length : 0;
+      const guide = depth > 0 ? '<div class="admin-nav-guide" aria-hidden="true"></div>' : '';
+      const childRows = (Array.isArray(item.children) ? item.children : [])
+        .map((c: any, ci: number) => renderRow(c, `${path}.children.${ci}`, depth + 1))
+        .join('');
+      const childContainer = childCount > 0
+        ? `<div class="admin-nav-children" data-children-of="${path}">${childRows}</div>`
+        : '';
+      return `
+        <div class="admin-nav-item-row admin-nav-row-depth-${depth}" data-path="${path}" data-depth="${depth}" draggable="true" style="margin-left:${depth * 1.5}rem">
+          ${guide}
           <div class="drag-handle" title="Drag to reorder">&#9776;</div>
           <input type="text" value="${esc(item.label || '')}" data-field="label" placeholder="Label">
-          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/page.html">
+          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/page.html (optional if has children)">
           <select data-field="visibility">
             <option value="public"${item.public ? ' selected' : ''}>Public</option>
             <option value="auth"${item.auth ? ' selected' : ''}>Members</option>
             <option value="admin"${item.admin ? ' selected' : ''}>Admin</option>
           </select>
+          <button class="btn btn-secondary btn-sm" data-add-child="${path}" title="Add child item">+ child</button>
           <button class="remove-btn" title="Remove">&times;</button>
+          ${tooDeep}
         </div>
-      `).join('');
+        ${childContainer}
+      `;
+    }
+
+    function renderItems() {
+      const container = panel.querySelector('#nav-editor-items')!;
+      container.innerHTML = navItems
+        .map((item: any, i: number) => renderRow(item, String(i), 0))
+        .join('');
 
       // Bind row events
       container.querySelectorAll('.admin-nav-item-row').forEach((row) => {
-        const idx = parseInt((row as HTMLElement).dataset.idx!);
+        const path = (row as HTMLElement).dataset.path!;
 
         // Input changes
-        row.querySelectorAll('input, select').forEach((input) => {
+        row.querySelectorAll(':scope > input, :scope > select').forEach((input) => {
           input.addEventListener('change', () => {
             const field = (input as HTMLElement).dataset.field!;
+            const item = getByPath(path);
+            if (!item) return;
             if (field === 'visibility') {
               const val = (input as HTMLSelectElement).value;
-              delete navItems[idx].public;
-              delete navItems[idx].auth;
-              delete navItems[idx].admin;
-              if (val === 'public') navItems[idx].public = true;
-              else if (val === 'auth') navItems[idx].auth = true;
-              else if (val === 'admin') navItems[idx].admin = true;
+              delete item.public;
+              delete item.auth;
+              delete item.admin;
+              if (val === 'public') item.public = true;
+              else if (val === 'auth') item.auth = true;
+              else if (val === 'admin') item.admin = true;
             } else {
-              navItems[idx][field] = (input as HTMLInputElement).value;
+              item[field] = (input as HTMLInputElement).value;
             }
           });
         });
 
-        // Remove
-        row.querySelector('.remove-btn')?.addEventListener('click', () => {
-          navItems.splice(idx, 1);
+        // Add child
+        row.querySelector(':scope > [data-add-child]')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const item = getByPath(path);
+          if (!item) return;
+          if (!Array.isArray(item.children)) item.children = [];
+          item.children.push({ label: 'New Link', href: '/', public: true });
           renderItems();
         });
 
-        // Drag reorder
+        // Remove (with subtree confirmation if children present)
+        row.querySelector(':scope > .remove-btn')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const { arr, idx } = getParentArray(path);
+          const item = arr[idx];
+          if (!item) return;
+          const descendants = countDescendants(item);
+          if (descendants > 0) {
+            const word = descendants === 1 ? 'child' : 'children';
+            if (!confirm(`Remove this item and its ${descendants} ${word}?`)) return;
+          }
+          arr.splice(idx, 1);
+          renderItems();
+        });
+
+        // Drag reorder — scoped to the same parent array.
         row.addEventListener('dragstart', (e) => {
-          (e as DragEvent).dataTransfer!.setData('text/plain', String(idx));
+          (e as DragEvent).dataTransfer!.setData('text/plain', path);
+          (e as DragEvent).dataTransfer!.effectAllowed = 'move';
           (row as HTMLElement).style.opacity = '0.4';
         });
         row.addEventListener('dragend', () => {
           (row as HTMLElement).style.opacity = '1';
         });
-        row.addEventListener('dragover', (e) => { e.preventDefault(); });
+        row.addEventListener('dragover', (e) => {
+          const dt = (e as DragEvent).dataTransfer;
+          if (!dt) return;
+          const fromPath = dt.getData('text/plain') || '';
+          // Only accept drops within the same parent scope.
+          const fromParent = fromPath.split('.').slice(0, -1).join('.');
+          const toParent = path.split('.').slice(0, -1).join('.');
+          if (fromParent === toParent) {
+            e.preventDefault();
+            dt.dropEffect = 'move';
+          }
+        });
         row.addEventListener('drop', (e) => {
+          const dt = (e as DragEvent).dataTransfer;
+          if (!dt) return;
+          const fromPath = dt.getData('text/plain');
+          if (!fromPath || fromPath === path) return;
+          const fromParent = fromPath.split('.').slice(0, -1).join('.');
+          const toParent = path.split('.').slice(0, -1).join('.');
+          if (fromParent !== toParent) return;
           e.preventDefault();
-          const fromIdx = parseInt((e as DragEvent).dataTransfer!.getData('text/plain'));
-          if (fromIdx === idx) return;
-          const [moved] = navItems.splice(fromIdx, 1);
-          navItems.splice(idx, 0, moved);
+          const fromIdx = parseInt(fromPath.split('.').pop()!, 10);
+          const toIdx = parseInt(path.split('.').pop()!, 10);
+          const fromCtx = getParentArray(fromPath);
+          const [moved] = fromCtx.arr.splice(fromIdx, 1);
+          fromCtx.arr.splice(toIdx, 0, moved);
           renderItems();
         });
       });
@@ -660,7 +770,7 @@
 
     renderItems();
 
-    // Add item
+    // Add top-level item
     panel.querySelector('#nav-editor-add')?.addEventListener('click', () => {
       navItems.push({ label: 'New Link', href: '/', public: true });
       renderItems();
@@ -775,6 +885,15 @@
         const zone = addBtn.dataset.zoneAdd as 'header' | 'main' | 'footer' | undefined;
         if (!zone) return;
         openZoneAddPicker(zone);
+        return;
+      }
+
+      // column-span-rows: per-block edit popover (span radio + scope + remove)
+      const editBtn = t.closest('[data-section-edit]') as HTMLElement | null;
+      if (editBtn) {
+        e.preventDefault();
+        const id = parseInt(editBtn.dataset.sectionEdit || '', 10);
+        if (Number.isFinite(id)) openSectionEditPopover(id);
         return;
       }
     });
@@ -1199,6 +1318,178 @@
     document.body.appendChild(panel);
     renderForm();
   }
+
+
+  // column-span-rows: per-block edit popover. Surfaces span radio (filtered
+  // by BlockType.supportedSpans), scope toggle, and remove. Each interaction
+  // PATCHes the row, busts wl_cache_sections_*, and dispatches
+  // `wl-content-rendered` so page-render.ts re-renders the zone.
+  async function openSectionEditPopover(sectionId: number) {
+    const { BLOCK_TYPES, getSupportedSpans } = await import('../lib/blocks');
+    document.querySelector('.admin-popover-backdrop')?.remove();
+    document.querySelector('.admin-popover')?.remove();
+
+    let row: any = null;
+    try {
+      const rows = await get(`sections?id=eq.${sectionId}`);
+      row = rows[0];
+    } catch (err) {
+      console.error('Failed to load section row:', err);
+      showToast('Could not load block', 'error');
+      return;
+    }
+    if (!row) {
+      showToast('Block not found', 'error');
+      return;
+    }
+
+    const def = BLOCK_TYPES[row.section_type] || null;
+    const spans = getSupportedSpans(row.section_type);
+    const currentSpan: string = row.column_span || '1';
+    const currentScope: 'page' | 'global' = row.scope === 'global' ? 'global' : 'page';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-popover-backdrop';
+    const popover = document.createElement('div');
+    popover.className = 'admin-popover';
+
+    const spanLabels: Record<string, string> = {
+      '1': 'Full',
+      '1/2': 'Half',
+      '1/3': 'Third',
+      '2/3': 'Two-thirds',
+    };
+    const spanRadioHtml = spans
+      .map((s) => `<button type="button" class="admin-span-radio-btn${s === currentSpan ? ' active' : ''}" data-span="${s}">${esc(spanLabels[s] || s)}</button>`)
+      .join('');
+
+    const scopeLabel = currentScope === 'global' ? 'Make page-only' : 'Make global';
+    const scopeNext = currentScope === 'global' ? 'page' : 'global';
+
+    popover.innerHTML = `
+      <div class="admin-section-edit-header">
+        <h3>${esc(def?.label || row.section_type)}${currentScope === 'global' ? ' <span class="admin-scope-pill">Global</span>' : ''}</h3>
+        <button class="admin-tooltip-close" type="button" aria-label="Close" data-edit-close>&times;</button>
+      </div>
+      <div class="admin-section-edit-body">
+        <label class="admin-section-edit-label">Width</label>
+        <div class="admin-span-radio">${spanRadioHtml}</div>
+        <label class="admin-section-edit-label mt-2">Scope</label>
+        <button type="button" class="btn btn-secondary btn-sm" data-edit-scope-toggle data-edit-scope-next="${scopeNext}">${esc(scopeLabel)}</button>
+        <div class="mt-2">
+          <button type="button" class="btn btn-secondary btn-sm danger" data-edit-remove>Remove block</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(popover);
+
+    const close = () => {
+      popover.remove();
+      backdrop.remove();
+    };
+    backdrop.addEventListener('click', close);
+    popover.querySelector('[data-edit-close]')?.addEventListener('click', close);
+
+    // Span radio change → PATCH column_span
+    popover.querySelectorAll<HTMLElement>('[data-span]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const newSpan = btn.dataset.span;
+        if (!newSpan || newSpan === row.column_span) return;
+        try {
+          await patch(`sections?id=eq.${sectionId}`, { column_span: newSpan });
+          row.column_span = newSpan;
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith('wl_cache_sections_'))
+            .forEach((k) => localStorage.removeItem(k));
+          popover.querySelectorAll<HTMLElement>('[data-span]').forEach((b) =>
+            b.classList.toggle('active', b.dataset.span === newSpan),
+          );
+          // Update the rendered block's data-column-span attribute live so the
+          // grid re-flows immediately without waiting for a network re-fetch.
+          const blockEl = document.querySelector(`[data-sortable-id="sections.${sectionId}"]`) as HTMLElement | null;
+          if (blockEl) blockEl.setAttribute('data-column-span', newSpan);
+          showToast('Width saved');
+          document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+        } catch (err) {
+          console.error('Span save failed:', err);
+          showToast('Save failed', 'error');
+        }
+      });
+    });
+
+    // Scope toggle
+    popover.querySelector('[data-edit-scope-toggle]')?.addEventListener('click', async (ev) => {
+      const targetBtn = ev.currentTarget as HTMLElement;
+      const next = targetBtn.dataset.editScopeNext as 'page' | 'global' | undefined;
+      if (!next) return;
+      try {
+        await patch(`sections?id=eq.${sectionId}`, { scope: next });
+        row.scope = next;
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
+        showToast(next === 'global' ? 'Saved — appears on all pages' : 'Saved — appears on this page only');
+        const flipped = next === 'global' ? 'page' : 'global';
+        targetBtn.dataset.editScopeNext = flipped;
+        targetBtn.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
+        // Update the popover header pill.
+        const heading = popover.querySelector('.admin-section-edit-header h3');
+        if (heading) {
+          const existingPill = heading.querySelector('.admin-scope-pill');
+          if (next === 'global' && !existingPill) {
+            heading.insertAdjacentHTML('beforeend', ' <span class="admin-scope-pill">Global</span>');
+          } else if (next === 'page' && existingPill) {
+            existingPill.remove();
+          }
+        }
+        // Mirror onto the inline scope toggle if it's still in the DOM.
+        const inlineToggle = document.querySelector(`[data-scope-toggle="${sectionId}"]`) as HTMLElement | null;
+        if (inlineToggle) {
+          inlineToggle.dataset.scopeNext = flipped;
+          inlineToggle.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
+          inlineToggle.title = inlineToggle.textContent;
+          const sectionEl = inlineToggle.closest('[data-sortable-id]') as HTMLElement | null;
+          if (sectionEl) {
+            sectionEl.setAttribute('data-section-scope', next);
+            const existingInlinePill = sectionEl.querySelector('.admin-section-actions .admin-scope-pill');
+            if (next === 'global' && !existingInlinePill) {
+              const pill = document.createElement('span');
+              pill.className = 'admin-scope-pill';
+              pill.textContent = 'Global';
+              inlineToggle.before(pill);
+            } else if (next === 'page' && existingInlinePill) {
+              existingInlinePill.remove();
+            }
+          }
+        }
+        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+      } catch (err) {
+        console.error('Scope save failed:', err);
+        showToast('Save failed', 'error');
+      }
+    });
+
+    // Remove
+    popover.querySelector('[data-edit-remove]')?.addEventListener('click', async () => {
+      if (!confirm('Remove this block?')) return;
+      try {
+        const { del } = await import('../lib/api');
+        await del(`sections?id=eq.${sectionId}`);
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('wl_cache_sections_'))
+          .forEach((k) => localStorage.removeItem(k));
+        document.querySelector(`[data-sortable-id="sections.${sectionId}"]`)?.remove();
+        showToast('Block removed');
+        close();
+      } catch (err) {
+        console.error('Remove failed:', err);
+        showToast('Remove failed', 'error');
+      }
+    });
+  }
+
 
   // --- Main init ---
   async function initAdminEditor() {

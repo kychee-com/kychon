@@ -138,8 +138,8 @@ export const seed: ProjectSeed = {
         text: '#1a1a2e',
         text_muted: '#6b7280',
         border: '#d4d0c8',
-        font_heading: 'Nunito',
-        font_body: 'Open Sans',
+        font_heading: 'Cormorant Garamond',
+        font_body: 'Inter',
         radius: '0.5rem',
         max_width: '72rem',
       },
@@ -258,7 +258,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'features',
       config: {
-        columns: 3,
+        columns: 1,
         items: [
           {
             icon: 'heart',
@@ -278,6 +278,9 @@ export const seed: ProjectSeed = {
         ],
       },
       position: 2,
+      // column-span-rows: features card stack on the left at 2/3
+      // shares a row with the stats badges on the right at 1/3.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -286,12 +289,13 @@ export const seed: ProjectSeed = {
       section_type: 'stats',
       config: {
         items: [
-          { value: '12 Years', label: 'Serving Wichita' },
+          { value: '12', label: 'Years Serving Wichita' },
           { value: '5,000+', label: 'Neighbors Helped' },
           { value: '15,000+', label: 'Volunteer Hours' },
         ],
       },
       position: 3,
+      column_span: '1/3',
     },
     {
       page_slug: 'index',
@@ -328,6 +332,9 @@ export const seed: ProjectSeed = {
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
       position: 6,
+      // column-span-rows: pair the announcements feed with the activity feed
+      // sidebar — news on the left at 2/3, recent activity on the right at 1/3.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -336,8 +343,11 @@ export const seed: ProjectSeed = {
       section_type: 'activity_feed',
       config: { heading: 'Recent Activity', limit: 15 },
       position: 7,
+      column_span: '1/3',
     },
     // --- Footer chrome (global) ---
+    // column-span-rows: address + copyright share a row at half width;
+    // attribution sits below at full width.
     {
       page_slug: '*',
       zone: 'footer',
@@ -351,6 +361,7 @@ export const seed: ProjectSeed = {
         hours: 'Office: Tue–Sat, 9am–5pm',
       },
       position: 1,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
@@ -364,6 +375,7 @@ export const seed: ProjectSeed = {
         admin_contact_href: 'mailto:volunteer@eagleswichita.org',
       },
       position: 2,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
