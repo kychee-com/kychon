@@ -122,15 +122,17 @@ function featureIcon(name: string): string {
   return FEATURE_ICONS[name] || '✦';
 }
 
-function isPageActive(href: string, current?: string): boolean {
+export function isPageActive(href: string, current?: string): boolean {
   if (!current) return false;
   try {
     const a = new URL(href, 'https://kychon.local');
     const b = new URL(current, 'https://kychon.local');
-    if (a.pathname === b.pathname) {
-      if (!a.search) return true;
-      return a.search === b.search;
-    }
+    if (a.pathname !== b.pathname) return false;
+    if (a.search && a.search !== b.search) return false;
+    // Hash-aware: an item linking to "/#x" is active only when the current
+    // URL has the same hash. Items without a hash ignore the current hash.
+    if (a.hash && a.hash !== b.hash) return false;
+    return true;
   } catch {}
   return false;
 }
