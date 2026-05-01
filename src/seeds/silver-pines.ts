@@ -39,7 +39,11 @@ export const seed: ProjectSeed = {
         "Silver Pines is Asheville's favorite community center for active adults. From tai chi to tech help, watercolors to book clubs, there's always something happening. Join your neighbors for classes, events, and great conversation in the heart of the Blue Ridge.",
       category: 'branding',
     },
-    logo_url: { value: '/assets/logo.png', category: 'branding' },
+    // Logo is square 1024×1024 → brand_icon_url. Picker rule: icon + text.
+    brand_text: { value: 'Silver Pines Senior Center', category: 'branding' },
+    brand_text_short: { value: 'Silver Pines', category: 'branding' },
+    brand_icon_url: { value: '/assets/logo.png', category: 'branding' },
+    brand_wordmark_url: { value: '', category: 'branding' },
     favicon_url: { value: '/assets/logo.png', category: 'branding' },
     theme: {
       value: {
@@ -131,7 +135,7 @@ export const seed: ProjectSeed = {
       zone: 'header',
       scope: 'global',
       section_type: 'brand_header',
-      config: { name: 'Silver Pines Senior Center', logo_url: '/assets/logo.png', href: '/' },
+      config: { href: '/' },
       position: 1,
     },
     {

@@ -188,12 +188,30 @@ export function applyTheme(theme: Record<string, string> | null): void {
 // --- Branding ---
 // Only updates document.title and favicon — the visible brand row in the header
 // is owned by the `brand_header` block.
+//
+// Favicon fallback chain (matches Portal.astro's frontmatter bake):
+//   site_config.favicon_url → site_config.brand_icon_url → /favicon.svg
+// Accepts `https://`, root-relative, and `data:image/svg+xml,…` URLs as-is.
+function isSvgFaviconUrl(url: string): boolean {
+  return /\.svg($|\?)/i.test(url) || url.startsWith('data:image/svg+xml');
+}
+
 export function applyBranding(config: Record<string, any>): void {
-  const name = config.site_name || 'Kychon';
+  const name = config.brand_text || config.site_name || 'Kychon';
   document.title = getBrandedTitle(document.title, name);
 
   const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
-  if (favicon && config.favicon_url) favicon.href = config.favicon_url;
+  if (!favicon) return;
+  const faviconUrl =
+    (config.favicon_url && String(config.favicon_url)) ||
+    (config.brand_icon_url && String(config.brand_icon_url)) ||
+    '/favicon.svg';
+  if (favicon.href !== faviconUrl) favicon.href = faviconUrl;
+  if (isSvgFaviconUrl(faviconUrl)) {
+    favicon.type = 'image/svg+xml';
+  } else {
+    favicon.removeAttribute('type');
+  }
 }
 
 // --- Member record ---

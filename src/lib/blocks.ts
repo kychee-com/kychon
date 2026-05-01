@@ -28,7 +28,15 @@ export interface BlockRenderContext {
   currentPath?: string;
   session?: any;
   siteName?: string;
-  logoUrl?: string;
+  /**
+   * Brand identity fields drawn from `site_config`. Read by `brand_header`
+   * via the picker rules: icon → wordmark → text. `brandText` is the
+   * source-of-truth string (alt text / aria label / final fallback).
+   */
+  brandText?: string;
+  brandTextShort?: string;
+  brandIconUrl?: string;
+  brandWordmarkUrl?: string;
 }
 
 export interface BlockType {
@@ -629,6 +637,15 @@ const NAV: BlockType = {
   },
 };
 
+// brand_header renderer applies the brand picker rules (priority order):
+//   1. brand_icon_url set → icon + brand_text (text_short swapped via CSS)
+//   2. else brand_wordmark_url set → wordmark alone (no separate text)
+//   3. else → brand_text plain
+// All three fields read from site_config via BlockRenderContext.brand*
+// (Portal.astro / page-render.ts populate the context). The block config row
+// itself only carries the link href today — brand identity is project-wide.
+// Inline editing routes to site_config keys (data-editable target uses
+// `site_config.{key}.value` paths handled by AdminEditor).
 const BRAND_HEADER: BlockType = {
   label: 'Brand / Logo',
   icon: '\u{1F3F7}️',
@@ -636,18 +653,46 @@ const BRAND_HEADER: BlockType = {
   zoneHints: ['header'],
   supportedSpans: ['1'],
   defaultConfig: {
-    name: 'Kychon',
-    logo_url: '',
     href: '/',
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const name = cfg.name || ctx.siteName || 'Kychon';
-    const logo = cfg.logo_url || ctx.logoUrl || '';
-    const logoImg = logo
-      ? `<img src="${escAttr(logo)}" alt="${escAttr(name)}"${ctx.admin && section.id != null ? ` data-editable-image="sections.${section.id}.config.logo_url"` : ''}>`
-      : `<img src="" alt="" style="display:none"${ctx.admin && section.id != null ? ` data-editable-image="sections.${section.id}.config.logo_url"` : ''}>`;
-    return `<a href="${escAttr(cfg.href || '/')}" class="nav-brand">${logoImg}<span class="nav-brand-text"${editableAttr(section, 'name', ctx)}>${escHtml(name)}</span></a>`;
+    const href = cfg.href || '/';
+    const brandText = ctx.brandText || ctx.siteName || 'Kychon';
+    const brandTextShort = ctx.brandTextShort || '';
+    const iconUrl = ctx.brandIconUrl || '';
+    const wordmarkUrl = ctx.brandWordmarkUrl || '';
+
+    // Admin inline-editing hooks for the three brand fields. The site_config
+    // table is keyed on `key` not `id`, so saveField()'s site_config branch
+    // (target.table === 'site_config') uses target.id as the key.
+    const editableIcon = ctx.admin
+      ? ` data-editable-image="site_config.brand_icon_url.value"`
+      : '';
+    const editableWordmark = ctx.admin
+      ? ` data-editable-image="site_config.brand_wordmark_url.value"`
+      : '';
+    const editableText = ctx.admin
+      ? ` data-editable="site_config.brand_text.value"`
+      : '';
+    const editableTextShort = ctx.admin
+      ? ` data-editable="site_config.brand_text_short.value"`
+      : '';
+
+    if (iconUrl) {
+      // Mode 1: icon + text. Short text swaps in via CSS at narrow viewports.
+      const shortSpan = brandTextShort
+        ? `<span class="brand-text--short"${editableTextShort}>${escHtml(brandTextShort)}</span>`
+        : '';
+      return `<a href="${escAttr(href)}" class="brand-header brand-header--icon nav-brand" aria-label="${escAttr(brandText)}"><img class="brand-icon" src="${escAttr(iconUrl)}" alt=""${editableIcon}><span class="brand-text"><span class="brand-text--full"${editableText}>${escHtml(brandText)}</span>${shortSpan}</span></a>`;
+    }
+    if (wordmarkUrl) {
+      // Mode 2: wordmark alone — the image already contains the org name, so
+      // no separate text element is rendered.
+      return `<a href="${escAttr(href)}" class="brand-header brand-header--wordmark nav-brand" aria-label="${escAttr(brandText)}"><img class="brand-wordmark" src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${editableWordmark}></a>`;
+    }
+    // Mode 3: text fallback (equivalent to today's logo_url=NULL behavior).
+    return `<a href="${escAttr(href)}" class="brand-header brand-header--text nav-brand"${editableText}>${escHtml(brandText)}</a>`;
   },
 };
 

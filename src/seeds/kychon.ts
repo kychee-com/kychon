@@ -18,7 +18,12 @@ export const seed: ProjectSeed = {
     site_name: { value: 'Kychon Community', category: 'branding' },
     site_tagline: { value: 'Your AI-powered community platform', category: 'branding' },
     site_description: { value: 'A modern membership portal — own your data, customize with AI.', category: 'branding' },
-    logo_url: { value: '', category: 'branding' },
+    // Brand identity — picker rules: icon → wordmark → text. Template default
+    // is text-only (safe baseline; admins add an icon or wordmark in settings).
+    brand_text: { value: 'Kychon Community', category: 'branding' },
+    brand_text_short: { value: 'Kychon', category: 'branding' },
+    brand_icon_url: { value: '', category: 'branding' },
+    brand_wordmark_url: { value: '', category: 'branding' },
     favicon_url: { value: '', category: 'branding' },
     theme: {
       value: {
@@ -80,7 +85,9 @@ export const seed: ProjectSeed = {
       zone: 'header',
       scope: 'global',
       section_type: 'brand_header',
-      config: { name: 'Kychon Community', logo_url: '', href: '/' },
+      // brand_header reads site_config keys via the picker rules — block-level
+      // overrides on the section row are not used today.
+      config: { href: '/' },
       position: 1,
     },
     {

@@ -13,9 +13,15 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
   ('site_tagline', '"Lifting our community, one neighbor at a time"', 'branding'),
   ('site_description', '"The Eagles are a Wichita-based volunteer organization dedicated to serving our neighbors through food drives, mentoring, habitat builds, and community outreach. Founded in 2014, we believe that small acts of kindness create lasting change."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
+  ('brand_text_short', '"The Eagles"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding')
 ON CONFLICT (key) DO NOTHING;
+
+-- Drop legacy logo_url row if it exists (brand-identity-fields migration).
+DELETE FROM site_config WHERE key = 'logo_url';
 
 -- Theme (navy + warm cream)
 INSERT INTO site_config (key, value, category) VALUES

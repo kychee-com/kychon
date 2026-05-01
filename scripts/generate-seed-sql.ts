@@ -53,12 +53,19 @@ const SEED_OWNED_KEYS = new Set(['theme']);
 function emitSiteConfig(siteConfig: Record<string, unknown>): string {
   const preserveRows: string[] = [];
   const upsertRows: string[] = [];
+  let brandTextSeen = false;
   for (const [key, raw] of Object.entries(siteConfig)) {
     if (key === 'nav') {
       throw new Error(
         `site_config.nav is no longer seeded — express the nav as a 'nav' block in zone='header'.`,
       );
     }
+    if (key === 'logo_url') {
+      throw new Error(
+        `site_config.logo_url is removed — use brand_icon_url (square mark), brand_wordmark_url (wide logo), or brand_text (string fallback). See openspec/changes/brand-identity-fields/.`,
+      );
+    }
+    if (key === 'brand_text') brandTextSeen = true;
     let value: unknown;
     let category = 'general';
     if (isEntry(raw)) {
@@ -69,6 +76,11 @@ function emitSiteConfig(siteConfig: Record<string, unknown>): string {
     }
     const row = `  ('${escSql(key)}', ${jsonbLiteral(value)}, '${escSql(category)}')`;
     (SEED_OWNED_KEYS.has(key) ? upsertRows : preserveRows).push(row);
+  }
+  if (!brandTextSeen) {
+    throw new Error(
+      `site_config.brand_text is required — every project seed must set the textual brand source-of-truth. See openspec/changes/brand-identity-fields/.`,
+    );
   }
   const blocks: string[] = [];
   if (preserveRows.length > 0) {
@@ -196,11 +208,14 @@ function emitSections(sections: SeedSection[]): string {
   return out.join('\n');
 }
 
-const NAV_CLEANUP_SQL = [
+const TRAILING_CLEANUP_SQL = [
   '-- composable-layout: clear legacy site_config.nav row.',
   '-- nav is now a block (see sections above); this guards against stale DBs',
   '-- and against any extraSqlFile that still inserts the legacy row.',
   "DELETE FROM site_config WHERE key = 'nav';",
+  '-- brand-identity-fields: clear legacy site_config.logo_url row. Replaced',
+  "-- by brand_icon_url / brand_wordmark_url / brand_text.",
+  "DELETE FROM site_config WHERE key = 'logo_url';",
   '',
 ].join('\n');
 
@@ -236,9 +251,9 @@ export function generateSeedSql(seed: ProjectSeed, root: string = ROOT): string 
     );
   }
 
-  // Trailing nav cleanup runs LAST so it scrubs any nav row a stale demo
-  // seed.sql might have re-inserted above.
-  parts.push(NAV_CLEANUP_SQL);
+  // Trailing cleanup runs LAST so it scrubs any nav / logo_url rows a stale
+  // demo seed.sql might have re-inserted above.
+  parts.push(TRAILING_CLEANUP_SQL);
 
   return parts.filter(Boolean).join('\n');
 }

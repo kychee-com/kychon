@@ -117,7 +117,7 @@ Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `site_config` | Branding, theme (see [THEME.md](THEME.md)), feature flags (no `nav` — that's a block) | key (PK), value (JSONB), category |
+| `site_config` | Branding (see [CUSTOMIZING.md → Branding](CUSTOMIZING.md#branding); no `logo_url` — replaced by `brand_*`), theme (see [THEME.md](THEME.md)), feature flags (no `nav` — that's a block) | key (PK), value (JSONB), category |
 | `pages` | Custom pages | slug (unique), title, content, requires_auth, show_in_nav |
 | `sections` | Every visible block (chrome + main) | page_slug, zone, scope, section_type, config (JSONB), position |
 | `membership_tiers` | Tier definitions | name, benefits (TEXT[]), price_label, is_default |
@@ -134,6 +134,18 @@ Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (
 | `moderation_log` | AI moderation | content_type, action, reason, confidence |
 | `member_insights` | AI insights (dormant) | member_id, insight_type, message, priority |
 | `newsletter_drafts` | AI newsletter (dormant) | subject, body, status |
+
+## Brand Identity (site_config)
+
+Four explicit keys consumed by the `brand_header` block (see [CUSTOMIZING.md → Branding](CUSTOMIZING.md#branding)):
+
+- `brand_icon_url` — square mark (any URL form, including `data:image/svg+xml,...`)
+- `brand_wordmark_url` — wide horizontal logo
+- `brand_text` — **required** string; org's full name (alt text, aria label, text fallback)
+- `brand_text_short` — optional 1-line abbreviation; CSS swap below 600px
+- `favicon_url` — optional explicit favicon (else falls back to `brand_icon_url`, then `/favicon.svg`)
+
+Picker rules: `brand_icon_url` set → icon + text; else `brand_wordmark_url` set → wordmark alone; else → text. The legacy `logo_url` field is removed.
 
 ## Feature Flags (site_config)
 

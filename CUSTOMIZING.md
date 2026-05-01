@@ -2,6 +2,74 @@
 
 Read `STRUCTURE.md` first for the full project map. This file has step-by-step recipes.
 
+## Branding
+
+Kychon represents your brand with three explicit fields and a separate favicon.
+The `brand_header` block (in `zone='header'`) picks one of three render modes
+based on which fields are set:
+
+| Field | Format | When to use |
+|---|---|---|
+| `brand_icon_url` | square image (any URL form) | small mark / favicon-style — fits the nav slot |
+| `brand_wordmark_url` | wide horizontal image | the org's name *is* the design (no separate text) |
+| `brand_text` | string (**required**) | always set — alt text, aria label, text fallback |
+| `brand_text_short` | string | optional 1-line abbreviation for narrow viewports |
+| `favicon_url` | image URL or `data:image/svg+xml,...` | optional explicit favicon |
+
+### Picker rules (priority order)
+
+1. `brand_icon_url` set → render `<icon> + brand_text` (with `brand_text_short` swapped in via CSS below 600px)
+2. else `brand_wordmark_url` set → render the wordmark image alone (no separate text — the wordmark already says the name)
+3. else → render `brand_text` alone
+
+```
+icon mode:    [icon] Old Dominion Boat Club
+wordmark mode:    [───── ODBC FOUNDATION ─────]
+text mode:    Old Dominion Boat Club
+```
+
+**Rule of thumb**: if the source has a square mark, use the icon slot. If it
+only has a wide banner with the name baked in, use the wordmark slot. Never
+stuff a wide banner into the icon slot — it gets squeezed into ~32px tall and
+distorts. If both image fields are empty, the text-only render (mode 3) is
+the safe baseline.
+
+### SQL recipe
+
+```sql
+UPDATE site_config SET value = '"https://example.com/wheel.svg"' WHERE key = 'brand_icon_url';
+UPDATE site_config SET value = '"Old Dominion Boat Club"'        WHERE key = 'brand_text';
+UPDATE site_config SET value = '"ODBC"'                          WHERE key = 'brand_text_short';
+-- Leave brand_wordmark_url empty when in icon mode.
+```
+
+### Favicon fallback chain
+
+The `<link rel="icon">` in `Portal.astro` is baked at build time using:
+
+```
+site_config.favicon_url → site_config.brand_icon_url → /favicon.svg (engine default)
+```
+
+Inline `data:image/svg+xml,…` URLs are accepted as-is — useful when a skill
+generates an SVG monogram and ships it in the seed without a separate upload.
+SVG-typed URLs (file extension or `data:` URL) get `type="image/svg+xml"` on
+the `<link>`; other formats omit `type` so the browser infers.
+
+The CSP baseline (from `embed-block`, in `public/_headers`) already includes
+`img-src 'self' https: data:`, so inline-SVG favicons load without a CSP
+violation.
+
+### Aspect-ratio hint
+
+When an admin uploads an image to `brand_icon_url` and the intrinsic
+dimensions show `width > 1.5 × height`, the asset picker offers a one-click
+reroute to `brand_wordmark_url`. The same heuristic runs server-side in
+`functions/upload-asset.js` and surfaces a `looks_like_wordmark` warning to
+any caller that passes `target: 'brand_icon_url'` in the request body.
+
+Hint, not gate — admins can dismiss and keep the asset in the icon slot.
+
 ## Add a Membership Tier
 
 ```sql
@@ -43,8 +111,14 @@ Or update individual values — the theme is a single JSONB object.
 
 ```sql
 UPDATE site_config SET value = '"Riverside Community Club"' WHERE key = 'site_name';
+UPDATE site_config SET value = '"Riverside Community Club"' WHERE key = 'brand_text';
+UPDATE site_config SET value = '"Riverside"' WHERE key = 'brand_text_short';
 UPDATE site_config SET value = '"Connecting neighbors since 1987"' WHERE key = 'site_tagline';
 ```
+
+`site_name` is used in `<title>` and notifications; `brand_text` is the
+visible name in the header chrome. They usually match — set both. See the
+[Branding](#branding) section for the full picker rules.
 
 Note: string values in site_config are JSON, so wrap in double quotes inside single quotes.
 

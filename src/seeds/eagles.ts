@@ -127,7 +127,11 @@ export const seed: ProjectSeed = {
         'The Eagles are a Wichita-based volunteer organization dedicated to serving our neighbors through food drives, mentoring, habitat builds, and community outreach. Founded in 2014, we believe that small acts of kindness create lasting change.',
       category: 'branding',
     },
-    logo_url: { value: '/assets/logo.png', category: 'branding' },
+    // Logo is square 1024×1024 → brand_icon_url. Picker rule: icon + text.
+    brand_text: { value: 'The Eagles — Good Samaritans of Wichita', category: 'branding' },
+    brand_text_short: { value: 'The Eagles', category: 'branding' },
+    brand_icon_url: { value: '/assets/logo.png', category: 'branding' },
+    brand_wordmark_url: { value: '', category: 'branding' },
     favicon_url: { value: '/assets/logo.png', category: 'branding' },
     theme: {
       value: {
@@ -217,7 +221,7 @@ export const seed: ProjectSeed = {
       zone: 'header',
       scope: 'global',
       section_type: 'brand_header',
-      config: { name: 'The Eagles — Good Samaritans of Wichita', logo_url: '/assets/logo.png', href: '/' },
+      config: { href: '/' },
       position: 1,
     },
     {
