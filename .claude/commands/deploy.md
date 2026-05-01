@@ -35,7 +35,7 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 #### Portal (community template)
 - **Project:** Set `RUN402_PROJECT_ID` env var (or check `run402 projects list`)
 - **Subdomain:** `eagles.kychon.com`
-- **Command:** `RUN402_PROJECT_ID=$PORTAL_PROJECT_ID SUBDOMAIN=eagles node deploy.js`
+- **Command:** `RUN402_PROJECT_ID=$PORTAL_PROJECT_ID SUBDOMAIN=eagles npx tsx scripts/deploy.ts`
 - **Includes:** schema.sql + seed.sql, site files, edge functions, RLS
 - **IMPORTANT:** Always pass explicit project ID and subdomain — do NOT rely on the active project, which may have changed
 
@@ -45,8 +45,10 @@ Or use `npm run check` which runs all three. If any fail, fix before proceeding.
 - **Command:** `MARKETING_PROJECT_ID=$MARKETING_PROJECT_ID node marketing/deploy-marketing.js`
 - **Includes:** Static HTML/CSS/assets only
 
-#### Eagles Demo Seed (after portal deploy)
-- **Command:** `run402 projects sql $PORTAL_PROJECT_ID --file demo/eagles/seed-eagles-reactions-activity.sql`
+#### Demo Sites (Eagles, Silver Pines, Barrio Unido)
+- **Command:** `bash deploy-all.sh` — deploys all three demos (eagles, silver-pines, barrio)
+- **Single demo:** `bash deploy-all.sh eagles` (or `silver-pines` / `barrio`)
+- **Requires:** `EAGLES_PROJECT_ID`, `SILVER_PINES_PROJECT_ID`, `BARRIO_PROJECT_ID` env vars (set in `.env`)
 
 #### Screenshots (before marketing deploy)
 - **Capture:** `./marketing/capture-screenshots.sh`
@@ -126,7 +128,7 @@ EOF
 **CRITICAL: Report ANY issues encountered during the entire pipeline as GitHub issues.** This includes bugs, unexpected behavior, missing features, confusing error messages, documentation gaps, and workarounds you had to use.
 
 File issues on the appropriate repo:
-- **Platform/backend** (deploy behavior, SQL, storage, RLS, seed, CDN, subdomains, demo mode) → `gh issue create --repo MajorTal/run402`
+- **Platform/backend** (deploy behavior, SQL, storage, RLS, seed, CDN, subdomains, demo mode) → `gh issue create --repo kychee-com/run402`
 - **CLI/tooling** (argument order, error messages, missing flags, docs) → `gh issue create --repo kychee-com/run402`
 
 Include in each issue:
