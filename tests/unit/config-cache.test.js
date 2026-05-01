@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultConfig } from '../fixtures/configs.js';
 
 // Test the cache utility pattern used in config.js
@@ -62,18 +62,18 @@ describe('cache utilities', () => {
     });
 
     it('returns data from valid cache entry', () => {
-      store['test_key'] = JSON.stringify({ data: [1, 2, 3], ts: Date.now() });
+      store.test_key = JSON.stringify({ data: [1, 2, 3], ts: Date.now() });
       expect(readCache('test_key')).toEqual([1, 2, 3]);
     });
 
     it('returns null and removes corrupt entry', () => {
-      store['bad'] = 'not json{{{';
+      store.bad = 'not json{{{';
       expect(readCache('bad')).toBeNull();
-      expect(store['bad']).toBeUndefined();
+      expect(store.bad).toBeUndefined();
     });
 
     it('returns null when data field is missing', () => {
-      store['no_data'] = JSON.stringify({ ts: Date.now() });
+      store.no_data = JSON.stringify({ ts: Date.now() });
       expect(readCache('no_data')).toBeNull();
     });
   });
@@ -82,7 +82,7 @@ describe('cache utilities', () => {
     it('stores data with timestamp', () => {
       const before = Date.now();
       writeCache('key', { hello: 'world' });
-      const stored = JSON.parse(store['key']);
+      const stored = JSON.parse(store.key);
       expect(stored.data).toEqual({ hello: 'world' });
       expect(stored.ts).toBeGreaterThanOrEqual(before);
       expect(stored.ts).toBeLessThanOrEqual(Date.now());
@@ -104,26 +104,26 @@ describe('cache utilities', () => {
     });
 
     it('returns true when within TTL', () => {
-      store['fresh'] = JSON.stringify({ data: null, ts: Date.now() });
+      store.fresh = JSON.stringify({ data: null, ts: Date.now() });
       expect(isFresh('fresh', 60000)).toBe(true);
     });
 
     it('returns false when expired', () => {
-      store['stale'] = JSON.stringify({ data: null, ts: Date.now() - 120000 });
+      store.stale = JSON.stringify({ data: null, ts: Date.now() - 120000 });
       expect(isFresh('stale', 60000)).toBe(false);
     });
 
     it('returns false for corrupt entry', () => {
-      store['corrupt'] = 'not json';
+      store.corrupt = 'not json';
       expect(isFresh('corrupt', 60000)).toBe(false);
     });
   });
 
   describe('clearCache', () => {
     it('removes the key from localStorage', () => {
-      store['to_clear'] = JSON.stringify({ data: 'x', ts: Date.now() });
+      store.to_clear = JSON.stringify({ data: 'x', ts: Date.now() });
       clearCache('to_clear');
-      expect(store['to_clear']).toBeUndefined();
+      expect(store.to_clear).toBeUndefined();
     });
   });
 });
@@ -172,7 +172,7 @@ describe('config cache-first init pattern', () => {
 
   it('detects stale cache for background refresh', () => {
     // Write with old timestamp
-    store['wl_cache_site_config'] = JSON.stringify({ data: defaultConfig, ts: Date.now() - 10 * 60 * 1000 });
+    store.wl_cache_site_config = JSON.stringify({ data: defaultConfig, ts: Date.now() - 10 * 60 * 1000 });
     const cached = readCache('wl_cache_site_config');
     expect(cached).not.toBeNull(); // data still returned
     expect(isFresh('wl_cache_site_config', 5 * 60 * 1000)).toBe(false); // but stale

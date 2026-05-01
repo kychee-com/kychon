@@ -1,0 +1,59 @@
+/* zone-grid.css — column-span-rows
+ *
+ * Main and footer zones render as a 6-column CSS Grid on desktop.
+ * Each block carries `data-column-span` set by `renderBlock`'s
+ * post-process. Span values map to `grid-column: span N`.
+ *
+ * Header zone is intentionally exempt — its existing `.nav .container`
+ * flex layout gives chrome (brand+nav+sign-in-bar) its horizontal flow.
+ */
+
+#sections,
+[data-zone="footer"] > .container {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1.5rem;
+}
+
+/* Default span mapping (desktop). */
+[data-column-span="1"]   { grid-column: span 6; }
+[data-column-span="1/2"] { grid-column: span 3; }
+[data-column-span="1/3"] { grid-column: span 2; }
+[data-column-span="2/3"] { grid-column: span 4; }
+
+/* Tablet — drop to 4 cols so halves stay halves and thirds become full. */
+@media (max-width: 900px) {
+  #sections,
+  [data-zone="footer"] > .container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  [data-column-span="1"]   { grid-column: span 4; }
+  [data-column-span="1/2"] { grid-column: span 2; }
+  [data-column-span="1/3"] { grid-column: span 4; }
+  [data-column-span="2/3"] { grid-column: span 4; }
+}
+
+/* Mobile — single column, every block stacks. */
+@media (max-width: 600px) {
+  #sections,
+  [data-zone="footer"] > .container {
+    grid-template-columns: 1fr;
+  }
+  [data-column-span]       { grid-column: span 1; }
+}
+
+/* Drag indicator span-aware width — set by the dragstart handler in
+ * AdminEditor.astro to match the dragged block's span. */
+.admin-drop-indicator[data-column-span="1"]   { grid-column: span 6; }
+.admin-drop-indicator[data-column-span="1/2"] { grid-column: span 3; }
+.admin-drop-indicator[data-column-span="1/3"] { grid-column: span 2; }
+.admin-drop-indicator[data-column-span="2/3"] { grid-column: span 4; }
+@media (max-width: 900px) {
+  .admin-drop-indicator[data-column-span="1"]   { grid-column: span 4; }
+  .admin-drop-indicator[data-column-span="1/2"] { grid-column: span 2; }
+  .admin-drop-indicator[data-column-span="1/3"] { grid-column: span 4; }
+  .admin-drop-indicator[data-column-span="2/3"] { grid-column: span 4; }
+}
+@media (max-width: 600px) {
+  .admin-drop-indicator[data-column-span] { grid-column: span 1; }
+}

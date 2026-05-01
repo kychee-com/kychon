@@ -18,6 +18,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Seed smoke check
+        run: npx tsx scripts/smoke-check-seeds.ts
+
       - name: Tests
         run: npx vitest run
 

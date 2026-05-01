@@ -317,3 +317,9 @@ DO $$ BEGIN
     CHECK (scope IN ('page', 'global'));
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 CREATE INDEX IF NOT EXISTS idx_sections_zone_scope_slug ON sections (zone, scope, page_slug, position);
+
+-- column-span-rows: per-block column span fraction (1, 1/2, 1/3, 2/3) inside a 6-col zone grid
+DO $$ BEGIN
+  ALTER TABLE sections ADD COLUMN column_span TEXT NOT NULL DEFAULT '1'
+    CHECK (column_span IN ('1', '1/2', '1/3', '2/3'));
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;

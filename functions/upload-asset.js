@@ -31,7 +31,7 @@ export default async (req) => {
 
     // Upload action
     const { file, path } = body;
-    if (!file || !file.data || !file.name || !path) {
+    if (!file?.data || !file.name || !path) {
       return new Response(JSON.stringify({ error: 'Missing file or path' }), { status: 400 });
     }
 

@@ -94,6 +94,8 @@ Astro builds to static HTML/JS/CSS in `dist/`. Run402 serves these as static fil
 ### Composable Layout
 The page is three zones — `header`, `main`, `footer`. Every visible block is a row in `sections` addressed by `(page_slug, zone, scope, position)`. The block-type registry (`src/lib/blocks.ts`) defines one isomorphic `renderBlock(section, ctx): string` that runs both at Astro build (Node) and at runtime (browser). `Portal.astro` bakes header + footer chrome at build time; `src/lib/page-render.ts` rehydrates from the live DB on every page load.
 
+Each row also carries `column_span` (`'1' | '1/2' | '1/3' | '2/3'`). The main and footer zone hosts render as a 6-column CSS Grid (`public/css/zone-grid.css`); `renderBlock` post-processes the leading element with `data-column-span` so build-time bake and runtime hydrate produce identical HTML. `BlockType.supportedSpans?` constrains which spans the per-block edit popover offers — e.g. `hero` is `['1']` only, `features` accepts all four.
+
 ### Typed Seeds
 Each forkable project has a `src/seeds/{project}.ts` module exporting a `ProjectSeed`. `scripts/generate-seed-sql.ts` translates the typed seed into idempotent `seed.sql` (gitignored). `KYCHON_PROJECT` env var picks which project: `kychon` (default), `eagles`, `silver-pines`, `barrio-unido`. Demo content (members, sample events, etc.) lives in per-demo SQL files referenced via `extraSqlFile`.
 

@@ -88,6 +88,6 @@ export default async (req) => {
 
     return new Response(JSON.stringify({ translated }));
   } catch (e) {
-    return new Response(JSON.stringify({ error: 'Translation failed: ' + e.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: `Translation failed: ${e.message}` }), { status: 500 });
   }
 };
