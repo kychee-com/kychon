@@ -49,6 +49,15 @@ export interface BlockType {
   zoneHints?: ('header' | 'main' | 'footer')[];
   /** column-span-rows: spans this block accepts; omit for "all four". */
   supportedSpans?: ColumnSpan[];
+  /**
+   * When true, the block opts out of the zone's `.container` (max-width
+   * constrained) wrapper and renders as a full-bleed sibling below it.
+   * Used for blocks like `page_banner` that need 100% viewport width and
+   * their own intrinsic vertical space — putting them inside `.container`
+   * forces the chrome row (brand / nav / sign-in) to absorb the banner's
+   * height, which is exactly the wrong layout.
+   */
+  fullBleed?: boolean;
 }
 
 // --- Helpers ---
@@ -1115,6 +1124,304 @@ const CUSTOM: BlockType = {
   },
 };
 
+// --- Catalog blocks (block-types-catalog) ---
+
+const TAGLINE_STRIP: BlockType = {
+  label: 'Tagline Strip',
+  icon: '\u{2766}', // ❦
+  dynamic: false,
+  zoneHints: ['main'],
+  defaultConfig: {
+    text: 'Your tagline here',
+    color_scheme: 'primary',
+    size: 'medium',
+    alignment: 'center',
+    icon: '',
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const scheme = cfg.color_scheme || 'primary';
+    const size = cfg.size || 'medium';
+    const alignment = cfg.alignment || 'center';
+    const cls = `block-tagline-strip block-tagline-strip--${escAttr(scheme)} block-tagline-strip--${escAttr(size)} block-tagline-strip--align-${escAttr(alignment)}`;
+    const iconHtml = cfg.icon
+      ? `<span class="block-tagline-strip__icon" aria-hidden="true">${escHtml(featureIcon(String(cfg.icon)))}</span>`
+      : '';
+    const textHtml = `<p class="block-tagline-strip__text"${editableAttr(section, 'text', ctx)}>${escHtml(cfg.text || '')}</p>`;
+    const inner = `<div class="container">${iconHtml}${textHtml}</div>`;
+    return adminWrap(section, ctx, inner, cls);
+  },
+};
+
+const PAGE_BANNER: BlockType = {
+  label: 'Page Banner',
+  icon: '\u{1F5BC}', // 🖼
+  dynamic: false,
+  zoneHints: ['header'],
+  fullBleed: true,
+  defaultConfig: {
+    image_url: '',
+    image_alt: '',
+    caption_html: '',
+    height: 'medium',
+    overlay_color: '',
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const height = cfg.height || 'medium';
+    const heightCls = `block-page-banner--height-${escAttr(height)}`;
+    const overlay = cfg.overlay_color
+      ? `<div class="block-page-banner__overlay" style="background-color:${escAttr(cfg.overlay_color)}"></div>`
+      : '';
+    const bg = cfg.image_url
+      ? ` style="background-image:url(${escAttr(cfg.image_url)})"`
+      : '';
+    const safeCaption = sanitizeCaptionHtml(String(cfg.caption_html || ''));
+    const captionHtml = safeCaption
+      ? `<div class="block-page-banner__caption">${safeCaption}</div>`
+      : '';
+    const sid = section.id;
+    const sortable = sid != null
+      ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"`
+      : '';
+    const zoneAttr = ` data-section-zone="${section.zone}"`;
+    const scopeAttr = ` data-section-scope="${section.scope}"`;
+    const cfgAttr = sid != null && ctx.admin
+      ? ` data-editable-config="${jsonAttr(cfg)}"`
+      : '';
+    const imgAttr = sid != null && ctx.admin
+      ? ` data-editable-image="sections.${sid}.config.image_url"`
+      : '';
+    const adminCtrls = sid != null && ctx.admin
+      ? `<div class="admin-section-actions">${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+      : '';
+    const ariaLabel = cfg.image_alt
+      ? ` aria-label="${escAttr(cfg.image_alt)}"`
+      : ' aria-hidden="true"';
+    return `<section class="block-page-banner ${heightCls}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}${imgAttr}${bg}${ariaLabel}>${adminCtrls}${overlay}<div class="block-page-banner__inner">${captionHtml}</div></section>`;
+  },
+};
+
+// link_list — both modes share the renderer. Manual mode emits all items.
+// Resources mode emits a hydration skeleton; runtime fetches & re-renders.
+function renderLinkListItem(item: any, layout: string): string {
+  const href = item.href || '#';
+  const externalAttrs = item.external
+    ? ` target="_blank" rel="noopener noreferrer"`
+    : '';
+  const externalIcon = item.external
+    ? `<span class="block-link-list__ext" aria-hidden="true">\u{2197}</span>`
+    : '';
+  const badge = item.badge
+    ? `<span class="block-link-list__badge block-link-list__badge--${escAttr(String(item.badge).toLowerCase())}">${escHtml(item.badge)}</span>`
+    : '';
+  const showDate = (layout === 'rows' || layout === 'compact') && item.date;
+  const dateHtml = showDate
+    ? `<span class="block-link-list__date">${escHtml(item.date)}</span>`
+    : '';
+  const label = `<span class="block-link-list__label">${escHtml(item.label || item.title || href)}</span>`;
+  return `<li class="block-link-list__item"><a href="${escAttr(href)}" class="block-link-list__link"${externalAttrs}>${dateHtml}${badge}${label}${externalIcon}</a></li>`;
+}
+
+const LINK_LIST: BlockType = {
+  label: 'Link List',
+  icon: '\u{1F4DC}', // 📜
+  dynamic: true,
+  zoneHints: ['main'],
+  defaultConfig: {
+    heading: 'Links',
+    source: 'manual',
+    layout: 'bullets',
+    items: [],
+    filter: { category: '', limit: 6, order: 'newest' },
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const layout = cfg.layout || 'bullets';
+    const heading = cfg.heading
+      ? `<h2 class="block-link-list__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
+      : '';
+    const cls = `section section-link-list block-link-list block-link-list--${escAttr(layout)}`;
+    const source = cfg.source || 'manual';
+    if (source === 'resources') {
+      const skeleton = `<ul class="block-link-list__list block-link-list__skeleton">${'<li class="skeleton skeleton-text"></li>'.repeat(Math.max(1, cfg.filter?.limit || 6))}</ul>`;
+      const inner = `<div class="container" data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
+      return adminWrap(section, ctx, inner, cls);
+    }
+    const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
+    const itemsHtml = items.map((item) => renderLinkListItem(item, layout)).join('');
+    const inner = `<div class="container">${heading}<ul class="block-link-list__list">${itemsHtml}</ul></div>`;
+    return adminWrap(section, ctx, inner, cls);
+  },
+  async hydrate(el, section, ctx) {
+    if ((section.config?.source || 'manual') !== 'resources') return;
+    const { hydrateLinkListResources } = await import('./block-hydrators');
+    await hydrateLinkListResources(el, section, ctx);
+  },
+};
+
+const PROMO_CARDS: BlockType = {
+  label: 'Promo Cards',
+  icon: '\u{25A6}', // ▦
+  dynamic: false,
+  zoneHints: ['main'],
+  defaultConfig: {
+    heading: '',
+    columns: 3,
+    items: [
+      { image_url: '', image_alt: '', title: 'Card 1', title_position: 'top', cta_text: 'Learn more', cta_href: '#', overlay_color: '' },
+      { image_url: '', image_alt: '', title: 'Card 2', title_position: 'top', cta_text: 'Learn more', cta_href: '#', overlay_color: '' },
+      { image_url: '', image_alt: '', title: 'Card 3', title_position: 'top', cta_text: 'Learn more', cta_href: '#', overlay_color: '' },
+    ],
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const cols = Number(cfg.columns) || 3;
+    const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
+    const heading = cfg.heading
+      ? `<h2 class="block-promo-cards__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
+      : '';
+    const cards = items
+      .map((item, i) => {
+        const href = item.cta_href || '#';
+        const titlePos = item.title_position === 'bottom' ? 'bottom' : 'top';
+        const ariaLabel = `${item.title || ''}${item.cta_text ? `, ${item.cta_text}` : ''}`.trim();
+        const overlay = item.overlay_color
+          ? `<span class="promo-card__overlay" style="background-color:${escAttr(item.overlay_color)}"></span>`
+          : '';
+        const imgStyle = item.image_url
+          ? ` style="background-image:url(${escAttr(item.image_url)})"`
+          : '';
+        const imgEdit = ctx.admin && section.id != null
+          ? ` data-editable-image="sections.${section.id}.config.items.${i}.image_url"`
+          : '';
+        const titleEdit = editableAttr(section, `items.${i}.title`, ctx);
+        const ctaEdit = editableAttr(section, `items.${i}.cta_text`, ctx);
+        const ctaHtml = item.cta_text
+          ? `<span class="promo-card__cta"${ctaEdit}>${escHtml(item.cta_text)}</span>`
+          : '';
+        return `<a class="promo-card promo-card--title-${titlePos}" href="${escAttr(href)}" aria-label="${escAttr(ariaLabel)}"><span class="promo-card__image"${imgStyle}${imgEdit}>${overlay}</span><span class="promo-card__body"><h3 class="promo-card__title"${titleEdit}>${escHtml(item.title || '')}</h3>${ctaHtml}</span></a>`;
+      })
+      .join('');
+    const inner = `<div class="container">${heading}<div class="block-promo-cards" style="--cols:${cols}">${cards}</div></div>`;
+    return adminWrap(section, ctx, inner, 'section section-promo-cards');
+  },
+};
+
+const EVENTS_LIST: BlockType = {
+  label: 'Events List',
+  icon: '\u{1F4C5}', // 📅
+  dynamic: true,
+  zoneHints: ['main'],
+  defaultConfig: {
+    heading: 'Upcoming Events',
+    count: 4,
+    filter: 'upcoming',
+    layout: 'sidebar',
+    show_image: false,
+    show_location: true,
+    show_time: true,
+    color_scheme: 'primary',
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const heading = cfg.heading
+      ? `<h2 class="block-events-list__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
+      : '';
+    const count = Math.max(1, Number(cfg.count) || 4);
+    const layout = cfg.layout || 'sidebar';
+    const skeletons = `<div class="block-events-list__skeleton block-events-list__skeleton--${escAttr(layout)}">${'<div class="event-skeleton-card skeleton"></div>'.repeat(count)}</div>`;
+    const inner = `<div class="container" data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}">${heading}${skeletons}</div>`;
+    const cls = `section section-events-list block-events-list block-events-list--${escAttr(layout)} block-events-list--${escAttr(cfg.color_scheme || 'primary')}`;
+    return adminWrap(section, ctx, inner, cls);
+  },
+  async hydrate(el, section, ctx) {
+    if (!ctx.isFeatureEnabled?.('feature_events')) {
+      el.style.display = 'none';
+      return;
+    }
+    const { hydrateEventsList } = await import('./block-hydrators');
+    await hydrateEventsList(el, section, ctx);
+  },
+};
+
+const SLIDESHOW: BlockType = {
+  label: 'Slideshow',
+  icon: '\u{1F5BC}', // 🖼 (shared with banner; ok)
+  dynamic: true,
+  zoneHints: ['main'],
+  defaultConfig: {
+    heading: '',
+    items: [
+      { src: '', alt: 'Slide 1', caption: '', href: '' },
+      { src: '', alt: 'Slide 2', caption: '', href: '' },
+    ],
+    auto_rotate_seconds: 5,
+    show_arrows: true,
+    show_dots: true,
+    aspect_ratio: '16/9',
+    fit: 'cover',
+    transition: 'fade',
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
+    const heading = cfg.heading
+      ? `<h2 class="block-slideshow__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
+      : '';
+    if (!items.length) {
+      // Empty: show a placeholder for admins, hide for visitors.
+      const empty = ctx.admin
+        ? `<div class="block-slideshow block-slideshow--empty"><p class="text-muted">No slides yet — add some via the editor.</p></div>`
+        : '';
+      const inner = `<div class="container">${heading}${empty}</div>`;
+      return adminWrap(section, ctx, inner, 'section section-slideshow');
+    }
+    const aspect = cfg.aspect_ratio || '16/9';
+    const fit = cfg.fit === 'contain' ? 'contain' : 'cover';
+    const transition = cfg.transition === 'slide' ? 'slide' : 'fade';
+    const slides = items
+      .map((it, i) => {
+        const isFirst = i === 0;
+        const loading = isFirst ? 'eager' : 'lazy';
+        const visible = isFirst ? ' is-active' : '';
+        const figcaption = it.caption
+          ? `<figcaption class="block-slideshow__caption">${escHtml(it.caption)}</figcaption>`
+          : '';
+        const imgInner = `<img src="${escAttr(it.src || '')}" alt="${escAttr(it.alt || '')}" loading="${loading}">`;
+        const linked = it.href
+          ? `<a href="${escAttr(it.href)}" class="block-slideshow__link">${imgInner}</a>`
+          : imgInner;
+        return `<figure class="block-slideshow__slide${visible}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${items.length}" data-slide-index="${i}">${linked}${figcaption}</figure>`;
+      })
+      .join('');
+    const dots = cfg.show_dots !== false
+      ? `<div class="block-slideshow__dots" role="tablist">${items
+          .map(
+            (_, i) =>
+              `<button class="block-slideshow__dot${i === 0 ? ' is-active' : ''}" type="button" data-slide-go="${i}" aria-label="Slide ${i + 1} of ${items.length}"${i === 0 ? ' aria-current="true"' : ''}></button>`,
+          )
+          .join('')}</div>`
+      : '';
+    const arrows = cfg.show_arrows !== false
+      ? `<button class="block-slideshow__arrow block-slideshow__arrow--prev" type="button" data-slide-prev aria-label="Previous slide">\u{2039}</button><button class="block-slideshow__arrow block-slideshow__arrow--next" type="button" data-slide-next aria-label="Next slide">\u{203A}</button>`
+      : '';
+    const liveRegion = `<div class="block-slideshow__live sr-only" aria-live="polite"></div>`;
+    const ariaLabel = cfg.heading ? escAttr(cfg.heading) : 'Slideshow';
+    const auto = Number(cfg.auto_rotate_seconds);
+    const autoMs = Number.isFinite(auto) && auto > 0 ? Math.round(auto * 1000) : 0;
+    const inner = `<div class="container">${heading}<div class="block-slideshow block-slideshow--${escAttr(transition)}" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${ariaLabel}" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-fit="${escAttr(fit)}" style="--aspect:${escAttr(aspect)};--fit:${escAttr(fit)}"><div class="block-slideshow__track">${slides}</div>${arrows}${dots}${liveRegion}</div></div>`;
+    return adminWrap(section, ctx, inner, 'section section-slideshow');
+  },
+  async hydrate(el, _section, _ctx) {
+    const root = el.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement | null;
+    if (!root) return;
+    if (root.dataset.hydrated === 'true') return;
+    const { initSlideshow } = await import('./blocks/slideshow');
+    initSlideshow(root);
+  },
+};
+
 // --- Registry ---
 
 import EMBED from './blocks/embed.js';
@@ -1132,6 +1439,12 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   activity_feed: ACTIVITY_FEED,
   embed: EMBED,
   custom: CUSTOM,
+  tagline_strip: TAGLINE_STRIP,
+  page_banner: PAGE_BANNER,
+  link_list: LINK_LIST,
+  promo_cards: PROMO_CARDS,
+  events_list: EVENTS_LIST,
+  slideshow: SLIDESHOW,
   nav: NAV,
   brand_header: BRAND_HEADER,
   sign_in_bar: SIGN_IN_BAR,

@@ -329,6 +329,48 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'slideshow',
+      config: {
+        heading: 'Stories from the field',
+        items: [
+          {
+            src: '/assets/event-habitat-build.jpg',
+            alt: 'Eagles volunteers framing a Habitat build in summer 2025',
+            caption: 'Habitat build, Summer 2025',
+            href: '',
+          },
+          {
+            src: '/assets/event-food-drive.jpg',
+            alt: 'Volunteers loading boxes at the December food drive',
+            caption: 'December food drive',
+            href: '',
+          },
+          {
+            src: '/assets/event-youth-day.jpg',
+            alt: 'Youth mentoring day at the community center',
+            caption: 'Youth mentoring day',
+            href: '',
+          },
+          {
+            src: '/assets/event-park-cleanup.jpg',
+            alt: 'Eagles park cleanup at Fairmount Park',
+            caption: 'Fairmount Park cleanup',
+            href: '',
+          },
+        ],
+        auto_rotate_seconds: 5,
+        show_arrows: true,
+        show_dots: true,
+        aspect_ratio: '16/9',
+        fit: 'cover',
+        transition: 'fade',
+      },
+      position: 5,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'cta',
       config: {
         heading: 'Ready to make a difference?',
@@ -357,6 +399,21 @@ export const seed: ProjectSeed = {
       config: { heading: 'Recent Activity', limit: 15 },
       position: 7,
       column_span: '1/3',
+    },
+    // --- About page banner (page-scoped header chrome) ---
+    {
+      page_slug: 'about',
+      zone: 'header',
+      scope: 'page',
+      section_type: 'page_banner',
+      config: {
+        image_url: '/assets/about-hero.jpg',
+        image_alt: 'Eagles volunteers serving the Wichita community',
+        caption_html: 'About <strong>The Eagles</strong> — lifting Wichita since 2014',
+        height: 'medium',
+        overlay_color: 'rgba(0, 0, 0, 0.35)',
+      },
+      position: 10,
     },
     // --- Footer chrome (global) ---
     // column-span-rows: address + copyright share a row at half width;

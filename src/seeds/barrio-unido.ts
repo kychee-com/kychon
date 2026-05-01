@@ -238,9 +238,35 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'tagline_strip',
+      config: {
+        text: 'Sirviendo a Boyle Heights desde 2018 — todo gratis, todo para ti',
+        color_scheme: 'dark',
+        size: 'medium',
+        alignment: 'center',
+      },
+      position: 6,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'link_list',
+      config: {
+        heading: 'Recursos legales recientes',
+        source: 'resources',
+        layout: 'rows',
+        filter: { category: 'Guías Legales', limit: 6, order: 'newest' },
+      },
+      position: 7,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Avisos', limit: 20 },
-      position: 6,
+      position: 8,
       // column-span-rows: avisos + actividad reciente side-by-side.
       column_span: '2/3',
     },
@@ -250,7 +276,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { limit: 15 },
-      position: 7,
+      position: 9,
       column_span: '1/3',
     },
     {
@@ -264,7 +290,7 @@ export const seed: ProjectSeed = {
         cta_text: 'Hazte voluntario/a',
         cta_href: '/page.html?slug=nosotros',
       },
-      position: 8,
+      position: 10,
     },
     // --- Footer chrome (global) ---
     // column-span-rows: address + copyright share a row in the footer.

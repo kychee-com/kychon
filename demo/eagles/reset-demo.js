@@ -14,7 +14,10 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
   ('site_tagline', '"Lifting our community, one neighbor at a time"', 'branding'),
   ('site_description', '"The Eagles are a Wichita-based volunteer organization dedicated to serving our neighbors through food drives, mentoring, habitat builds, and community outreach. Founded in 2014, we believe that small acts of kindness create lasting change."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
+  ('brand_text_short', '"The Eagles"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding'),
   ('feature_events', 'true', 'features'),
   ('feature_forum', 'true', 'features'),
@@ -177,7 +180,7 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'volunteer');
 -- sections (chrome + main blocks).
 -- Idempotent on (page_slug, zone, scope, section_type, position).
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT '*', 'header', 'global', 'brand_header', '{"name":"The Eagles — Good Samaritans of Wichita","logo_url":"/assets/logo.png","href":"/"}', 1, true, '1'
+SELECT '*', 'header', 'global', 'brand_header', '{"href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"About","href":"/page.html?slug=about","icon":"info","public":true},{"label":"Volunteer","href":"/page.html?slug=volunteer","icon":"heart","public":true},{"label":"Members","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
@@ -186,7 +189,7 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'sign_in_bar' AND position = 3);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'hero', '{"heading":"Lifting Wichita, One Neighbor at a Time","subheading":"The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.","cta_text":"Join The Eagles","cta_href":"/join.html","bg_image":"/assets/hero.jpg"}', 1, true, '1'
+SELECT 'index', 'main', 'page', 'hero', '{"mode":"foreground","heading":"Lifting Wichita, One Neighbor at a Time","subheading":"The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.","cta_text":"Join The Eagles","cta_href":"/join.html","image_url":"/assets/hero.jpg","image_alt":"Eagles volunteers gathered at a community service event","image_aspect":"auto","logo_overlay_url":"/assets/logo.png","logo_position":"left","logo_max_height":"110px","caption_html":"Founded 1995 · <strong>Sedgwick County, KS</strong>","caption_position":"bottom-right","text_position":"over_image"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'index', 'main', 'page', 'features', '{"columns":1,"items":[{"icon":"heart","title":"Volunteer","desc":"Join food drives, habitat builds, park cleanups, and community meals. Every pair of hands makes a difference."},{"icon":"trending-up","title":"Community Impact","desc":"5,000+ neighbors helped, 15,000+ volunteer hours logged, and 350 holiday food baskets delivered last year alone."},{"icon":"users","title":"Join Us","desc":"Sign up for free, attend an orientation, and start making an impact this weekend. No experience necessary."}]}', 2, true, '2/3'
@@ -198,6 +201,9 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT 'index', 'main', 'page', 'embed', '{"heading":"Soar with The Eagles","provider":"youtube","params":{"video_id":"aqz-KE-bpKQ"},"responsive":true}', 4, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'embed' AND position = 4);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'slideshow', '{"heading":"Stories from the field","items":[{"src":"/assets/event-habitat-build.jpg","alt":"Eagles volunteers framing a Habitat build in summer 2025","caption":"Habitat build, Summer 2025","href":""},{"src":"/assets/event-food-drive.jpg","alt":"Volunteers loading boxes at the December food drive","caption":"December food drive","href":""},{"src":"/assets/event-youth-day.jpg","alt":"Youth mentoring day at the community center","caption":"Youth mentoring day","href":""},{"src":"/assets/event-park-cleanup.jpg","alt":"Eagles park cleanup at Fairmount Park","caption":"Fairmount Park cleanup","href":""}],"auto_rotate_seconds":5,"show_arrows":true,"show_dots":true,"aspect_ratio":"16/9","fit":"cover","transition":"fade"}', 5, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'slideshow' AND position = 5);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'index', 'main', 'page', 'cta', '{"heading":"Ready to make a difference?","text":"Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.","cta_text":"Get Started","cta_href":"/join.html"}', 5, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 5);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
@@ -206,6 +212,9 @@ WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'm
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'index', 'main', 'page', 'activity_feed', '{"heading":"Recent Activity","limit":15}', 7, true, '1/3'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'about', 'header', 'page', 'page_banner', '{"image_url":"/assets/about-hero.jpg","image_alt":"Eagles volunteers serving the Wichita community","caption_html":"About <strong>The Eagles</strong> — lifting Wichita since 2014","height":"medium","overlay_color":"rgba(0, 0, 0, 0.35)"}', 10, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'about' AND zone = 'header' AND scope = 'page' AND section_type = 'page_banner' AND position = 10);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'footer', 'global', 'footer_address', '{"name":"The Eagles — Good Samaritans of Wichita","address_lines":["Wichita, Kansas 67202"],"phone":"316-555-0100","email":"volunteer@eagleswichita.org","hours":"Office: Tue–Sat, 9am–5pm"}', 1, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1);
@@ -239,9 +248,15 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
   ('site_tagline', '"Lifting our community, one neighbor at a time"', 'branding'),
   ('site_description', '"The Eagles are a Wichita-based volunteer organization dedicated to serving our neighbors through food drives, mentoring, habitat builds, and community outreach. Founded in 2014, we believe that small acts of kindness create lasting change."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
+  ('brand_text_short', '"The Eagles"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding')
 ON CONFLICT (key) DO NOTHING;
+
+-- Drop legacy logo_url row if it exists (brand-identity-fields migration).
+DELETE FROM site_config WHERE key = 'logo_url';
 
 -- Theme (navy + warm cream)
 INSERT INTO site_config (key, value, category) VALUES
@@ -1967,6 +1982,9 @@ WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_t
 -- nav is now a block (see sections above); this guards against stale DBs
 -- and against any extraSqlFile that still inserts the legacy row.
 DELETE FROM site_config WHERE key = 'nav';
+-- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
+-- by brand_icon_url / brand_wordmark_url / brand_text.
+DELETE FROM site_config WHERE key = 'logo_url';
 `;
 
 const MUTABLE_TABLES = [

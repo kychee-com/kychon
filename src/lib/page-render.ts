@@ -112,12 +112,48 @@ function renderZoneInto(
     return { container: sectionsHost, rendered };
   }
 
-  const newHtml = filtered.map((s) => renderBlock(s, ctx)).join('');
-  if (container.innerHTML !== newHtml) {
-    container.innerHTML = newHtml;
+  // Header / footer zones split into "chrome" blocks (rendered inside the
+  // existing .container — brand_header, nav, sign_in_bar, footer_address,
+  // etc.) and "full-bleed" blocks (page_banner today; rendered as siblings
+  // of .container so they span the viewport without forcing the chrome row
+  // to absorb their height).
+  const chromeBlocks: Section[] = [];
+  const fullBleedBlocks: Section[] = [];
+  for (const s of filtered) {
+    const def = BLOCK_TYPES[s.section_type];
+    if (def?.fullBleed) fullBleedBlocks.push(s);
+    else chromeBlocks.push(s);
   }
+  const chromeHtml = chromeBlocks.map((s) => renderBlock(s, ctx)).join('');
+  if (container.innerHTML !== chromeHtml) {
+    container.innerHTML = chromeHtml;
+  }
+
+  // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container
+  // adjacent to `.container` inside the same zone wrapper. Created lazily on
+  // first need; idempotent across re-renders.
+  if (containerWrapper) {
+    let bleedHost = containerWrapper.querySelector<HTMLElement>('[data-fullbleed-host]');
+    if (fullBleedBlocks.length > 0) {
+      if (!bleedHost) {
+        bleedHost = document.createElement('div');
+        bleedHost.setAttribute('data-fullbleed-host', '');
+        bleedHost.style.width = '100%';
+        containerWrapper.appendChild(bleedHost);
+      }
+      const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
+      if (bleedHost.innerHTML !== bleedHtml) {
+        bleedHost.innerHTML = bleedHtml;
+      }
+    } else if (bleedHost) {
+      // No bleed blocks for this page — clear the host (don't remove it; keeps
+      // DOM stable across SPA navigations).
+      if (bleedHost.innerHTML !== '') bleedHost.innerHTML = '';
+    }
+  }
+
   const rendered: HTMLElement[] = [];
-  container.querySelectorAll('[data-block-hydrate]').forEach((el) => rendered.push(el as HTMLElement));
+  containerWrapper?.querySelectorAll('[data-block-hydrate]').forEach((el) => rendered.push(el as HTMLElement));
   return { container, rendered };
 }
 

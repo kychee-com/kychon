@@ -14,7 +14,10 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Silver Pines Senior Center"', 'branding'),
   ('site_tagline', '"Where every day brings something new"', 'branding'),
   ('site_description', '"Silver Pines is Asheville''s favorite community center for active adults. From tai chi to tech help, watercolors to book clubs, there''s always something happening. Join your neighbors for classes, events, and great conversation in the heart of the Blue Ridge."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"Silver Pines Senior Center"', 'branding'),
+  ('brand_text_short', '"Silver Pines"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding'),
   ('feature_events', 'true', 'features'),
   ('feature_forum', 'true', 'features'),
@@ -75,14 +78,17 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'getting-here');
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'daily-schedule', 'Daily Schedule', NULL, false, false, NULL, true
 WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'daily-schedule');
+INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
+SELECT 'showcase', 'Block Showcase', NULL, false, false, NULL, true
+WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'showcase');
 
 -- sections (chrome + main blocks).
 -- Idempotent on (page_slug, zone, scope, section_type, position).
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT '*', 'header', 'global', 'brand_header', '{"name":"Silver Pines Senior Center","logo_url":"/assets/logo.png","href":"/"}', 1, true, '1'
+SELECT '*', 'header', 'global', 'brand_header', '{"href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"Daily Schedule","href":"/page.html?slug=daily-schedule","icon":"calendar","public":true},{"label":"Getting Here","href":"/page.html?slug=getting-here","icon":"map","public":true},{"label":"Our Members","href":"/directory.html","icon":"users","public":true},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources","children":[{"label":"Documents","href":"/resources.html#documents","public":true},{"label":"Forms","href":"/resources.html#forms","public":true},{"label":"Calendar","href":"/resources.html#calendar","public":true}]},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Announcements","href":"/#announcements-section","icon":"bell","public":true},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
+SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"Daily Schedule","href":"/page.html?slug=daily-schedule","icon":"calendar","public":true},{"label":"Getting Here","href":"/page.html?slug=getting-here","icon":"map","public":true},{"label":"Block Showcase","href":"/page.html?slug=showcase","icon":"star","public":true},{"label":"Our Members","href":"/directory.html","icon":"users","public":true},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources","children":[{"label":"Transportation","href":"/resources.html?category=Transportation","public":true},{"label":"Health","href":"/resources.html?category=Health","public":true},{"label":"Meals","href":"/resources.html?category=Meals","public":true},{"label":"Technology","href":"/resources.html?category=Technology","public":true}]},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Announcements","href":"/#announcements-section","icon":"bell","public":true},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'nav' AND position = 2);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
@@ -93,6 +99,33 @@ WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'getting-here' AND zo
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'daily-schedule', 'main', 'page', 'custom', '{"html":"<div style=\\"max-width:60rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">Drop in anytime! All classes and activities are free for members unless noted.</p><div class=\\"table-wrap\\"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Watercolor (Margaret)</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style=\\"border-top:2px solid var(--color-border)\\"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class=\\"card mt-2\\" style=\\"padding:1.5rem;border-left:4px solid var(--color-primary)\\"><p style=\\"margin:0\\"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'daily-schedule' AND zone = 'main' AND scope = 'page' AND section_type = 'custom' AND position = 1);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'header', 'page', 'page_banner', '{"image_url":"/assets/hero.jpg","image_alt":"Silver Pines members gathered in the main hall","caption_html":"A tour of every <strong>block type</strong> — live on Silver Pines","height":"medium","overlay_color":"rgba(20, 30, 20, 0.4)"}', 10, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'header' AND scope = 'page' AND section_type = 'page_banner' AND position = 10);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'tagline_strip', '{"text":"Every block on this page is a row in the sections table","color_scheme":"primary","size":"large","alignment":"center"}', 1, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'tagline_strip' AND position = 1);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'promo_cards', '{"heading":"Promo cards","columns":3,"items":[{"image_url":"/assets/event-tai-chi.jpg","image_alt":"Members practicing tai chi in the studio","title":"Wellness","title_position":"top","cta_text":"See the schedule","cta_href":"/page.html?slug=daily-schedule"},{"image_url":"/assets/event-craft-fair.jpg","image_alt":"Members at the annual craft fair","title":"Events","title_position":"top","cta_text":"View calendar","cta_href":"/events.html"},{"image_url":"/assets/committee-garden.jpg","image_alt":"Members tending the community garden","title":"Volunteer","title_position":"top","cta_text":"Join a committee","cta_href":"/committees.html"}]}', 2, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'promo_cards' AND position = 2);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'slideshow', '{"heading":"Slideshow","items":[{"src":"/assets/event-tai-chi.jpg","alt":"Tai chi class","caption":"Tai chi every Tuesday & Thursday","href":""},{"src":"/assets/event-watercolor.jpg","alt":"Watercolor class","caption":"Watercolor with Margaret","href":""},{"src":"/assets/event-craft-fair.jpg","alt":"Craft fair","caption":"Annual craft fair","href":""},{"src":"/assets/event-potluck.jpg","alt":"Friday potluck","caption":"Friday potluck nights","href":""}],"auto_rotate_seconds":4,"show_arrows":true,"show_dots":true,"aspect_ratio":"16/9","fit":"cover","transition":"fade"}', 3, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'slideshow' AND position = 3);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'events_list', '{"heading":"Events list — sidebar layout","count":4,"filter":"upcoming","layout":"sidebar","show_image":false,"show_location":true,"show_time":true,"color_scheme":"primary"}', 4, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'events_list' AND position = 4);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'events_list', '{"heading":"Events list — grid layout","count":6,"filter":"upcoming","layout":"grid","show_image":false,"show_location":true,"show_time":true,"color_scheme":"primary"}', 5, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'events_list' AND position = 5);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'link_list', '{"heading":"Link list — manual, rows","source":"manual","layout":"rows","items":[{"label":"Volunteer driver sign-up","href":"/resources.html","date":"2026-04-22","badge":"NEW"},{"label":"Spring potluck menu","href":"/resources.html","date":"2026-04-18"},{"label":"Medicare Basics (PDF)","href":"/assets/medicare-guide.pdf","date":"2026-04-10","badge":"PDF"},{"label":"About this site","href":"https://kychon.com","date":"2026-04-01","external":true}]}', 6, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'link_list' AND position = 6);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'link_list', '{"heading":"Link list — resources mode (Health category)","source":"resources","layout":"bullets","filter":{"category":"Health","limit":5,"order":"newest"}}', 7, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'link_list' AND position = 7);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'showcase', 'main', 'page', 'tagline_strip', '{"text":"Add, edit, and reorder any of these blocks via the admin overlay","color_scheme":"dark","size":"medium","alignment":"center"}', 8, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'showcase' AND zone = 'main' AND scope = 'page' AND section_type = 'tagline_strip' AND position = 8);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'index', 'main', 'page', 'hero', '{"heading":"Welcome to Silver Pines","subheading":"Asheville''s community center for active adults. Classes, events, friends, and a warm cup of coffee — every day.","cta_text":"See What''s Happening","cta_href":"/events.html","bg_image":"/assets/hero.jpg"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
@@ -109,14 +142,23 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT 'index', 'main', 'page', 'embed', '{"heading":"Asheville Weather","provider":"weather","params":{"lat":35.5951,"lon":-82.5515,"units":"imperial","location":"Asheville, NC"},"height":"360px","responsive":false}', 5, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'embed' AND position = 5);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Announcements","limit":20}', 6, true, '2/3'
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6);
+SELECT 'index', 'main', 'page', 'tagline_strip', '{"text":"Welcoming Asheville since 2017 — drop in any weekday","color_scheme":"primary","size":"medium","alignment":"center"}', 6, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'tagline_strip' AND position = 6);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 7, true, '1/3'
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7);
+SELECT 'index', 'main', 'page', 'promo_cards', '{"heading":"Find your fit","columns":3,"items":[{"image_url":"/assets/event-tai-chi.jpg","image_alt":"Members practicing tai chi in the studio","title":"Classes & Wellness","title_position":"top","cta_text":"See the schedule","cta_href":"/page.html?slug=daily-schedule"},{"image_url":"/assets/event-craft-fair.jpg","image_alt":"Members at the craft fair sharing handmade goods","title":"Events & Activities","title_position":"top","cta_text":"View upcoming events","cta_href":"/events.html"},{"image_url":"/assets/committee-garden.jpg","image_alt":"Members tending the community garden","title":"Volunteer & Lead","title_position":"top","cta_text":"Join a committee","cta_href":"/committees.html"}]}', 7, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'promo_cards' AND position = 7);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'cta', '{"heading":"Come Visit Us","text":"Silver Pines is open Monday-Friday, 8am-5pm (6:30pm on Movie Fridays). Drop by for a tour, a cup of coffee, and meet your new neighbors.","cta_text":"How to Get Here","cta_href":"/page.html?slug=getting-here"}', 8, true, '1'
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 8);
+SELECT 'index', 'main', 'page', 'events_list', '{"heading":"Upcoming events","count":4,"filter":"upcoming","layout":"sidebar","show_image":false,"show_location":true,"show_time":true,"color_scheme":"primary"}', 8, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'events_list' AND position = 8);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Announcements","limit":20}', 9, true, '2/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 9);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 10, true, '1/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 10);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'cta', '{"heading":"Come Visit Us","text":"Silver Pines is open Monday-Friday, 8am-5pm (6:30pm on Movie Fridays). Drop by for a tour, a cup of coffee, and meet your new neighbors.","cta_text":"How to Get Here","cta_href":"/page.html?slug=getting-here"}', 11, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 11);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'footer', 'global', 'footer_address', '{"name":"Silver Pines Senior Center","address_lines":["142 Pine Street","Asheville, NC 28801"],"phone":"828-555-0100","email":"hello@silverpines.org","hours":"Mon–Fri 8am–5pm (6:30pm Movie Fridays)"}', 1, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1);
@@ -127,8 +169,8 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_attribution' AND position = 99);
 -- column-span-rows: re-assert spans on rows that pre-existed the seed change.
-UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6;
-UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7;
+UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 9;
+UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 10;
 UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1;
 UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2;
 
@@ -148,9 +190,15 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Silver Pines Senior Center"', 'branding'),
   ('site_tagline', '"Where every day brings something new"', 'branding'),
   ('site_description', '"Silver Pines is Asheville''s favorite community center for active adults. From tai chi to tech help, watercolors to book clubs, there''s always something happening. Join your neighbors for classes, events, and great conversation in the heart of the Blue Ridge."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"Silver Pines Senior Center"', 'branding'),
+  ('brand_text_short', '"Silver Pines"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
+
+-- Drop legacy logo_url row if it exists (brand-identity-fields migration).
+DELETE FROM site_config WHERE key = 'logo_url';
 
 -- Theme (sage green + warm cream + amber)
 INSERT INTO site_config (key, value, category) VALUES
@@ -1096,10 +1144,24 @@ SELECT m.id, 'rsvp', '{"event_title": "Watercolor Wednesday"}', now() - interval
 FROM members m WHERE m.email = 'charles.robinson@gmail.com'
 AND NOT EXISTS (SELECT 1 FROM activity_log WHERE member_id = m.id AND action = 'rsvp' AND metadata->>'event_title' = 'Watercolor Wednesday');
 
+-- Public previews: one resource per category visible to anonymous visitors,
+-- so the nested-nav dropdown's category jumps land on actual content. The
+-- rest stay members-only — the demo banner's "Try as Member" button still
+-- unlocks the full library.
+UPDATE resources SET is_members_only = false WHERE title IN (
+  'Silver Pines Shuttle Schedule',
+  'Medicare Basics Guide',
+  'Weekly Meal Program Menu',
+  'Tablet Basics: Getting Started'
+);
+
 -- composable-layout: clear legacy site_config.nav row.
 -- nav is now a block (see sections above); this guards against stale DBs
 -- and against any extraSqlFile that still inserts the legacy row.
 DELETE FROM site_config WHERE key = 'nav';
+-- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
+-- by brand_icon_url / brand_wordmark_url / brand_text.
+DELETE FROM site_config WHERE key = 'logo_url';
 `;
 
 const MUTABLE_TABLES = [

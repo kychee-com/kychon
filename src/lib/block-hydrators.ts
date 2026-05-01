@@ -226,6 +226,187 @@ export async function hydrateActivityFeed(
   }
 }
 
+// --- Catalog block hydrators ---
+
+const ALLOWED_LINK_LIST_ORDER = new Set(['newest', 'oldest', 'title']);
+
+export async function hydrateLinkListResources(
+  el: HTMLElement,
+  _section: Section,
+  _ctx: BlockRenderContext,
+): Promise<void> {
+  const root = el.querySelector('[data-block-hydrate="link_list"]') as HTMLElement | null;
+  if (!root) return;
+  if (root.dataset.hydrated === 'true') return;
+  let cfg: any = {};
+  try {
+    cfg = JSON.parse(root.getAttribute('data-config') || '{}');
+  } catch {
+    cfg = {};
+  }
+  const filter = cfg.filter || {};
+  const layout = cfg.layout || 'bullets';
+  const category = String(filter.category || '').trim();
+  const limit = Math.max(1, Math.min(50, Number(filter.limit) || 6));
+  const order = ALLOWED_LINK_LIST_ORDER.has(filter.order) ? filter.order : 'newest';
+  const orderParam =
+    order === 'title'
+      ? 'title.asc'
+      : order === 'oldest'
+        ? 'created_at.asc'
+        : 'created_at.desc';
+
+  const { get } = await import('./api');
+  let items: any[] = [];
+  try {
+    const params: string[] = [];
+    if (category) params.push(`category=eq.${encodeURIComponent(category)}`);
+    params.push(`order=${orderParam}`);
+    params.push(`limit=${limit}`);
+    items = await get(`resources?${params.join('&')}`);
+  } catch (e) {
+    console.warn('link_list hydrate failed:', e);
+    items = [];
+  }
+
+  if (!items.length) {
+    // Hide the entire section.
+    const wrapper = el as HTMLElement;
+    wrapper.style.display = 'none';
+    root.dataset.hydrated = 'true';
+    return;
+  }
+
+  const skeleton = root.querySelector('.block-link-list__skeleton');
+  if (skeleton) skeleton.remove();
+  const list = document.createElement('ul');
+  list.className = 'block-link-list__list';
+  list.innerHTML = items
+    .map((r: any) => {
+      const url = r.file_url || r.url || '';
+      const fileType = (r.file_type || '').toLowerCase();
+      const date = r.created_at ? formatDate(r.created_at) : '';
+      const isPdf =
+        fileType === 'pdf' || (typeof url === 'string' && /\.pdf(\?|$)/i.test(url));
+      const isExternal = /^https?:\/\//i.test(url) && !url.startsWith(location.origin);
+      const badge = isPdf ? 'PDF' : r.is_members_only ? 'MEMBERS' : '';
+      const externalAttrs = isExternal
+        ? ` target="_blank" rel="noopener noreferrer"`
+        : '';
+      const externalIcon = isExternal
+        ? `<span class="block-link-list__ext" aria-hidden="true">↗</span>`
+        : '';
+      const badgeHtml = badge
+        ? `<span class="block-link-list__badge block-link-list__badge--${esc(badge.toLowerCase())}">${esc(badge)}</span>`
+        : '';
+      const showDate = (layout === 'rows' || layout === 'compact') && date;
+      const dateHtml = showDate ? `<span class="block-link-list__date">${esc(date)}</span>` : '';
+      const label = `<span class="block-link-list__label">${esc(r.title || url)}</span>`;
+      return `<li class="block-link-list__item"><a href="${esc(url || '#')}" class="block-link-list__link"${externalAttrs}>${dateHtml}${badgeHtml}${label}${externalIcon}</a></li>`;
+    })
+    .join('');
+  root.appendChild(list);
+  root.dataset.hydrated = 'true';
+}
+
+const EVENTS_LIST_FILTER_DAYS = 7;
+
+export async function hydrateEventsList(
+  el: HTMLElement,
+  _section: Section,
+  _ctx: BlockRenderContext,
+): Promise<void> {
+  const root = el.querySelector('[data-block-hydrate="events_list"]') as HTMLElement | null;
+  if (!root) return;
+  if (root.dataset.hydrated === 'true') return;
+  let cfg: any = {};
+  try {
+    cfg = JSON.parse(root.getAttribute('data-config') || '{}');
+  } catch {
+    cfg = {};
+  }
+  const layout = cfg.layout || 'sidebar';
+  const count = Math.max(1, Math.min(50, Number(cfg.count) || 4));
+  const filter = cfg.filter || 'upcoming';
+  const showImage = cfg.show_image !== false && cfg.show_image === true;
+  const showLocation = cfg.show_location !== false;
+  const showTime = cfg.show_time !== false;
+
+  const nowIso = new Date().toISOString();
+  let query: string;
+  if (filter === 'past') {
+    query = `events?starts_at=lt.${nowIso}&order=starts_at.desc&limit=${count}`;
+  } else if (filter === 'this_week') {
+    const inAWeek = new Date(Date.now() + EVENTS_LIST_FILTER_DAYS * 86400 * 1000).toISOString();
+    query = `events?starts_at=gte.${nowIso}&starts_at=lt.${inAWeek}&order=starts_at.asc&limit=${count}`;
+  } else {
+    query = `events?starts_at=gte.${nowIso}&order=starts_at.asc&limit=${count}`;
+  }
+
+  const { get } = await import('./api');
+  let events: any[] = [];
+  try {
+    events = await get(query);
+  } catch (e) {
+    console.warn('events_list hydrate failed:', e);
+    events = [];
+  }
+
+  const skeleton = root.querySelector('.block-events-list__skeleton');
+  if (skeleton) skeleton.remove();
+
+  if (!events.length) {
+    const empty = document.createElement('p');
+    empty.className = 'text-muted block-events-list__empty';
+    empty.textContent = 'No upcoming events.';
+    root.appendChild(empty);
+    root.dataset.hydrated = 'true';
+    return;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = `block-events-list__items block-events-list__items--${esc(layout)}`;
+  wrap.innerHTML = events
+    .map((evt: any) => renderEventCard(evt, layout, { showImage, showLocation, showTime }))
+    .join('');
+  root.appendChild(wrap);
+  root.dataset.hydrated = 'true';
+}
+
+function renderEventCard(
+  evt: any,
+  layout: string,
+  opts: { showImage: boolean; showLocation: boolean; showTime: boolean },
+): string {
+  const title = esc(evt.title || 'Untitled event');
+  const dateObj = evt.starts_at ? new Date(evt.starts_at) : null;
+  const dateLabel = dateObj ? dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const timeLabel =
+    opts.showTime && dateObj
+      ? dateObj.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      : '';
+  const location = opts.showLocation && evt.location ? esc(evt.location) : '';
+  const href = evt.id ? `/event.html?id=${encodeURIComponent(evt.id)}` : '/events.html';
+  const imageUrl = evt.image_url || evt.cover_image_url || '';
+  const imageHtml =
+    opts.showImage && imageUrl
+      ? `<div class="event-card__image" style="background-image:url(${esc(imageUrl)})"></div>`
+      : '';
+  const dateBlock = dateLabel
+    ? `<div class="event-card__date"><span class="event-card__date-day">${esc(dateLabel)}</span>${timeLabel ? `<span class="event-card__date-time">${esc(timeLabel)}</span>` : ''}</div>`
+    : '';
+  const locationBlock = location ? `<div class="event-card__location">${location}</div>` : '';
+  const body = `<div class="event-card__body"><h3 class="event-card__title">${title}</h3>${locationBlock}</div>`;
+  if (layout === 'list') {
+    return `<a href="${esc(href)}" class="event-card event-card--list">${dateBlock}${body}</a>`;
+  }
+  if (layout === 'grid') {
+    return `<a href="${esc(href)}" class="event-card event-card--grid">${imageHtml}${dateBlock}${body}</a>`;
+  }
+  // sidebar (default)
+  return `<a href="${esc(href)}" class="event-card event-card--sidebar">${dateBlock}${body}</a>`;
+}
+
 export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="sign_in_bar"]') as HTMLElement | null;
   if (!root) return;
