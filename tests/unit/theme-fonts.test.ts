@@ -53,16 +53,12 @@ describe('buildGoogleFontsUrl', () => {
 
   it('emits heading-only URL when body is system', () => {
     const url = buildGoogleFontsUrl('Playfair Display', 'system-ui');
-    expect(url).toBe(
-      'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap',
-    );
+    expect(url).toBe('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
   });
 
   it('emits body-only URL when heading is system', () => {
     const url = buildGoogleFontsUrl('sans-serif', 'Inter');
-    expect(url).toBe(
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap',
-    );
+    expect(url).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
   });
 
   it('emits combined URL with both fonts in order (heading first)', () => {
@@ -76,9 +72,7 @@ describe('buildGoogleFontsUrl', () => {
     const url = buildGoogleFontsUrl('Inter', 'Inter');
     const matches = url?.match(/family=Inter/g) ?? [];
     expect(matches).toHaveLength(1);
-    expect(url).toBe(
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap',
-    );
+    expect(url).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
   });
 
   it('dedupe is case-insensitive', () => {

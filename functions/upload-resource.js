@@ -11,7 +11,7 @@ export default async (req) => {
     const body = await req.json();
     const { file, metadata = {} } = body || {};
 
-    if (!file || !file.data || !file.name) {
+    if (!file?.data || !file.name) {
       return new Response(JSON.stringify({ error: 'No file provided' }), { status: 400 });
     }
 
