@@ -256,7 +256,7 @@ export async function hydrateLinkListResources(
         ? 'created_at.asc'
         : 'created_at.desc';
 
-  const { get } = await import('./api');
+  const { get } = await import('./api.js');
   let items: any[] = [];
   try {
     const params: string[] = [];
@@ -343,7 +343,7 @@ export async function hydrateEventsList(
     query = `events?starts_at=gte.${nowIso}&order=starts_at.asc&limit=${count}`;
   }
 
-  const { get } = await import('./api');
+  const { get } = await import('./api.js');
   let events: any[] = [];
   try {
     events = await get(query);
@@ -463,6 +463,7 @@ export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext
     document.getElementById('lang-toggle')?.addEventListener('click', async () => {
       const idx = locales.indexOf(currentLocale);
       const next = locales[(idx + 1) % locales.length];
+      if (!next) return;
       await setLanguage(next);
       document.dispatchEvent(new CustomEvent('wl-locale-changed', { detail: { locale: next } }));
     });

@@ -157,11 +157,13 @@ function setActive(state: SlideshowState, raw: number, announce: boolean): void 
   }
   for (let i = 0; i < total; i++) {
     const slide = state.slides[i];
+    if (!slide) continue;
     const isActive = i === next;
     slide.classList.toggle('is-active', isActive);
   }
   for (let i = 0; i < state.dots.length; i++) {
     const dot = state.dots[i];
+    if (!dot) continue;
     const isActive = i === next;
     dot.classList.toggle('is-active', isActive);
     if (isActive) dot.setAttribute('aria-current', 'true');
@@ -169,7 +171,8 @@ function setActive(state: SlideshowState, raw: number, announce: boolean): void 
   }
   state.index = next;
   if (announce && state.live) {
-    const cap = state.slides[next].querySelector<HTMLElement>('.block-slideshow__caption');
+    const nextSlide = state.slides[next];
+    const cap = nextSlide?.querySelector<HTMLElement>('.block-slideshow__caption');
     state.live.textContent = cap?.textContent?.trim() || `Slide ${next + 1} of ${total}`;
   }
 }

@@ -288,7 +288,7 @@ export function sanitizeCaptionHtml(html: string): string {
       continue;
     }
     const closingSlash = tagMatch[1] || '';
-    const tagName = tagMatch[2].toLowerCase();
+    const tagName = (tagMatch[2] || '').toLowerCase();
     const rest = tagMatch[3] || '';
     // Dangerous container tags — skip the tag AND its contents up to the
     // matching closer. Case-insensitive search.
@@ -1255,7 +1255,7 @@ const LINK_LIST: BlockType = {
   },
   async hydrate(el, section, ctx) {
     if ((section.config?.source || 'manual') !== 'resources') return;
-    const { hydrateLinkListResources } = await import('./block-hydrators');
+    const { hydrateLinkListResources } = await import('./block-hydrators.js');
     await hydrateLinkListResources(el, section, ctx);
   },
 };
@@ -1340,7 +1340,7 @@ const EVENTS_LIST: BlockType = {
       el.style.display = 'none';
       return;
     }
-    const { hydrateEventsList } = await import('./block-hydrators');
+    const { hydrateEventsList } = await import('./block-hydrators.js');
     await hydrateEventsList(el, section, ctx);
   },
 };
@@ -1417,7 +1417,7 @@ const SLIDESHOW: BlockType = {
     const root = el.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement | null;
     if (!root) return;
     if (root.dataset.hydrated === 'true') return;
-    const { initSlideshow } = await import('./blocks/slideshow');
+    const { initSlideshow } = await import('./blocks/slideshow.js');
     initSlideshow(root);
   },
 };
