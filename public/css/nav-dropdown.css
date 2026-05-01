@@ -12,26 +12,43 @@
      ~11px lower than the rest of the nav. */
 }
 
-.nav-link.nav-parent,
-.nav-link.nav-parent-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+/* `.nav-link.nav-parent` is the <a> inside the wrap (when the parent has its
+   own href). Inherit `.nav-link`'s `display: block` + padding so the text
+   baseline matches plain sibling links. We don't need flex here — there's
+   no chevron INSIDE this <a>; the chevron is a sibling button next to it. */
+.nav-link.nav-parent {
   border: none;
   background: none;
   font-family: inherit;
   cursor: pointer;
 }
 
+/* `.nav-link.nav-parent-button` is the <button> case (no href). Text and the
+   inline <span class="nav-chevron"> sit beside each other naturally because
+   the span is inline. Default button display + the inherited padding line
+   the text up with siblings. */
 .nav-link.nav-parent-button {
+  display: inline-block;
+  border: none;
+  background: none;
+  font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
+  cursor: pointer;
 }
 
+.nav-link.nav-parent-button > .nav-chevron {
+  margin-left: 0.25rem;
+}
+
+/* The separate chevron toggle button. Sized 32x32 (a11y tap target) but
+   inline-block + vertical-align so the ▾ glyph aligns with the adjacent
+   <a>'s text rather than centering inside the row's full height. */
 .nav-chevron-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  vertical-align: middle;
   min-width: 2rem;
   min-height: 2rem;
   padding: 0.25rem;
@@ -42,6 +59,7 @@
   color: var(--color-text-muted);
   cursor: pointer;
   transition: background var(--transition), color var(--transition);
+  align-self: center;
 }
 
 .nav-chevron-toggle:hover {
