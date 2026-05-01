@@ -1,7 +1,7 @@
 // schedule: "0 * * * *"
 // Reset demo site to seed state — auto-generated, do not edit manually
 // Regenerate with: node scripts/generate-reset-function.js <seed.sql>
-import { db } from 'run402-functions';
+import { adminDb } from '@run402/functions';
 
 const SEED_SQL = `-- ============================================
 -- Kychon — Generated Seed Data (idempotent)
@@ -9,14 +9,13 @@ const SEED_SQL = `-- ============================================
 --   tsx scripts/generate-seed-sql.ts
 -- ============================================
 
--- site_config
+-- site_config (admin edits preserved)
 INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"The Eagles — Good Samaritans of Wichita"', 'branding'),
   ('site_tagline', '"Lifting our community, one neighbor at a time"', 'branding'),
   ('site_description', '"The Eagles are a Wichita-based volunteer organization dedicated to serving our neighbors through food drives, mentoring, habitat builds, and community outreach. Founded in 2014, we believe that small acts of kindness create lasting change."', 'branding'),
   ('logo_url', '"/assets/logo.png"', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding'),
-  ('theme', '{"primary":"#1b365d","primary_hover":"#142a4d","bg":"#fffdf7","surface":"#f5f0e8","text":"#1a1a2e","text_muted":"#6b7280","border":"#d4d0c8","font_heading":"Nunito","font_body":"Open Sans","radius":"0.5rem","max_width":"72rem"}', 'theme'),
   ('feature_events', 'true', 'features'),
   ('feature_forum', 'true', 'features'),
   ('feature_directory', 'true', 'features'),
@@ -33,6 +32,11 @@ INSERT INTO site_config (key, value, category) VALUES
   ('signup_mode', '"approved"', 'features'),
   ('demo_mode', 'true', 'features')
 ON CONFLICT (key) DO NOTHING;
+
+-- site_config (seed-owned: theme updates flow on every deploy)
+INSERT INTO site_config (key, value, category) VALUES
+  ('theme', '{"primary":"#1b365d","primary_hover":"#142a4d","bg":"#fffdf7","surface":"#f5f0e8","text":"#1a1a2e","text_muted":"#6b7280","border":"#d4d0c8","font_heading":"Cormorant Garamond","font_body":"Inter","radius":"0.5rem","max_width":"72rem"}', 'theme')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
 
 -- membership_tiers
 INSERT INTO membership_tiers (name, description, benefits, price_label, position, is_default)
@@ -172,42 +176,52 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'volunteer');
 
 -- sections (chrome + main blocks).
 -- Idempotent on (page_slug, zone, scope, section_type, position).
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'header', 'global', 'brand_header', '{"name":"The Eagles — Good Samaritans of Wichita","logo_url":"/assets/logo.png","href":"/"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'brand_header', '{"name":"The Eagles — Good Samaritans of Wichita","logo_url":"/assets/logo.png","href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"About","href":"/page.html?slug=about","icon":"info","public":true},{"label":"Volunteer","href":"/page.html?slug=volunteer","icon":"heart","public":true},{"label":"Members","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"About","href":"/page.html?slug=about","icon":"info","public":true},{"label":"Volunteer","href":"/page.html?slug=volunteer","icon":"heart","public":true},{"label":"Members","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'nav' AND position = 2);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'sign_in_bar' AND position = 3);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'hero', '{"heading":"Lifting Wichita, One Neighbor at a Time","subheading":"The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.","cta_text":"Join The Eagles","cta_href":"/join.html","bg_image":"/assets/hero.jpg"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'hero', '{"heading":"Lifting Wichita, One Neighbor at a Time","subheading":"The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.","cta_text":"Join The Eagles","cta_href":"/join.html","bg_image":"/assets/hero.jpg"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'features', '{"columns":3,"items":[{"icon":"heart","title":"Volunteer","desc":"Join food drives, habitat builds, park cleanups, and community meals. Every pair of hands makes a difference."},{"icon":"trending-up","title":"Community Impact","desc":"5,000+ neighbors helped, 15,000+ volunteer hours logged, and 350 holiday food baskets delivered last year alone."},{"icon":"users","title":"Join Us","desc":"Sign up for free, attend an orientation, and start making an impact this weekend. No experience necessary."}]}', 2, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'features', '{"columns":1,"items":[{"icon":"heart","title":"Volunteer","desc":"Join food drives, habitat builds, park cleanups, and community meals. Every pair of hands makes a difference."},{"icon":"trending-up","title":"Community Impact","desc":"5,000+ neighbors helped, 15,000+ volunteer hours logged, and 350 holiday food baskets delivered last year alone."},{"icon":"users","title":"Join Us","desc":"Sign up for free, attend an orientation, and start making an impact this weekend. No experience necessary."}]}', 2, true, '2/3'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'features' AND position = 2);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'stats', '{"items":[{"value":"12 Years","label":"Serving Wichita"},{"value":"5,000+","label":"Neighbors Helped"},{"value":"15,000+","label":"Volunteer Hours"}]}', 3, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'stats', '{"items":[{"value":"12","label":"Years Serving Wichita"},{"value":"5,000+","label":"Neighbors Helped"},{"value":"15,000+","label":"Volunteer Hours"}]}', 3, true, '1/3'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'stats' AND position = 3);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'cta', '{"heading":"Ready to make a difference?","text":"Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.","cta_text":"Get Started","cta_href":"/join.html"}', 4, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 4);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Announcements","limit":20}', 5, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 5);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'activity_feed', '{"heading":"Recent Activity","limit":15}', 6, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 6);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'footer', 'global', 'footer_address', '{"name":"The Eagles — Good Samaritans of Wichita","address_lines":["Wichita, Kansas 67202"],"phone":"316-555-0100","email":"volunteer@eagleswichita.org","hours":"Office: Tue–Sat, 9am–5pm"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'embed', '{"heading":"Soar with The Eagles","provider":"youtube","params":{"video_id":"aqz-KE-bpKQ"},"responsive":true}', 4, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'embed' AND position = 4);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'cta', '{"heading":"Ready to make a difference?","text":"Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.","cta_text":"Get Started","cta_href":"/join.html"}', 5, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 5);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Announcements","limit":20}', 6, true, '2/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'activity_feed', '{"heading":"Recent Activity","limit":15}', 7, true, '1/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_address', '{"name":"The Eagles — Good Samaritans of Wichita","address_lines":["Wichita, Kansas 67202"],"phone":"316-555-0100","email":"volunteer@eagleswichita.org","hours":"Office: Tue–Sat, 9am–5pm"}', 1, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'footer', 'global', 'footer_copyright', '{"year":"auto","org_name":"The Eagles — Good Samaritans of Wichita","admin_contact_label":"Contact us","admin_contact_href":"mailto:volunteer@eagleswichita.org"}', 2, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_copyright', '{"year":"auto","org_name":"The Eagles — Good Samaritans of Wichita","admin_contact_label":"Contact us","admin_contact_href":"mailto:volunteer@eagleswichita.org"}', 2, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_attribution' AND position = 99);
+-- column-span-rows: re-assert spans on rows that pre-existed the seed change.
+UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'features' AND position = 2;
+UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'stats' AND position = 3;
+UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6;
+UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7;
+UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1;
+UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2;
 
 -- Appended from demo/eagles/seed.sql
 -- ============================================
@@ -1965,62 +1979,62 @@ const MUTABLE_TABLES = [
 
 export default async (_req) => {
   // 1. Read demo account user_ids
-  const configResult = await db.sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
+  const configResult = await adminDb().sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
   const demoAccounts = configResult.rows?.[0]?.value || {};
   const adminUserId = demoAccounts.admin_user_id;
   const memberUserId = demoAccounts.member_user_id;
 
   // 2. TRUNCATE mutable content tables (order matters for FK constraints)
   for (const table of MUTABLE_TABLES) {
-    await db.sql(`TRUNCATE ${table} CASCADE`);
+    await adminDb().sql(`TRUNCATE ${table} CASCADE`);
   }
 
   // 3. Delete non-demo members (keep demo accounts by user_id)
   // First nullify tier_id on kept members to avoid FK constraint on membership_tiers
   if (adminUserId || memberUserId) {
     const keepIds = [adminUserId, memberUserId].filter(Boolean).map(id => `'${id}'`).join(',');
-    await db.sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
-    await db.sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
+    await adminDb().sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
+    await adminDb().sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
   } else {
-    await db.sql('DELETE FROM members');
+    await adminDb().sql('DELETE FROM members');
   }
 
   // 4. Reset membership_tiers, pages, sections, custom_fields
-  await db.sql('DELETE FROM membership_tiers');
-  await db.sql('DELETE FROM sections');
-  await db.sql('DELETE FROM pages');
-  await db.sql('DELETE FROM member_custom_fields');
+  await adminDb().sql('DELETE FROM membership_tiers');
+  await adminDb().sql('DELETE FROM sections');
+  await adminDb().sql('DELETE FROM pages');
+  await adminDb().sql('DELETE FROM member_custom_fields');
 
   // 5. Re-run seed SQL (idempotent INSERTs). Capture any error so reset still
   //    reports success for non-section work; the caller surfaces seed_error.
   let seedError = null;
   try {
-    await db.sql(SEED_SQL);
+    await adminDb().sql(SEED_SQL);
   } catch (e) {
     seedError = String(e?.message ?? e);
   }
   // Diagnostic: count sections by zone after seed.
-  const zoneCounts = await db.sql("SELECT zone, COUNT(*)::int AS n FROM sections GROUP BY zone");
+  const zoneCounts = await adminDb().sql("SELECT zone, COUNT(*)::int AS n FROM sections GROUP BY zone");
 
   // 6. Re-link demo accounts to seed member records
   if (adminUserId) {
     // Link admin user_id to the first admin member record
-    const adminMembers = await db.sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
+    const adminMembers = await adminDb().sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
     if (adminMembers.rows?.length) {
-      await db.sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
+      await adminDb().sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
     }
   }
   if (memberUserId) {
     // Link member user_id to the first non-admin active member
-    const memberRecords = await db.sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
+    const memberRecords = await adminDb().sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
     if (memberRecords.rows?.length) {
-      await db.sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
+      await adminDb().sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
     }
   }
 
   // 7. Write last_reset timestamp
   const now = new Date().toISOString();
-  await db.sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
+  await adminDb().sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
 
   return new Response(JSON.stringify({
     status: 'ok',

@@ -1,7 +1,7 @@
 // schedule: "0 * * * *"
 // Reset demo site to seed state — auto-generated, do not edit manually
 // Regenerate with: node scripts/generate-reset-function.js <seed.sql>
-import { db } from 'run402-functions';
+import { adminDb } from '@run402/functions';
 
 const SEED_SQL = `-- ============================================
 -- Kychon — Generated Seed Data (idempotent)
@@ -9,14 +9,13 @@ const SEED_SQL = `-- ============================================
 --   tsx scripts/generate-seed-sql.ts
 -- ============================================
 
--- site_config
+-- site_config (admin edits preserved)
 INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Silver Pines Senior Center"', 'branding'),
   ('site_tagline', '"Where every day brings something new"', 'branding'),
   ('site_description', '"Silver Pines is Asheville''s favorite community center for active adults. From tai chi to tech help, watercolors to book clubs, there''s always something happening. Join your neighbors for classes, events, and great conversation in the heart of the Blue Ridge."', 'branding'),
   ('logo_url', '"/assets/logo.png"', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding'),
-  ('theme', '{"primary":"#5B7F5E","primary_hover":"#4A6B4D","bg":"#FFFDF7","surface":"#F5F0E8","text":"#2C2C2C","text_muted":"#5A5A5A","border":"#D5CFC4","font_heading":"Merriweather","font_body":"Source Sans 3","radius":"0.75rem","max_width":"68rem"}', 'theme'),
   ('feature_events', 'true', 'features'),
   ('feature_forum', 'true', 'features'),
   ('feature_directory', 'true', 'features'),
@@ -35,6 +34,11 @@ INSERT INTO site_config (key, value, category) VALUES
   ('signup_mode', '"open"', 'features'),
   ('demo_mode', 'true', 'features')
 ON CONFLICT (key) DO NOTHING;
+
+-- site_config (seed-owned: theme updates flow on every deploy)
+INSERT INTO site_config (key, value, category) VALUES
+  ('theme', '{"primary":"#5B7F5E","primary_hover":"#4A6B4D","bg":"#FFFDF7","surface":"#F5F0E8","text":"#2C2C2C","text_muted":"#5A5A5A","border":"#D5CFC4","font_heading":"Bitter","font_body":"IBM Plex Sans","radius":"0.75rem","max_width":"68rem"}', 'theme')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
 
 -- membership_tiers
 INSERT INTO membership_tiers (name, description, benefits, price_label, position, is_default)
@@ -74,51 +78,59 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'daily-schedule');
 
 -- sections (chrome + main blocks).
 -- Idempotent on (page_slug, zone, scope, section_type, position).
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'header', 'global', 'brand_header', '{"name":"Silver Pines Senior Center","logo_url":"/assets/logo.png","href":"/"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'brand_header', '{"name":"Silver Pines Senior Center","logo_url":"/assets/logo.png","href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"Daily Schedule","href":"/page.html?slug=daily-schedule","icon":"calendar","public":true},{"label":"Getting Here","href":"/page.html?slug=getting-here","icon":"map","public":true},{"label":"Our Members","href":"/directory.html","icon":"users","public":true},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources","children":[{"label":"Documents","href":"/resources.html#documents","public":true},{"label":"Forms","href":"/resources.html#forms","public":true},{"label":"Calendar","href":"/resources.html#calendar","public":true}]},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Announcements","href":"/#announcements-section","icon":"bell","public":true},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"Daily Schedule","href":"/page.html?slug=daily-schedule","icon":"calendar","public":true},{"label":"Getting Here","href":"/page.html?slug=getting-here","icon":"map","public":true},{"label":"Our Members","href":"/directory.html","icon":"users","public":true},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources","children":[{"label":"Documents","href":"/resources.html#documents","public":true},{"label":"Forms","href":"/resources.html#forms","public":true},{"label":"Calendar","href":"/resources.html#calendar","public":true}]},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Announcements","href":"/#announcements-section","icon":"bell","public":true},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'nav' AND position = 2);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'sign_in_bar' AND position = 3);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'getting-here', 'main', 'page', 'custom', '{"html":"<div style=\\"max-width:52rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class=\\"mb-2\\" style=\\"border-radius:var(--radius,8px);overflow:hidden\\"><iframe src=\\"https://maps.google.com/maps?q=142+Pine+Street,+Asheville,+NC+28801&t=&z=15&ie=UTF8&iwloc=&output=embed\\" width=\\"100%\\" height=\\"300\\" style=\\"border:0;display:block\\" loading=\\"lazy\\" referrerpolicy=\\"no-referrer-when-downgrade\\"></iframe></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style=\\"margin:1rem 0 1rem 1.5rem\\"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href=''/resources.html''>download the full schedule</a>.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem;border-left:4px solid var(--color-primary)\\"><h3 style=\\"margin-bottom:1rem\\">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style=\\"margin:1rem 0 0 1.5rem\\"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'getting-here', 'main', 'page', 'custom', '{"html":"<div style=\\"max-width:52rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class=\\"mb-2\\" style=\\"border-radius:var(--radius,8px);overflow:hidden\\"><iframe src=\\"https://maps.google.com/maps?q=142+Pine+Street,+Asheville,+NC+28801&t=&z=15&ie=UTF8&iwloc=&output=embed\\" width=\\"100%\\" height=\\"300\\" style=\\"border:0;display:block\\" loading=\\"lazy\\" referrerpolicy=\\"no-referrer-when-downgrade\\"></iframe></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style=\\"margin:1rem 0 1rem 1.5rem\\"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href=''/resources.html''>download the full schedule</a>.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem\\"><h3 style=\\"margin-bottom:1rem\\">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class=\\"card mb-2\\" style=\\"padding:2rem;border-left:4px solid var(--color-primary)\\"><h3 style=\\"margin-bottom:1rem\\">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style=\\"margin:1rem 0 0 1.5rem\\"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'getting-here' AND zone = 'main' AND scope = 'page' AND section_type = 'custom' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'daily-schedule', 'main', 'page', 'custom', '{"html":"<div style=\\"max-width:60rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">Drop in anytime! All classes and activities are free for members unless noted.</p><div class=\\"table-wrap\\"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Watercolor (Margaret)</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style=\\"border-top:2px solid var(--color-border)\\"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class=\\"card mt-2\\" style=\\"padding:1.5rem;border-left:4px solid var(--color-primary)\\"><p style=\\"margin:0\\"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'daily-schedule', 'main', 'page', 'custom', '{"html":"<div style=\\"max-width:60rem\\"><p style=\\"font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem\\">Drop in anytime! All classes and activities are free for members unless noted.</p><div class=\\"table-wrap\\"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Chair Yoga</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Watercolor (Margaret)</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style=\\"border-top:2px solid var(--color-border)\\"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style=\\"background:color-mix(in srgb, var(--color-primary) 8%, transparent)\\">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class=\\"card mt-2\\" style=\\"padding:1.5rem;border-left:4px solid var(--color-primary)\\"><p style=\\"margin:0\\"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'daily-schedule' AND zone = 'main' AND scope = 'page' AND section_type = 'custom' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'hero', '{"heading":"Welcome to Silver Pines","subheading":"Asheville''s community center for active adults. Classes, events, friends, and a warm cup of coffee — every day.","cta_text":"See What''s Happening","cta_href":"/events.html","bg_image":"/assets/hero.jpg"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'hero', '{"heading":"Welcome to Silver Pines","subheading":"Asheville''s community center for active adults. Classes, events, friends, and a warm cup of coffee — every day.","cta_text":"See What''s Happening","cta_href":"/events.html","bg_image":"/assets/hero.jpg"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'stats', '{"items":[{"value":"22+","label":"Active Members","href":"/directory.html"},{"value":"12+","label":"Events This Month","href":"/events.html"},{"value":"5","label":"Committees"},{"value":"8","label":"Years Serving Asheville"}]}', 2, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'stats', '{"items":[{"value":"22+","label":"Active Members","href":"/directory.html"},{"value":"12+","label":"Events This Month","href":"/events.html"},{"value":"5","label":"Committees"},{"value":"8","label":"Years Serving Asheville"}]}', 2, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'stats' AND position = 2);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'features', '{"columns":3,"items":[{"icon":"calendar","title":"Classes & Events","desc":"Tai chi, watercolor, book club, tech help, movie nights, and more — there''s always something to do."},{"icon":"users","title":"A Real Community","desc":"22 members and growing. Make friends, share skills, and look out for each other."},{"icon":"home","title":"Your Second Home","desc":"A warm, accessible space in the heart of Asheville with a garden, art room, and the best coffee in town."}]}', 3, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'features', '{"columns":3,"items":[{"icon":"calendar","title":"Classes & Events","desc":"Tai chi, watercolor, book club, tech help, movie nights, and more — there''s always something to do."},{"icon":"users","title":"A Real Community","desc":"22 members and growing. Make friends, share skills, and look out for each other."},{"icon":"home","title":"Your Second Home","desc":"A warm, accessible space in the heart of Asheville with a garden, art room, and the best coffee in town."}]}', 3, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'features' AND position = 3);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'testimonials', '{"items":[{"quote":"Silver Pines gave me a reason to get out of the house every day. I have more friends now than I did at 40.","name":"Grace Lee","role":"Member since 2025"},{"quote":"The Tech Buddies program changed my life. I can finally video call my grandkids in California!","name":"Mary Jackson","role":"Member since 2024"},{"quote":"I was nervous about retiring. Now I''m busier than ever — garden committee, walking group, and I just started painting!","name":"Richard Harris","role":"Member since 2025"}]}', 4, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'testimonials', '{"items":[{"quote":"Silver Pines gave me a reason to get out of the house every day. I have more friends now than I did at 40.","name":"Grace Lee","role":"Member since 2025"},{"quote":"The Tech Buddies program changed my life. I can finally video call my grandkids in California!","name":"Mary Jackson","role":"Member since 2024"},{"quote":"I was nervous about retiring. Now I''m busier than ever — garden committee, walking group, and I just started painting!","name":"Richard Harris","role":"Member since 2025"}]}', 4, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'testimonials' AND position = 4);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Announcements","limit":20}', 5, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 5);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 6, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 6);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT 'index', 'main', 'page', 'cta', '{"heading":"Come Visit Us","text":"Silver Pines is open Monday-Friday, 8am-5pm (6:30pm on Movie Fridays). Drop by for a tour, a cup of coffee, and meet your new neighbors.","cta_text":"How to Get Here","cta_href":"/page.html?slug=getting-here"}', 7, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 7);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'footer', 'global', 'footer_address', '{"name":"Silver Pines Senior Center","address_lines":["142 Pine Street","Asheville, NC 28801"],"phone":"828-555-0100","email":"hello@silverpines.org","hours":"Mon–Fri 8am–5pm (6:30pm Movie Fridays)"}', 1, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'embed', '{"heading":"Asheville Weather","provider":"weather","params":{"lat":35.5951,"lon":-82.5515,"units":"imperial","location":"Asheville, NC"},"height":"360px","responsive":false}', 5, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'embed' AND position = 5);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Announcements","limit":20}', 6, true, '2/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 7, true, '1/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'cta', '{"heading":"Come Visit Us","text":"Silver Pines is open Monday-Friday, 8am-5pm (6:30pm on Movie Fridays). Drop by for a tour, a cup of coffee, and meet your new neighbors.","cta_text":"How to Get Here","cta_href":"/page.html?slug=getting-here"}', 8, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 8);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_address', '{"name":"Silver Pines Senior Center","address_lines":["142 Pine Street","Asheville, NC 28801"],"phone":"828-555-0100","email":"hello@silverpines.org","hours":"Mon–Fri 8am–5pm (6:30pm Movie Fridays)"}', 1, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'footer', 'global', 'footer_copyright', '{"year":"auto","org_name":"Silver Pines Senior Center","admin_contact_label":"Contact us","admin_contact_href":"mailto:hello@silverpines.org"}', 2, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_copyright', '{"year":"auto","org_name":"Silver Pines Senior Center","admin_contact_label":"Contact us","admin_contact_href":"mailto:hello@silverpines.org"}', 2, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2);
-INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)
-SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_attribution' AND position = 99);
+-- column-span-rows: re-assert spans on rows that pre-existed the seed change.
+UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6;
+UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7;
+UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1;
+UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2;
 
 -- Appended from demo/silver-pines/seed.sql
 -- ============================================
@@ -150,8 +162,8 @@ INSERT INTO site_config (key, value, category) VALUES
     "text": "#2C2C2C",
     "text_muted": "#5A5A5A",
     "border": "#D5CFC4",
-    "font_heading": "Merriweather",
-    "font_body": "Source Sans 3",
+    "font_heading": "Bitter",
+    "font_body": "IBM Plex Sans",
     "radius": "0.75rem",
     "max_width": "68rem"
   }', 'theme')
@@ -1100,62 +1112,62 @@ const MUTABLE_TABLES = [
 
 export default async (_req) => {
   // 1. Read demo account user_ids
-  const configResult = await db.sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
+  const configResult = await adminDb().sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
   const demoAccounts = configResult.rows?.[0]?.value || {};
   const adminUserId = demoAccounts.admin_user_id;
   const memberUserId = demoAccounts.member_user_id;
 
   // 2. TRUNCATE mutable content tables (order matters for FK constraints)
   for (const table of MUTABLE_TABLES) {
-    await db.sql(`TRUNCATE ${table} CASCADE`);
+    await adminDb().sql(`TRUNCATE ${table} CASCADE`);
   }
 
   // 3. Delete non-demo members (keep demo accounts by user_id)
   // First nullify tier_id on kept members to avoid FK constraint on membership_tiers
   if (adminUserId || memberUserId) {
     const keepIds = [adminUserId, memberUserId].filter(Boolean).map(id => `'${id}'`).join(',');
-    await db.sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
-    await db.sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
+    await adminDb().sql(`UPDATE members SET tier_id = NULL WHERE user_id IN (${keepIds})`);
+    await adminDb().sql(`DELETE FROM members WHERE user_id IS NULL OR user_id NOT IN (${keepIds})`);
   } else {
-    await db.sql('DELETE FROM members');
+    await adminDb().sql('DELETE FROM members');
   }
 
   // 4. Reset membership_tiers, pages, sections, custom_fields
-  await db.sql('DELETE FROM membership_tiers');
-  await db.sql('DELETE FROM sections');
-  await db.sql('DELETE FROM pages');
-  await db.sql('DELETE FROM member_custom_fields');
+  await adminDb().sql('DELETE FROM membership_tiers');
+  await adminDb().sql('DELETE FROM sections');
+  await adminDb().sql('DELETE FROM pages');
+  await adminDb().sql('DELETE FROM member_custom_fields');
 
   // 5. Re-run seed SQL (idempotent INSERTs). Capture any error so reset still
   //    reports success for non-section work; the caller surfaces seed_error.
   let seedError = null;
   try {
-    await db.sql(SEED_SQL);
+    await adminDb().sql(SEED_SQL);
   } catch (e) {
     seedError = String(e?.message ?? e);
   }
   // Diagnostic: count sections by zone after seed.
-  const zoneCounts = await db.sql("SELECT zone, COUNT(*)::int AS n FROM sections GROUP BY zone");
+  const zoneCounts = await adminDb().sql("SELECT zone, COUNT(*)::int AS n FROM sections GROUP BY zone");
 
   // 6. Re-link demo accounts to seed member records
   if (adminUserId) {
     // Link admin user_id to the first admin member record
-    const adminMembers = await db.sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
+    const adminMembers = await adminDb().sql("SELECT id FROM members WHERE role = 'admin' AND (user_id IS NULL OR user_id = '" + adminUserId + "') ORDER BY id LIMIT 1");
     if (adminMembers.rows?.length) {
-      await db.sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
+      await adminDb().sql("UPDATE members SET user_id = '" + adminUserId + "', status = 'active' WHERE id = " + adminMembers.rows[0].id);
     }
   }
   if (memberUserId) {
     // Link member user_id to the first non-admin active member
-    const memberRecords = await db.sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
+    const memberRecords = await adminDb().sql("SELECT id FROM members WHERE role = 'member' AND (user_id IS NULL OR user_id = '" + memberUserId + "') ORDER BY id LIMIT 1");
     if (memberRecords.rows?.length) {
-      await db.sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
+      await adminDb().sql("UPDATE members SET user_id = '" + memberUserId + "', status = 'active' WHERE id = " + memberRecords.rows[0].id);
     }
   }
 
   // 7. Write last_reset timestamp
   const now = new Date().toISOString();
-  await db.sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
+  await adminDb().sql(`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"${now}"'`);
 
   return new Response(JSON.stringify({
     status: 'ok',

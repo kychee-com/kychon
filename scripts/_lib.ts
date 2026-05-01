@@ -96,14 +96,25 @@ export async function collectFunctionsMap(
   if (opts.extraFunction) {
     const code = await readFile(opts.extraFunction, "utf-8");
     const name = (opts.extraFunction.split("/").pop() ?? opts.extraFunction).replace(/\.js$/, "");
-    out[name] = makeFunctionSpec(code);
+    // Demo reset-demo takes ~8s in practice (DELETE+seed against ~14 sections
+    // and ~150 demo rows). The 10s default leaves no headroom. Also acts as
+    // the non-source field change required by kychee-com/run402#168 to force
+    // activation on functions that got stuck before gateway 1.0.4 — bumping
+    // timeout from the default 10s to 15s changes the function digest, so
+    // the gateway's noop short-circuit no longer skips activation for these
+    // already-deployed functions.
+    out[name] = makeFunctionSpec(code, { timeoutSeconds: 15 });
   }
 
   return out;
 }
 
-function makeFunctionSpec(code: string): FunctionSpec {
+function makeFunctionSpec(
+  code: string,
+  config?: { timeoutSeconds?: number; memoryMb?: number },
+): FunctionSpec {
   const spec: FunctionSpec = { runtime: "node22", source: code };
+  if (config) spec.config = config;
   const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
   if (scheduleMatch && scheduleMatch[1]) {
     spec.schedule = scheduleMatch[1];
