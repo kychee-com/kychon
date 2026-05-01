@@ -210,9 +210,33 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'embed',
+      config: {
+        heading: 'Clima en Boyle Heights (Windy)',
+        provider: 'iframe',
+        params: {
+          // Windy embed for Boyle Heights, Los Angeles. Windy is iframe-
+          // friendly and renders fully under `allow-scripts allow-same-origin`.
+          // (Note: a "weather" verified provider exists too; using the
+          // generic iframe here keeps the trust-gate + "External content"
+          // pill flow visible for demo.)
+          src: 'https://embed.windy.com/embed2.html?lat=34.0334&lon=-118.2073&zoom=10&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1',
+        },
+        // Pre-acknowledged at seed time — this is the seed-level equivalent
+        // of an admin checking "I trust embed.windy.com" in the edit popover.
+        trust_acknowledged: true,
+        height: '480px',
+        responsive: false,
+      },
+      position: 5,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Avisos', limit: 20 },
-      position: 5,
+      position: 6,
     },
     {
       page_slug: 'index',
@@ -220,7 +244,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { limit: 15 },
-      position: 6,
+      position: 7,
     },
     {
       page_slug: 'index',
@@ -233,7 +257,7 @@ export const seed: ProjectSeed = {
         cta_text: 'Hazte voluntario/a',
         cta_href: '/page.html?slug=nosotros',
       },
-      position: 7,
+      position: 8,
     },
     // --- Footer chrome (global) ---
     {
