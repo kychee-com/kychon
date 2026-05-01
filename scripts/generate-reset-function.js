@@ -58,8 +58,16 @@ export default async (_req) => {
   await db.sql('DELETE FROM pages');
   await db.sql('DELETE FROM member_custom_fields');
 
-  // 5. Re-run seed SQL (idempotent INSERTs)
-  await db.sql(SEED_SQL);
+  // 5. Re-run seed SQL (idempotent INSERTs). Capture any error so reset still
+  //    reports success for non-section work; the caller surfaces seed_error.
+  let seedError = null;
+  try {
+    await db.sql(SEED_SQL);
+  } catch (e) {
+    seedError = String(e?.message ?? e);
+  }
+  // Diagnostic: count sections by zone after seed.
+  const zoneCounts = await db.sql("SELECT zone, COUNT(*)::int AS n FROM sections GROUP BY zone");
 
   // 6. Re-link demo accounts to seed member records
   if (adminUserId) {
@@ -81,7 +89,12 @@ export default async (_req) => {
   const now = new Date().toISOString();
   await db.sql(\`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"\${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"\${now}"'\`);
 
-  return new Response(JSON.stringify({ status: 'ok', reset_at: now }));
+  return new Response(JSON.stringify({
+    status: 'ok',
+    reset_at: now,
+    seed_error: seedError,
+    section_zones: zoneCounts.rows ?? zoneCounts,
+  }));
 };
 `;
 
