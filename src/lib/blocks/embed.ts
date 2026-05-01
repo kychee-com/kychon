@@ -5,7 +5,7 @@
 // when the provider is unknown, `buildSrc` throws, or the generic `iframe`
 // provider is used without `trust_acknowledged: true`.
 
-import type { BlockType, Section, BlockRenderContext } from '../blocks';
+import type { BlockType, Section, BlockRenderContext } from '../blocks.js';
 import { escHtml, escAttr } from '../blocks.js';
 import { getProvider, type EmbedProvider } from './embed-providers.js';
 
@@ -117,7 +117,7 @@ const EMBED: BlockType = {
     height: '360px',
     responsive: true,
   },
-  render(section, ctx) {
+  render(section: Section, ctx: BlockRenderContext) {
     const cfg = (section.config || {}) as EmbedConfig;
     const providerId = cfg.provider;
     if (!providerId || typeof providerId !== 'string') {

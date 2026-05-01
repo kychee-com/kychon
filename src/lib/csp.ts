@@ -134,7 +134,7 @@ export function validateCsp(headersContent: string): void {
   for (const directive of ['default-src', 'connect-src', 'frame-src']) {
     const directiveRe = new RegExp(`${directive}\\s+([^;]+)`);
     const match = csp.match(directiveRe);
-    if (!match) continue;
+    if (!match || !match[1]) continue;
     const tokens = match[1].trim().split(/\s+/);
     if (tokens.includes('*')) {
       throw new Error(
