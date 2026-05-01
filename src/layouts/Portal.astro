@@ -118,11 +118,11 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
     ? <link rel="icon" type="image/svg+xml" href={faviconUrl} />
     : <link rel="icon" href={faviconUrl} />}
   {fontHead && <Fragment set:html={fontHead} />}
-  <link rel="stylesheet" href="/css/theme.css">
-  <link rel="stylesheet" href="/css/styles.css">
-  <link rel="stylesheet" href="/css/nav-dropdown.css">
-  <link rel="stylesheet" href="/css/zone-grid.css">
-  <link rel="stylesheet" href="/css/a11y.css">
+  <link rel="stylesheet" href={`/css/theme.css?b=${BUILD_ID}`}>
+  <link rel="stylesheet" href={`/css/styles.css?b=${BUILD_ID}`}>
+  <link rel="stylesheet" href={`/css/nav-dropdown.css?b=${BUILD_ID}`}>
+  <link rel="stylesheet" href={`/css/zone-grid.css?b=${BUILD_ID}`}>
+  <link rel="stylesheet" href={`/css/a11y.css?b=${BUILD_ID}`}>
   <ClientRouter />
   <script is:inline>
     (function applyTheme() {
