@@ -183,7 +183,7 @@ export const seed: ProjectSeed = {
       config: {
         image_url: '/assets/hero.jpg',
         image_alt: 'Silver Pines members gathered in the main hall',
-        caption_html: 'A tour of every <strong>block type</strong> &mdash; live on Silver Pines',
+        caption_html: 'A tour of every <strong>block type</strong> — live on Silver Pines',
         height: 'medium',
         overlay_color: 'rgba(20, 30, 20, 0.4)',
       },

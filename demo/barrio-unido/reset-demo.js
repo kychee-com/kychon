@@ -14,7 +14,10 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Centro Comunitario Barrio Unido"', 'branding'),
   ('site_tagline', '"Juntos, somos más fuertes"', 'branding'),
   ('site_description', '"Barrio Unido es un centro comunitario en el corazón de Boyle Heights, Los Ángeles. Ofrecemos clases de inglés, preparación para la ciudadanía, clínica legal gratuita, despensa de alimentos y eventos culturales. Desde 2018, hemos servido a más de 2,400 familias."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"Centro Comunitario Barrio Unido"', 'branding'),
+  ('brand_text_short', '"Barrio Unido"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding'),
   ('feature_events', 'true', 'features'),
   ('feature_forum', 'true', 'features'),
@@ -78,7 +81,7 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'nosotros');
 -- sections (chrome + main blocks).
 -- Idempotent on (page_slug, zone, scope, section_type, position).
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT '*', 'header', 'global', 'brand_header', '{"name":"Centro Comunitario Barrio Unido","logo_url":"/assets/logo.png","href":"/"}', 1, true, '1'
+SELECT '*', 'header', 'global', 'brand_header', '{"href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Inicio","href":"/","icon":"home","public":true},{"label":"Nosotros","href":"/page.html?slug=nosotros","icon":"info","public":true},{"label":"Miembros","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Eventos","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Recursos","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Foro","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Programas","href":"/committees.html","icon":"heart","feature":"feature_committees"},{"label":"Panel","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Miembros","href":"/admin-members.html","icon":"users","admin":true},{"label":"Configuración","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
@@ -102,14 +105,20 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT 'index', 'main', 'page', 'embed', '{"heading":"Clima en Boyle Heights (Windy)","provider":"iframe","params":{"src":"https://embed.windy.com/embed2.html?lat=34.0334&lon=-118.2073&zoom=10&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"},"trust_acknowledged":true,"height":"480px","responsive":false}', 5, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'embed' AND position = 5);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Avisos","limit":20}', 6, true, '2/3'
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6);
+SELECT 'index', 'main', 'page', 'tagline_strip', '{"text":"Sirviendo a Boyle Heights desde 2018 — todo gratis, todo para ti","color_scheme":"dark","size":"medium","alignment":"center"}', 6, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'tagline_strip' AND position = 6);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 7, true, '1/3'
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7);
+SELECT 'index', 'main', 'page', 'link_list', '{"heading":"Recursos legales recientes","source":"resources","layout":"rows","filter":{"category":"Guías Legales","limit":6,"order":"newest"}}', 7, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'link_list' AND position = 7);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT 'index', 'main', 'page', 'cta', '{"heading":"El barrio te necesita — y tú nos necesitas a nosotros","text":"Ya seas vecino/a nuevo o de toda la vida, hay un lugar para ti en Barrio Unido. Ven a conocernos.","cta_text":"Hazte voluntario/a","cta_href":"/page.html?slug=nosotros"}', 8, true, '1'
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 8);
+SELECT 'index', 'main', 'page', 'announcements_feed', '{"heading":"Avisos","limit":20}', 8, true, '2/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 8);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'activity_feed', '{"limit":15}', 9, true, '1/3'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 9);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT 'index', 'main', 'page', 'cta', '{"heading":"El barrio te necesita — y tú nos necesitas a nosotros","text":"Ya seas vecino/a nuevo o de toda la vida, hay un lugar para ti en Barrio Unido. Ven a conocernos.","cta_text":"Hazte voluntario/a","cta_href":"/page.html?slug=nosotros"}', 10, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'cta' AND position = 10);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'footer', 'global', 'footer_address', '{"name":"Centro Comunitario Barrio Unido","address_lines":["Boyle Heights, Los Ángeles, CA"],"phone":"323-555-0100","email":"hola@barriounido.org","hours":"Lun–Vie 9am–6pm · Sábados 10am–2pm"}', 1, true, '1/2'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1);
@@ -120,8 +129,8 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT '*', 'footer', 'global', 'footer_attribution', '{"text":"Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"}', 99, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_attribution' AND position = 99);
 -- column-span-rows: re-assert spans on rows that pre-existed the seed change.
-UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 6;
-UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 7;
+UPDATE sections SET column_span = '2/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'announcements_feed' AND position = 8;
+UPDATE sections SET column_span = '1/3' WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'activity_feed' AND position = 9;
 UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_address' AND position = 1;
 UPDATE sections SET column_span = '1/2' WHERE page_slug = '*' AND zone = 'footer' AND scope = 'global' AND section_type = 'footer_copyright' AND position = 2;
 
@@ -142,9 +151,15 @@ INSERT INTO site_config (key, value, category) VALUES
   ('site_name', '"Centro Comunitario Barrio Unido"', 'branding'),
   ('site_tagline', '"Juntos, somos más fuertes"', 'branding'),
   ('site_description', '"Barrio Unido es un centro comunitario en el corazón de Boyle Heights, Los Ángeles. Ofrecemos clases de inglés, preparación para la ciudadanía, clínica legal gratuita, despensa de alimentos y eventos culturales. Desde 2018, hemos servido a más de 2,400 familias."', 'branding'),
-  ('logo_url', '"/assets/logo.png"', 'branding'),
+  ('brand_text', '"Centro Comunitario Barrio Unido"', 'branding'),
+  ('brand_text_short', '"Barrio Unido"', 'branding'),
+  ('brand_icon_url', '"/assets/logo.png"', 'branding'),
+  ('brand_wordmark_url', '""', 'branding'),
   ('favicon_url', '"/assets/logo.png"', 'branding')
 ON CONFLICT (key) DO NOTHING;
+
+-- Drop legacy logo_url row if it exists (brand-identity-fields migration).
+DELETE FROM site_config WHERE key = 'logo_url';
 
 -- Theme (terracotta + warm cream)
 INSERT INTO site_config (key, value, category) VALUES
@@ -1623,6 +1638,9 @@ AND NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'rsvp' AND metadata::t
 -- nav is now a block (see sections above); this guards against stale DBs
 -- and against any extraSqlFile that still inserts the legacy row.
 DELETE FROM site_config WHERE key = 'nav';
+-- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
+-- by brand_icon_url / brand_wordmark_url / brand_text.
+DELETE FROM site_config WHERE key = 'logo_url';
 `;
 
 const MUTABLE_TABLES = [

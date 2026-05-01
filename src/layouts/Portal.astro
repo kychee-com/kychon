@@ -21,6 +21,12 @@ interface Props {
 }
 
 const { title } = Astro.props;
+// Build-time cache-buster for /js/env.js. The deploy injects fresh
+// __KYCHON_* globals into env.js, but the file's URL is otherwise stable —
+// browsers from a previous deploy can ship a stale cached copy that
+// references retired globals (e.g. __WILDLYCHEE_API). The build-id query
+// string changes on every build, forcing a refetch.
+const BUILD_ID = String(Date.now());
 
 // --- Build-time bake of chrome zones ---
 // Bake context: the build has no auth, so render the public + feature-on view.
@@ -147,7 +153,7 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
       });
     });
   </script>
-  <script is:inline src="/js/env.js"></script>
+  <script is:inline src={`/js/env.js?b=${BUILD_ID}`}></script>
 </head>
 <body>
   <a href="#main-content" class="wl-skip-nav">Skip to main content</a>

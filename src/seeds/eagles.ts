@@ -409,7 +409,7 @@ export const seed: ProjectSeed = {
       config: {
         image_url: '/assets/about-hero.jpg',
         image_alt: 'Eagles volunteers serving the Wichita community',
-        caption_html: 'About <strong>The Eagles</strong> &mdash; lifting Wichita since 2014',
+        caption_html: 'About <strong>The Eagles</strong> — lifting Wichita since 2014',
         height: 'medium',
         overlay_color: 'rgba(0, 0, 0, 0.35)',
       },

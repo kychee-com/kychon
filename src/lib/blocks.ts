@@ -1115,67 +1115,6 @@ const CUSTOM: BlockType = {
   },
 };
 
-// --- Caption HTML sanitizer (shared with hero foreground & page_banner) ---
-//
-// Allowlist: <br>, <strong>, <em>, <a href> with restricted href schemes.
-// Anything else is escaped as text. The implementation keeps a tag stack so
-// matched closing tags survive; un-allowlisted tags are stripped including
-// their inner content cannot be guaranteed (we strip the tag and emit no
-// content from it, e.g. <script>x</script> → '').
-const ALLOWED_HREF_SCHEME = /^(https?:|mailto:|tel:|\/|#)/i;
-const ALLOWED_INLINE_TAGS = new Set(['br', 'strong', 'em', 'a']);
-
-export function sanitizeCaptionHtml(html: string): string {
-  if (!html) return '';
-  const out: string[] = [];
-  // Tag-or-text tokenizer; stray `<` not starting a real tag falls through
-  // to the single-char fallback and gets escaped as text.
-  const re = /<\/?([a-zA-Z][a-zA-Z0-9]*)(\s[^>]*)?>|[^<]+|</g;
-  let m: RegExpExecArray | null;
-  // Skip-stack: how many nested forbidden tags are open. Forbidden tags drop
-  // their inner content too — `<script>alert(1)</script>x` → `x`.
-  let skip = 0;
-  while ((m = re.exec(html)) !== null) {
-    const fullTag = m[0];
-    const rawTag = (m[1] || '').toLowerCase();
-    const attrs = m[2] || '';
-    if (!rawTag) {
-      // Plain text segment (including a stray `<`).
-      if (skip === 0) out.push(escHtml(fullTag));
-      continue;
-    }
-    const closing = fullTag.startsWith('</');
-    if (!ALLOWED_INLINE_TAGS.has(rawTag)) {
-      if (closing) {
-        if (skip > 0) skip--;
-      } else if (!fullTag.endsWith('/>')) {
-        skip++;
-      }
-      continue;
-    }
-    if (skip > 0) continue;
-    if (rawTag === 'br') {
-      out.push('<br>');
-    } else if (rawTag === 'a') {
-      if (closing) {
-        out.push('</a>');
-      } else {
-        const hrefMatch = attrs.match(/\bhref\s*=\s*"([^"]*)"|\bhref\s*=\s*'([^']*)'/i);
-        const href = hrefMatch ? (hrefMatch[1] ?? hrefMatch[2] ?? '') : '';
-        if (href && ALLOWED_HREF_SCHEME.test(href.trim())) {
-          out.push(`<a href="${escAttr(href)}" rel="noopener noreferrer">`);
-        } else {
-          out.push('<a>');
-        }
-      }
-    } else {
-      // strong / em
-      out.push(closing ? `</${rawTag}>` : `<${rawTag}>`);
-    }
-  }
-  return out.join('');
-}
-
 // --- Catalog blocks (block-types-catalog) ---
 
 const TAGLINE_STRIP: BlockType = {
