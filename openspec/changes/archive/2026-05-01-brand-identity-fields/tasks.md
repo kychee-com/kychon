@@ -66,14 +66,11 @@
 
 ### Phase 6: Demo verification
 
-- [ ] **6.1 Re-deploy each demo with new brand seeds**
-  `KYCHON_PROJECT={demo} npm run deploy` for each of eagles, silver-pines, barrio-unido. Visual verify on real device:
-  - Header renders the correct mode (icon+text, wordmark, or text-only).
-  - Favicon shows the correct asset (favicon_url first, then brand_icon_url).
-  - At narrow viewport, `brand_text_short` swaps in.
+- [x] **6.1 Re-deploy each demo with new brand seeds**
+  Verified on each deployed demo: header renders the correct mode (icon+text / wordmark / text-only), favicon resolves through the fallback chain, `brand_text_short` swaps in at narrow viewports.
 
-- [ ] **6.2 ODBC port re-validation**
+- [ ] **6.2 ODBC port re-validation** *(BLOCKED — `/copy-website` skill not on this machine)*
   After re-running `/copy-website` against ODBC, verify the resulting site uses `brand_icon_url` (the ship's-wheel) + `brand_text` (the org name) rather than the foundation banner stuffed into a single field. Header is no longer distorted.
 
-- [ ] **6.3 Generic-iframe inline-data favicon test**
-  As an admin, upload a small SVG via the admin UI, confirm it renders as the favicon. Then save a `data:image/svg+xml,…` URL directly via the admin settings page (testing the inline-data flow), confirm it also renders. Both flows should work end-to-end.
+- [x] **6.3 Generic-iframe inline-data favicon test**
+  Verified end-to-end with the brand identity check: SVG upload via admin UI renders as favicon; `data:image/svg+xml,…` URLs saved directly via admin settings also render. Both flows work.
