@@ -203,6 +203,17 @@ import Portal from '../layouts/Portal.astro';
       allResources = await get('resources?order=created_at.desc');
       await translateItems('resource', allResources, ['title', 'description']);
       renderResources(allResources);
+      // Honor `?category=X` from the URL (e.g. nav dropdown children pre-filter
+      // via `/resources.html?category=Health`). renderResources populates the
+      // <select> options first; we set its value after, then re-apply.
+      const cat = new URLSearchParams(window.location.search).get('category');
+      if (cat) {
+        const filter = document.getElementById('res-category-filter') as HTMLSelectElement | null;
+        if (filter) {
+          filter.value = cat;
+          applyFilter();
+        }
+      }
     } catch (e) {
       console.warn('Failed to load resources:', e);
     }

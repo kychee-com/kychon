@@ -12,9 +12,10 @@ const SILVER_PINES_NAV = [
     icon: 'book-open',
     feature: 'feature_resources',
     children: [
-      { label: 'Documents', href: '/resources.html#documents', public: true },
-      { label: 'Forms', href: '/resources.html#forms', public: true },
-      { label: 'Calendar', href: '/resources.html#calendar', public: true },
+      { label: 'Transportation', href: '/resources.html?category=Transportation', public: true },
+      { label: 'Health', href: '/resources.html?category=Health', public: true },
+      { label: 'Meals', href: '/resources.html?category=Meals', public: true },
+      { label: 'Technology', href: '/resources.html?category=Technology', public: true },
     ],
   },
   { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
