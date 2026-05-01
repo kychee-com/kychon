@@ -4,9 +4,9 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { renderBlock, type BlockRenderContext, type Section } from '../src/lib/blocks';
-import { buildCspValue } from '../src/lib/csp';
-import { getActiveProjectSeed } from '../src/seeds';
+import { renderBlock, type BlockRenderContext, type Section } from '../src/lib/blocks.js';
+import { buildCspValue } from '../src/lib/csp.js';
+import { getActiveProjectSeed } from '../src/seeds/index.js';
 
 const DIST = join(process.cwd(), 'dist');
 
