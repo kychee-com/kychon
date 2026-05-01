@@ -49,6 +49,15 @@ export interface BlockType {
   zoneHints?: ('header' | 'main' | 'footer')[];
   /** column-span-rows: spans this block accepts; omit for "all four". */
   supportedSpans?: ColumnSpan[];
+  /**
+   * When true, the block opts out of the zone's `.container` (max-width
+   * constrained) wrapper and renders as a full-bleed sibling below it.
+   * Used for blocks like `page_banner` that need 100% viewport width and
+   * their own intrinsic vertical space — putting them inside `.container`
+   * forces the chrome row (brand / nav / sign-in) to absorb the banner's
+   * height, which is exactly the wrong layout.
+   */
+  fullBleed?: boolean;
 }
 
 // --- Helpers ---
@@ -1149,6 +1158,7 @@ const PAGE_BANNER: BlockType = {
   icon: '\u{1F5BC}', // 🖼
   dynamic: false,
   zoneHints: ['header'],
+  fullBleed: true,
   defaultConfig: {
     image_url: '',
     image_alt: '',
