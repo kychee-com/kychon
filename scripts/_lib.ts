@@ -15,6 +15,8 @@ import { fileURLToPath } from "node:url";
 import { fileSetFromDir, run402 } from "@run402/sdk/node";
 import type { FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
 
+import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
+
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
 export { fileSetFromDir };
@@ -139,6 +141,20 @@ export function injectEnvJs(distDir: string, anonKey: string): void {
   writeFileSync(join(jsDir, "env.js"), content);
 }
 
+/**
+ * Substitute `{PROVIDER_HOSTS}` in `dist/_headers` and validate the CSP.
+ * Aborts the deploy with a clear error if the headers are malformed or a
+ * registered embed provider is missing from `frame-src`. Run402 v1.50 doesn't
+ * yet honor `_headers`, but we still bundle the file so it's ready when
+ * platform support lands; the CSP value baked into Portal.astro at build
+ * time uses the same source registry, so divergence is impossible.
+ */
+export function generateAndValidateHeaders(distDir: string): void {
+  const content = generateHeadersContent(ROOT);
+  validateCsp(content);
+  writeFileSync(join(distDir, "_headers"), content);
+}
+
 export interface ResolvedDeployTarget {
   projectId: string;
   anonKey: string;
@@ -236,6 +252,7 @@ export async function runDeploy(
 
   const distDir = join(ROOT, "dist");
   injectEnvJs(distDir, opts.anonKey);
+  generateAndValidateHeaders(distDir);
 
   const sql = readMigrations(ROOT, opts.seedFile);
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;

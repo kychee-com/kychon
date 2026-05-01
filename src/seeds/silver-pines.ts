@@ -229,9 +229,23 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'embed',
+      config: {
+        heading: 'Asheville Weather',
+        provider: 'weather',
+        params: { lat: 35.5951, lon: -82.5515, units: 'imperial', location: 'Asheville, NC' },
+        height: '360px',
+        responsive: false,
+      },
+      position: 5,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
-      position: 5,
+      position: 6,
       // column-span-rows: announcements + recent activity side-by-side.
       column_span: '2/3',
     },
@@ -241,7 +255,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { limit: 15 },
-      position: 6,
+      position: 7,
       column_span: '1/3',
     },
     {
@@ -255,7 +269,7 @@ export const seed: ProjectSeed = {
         cta_text: 'How to Get Here',
         cta_href: '/page.html?slug=getting-here',
       },
-      position: 7,
+      position: 8,
     },
     // --- Footer chrome (global) ---
     // column-span-rows: address + copyright share a row.

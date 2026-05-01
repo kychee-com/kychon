@@ -200,3 +200,45 @@ VALUES (
   'chair'
 );
 ```
+
+## Add an Embed Block (weather, video, map, booking widget)
+
+The `embed` block renders third-party iframes from a vetted allowlist. As an admin you don't write iframe HTML — you pick a provider and fill in typed params. The block's edit popover (pencil icon on the section) routes by provider:
+
+| Provider | Use | Params |
+|---|---|---|
+| `youtube` | YouTube video player | `video_id` (or paste a URL — the popover extracts the ID) |
+| `vimeo` | Vimeo video player | `video_id` (numeric only; URL extractor available) |
+| `calendly` | Booking widget | `username` (and optionally `event_type`) |
+| `map` | Google Maps embed | `address` OR `lat` + `lng` |
+| `weather` | Windy.com weather chart | `lat` + `lon` (and optionally `units: 'imperial'` and a display `location` label) |
+| `tide_chart` | NOAA tide predictions | `station_id` (look up at `tidesandcurrents.noaa.gov`) |
+| `iframe` | Generic escape hatch — any HTTPS source | `src` URL (requires explicit "I trust {hostname}" acknowledgment before save is enabled) |
+
+To add an embed via SQL (e.g., a one-time seed):
+
+```sql
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position)
+VALUES (
+  'index', 'main', 'page', 'embed',
+  '{"heading":"Local Weather","provider":"weather","params":{"lat":35.5951,"lon":-82.5515,"units":"imperial"},"height":"360px","responsive":false}',
+  10
+);
+```
+
+To add via the admin UI:
+
+1. Click "+ Add to main" at the bottom of the homepage main zone.
+2. Choose "Embed" from the block picker.
+3. Click the pencil icon on the new block's admin overlay.
+4. Select a provider; fill in the params; for video providers paste a URL into the helper to auto-extract the ID.
+5. For the generic `iframe` provider: enter the URL, then check the "I trust {hostname}" box (the hostname updates as you type the URL — typing a different URL clears the prior acknowledgment).
+6. Click Save.
+
+The renderer ships an iframe with the provider's exact `sandbox` allowlist and `loading="lazy"`. The CSP `frame-src` already lists every registered provider's host, so embeds load without browser-side blocks.
+
+### What the CSP allows
+
+Every Kychon project ships a Content Security Policy that restricts iframes to the registered providers' hosts (plus `https:` for the generic iframe escape hatch — gated by per-block trust acknowledgment). Adjacent headers (`X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, etc.) ride along in `public/_headers`.
+
+If you need an embed from a host that isn't in the registry: don't paste raw HTML in a `custom` block (the CSP will block it). Either use the generic `iframe` provider (with the trust gate), or register the provider as code (see STRUCTURE.md → "Adding a provider").
