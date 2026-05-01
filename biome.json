@@ -36,6 +36,11 @@
       "trailingCommas": "all"
     }
   },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "site/**",
