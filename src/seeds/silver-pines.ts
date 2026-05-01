@@ -6,7 +6,18 @@ const SILVER_PINES_NAV = [
   { label: 'Getting Here', href: '/page.html?slug=getting-here', icon: 'map', public: true },
   { label: 'Our Members', href: '/directory.html', icon: 'users', public: true },
   { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
-  { label: 'Resources', href: '/resources.html', icon: 'book-open', feature: 'feature_resources' },
+  {
+    label: 'Resources',
+    href: '/resources.html',
+    icon: 'book-open',
+    feature: 'feature_resources',
+    children: [
+      { label: 'Transportation', href: '/resources.html?category=Transportation', public: true },
+      { label: 'Health', href: '/resources.html?category=Health', public: true },
+      { label: 'Meals', href: '/resources.html?category=Meals', public: true },
+      { label: 'Technology', href: '/resources.html?category=Technology', public: true },
+    ],
+  },
   { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
   { label: 'Committees', href: '/committees.html', icon: 'briefcase', feature: 'feature_committees' },
   { label: 'Announcements', href: '/#announcements-section', icon: 'bell', public: true },
@@ -39,8 +50,8 @@ export const seed: ProjectSeed = {
         text: '#2C2C2C',
         text_muted: '#5A5A5A',
         border: '#D5CFC4',
-        font_heading: 'Merriweather',
-        font_body: 'Source Sans 3',
+        font_heading: 'Bitter',
+        font_body: 'IBM Plex Sans',
         radius: '0.75rem',
         max_width: '68rem',
       },
@@ -219,9 +230,25 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'embed',
+      config: {
+        heading: 'Asheville Weather',
+        provider: 'weather',
+        params: { lat: 35.5951, lon: -82.5515, units: 'imperial', location: 'Asheville, NC' },
+        height: '360px',
+        responsive: false,
+      },
+      position: 5,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
-      position: 5,
+      position: 6,
+      // column-span-rows: announcements + recent activity side-by-side.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -229,7 +256,8 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { limit: 15 },
-      position: 6,
+      position: 7,
+      column_span: '1/3',
     },
     {
       page_slug: 'index',
@@ -242,9 +270,10 @@ export const seed: ProjectSeed = {
         cta_text: 'How to Get Here',
         cta_href: '/page.html?slug=getting-here',
       },
-      position: 7,
+      position: 8,
     },
     // --- Footer chrome (global) ---
+    // column-span-rows: address + copyright share a row.
     {
       page_slug: '*',
       zone: 'footer',
@@ -258,6 +287,7 @@ export const seed: ProjectSeed = {
         hours: 'Mon–Fri 8am–5pm (6:30pm Movie Fridays)',
       },
       position: 1,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
@@ -271,6 +301,7 @@ export const seed: ProjectSeed = {
         admin_contact_href: 'mailto:hello@silverpines.org',
       },
       position: 2,
+      column_span: '1/2',
     },
     {
       page_slug: '*',

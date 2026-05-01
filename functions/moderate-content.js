@@ -1,9 +1,9 @@
 // prototype-schedule: "*/15 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { ai, db } from 'run402-functions';
+import { ai, db } from '@run402/functions';
 
 export default async (_req) => {
   // Check if feature is enabled
-  const flag = await db.from('site_config').select('value').eq('key', 'feature_ai_moderation').limit(1);
+  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_moderation').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_moderation disabled' }));
   }
@@ -11,7 +11,7 @@ export default async (_req) => {
   let moderated = 0;
 
   // Find last moderation timestamp
-  const lastCheck = await db.sql('SELECT max(created_at) as last_at FROM moderation_log');
+  const lastCheck = await adminDb().sql('SELECT max(created_at) as last_at FROM moderation_log');
   const lastAt = (lastCheck.rows || lastCheck)[0]?.last_at || '1970-01-01T00:00:00Z';
 
   // Get new forum topics since last check
@@ -24,9 +24,9 @@ export default async (_req) => {
   for (const topic of newTopics) {
     const result = await moderateContent(`${topic.title}\n\n${topic.body}`);
     if (result.confidence > 0.7 && result.flagged) {
-      await db.from('forum_topics').update({ hidden: true }).eq('id', topic.id);
+      await adminDb().from('forum_topics').update({ hidden: true }).eq('id', topic.id);
     }
-    await db.from('moderation_log').insert({
+    await adminDb().from('moderation_log').insert({
       content_type: 'forum_topic',
       content_id: topic.id,
       action: result.action,
@@ -46,9 +46,9 @@ export default async (_req) => {
   for (const reply of newReplies) {
     const result = await moderateContent(reply.body);
     if (result.confidence > 0.7 && result.flagged) {
-      await db.from('forum_replies').update({ hidden: true }).eq('id', reply.id);
+      await adminDb().from('forum_replies').update({ hidden: true }).eq('id', reply.id);
     }
-    await db.from('moderation_log').insert({
+    await adminDb().from('moderation_log').insert({
       content_type: 'forum_reply',
       content_id: reply.id,
       action: result.action,

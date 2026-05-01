@@ -15,3 +15,6 @@ dist/
 tmp/
 # composable-layout: seed.sql is generated from src/seeds/{project}.ts
 seed.sql
+
+# Claude Code worktree-local launch config (preview server, etc.)
+.claude/launch.json

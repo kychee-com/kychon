@@ -328,8 +328,9 @@
 }
 
 .admin-nav-item-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 28px 1fr 1.5fr auto auto;
+  grid-template-columns: 28px 1fr 1.5fr auto auto auto;
   gap: 0.5rem;
   align-items: center;
   padding: 0.5rem;
@@ -338,6 +339,37 @@
   margin-bottom: 0.5rem;
   background: white;
   transition: box-shadow 150ms ease;
+}
+
+.admin-nav-children {
+  /* Grouping container for nested rows. Inheritance of margin-left on the
+     individual rows handles indentation; the container itself is structural. */
+  margin-bottom: 0.5rem;
+}
+
+.admin-nav-row-depth-1,
+.admin-nav-row-depth-2 {
+  background: var(--color-surface, #f8fafc);
+}
+
+.admin-nav-guide {
+  position: absolute;
+  left: -0.75rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-border, #e2e8f0);
+  border-radius: 2px;
+}
+
+.admin-nav-row-depth-1 .admin-nav-guide,
+.admin-nav-row-depth-2 .admin-nav-guide {
+  background: var(--color-primary, #3b82f6);
+  opacity: 0.4;
+}
+
+.admin-nav-depth-warn {
+  grid-column: 2 / -1;
 }
 
 .admin-nav-item-row:hover {
@@ -611,7 +643,260 @@ body.admin .admin-zone-add-btn {
 }
 
 /* ═══════════════════════════════════════════════════
-   12. HERO EDITOR POPOVER
+   9. EMBED BLOCK
+   ═══════════════════════════════════════════════════ */
+
+.block-embed .container {
+  width: 100%;
+  position: relative;
+}
+
+.block-embed__heading {
+  margin-bottom: 1rem;
+}
+
+.block-embed__frame {
+  position: relative;
+  border-radius: var(--radius, 8px);
+  overflow: hidden;
+  background: var(--color-bg-alt, #f3f4f6);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.block-embed__frame iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+.block-embed--error .block-embed__error {
+  padding: 1.5rem;
+  border: 1px dashed var(--color-border, #d1d5db);
+  border-radius: var(--radius, 8px);
+  background: var(--color-bg-alt, #f9fafb);
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.block-embed--error .block-embed__error strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--color-text, #111827);
+}
+
+/* External-content pill — admin-only, rendered next to iframe-provider blocks. */
+.block-embed__pill {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #fbbf24;
+  color: #78350f;
+  border-radius: 999px;
+}
+
+/* Embed editor popover — extends .admin-popover with embed-specific layout. */
+.admin-embed-editor {
+  width: min(560px, 90vw);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.admin-embed__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.admin-embed__header h3 {
+  margin: 0;
+}
+
+.admin-embed__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-embed__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-embed__field label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.admin-embed__field input,
+.admin-embed__field select {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius, 6px);
+}
+
+.admin-embed__help {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.admin-embed__req {
+  color: #dc2626;
+}
+
+.admin-embed__params {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius, 6px);
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-embed__params legend {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.4rem;
+}
+
+.admin-embed__helper {
+  background: var(--color-bg-alt, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius, 6px);
+  padding: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-embed__helper label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.admin-embed__trust {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: var(--radius, 6px);
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-embed__trust strong {
+  display: block;
+  color: #78350f;
+  margin-bottom: 0.4rem;
+}
+
+.admin-embed__trust p {
+  margin: 0 0 0.6rem;
+  font-size: 0.875rem;
+  color: #78350f;
+}
+
+.admin-embed__trust-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-embed__trust-check code {
+  background: #fff;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid #fbbf24;
+  font-family: ui-monospace, monospace;
+}
+
+/* ═══════════════════════════════════════════════════
+   10. COLUMN-SPAN-ROWS — PER-BLOCK EDIT POPOVER
+   ═══════════════════════════════════════════════════ */
+/* column-span-rows: per-block edit affordance + popover styles */
+.admin-section-edit-btn {
+  background: none;
+  border: 1px solid var(--color-border, #d1d5db);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.875rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  margin-right: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-section-edit-btn:hover {
+  border-color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #6366f1);
+}
+
+.admin-section-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+.admin-section-edit-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.admin-section-edit-body {
+  padding-top: 0.75rem;
+}
+.admin-section-edit-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.375rem;
+}
+.admin-span-radio {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+.admin-span-radio-btn {
+  flex: 1 1 auto;
+  min-width: 4rem;
+  padding: 0.4rem 0.5rem;
+  background: none;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 0.375rem;
+  color: var(--color-text, #0f172a);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-align: center;
+}
+.admin-span-radio-btn:hover {
+  border-color: var(--color-primary, #6366f1);
+}
+.admin-span-radio-btn.active {
+  background: var(--color-primary, #6366f1);
+  border-color: var(--color-primary, #6366f1);
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════
+   11. HERO EDITOR POPOVER
    ═══════════════════════════════════════════════════ */
 
 .admin-hero-editor .popover-header {
@@ -725,4 +1010,11 @@ body.admin .admin-zone-add-btn {
   border: 1px dashed var(--color-border, #e2e8f0);
   cursor: default;
   pointer-events: none;
+}
+
+/* "Hero settings…" link inside the generic section-edit popover for hero
+   blocks. Surfaces my hero popover (mode + foreground fields) without
+   adding a second button to the section toolbar. */
+.admin-section-edit-body .hero-settings-link {
+  margin-top: 0.75rem;
 }

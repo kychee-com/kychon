@@ -15,6 +15,8 @@ import { fileURLToPath } from "node:url";
 import { fileSetFromDir, run402 } from "@run402/sdk/node";
 import type { FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
 
+import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
+
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
 export { fileSetFromDir };
@@ -94,14 +96,25 @@ export async function collectFunctionsMap(
   if (opts.extraFunction) {
     const code = await readFile(opts.extraFunction, "utf-8");
     const name = (opts.extraFunction.split("/").pop() ?? opts.extraFunction).replace(/\.js$/, "");
-    out[name] = makeFunctionSpec(code);
+    // Demo reset-demo takes ~8s in practice (DELETE+seed against ~14 sections
+    // and ~150 demo rows). The 10s default leaves no headroom. Also acts as
+    // the non-source field change required by kychee-com/run402#168 to force
+    // activation on functions that got stuck before gateway 1.0.4 — bumping
+    // timeout from the default 10s to 15s changes the function digest, so
+    // the gateway's noop short-circuit no longer skips activation for these
+    // already-deployed functions.
+    out[name] = makeFunctionSpec(code, { timeoutSeconds: 15 });
   }
 
   return out;
 }
 
-function makeFunctionSpec(code: string): FunctionSpec {
+function makeFunctionSpec(
+  code: string,
+  config?: { timeoutSeconds?: number; memoryMb?: number },
+): FunctionSpec {
   const spec: FunctionSpec = { runtime: "node22", source: code };
+  if (config) spec.config = config;
   const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
   if (scheduleMatch && scheduleMatch[1]) {
     spec.schedule = scheduleMatch[1];
@@ -137,6 +150,20 @@ export function injectEnvJs(distDir: string, anonKey: string): void {
     "window.__KYCHON_API = 'https://api.run402.com';\n" +
     `window.__KYCHON_ANON_KEY = '${anonKey}';\n`;
   writeFileSync(join(jsDir, "env.js"), content);
+}
+
+/**
+ * Substitute `{PROVIDER_HOSTS}` in `dist/_headers` and validate the CSP.
+ * Aborts the deploy with a clear error if the headers are malformed or a
+ * registered embed provider is missing from `frame-src`. Run402 v1.50 doesn't
+ * yet honor `_headers`, but we still bundle the file so it's ready when
+ * platform support lands; the CSP value baked into Portal.astro at build
+ * time uses the same source registry, so divergence is impossible.
+ */
+export function generateAndValidateHeaders(distDir: string): void {
+  const content = generateHeadersContent(ROOT);
+  validateCsp(content);
+  writeFileSync(join(distDir, "_headers"), content);
 }
 
 export interface ResolvedDeployTarget {
@@ -236,6 +263,7 @@ export async function runDeploy(
 
   const distDir = join(ROOT, "dist");
   injectEnvJs(distDir, opts.anonKey);
+  generateAndValidateHeaders(distDir);
 
   const sql = readMigrations(ROOT, opts.seedFile);
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;

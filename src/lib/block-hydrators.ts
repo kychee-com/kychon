@@ -32,10 +32,10 @@ export async function hydrateAnnouncementsFeed(
   ctx: BlockRenderContext,
 ): Promise<void> {
   const [{ get, patch, post, del }, { getSession }, { translateItems, isFeatureEnabled }, pollUI] = await Promise.all([
-    import('./api'),
-    import('./auth'),
-    import('./config'),
-    import('./poll-ui'),
+    import('./api.js'),
+    import('./auth.js'),
+    import('./config.js'),
+    import('./poll-ui.js'),
   ]);
   const { fetchAttachedPoll, bindPollVoteListeners, createPollForm, submitPoll } = pollUI;
 
@@ -195,7 +195,7 @@ export async function hydrateActivityFeed(
   const feed = root.querySelector('#activity-feed') as HTMLElement | null;
   if (!feed) return;
 
-  const { get } = await import('./api');
+  const { get } = await import('./api.js');
   const cfg = section.config || {};
   const limit = cfg.limit || 15;
 
@@ -226,13 +226,13 @@ export async function hydrateActivityFeed(
   }
 }
 
-export async function hydrateSignInBar(el: HTMLElement, ctx: BlockRenderContext): Promise<void> {
+export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="sign_in_bar"]') as HTMLElement | null;
   if (!root) return;
   const [{ getSession }, i18n, { t }] = await Promise.all([
-    import('./auth'),
-    import('./i18n'),
-    import('./i18n'),
+    import('./auth.js'),
+    import('./i18n.js'),
+    import('./i18n.js'),
   ]);
   const { getAvailableLocales, getLocale, setLanguage } = i18n;
   const session = getSession();

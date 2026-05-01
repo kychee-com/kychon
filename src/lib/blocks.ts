@@ -3,6 +3,9 @@
 // strings. Dynamic blocks emit a skeleton at bake time and a per-type
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
+/** column-span-rows: legal fractions of a 6-col zone grid. */
+export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
+
 export interface Section {
   id?: number;
   page_slug: string;
@@ -12,6 +15,8 @@ export interface Section {
   config: Record<string, any>;
   position: number;
   visible?: boolean;
+  /** column-span-rows: width inside the 6-col zone grid (default `'1'`). */
+  column_span?: ColumnSpan;
 }
 
 export interface BlockRenderContext {
@@ -34,6 +39,8 @@ export interface BlockType {
   icon: string;
   dynamic: boolean;
   zoneHints?: ('header' | 'main' | 'footer')[];
+  /** column-span-rows: spans this block accepts; omit for "all four". */
+  supportedSpans?: ColumnSpan[];
 }
 
 // --- Helpers ---
@@ -65,7 +72,7 @@ export function escHtml(s: any): string {
     .replace(/'/g, '&#39;');
 }
 
-function escAttr(s: any): string {
+export function escAttr(s: any): string {
   return escHtml(s);
 }
 
@@ -87,6 +94,15 @@ function adminScopeControls(section: Section, ctx: BlockRenderContext): string {
   return `${pill}<button class="admin-scope-toggle" data-scope-toggle="${sid}" data-scope-next="${toggleNext}" title="${toggleLabel}">${toggleLabel}</button>`;
 }
 
+// column-span-rows: cog button that opens the per-block edit popover (span
+// radio + scope toggle + remove). Rendered alongside the existing inline
+// scope toggle / remove for back-compat — the popover is the primary
+// surface but the inline buttons keep working.
+function adminEditButton(section: Section, ctx: BlockRenderContext): string {
+  if (!ctx.admin || section.id == null) return '';
+  return `<button class="admin-section-edit-btn" data-section-edit="${section.id}" title="Edit block">⚙</button>`;
+}
+
 function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, classes = 'section'): string {
   const sid = section.id;
   const sortable = sid != null
@@ -98,7 +114,7 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
     ? ` data-editable-config="${jsonAttr(section.config || {})}"`
     : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions">${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
     : '';
   return `<section class="${classes}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${adminCtrls}${inner}</section>`;
 }
@@ -113,24 +129,21 @@ function richEditableAttr(section: Section, path: string, ctx: BlockRenderContex
   return ` data-editable-rich="sections.${section.id}.config.${path}"`;
 }
 
-function imageEditableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
-  if (!ctx.admin || section.id == null) return '';
-  return ` data-editable-image="sections.${section.id}.config.${path}"`;
-}
-
 function featureIcon(name: string): string {
   return FEATURE_ICONS[name] || '✦';
 }
 
-function isPageActive(href: string, current?: string): boolean {
+export function isPageActive(href: string, current?: string): boolean {
   if (!current) return false;
   try {
     const a = new URL(href, 'https://kychon.local');
     const b = new URL(current, 'https://kychon.local');
-    if (a.pathname === b.pathname) {
-      if (!a.search) return true;
-      return a.search === b.search;
-    }
+    if (a.pathname !== b.pathname) return false;
+    if (a.search && a.search !== b.search) return false;
+    // Hash-aware: an item linking to "/#x" is active only when the current
+    // URL has the same hash. Items without a hash ignore the current hash.
+    if (a.hash && a.hash !== b.hash) return false;
+    return true;
   } catch {}
   return false;
 }
@@ -341,7 +354,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
   const styleAttr = cfg.bg_image ? ` style="background-image:url(${escAttr(cfg.bg_image)})"` : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions"><button class="admin-section-btn" data-hero-edit="${sid}" title="Hero settings">⚙</button><button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
     : '';
   return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${adminCtrls}${inner}</section>`;
 }
@@ -402,7 +415,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions"><button class="admin-section-btn" data-hero-edit="${sid}" title="Hero settings">⚙</button><button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
     : '';
 
   // Body order: picture first, then overlays/captions, then heading group.
@@ -417,6 +430,7 @@ const HERO: BlockType = {
   icon: '\u{1F3DE}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1'],
   defaultConfig: {
     heading: 'New Hero',
     subheading: 'Add your subheading here',
@@ -437,6 +451,7 @@ const FEATURES: BlockType = {
   icon: '✨',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     columns: 3,
     items: [{ icon: 'home', title: 'Feature 1', desc: 'Description' }],
@@ -464,6 +479,7 @@ const CTA: BlockType = {
   icon: '\u{1F4E2}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1'],
   defaultConfig: {
     heading: 'Ready to join?',
     text: 'Get started today.',
@@ -489,6 +505,7 @@ const STATS: BlockType = {
   icon: '\u{1F4CA}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     items: [
       { value: '0', label: 'Stat 1' },
@@ -520,6 +537,7 @@ const TESTIMONIALS: BlockType = {
   icon: '\u{1F4AC}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     items: [{ quote: 'Great community!', name: 'Member', role: '' }],
   },
@@ -540,6 +558,7 @@ const FAQ: BlockType = {
   icon: '❓',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2'],
   defaultConfig: {
     items: [{ q: 'Question?', a: 'Answer here.' }],
   },
@@ -560,6 +579,7 @@ const POLLS: BlockType = {
   icon: '\u{1F4CA}',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2'],
   defaultConfig: { heading: '', poll_ids: [] },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -583,8 +603,8 @@ const POLLS: BlockType = {
     const skeleton = container.querySelector('.polls-skeleton');
     if (skeleton) skeleton.remove();
     const [{ fetchAndRenderPoll, bindPollVoteListeners }, { getSession }] = await Promise.all([
-      import('./poll-ui'),
-      import('./auth'),
+      import('./poll-ui.js'),
+      import('./auth.js'),
     ]);
     const session = getSession();
     const memberId = session?.user?.member?.id ?? null;
@@ -615,6 +635,7 @@ const EVENT_COUNTDOWN: BlockType = {
   icon: '⏱️',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/3', '1/2'],
   defaultConfig: { heading: 'Next Event' },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -633,7 +654,7 @@ const EVENT_COUNTDOWN: BlockType = {
     }
     const container = el.querySelector('[data-block-hydrate="event_countdown"]') as HTMLElement | null;
     if (!container) return;
-    const { get } = await import('./api');
+    const { get } = await import('./api.js');
     try {
       const events = await get('events?starts_at=gte.now()&order=starts_at.asc&limit=1');
       const skeleton = container.querySelector('.skeleton');
@@ -666,6 +687,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
   icon: '\u{1F4E3}',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '2/3'],
   defaultConfig: { heading: 'Announcements', limit: 20 },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -680,7 +702,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
     );
   },
   async hydrate(el, section, ctx) {
-    const { hydrateAnnouncementsFeed } = await import('./block-hydrators');
+    const { hydrateAnnouncementsFeed } = await import('./block-hydrators.js');
     await hydrateAnnouncementsFeed(el, section, ctx);
   },
 };
@@ -690,6 +712,7 @@ const ACTIVITY_FEED: BlockType = {
   icon: '\u{1F4DD}',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/3', '2/3'],
   defaultConfig: { heading: 'Recent Activity', limit: 15 },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -708,12 +731,23 @@ const ACTIVITY_FEED: BlockType = {
       el.style.display = 'none';
       return;
     }
-    const { hydrateActivityFeed } = await import('./block-hydrators');
+    const { hydrateActivityFeed } = await import('./block-hydrators.js');
     await hydrateActivityFeed(el, section, ctx);
   },
 };
 
 // --- Header chrome renderers ---
+
+export interface NavItem {
+  label: string;
+  href?: string;
+  icon?: string;
+  public?: boolean;
+  auth?: boolean;
+  feature?: string;
+  admin?: boolean;
+  children?: NavItem[];
+}
 
 const NAV_LABEL_KEYS: Record<string, string> = {
   Home: 'nav.home',
@@ -744,11 +778,68 @@ const NAV_LABEL_KEYS: Record<string, string> = {
 
 export { NAV_LABEL_KEYS };
 
+function navItemVisible(item: NavItem, ctx: BlockRenderContext): boolean {
+  if (item.feature && ctx.isFeatureEnabled && !ctx.isFeatureEnabled(item.feature)) return false;
+  if (item.auth && !ctx.authenticated) return false;
+  if (item.admin && ctx.role !== 'admin') return false;
+  return true;
+}
+
+function navMenuId(item: NavItem, path: string): string {
+  const slug = String(item.label || 'menu')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'menu';
+  return `nav-menu-${slug}-${path}`;
+}
+
+function renderNavChildren(children: NavItem[], ctx: BlockRenderContext, parentPath: string, depth: number): string {
+  const visible = children.filter((c) => navItemVisible(c, ctx));
+  if (visible.length === 0) return '';
+  const items = visible
+    .map((child, i) => renderNavChild(child, ctx, `${parentPath}-${i}`, depth))
+    .join('');
+  return items;
+}
+
+function renderNavChild(item: NavItem, ctx: BlockRenderContext, path: string, depth: number): string {
+  const hasKids = Array.isArray(item.children) && item.children.length > 0
+    && item.children.some((c) => navItemVisible(c, ctx));
+  const href = item.href || '#';
+  const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
+  if (!hasKids) {
+    return `<li role="none"><a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a></li>`;
+  }
+  const menuId = navMenuId(item, path);
+  const childrenHtml = renderNavChildren(item.children!, ctx, path, depth + 1);
+  const linkPart = item.href
+    ? `<a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`
+    : `<span class="nav-menuitem nav-menuitem-parent">${escHtml(item.label)}</span>`;
+  return `<li role="none" class="nav-dropdown-parent">${linkPart}<button class="nav-chevron-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}" aria-label="Open ${escAttr(item.label)} submenu"><span class="nav-chevron" aria-hidden="true">▾</span></button><ul class="nav-dropdown nav-dropdown-nested" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></li>`;
+}
+
+function renderNavTopItem(item: NavItem, ctx: BlockRenderContext, idx: number): string {
+  const hasKids = Array.isArray(item.children) && item.children.length > 0
+    && item.children.some((c) => navItemVisible(c, ctx));
+  const href = item.href || '';
+  const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
+  if (!hasKids) {
+    return `<a class="nav-link${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`;
+  }
+  const menuId = navMenuId(item, `top-${idx}`);
+  const childrenHtml = renderNavChildren(item.children!, ctx, `top-${idx}`, 1);
+  const trigger = item.href
+    ? `<a class="nav-link nav-parent${active}" href="${escAttr(href)}">${escHtml(item.label)}</a><button class="nav-chevron-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}" aria-label="Open ${escAttr(item.label)} submenu"><span class="nav-chevron" aria-hidden="true">▾</span></button>`
+    : `<button class="nav-link nav-parent nav-parent-button${active}" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}">${escHtml(item.label)}<span class="nav-chevron" aria-hidden="true">▾</span></button>`;
+  return `<div class="nav-item-wrap">${trigger}<ul class="nav-dropdown" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></div>`;
+}
+
 const NAV: BlockType = {
   label: 'Navigation',
   icon: '\u{1F9ED}',
   dynamic: false,
   zoneHints: ['header'],
+  supportedSpans: ['1'],
   defaultConfig: {
     items: [
       { label: 'Home', href: '/', icon: 'home', public: true },
@@ -756,19 +847,9 @@ const NAV: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const items: any[] = cfg.items || [];
-    const visible = items.filter((item: any) => {
-      if (item.feature && ctx.isFeatureEnabled && !ctx.isFeatureEnabled(item.feature)) return false;
-      if (item.auth && !ctx.authenticated) return false;
-      if (item.admin && ctx.role !== 'admin') return false;
-      return true;
-    });
-    const links = visible
-      .map((item: any) => {
-        const active = isPageActive(item.href, ctx.currentPath) ? ' active' : '';
-        return `<a class="nav-link${active}" href="${escAttr(item.href)}">${escHtml(item.label)}</a>`;
-      })
-      .join('');
+    const items: NavItem[] = cfg.items || [];
+    const visible = items.filter((item) => navItemVisible(item, ctx));
+    const links = visible.map((item, i) => renderNavTopItem(item, ctx, i)).join('');
     const sid = section.id;
     const editAttrs = sid != null && ctx.admin
       ? ` data-block-id="${sid}" data-block-type="nav"`
@@ -785,6 +866,7 @@ const BRAND_HEADER: BlockType = {
   icon: '\u{1F3F7}️',
   dynamic: false,
   zoneHints: ['header'],
+  supportedSpans: ['1'],
   defaultConfig: {
     name: 'Kychon',
     logo_url: '',
@@ -806,12 +888,13 @@ const SIGN_IN_BAR: BlockType = {
   icon: '\u{1F511}',
   dynamic: true,
   zoneHints: ['header'],
+  supportedSpans: ['1'],
   defaultConfig: { show_lang_toggle: true, show_theme_toggle: true },
   render(_section, _ctx) {
     return `<div class="nav-user" id="nav-user" data-block-hydrate="sign_in_bar"></div>`;
   },
   async hydrate(el, _section, ctx) {
-    const { hydrateSignInBar } = await import('./block-hydrators');
+    const { hydrateSignInBar } = await import('./block-hydrators.js');
     await hydrateSignInBar(el, ctx);
   },
 };
@@ -823,6 +906,7 @@ const FOOTER_ADDRESS: BlockType = {
   icon: '\u{1F4CD}',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1', '1/2', '1/3'],
   defaultConfig: {
     name: '',
     address_lines: [],
@@ -859,6 +943,7 @@ const FOOTER_LINKS: BlockType = {
   icon: '\u{1F517}',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     columns: [
       { heading: 'About', items: [{ label: 'About Us', href: '/page.html?slug=about' }] },
@@ -891,6 +976,7 @@ const FOOTER_COPYRIGHT: BlockType = {
   icon: '©',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1'],
   defaultConfig: {
     year: 'auto',
     org_name: '',
@@ -920,6 +1006,7 @@ const FOOTER_SOCIAL: BlockType = {
   icon: '\u{1F30D}',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1', '1/3'],
   defaultConfig: { icons: [] },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -951,6 +1038,7 @@ const FOOTER_ATTRIBUTION: BlockType = {
   icon: '✨',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1'],
   defaultConfig: {
     text: 'Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)',
   },
@@ -972,6 +1060,7 @@ const CUSTOM: BlockType = {
   icon: '\u{1F9F1}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: { html: '<p>Custom HTML</p>' },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -982,6 +1071,8 @@ const CUSTOM: BlockType = {
 };
 
 // --- Registry ---
+
+import EMBED from './blocks/embed.js';
 
 export const BLOCK_TYPES: Record<string, BlockType> = {
   hero: HERO,
@@ -994,6 +1085,7 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   event_countdown: EVENT_COUNTDOWN,
   announcements_feed: ANNOUNCEMENTS_FEED,
   activity_feed: ACTIVITY_FEED,
+  embed: EMBED,
   custom: CUSTOM,
   nav: NAV,
   brand_header: BRAND_HEADER,
@@ -1005,6 +1097,31 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   footer_attribution: FOOTER_ATTRIBUTION,
 };
 
+const ALL_SPANS: ColumnSpan[] = ['1', '1/2', '1/3', '2/3'];
+
+/** column-span-rows: legal spans for a registered block type. */
+export function getSupportedSpans(type: string): ColumnSpan[] {
+  return BLOCK_TYPES[type]?.supportedSpans ?? ALL_SPANS;
+}
+
+/**
+ * column-span-rows: attach `data-column-span="<value>"` to the leading element
+ * of a rendered block. Single edit point so individual BlockType.render
+ * functions don't need to know about spans. The regex targets the first
+ * opening tag in the string, allowing leading whitespace.
+ *
+ * Defensive: if the rendered HTML doesn't start with a tag (string content,
+ * comment, etc.), the regex no-ops and the block renders without the
+ * attribute. CSS `[data-column-span="1"]` selectors fall through to the
+ * default full-width span via the universal CSS rules.
+ */
+export function applyColumnSpan(html: string, span: ColumnSpan): string {
+  return html.replace(
+    /^(\s*<[a-zA-Z][^>]*?)(\s*\/?\s*>)/,
+    `$1 data-column-span="${span}"$2`,
+  );
+}
+
 export function renderBlock(section: Section, ctx: BlockRenderContext): string {
   const type = BLOCK_TYPES[section.section_type];
   if (!type) {
@@ -1012,7 +1129,9 @@ export function renderBlock(section: Section, ctx: BlockRenderContext): string {
     return '';
   }
   if (section.visible === false) return '';
-  return type.render(section, ctx);
+  const html = type.render(section, ctx);
+  const span: ColumnSpan = section.column_span ?? '1';
+  return applyColumnSpan(html, span);
 }
 
 export function renderZone(sections: Section[], zone: 'header' | 'main' | 'footer', ctx: BlockRenderContext): string {

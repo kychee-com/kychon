@@ -1,5 +1,5 @@
 // poll-ui.ts — Shared poll rendering and creation functions
-import { del, get, patch, post } from './api';
+import { del, get, patch, post } from './api.js';
 
 function esc(s: string): string {
   const d = document.createElement('div');

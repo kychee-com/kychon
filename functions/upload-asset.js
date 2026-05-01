@@ -1,5 +1,5 @@
 // schedule: none (triggered by admin for asset upload/delete)
-import { db, getUser } from 'run402-functions';
+import { adminDb, getUser } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -8,7 +8,7 @@ export default async (req) => {
   }
 
   // Check admin role
-  const memberResult = await db.sql(`SELECT role FROM members WHERE user_id = '${user.id}' LIMIT 1`);
+  const memberResult = await adminDb().sql(`SELECT role FROM members WHERE user_id = '${user.id}' LIMIT 1`);
   if (!memberResult.rows?.length || memberResult.rows[0].role !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
   }
@@ -31,7 +31,7 @@ export default async (req) => {
 
     // Upload action
     const { file, path } = body;
-    if (!file || !file.data || !file.name || !path) {
+    if (!file?.data || !file.name || !path) {
       return new Response(JSON.stringify({ error: 'Missing file or path' }), { status: 400 });
     }
 

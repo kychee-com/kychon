@@ -180,6 +180,7 @@ export function applyTheme(theme: Record<string, string> | null): void {
   const map: Record<string, string> = {
     primary: '--color-primary',
     primary_hover: '--color-primary-hover',
+    accent: '--color-accent',
     bg: '--color-bg',
     surface: '--color-surface',
     text: '--color-text',

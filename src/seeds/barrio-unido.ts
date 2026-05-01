@@ -35,8 +35,8 @@ export const seed: ProjectSeed = {
         text: '#2D1810',
         text_muted: '#7A6B5E',
         border: '#D4C4B0',
-        font_heading: 'Playfair Display',
-        font_body: 'Source Sans 3',
+        font_heading: 'Merriweather',
+        font_body: 'Noto Sans',
         radius: '0.75rem',
         max_width: '72rem',
       },
@@ -210,9 +210,35 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'embed',
+      config: {
+        heading: 'Clima en Boyle Heights (Windy)',
+        provider: 'iframe',
+        params: {
+          // Windy embed for Boyle Heights, Los Angeles. Windy is iframe-
+          // friendly and renders fully under `allow-scripts allow-same-origin`.
+          // (Note: a "weather" verified provider exists too; using the
+          // generic iframe here keeps the trust-gate + "External content"
+          // pill flow visible for demo.)
+          src: 'https://embed.windy.com/embed2.html?lat=34.0334&lon=-118.2073&zoom=10&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1',
+        },
+        // Pre-acknowledged at seed time — this is the seed-level equivalent
+        // of an admin checking "I trust embed.windy.com" in the edit popover.
+        trust_acknowledged: true,
+        height: '480px',
+        responsive: false,
+      },
+      position: 5,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Avisos', limit: 20 },
-      position: 5,
+      position: 6,
+      // column-span-rows: avisos + actividad reciente side-by-side.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -220,7 +246,8 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { limit: 15 },
-      position: 6,
+      position: 7,
+      column_span: '1/3',
     },
     {
       page_slug: 'index',
@@ -233,9 +260,10 @@ export const seed: ProjectSeed = {
         cta_text: 'Hazte voluntario/a',
         cta_href: '/page.html?slug=nosotros',
       },
-      position: 7,
+      position: 8,
     },
     // --- Footer chrome (global) ---
+    // column-span-rows: address + copyright share a row in the footer.
     {
       page_slug: '*',
       zone: 'footer',
@@ -249,6 +277,7 @@ export const seed: ProjectSeed = {
         hours: 'Lun–Vie 9am–6pm · Sábados 10am–2pm',
       },
       position: 1,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
@@ -262,6 +291,7 @@ export const seed: ProjectSeed = {
         admin_contact_href: 'mailto:hola@barriounido.org',
       },
       position: 2,
+      column_span: '1/2',
     },
     {
       page_slug: '*',

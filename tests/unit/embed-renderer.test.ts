@@ -1,0 +1,166 @@
+import { describe, expect, it } from 'vitest';
+
+import EMBED from '../../src/lib/blocks/embed.ts';
+import type { BlockRenderContext, Section } from '../../src/lib/blocks.ts';
+
+const baseSection = (config: Record<string, unknown>): Section => ({
+  id: 1,
+  page_slug: 'home',
+  zone: 'main',
+  scope: 'page',
+  section_type: 'embed',
+  config,
+  position: 0,
+  visible: true,
+});
+
+const memberCtx: BlockRenderContext = { admin: false, locale: 'en' };
+const adminCtx: BlockRenderContext = { admin: true, locale: 'en' };
+
+describe('embed renderer — happy paths', () => {
+  it('renders a YouTube iframe with declared sandbox', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
+    expect(html).toContain('<iframe');
+    expect(html).toContain('src="https://www.youtube.com/embed/abcd1234"');
+    expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-presentation"');
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain('class="section block-embed block-embed--youtube"');
+    expect(html).toContain('data-provider="youtube"');
+  });
+
+  it('renders a heading when provided', () => {
+    const html = EMBED.render(
+      baseSection({
+        provider: 'youtube',
+        params: { video_id: 'abcd1234' },
+        heading: 'Watch our intro',
+      }),
+      memberCtx,
+    );
+    expect(html).toContain('<h2 class="block-embed__heading">Watch our intro</h2>');
+    expect(html).toContain('title="Watch our intro"');
+  });
+
+  it('uses provider label as iframe title when no heading', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
+    expect(html).toContain('title="YouTube video"');
+  });
+
+  it('applies aspect-ratio wrapper for responsive providers', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
+    expect(html).toContain('aspect-ratio:16/9');
+  });
+
+  it('uses fixed height for non-responsive providers', () => {
+    const html = EMBED.render(baseSection({ provider: 'calendly', params: { username: 'jane' } }), memberCtx);
+    expect(html).toContain('height:700px');
+    expect(html).not.toContain('aspect-ratio');
+  });
+
+  it('respects explicit config.height for non-responsive providers', () => {
+    const html = EMBED.render(
+      baseSection({ provider: 'map', params: { address: 'Times Square' }, height: '500px' }),
+      memberCtx,
+    );
+    expect(html).toContain('height:500px');
+  });
+});
+
+describe('embed renderer — trust gate (generic iframe)', () => {
+  it('refuses to emit iframe without trust_acknowledged', () => {
+    const html = EMBED.render(baseSection({ provider: 'iframe', params: { src: 'https://example.com' } }), adminCtx);
+    expect(html).toContain('block-embed--error');
+    expect(html).not.toContain('<iframe');
+    expect(html).toContain('trust acknowledgment');
+  });
+
+  it('renders iframe when trust_acknowledged is true', () => {
+    const html = EMBED.render(
+      baseSection({
+        provider: 'iframe',
+        params: { src: 'https://example.com/widget' },
+        trust_acknowledged: true,
+      }),
+      adminCtx,
+    );
+    expect(html).toContain('<iframe');
+    expect(html).toContain('src="https://example.com/widget"');
+  });
+
+  it('renders the External content pill for admins on iframe blocks', () => {
+    const html = EMBED.render(
+      baseSection({
+        provider: 'iframe',
+        params: { src: 'https://example.com' },
+        trust_acknowledged: true,
+      }),
+      adminCtx,
+    );
+    expect(html).toContain('External content');
+    expect(html).toContain('block-embed__pill');
+  });
+
+  it('does not render the pill for non-admins', () => {
+    const html = EMBED.render(
+      baseSection({
+        provider: 'iframe',
+        params: { src: 'https://example.com' },
+        trust_acknowledged: true,
+      }),
+      memberCtx,
+    );
+    expect(html).not.toContain('External content');
+  });
+
+  it('does not render the pill for verified providers (even for admins)', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), adminCtx);
+    expect(html).not.toContain('External content');
+  });
+});
+
+describe('embed renderer — error states', () => {
+  it('renders error placeholder for unknown provider', () => {
+    const html = EMBED.render(baseSection({ provider: 'doesnotexist', params: {} }), memberCtx);
+    expect(html).toContain('block-embed--error');
+    expect(html).toContain('Unknown provider');
+    expect(html).not.toContain('<iframe');
+  });
+
+  it('renders error placeholder when buildSrc throws', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: {} }), memberCtx);
+    expect(html).toContain('block-embed--error');
+    expect(html).toContain('Missing required param');
+    expect(html).not.toContain('<iframe');
+  });
+
+  it('renders error placeholder when no provider configured', () => {
+    const html = EMBED.render(baseSection({}), memberCtx);
+    expect(html).toContain('block-embed--error');
+    expect(html).toContain('No provider configured');
+  });
+
+  it('error placeholder still emits the section wrapper for admin controls', () => {
+    const html = EMBED.render(baseSection({ provider: 'unknown' }), adminCtx);
+    expect(html).toContain('admin-section-actions');
+    expect(html).toContain('data-section-remove');
+  });
+});
+
+describe('embed renderer — sandbox enforcement', () => {
+  it('uses exactly the provider sandbox tokens — never less, never more', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
+    const match = html.match(/sandbox="([^"]+)"/);
+    expect(match).not.toBeNull();
+    const tokens = match![1].split(/\s+/).sort();
+    expect(tokens).toEqual(['allow-presentation', 'allow-same-origin', 'allow-scripts']);
+  });
+
+  it('calendly emits popups+forms (booking flow), not presentation', () => {
+    const html = EMBED.render(baseSection({ provider: 'calendly', params: { username: 'jane' } }), memberCtx);
+    const tokens = html
+      .match(/sandbox="([^"]+)"/)![1]
+      .split(/\s+/)
+      .sort();
+    expect(tokens).toEqual(['allow-forms', 'allow-popups', 'allow-same-origin', 'allow-scripts']);
+  });
+});

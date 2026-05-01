@@ -243,17 +243,20 @@ describe('hero renderer — foreground mode', () => {
 });
 
 describe('hero renderer — admin attributes', () => {
-  it('emits a hero settings button when admin', () => {
+  it('emits the generic section-edit button when admin (background mode)', () => {
     const html = renderBlock(heroSection({ heading: 'h', subheading: 's' }), { ...baseCtx, admin: true });
-    expect(html).toContain('data-hero-edit="1"');
+    // Hero blocks use the generic data-section-edit button (column-span-rows
+    // unified popover); the popover surfaces a "Hero settings…" link that
+    // opens the hero-specific mode/foreground editor.
+    expect(html).toContain('data-section-edit="1"');
   });
 
-  it('foreground mode also emits the hero settings button for admins', () => {
+  it('foreground mode also emits the generic section-edit button for admins', () => {
     const html = renderBlock(heroSection({ mode: 'foreground', image_url: '/x.png', image_alt: 'x' }), {
       ...baseCtx,
       admin: true,
     });
-    expect(html).toContain('data-hero-edit="1"');
+    expect(html).toContain('data-section-edit="1"');
   });
 });
 

@@ -44,8 +44,15 @@ function isEntry(v: unknown): v is SiteConfigEntry {
   );
 }
 
+// Keys whose value is owned by the seed and should track upstream changes
+// across redeploys. Listed here to avoid surprising operators: most
+// site_config rows preserve admin edits via ON CONFLICT DO NOTHING; entries
+// in this set use DO UPDATE so the typed seed remains source-of-truth.
+const SEED_OWNED_KEYS = new Set(['theme']);
+
 function emitSiteConfig(siteConfig: Record<string, unknown>): string {
-  const rows: string[] = [];
+  const preserveRows: string[] = [];
+  const upsertRows: string[] = [];
   for (const [key, raw] of Object.entries(siteConfig)) {
     if (key === 'nav') {
       throw new Error(
@@ -60,18 +67,28 @@ function emitSiteConfig(siteConfig: Record<string, unknown>): string {
     } else {
       value = raw;
     }
-    rows.push(
-      `  ('${escSql(key)}', ${jsonbLiteral(value)}, '${escSql(category)}')`,
-    );
+    const row = `  ('${escSql(key)}', ${jsonbLiteral(value)}, '${escSql(category)}')`;
+    (SEED_OWNED_KEYS.has(key) ? upsertRows : preserveRows).push(row);
   }
-  if (rows.length === 0) return '';
-  return [
-    '-- site_config',
-    `INSERT INTO site_config (key, value, category) VALUES`,
-    rows.join(',\n'),
-    `ON CONFLICT (key) DO NOTHING;`,
-    '',
-  ].join('\n');
+  const blocks: string[] = [];
+  if (preserveRows.length > 0) {
+    blocks.push([
+      '-- site_config (admin edits preserved)',
+      `INSERT INTO site_config (key, value, category) VALUES`,
+      preserveRows.join(',\n'),
+      `ON CONFLICT (key) DO NOTHING;`,
+    ].join('\n'));
+  }
+  if (upsertRows.length > 0) {
+    blocks.push([
+      '-- site_config (seed-owned: theme updates flow on every deploy)',
+      `INSERT INTO site_config (key, value, category) VALUES`,
+      upsertRows.join(',\n'),
+      `ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;`,
+    ].join('\n'));
+  }
+  if (blocks.length === 0) return '';
+  return blocks.join('\n\n') + '\n';
 }
 
 function emitTiers(tiers: TierSeed[]): string {
@@ -148,17 +165,32 @@ function emitSections(sections: SeedSection[]): string {
     '-- sections (chrome + main blocks).',
     "-- Idempotent on (page_slug, zone, scope, section_type, position).",
   ];
+  const spanUpdates: string[] = [];
   for (const s of sections) {
     const visible = s.visible !== false ? 'true' : 'false';
+    const span = s.column_span ?? '1';
     out.push(
-      `INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)`,
+      `INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)`,
     );
     out.push(
-      `SELECT '${escSql(s.page_slug)}', '${escSql(s.zone)}', '${escSql(s.scope)}', '${escSql(s.section_type)}', ${jsonbLiteral(s.config)}, ${s.position}, ${visible}`,
+      `SELECT '${escSql(s.page_slug)}', '${escSql(s.zone)}', '${escSql(s.scope)}', '${escSql(s.section_type)}', ${jsonbLiteral(s.config)}, ${s.position}, ${visible}, '${escSql(span)}'`,
     );
     out.push(
       `WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '${escSql(s.page_slug)}' AND zone = '${escSql(s.zone)}' AND scope = '${escSql(s.scope)}' AND section_type = '${escSql(s.section_type)}' AND position = ${s.position});`,
     );
+    // column-span-rows: re-assert the seed's span on existing rows (the
+    // INSERT…WHERE NOT EXISTS skips rows that already exist, so without an
+    // UPDATE pass a span change in the seed wouldn't propagate to deployed DBs).
+    // Skip the default — fresh inserts already carry '1'.
+    if (span !== '1') {
+      spanUpdates.push(
+        `UPDATE sections SET column_span = '${escSql(span)}' WHERE page_slug = '${escSql(s.page_slug)}' AND zone = '${escSql(s.zone)}' AND scope = '${escSql(s.scope)}' AND section_type = '${escSql(s.section_type)}' AND position = ${s.position};`,
+      );
+    }
+  }
+  if (spanUpdates.length) {
+    out.push('-- column-span-rows: re-assert spans on rows that pre-existed the seed change.');
+    out.push(...spanUpdates);
   }
   out.push('');
   return out.join('\n');

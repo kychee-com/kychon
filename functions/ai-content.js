@@ -1,6 +1,6 @@
 // AI content generation — newsletter drafts + event recaps
 // prototype-schedule: "0 9 * * 1" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { db } from 'run402-functions';
+import { adminDb } from '@run402/functions';
 
 export default async (req) => {
   // Route: if request has event_id body, handle recap; otherwise handle newsletter
@@ -18,7 +18,7 @@ export default async (req) => {
 // --- Newsletter ---
 
 async function handleNewsletter() {
-  const flag = await db.from('site_config').select('value').eq('key', 'feature_ai_newsletter').limit(1);
+  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_newsletter').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_newsletter disabled' }));
   }
@@ -43,7 +43,7 @@ async function handleNewsletter() {
   try {
     const newsletter = await generateNewsletter(provider, siteName, activity);
 
-    await db.from('newsletter_drafts').insert({
+    await adminDb().from('newsletter_drafts').insert({
       subject: newsletter.subject,
       body: newsletter.body,
       status: 'draft',
@@ -60,7 +60,7 @@ async function handleNewsletter() {
 
 async function gatherWeeklyActivity(since) {
   const [newMembers, upcomingEvents, announcements, topForumPosts, newResources] = await Promise.all([
-    db.from('members').select('display_name').gte('joined_at', since).eq('status', 'active'),
+    adminDb().from('members').select('display_name').gte('joined_at', since).eq('status', 'active'),
     db
       .from('events')
       .select('title,starts_at,location')
@@ -79,7 +79,7 @@ async function gatherWeeklyActivity(since) {
       .gte('created_at', since)
       .order('reply_count', { ascending: false })
       .limit(5),
-    db.from('resources').select('title,category').gte('created_at', since).limit(5),
+    adminDb().from('resources').select('title,category').gte('created_at', since).limit(5),
   ]);
 
   const hasContent =
@@ -142,7 +142,7 @@ ${sections.join('\n\n')}`;
 // --- Event Recap ---
 
 async function handleRecap(eventId) {
-  const flag = await db.from('site_config').select('value').eq('key', 'feature_ai_event_recaps').limit(1);
+  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_event_recaps').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
     return new Response(JSON.stringify({ error: 'feature_ai_event_recaps disabled' }), { status: 403 });
   }
@@ -151,7 +151,10 @@ async function handleRecap(eventId) {
     return new Response(JSON.stringify({ error: 'AI_API_KEY not set' }), { status: 500 });
   }
 
-  const events = await db.from('events').select('id,title,description,starts_at,ends_at,location').eq('id', eventId);
+  const events = await adminDb()
+    .from('events')
+    .select('id,title,description,starts_at,ends_at,location')
+    .eq('id', eventId);
   if (!events.length) {
     return new Response(JSON.stringify({ error: 'Event not found' }), { status: 404 });
   }
@@ -162,7 +165,7 @@ async function handleRecap(eventId) {
     return new Response(JSON.stringify({ error: 'Event has not ended yet' }), { status: 400 });
   }
 
-  const rsvps = await db.from('event_rsvps').select('id').eq('event_id', eventId).eq('status', 'going');
+  const rsvps = await adminDb().from('event_rsvps').select('id').eq('event_id', eventId).eq('status', 'going');
   const attendeeCount = rsvps.length;
   const siteName = await getSiteName();
   const provider = process.env.AI_PROVIDER || 'openai';
@@ -190,7 +193,7 @@ Description: ${(event.description || '').substring(0, 500)}`;
       body: parsed.body || `<p>Thanks to everyone who attended ${event.title}!</p>`,
     };
 
-    await db.from('announcements').insert({
+    await adminDb().from('announcements').insert({
       title: recap.title,
       body: recap.body,
       is_pinned: false,
@@ -206,7 +209,7 @@ Description: ${(event.description || '').substring(0, 500)}`;
 // --- Shared helpers ---
 
 async function getSiteName() {
-  const nameRow = await db.from('site_config').select('value').eq('key', 'site_name').limit(1);
+  const nameRow = await adminDb().from('site_config').select('value').eq('key', 'site_name').limit(1);
   return nameRow.length ? JSON.parse(JSON.stringify(nameRow[0].value)).replace(/^"|"$/g, '') : 'Our Community';
 }
 

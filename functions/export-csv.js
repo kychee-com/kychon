@@ -1,5 +1,5 @@
 // schedule: none (triggered manually from admin UI)
-import { db, getUser } from 'run402-functions';
+import { adminDb, getUser } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -13,7 +13,7 @@ export default async (req) => {
   let csv = '';
 
   if (type === 'members') {
-    const result = await db.sql(`
+    const result = await adminDb().sql(`
       SELECT m.display_name, m.email, m.status, m.role, t.name as tier, m.joined_at, m.custom_fields
       FROM members m
       LEFT JOIN membership_tiers t ON t.id = m.tier_id
@@ -33,7 +33,7 @@ export default async (req) => {
       )
       .join('\n');
   } else if (type === 'events') {
-    const result = await db.sql(`
+    const result = await adminDb().sql(`
       SELECT e.title, e.starts_at, e.ends_at, e.location, e.capacity,
         (SELECT count(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going') as rsvp_count
       FROM events e

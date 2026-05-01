@@ -1,5 +1,5 @@
 // schedule: none (triggered by client on resource upload)
-import { db, getUser } from 'run402-functions';
+import { adminDb, getUser } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -11,7 +11,7 @@ export default async (req) => {
     const body = await req.json();
     const { file, metadata = {} } = body || {};
 
-    if (!file || !file.data || !file.name) {
+    if (!file?.data || !file.name) {
       return new Response(JSON.stringify({ error: 'No file provided' }), { status: 400 });
     }
 
@@ -40,15 +40,17 @@ export default async (req) => {
     const fileUrl = uploadResult.url || `/storage/${path}`;
 
     // Insert resource row
-    const created = await db.from('resources').insert({
-      title: metadata.title || file.name,
-      description: metadata.description || null,
-      category: metadata.category || null,
-      file_url: fileUrl,
-      file_type: metadata.file_type || 'pdf',
-      is_members_only: metadata.is_members_only !== false,
-      uploaded_by: metadata.uploaded_by || null,
-    });
+    const created = await adminDb()
+      .from('resources')
+      .insert({
+        title: metadata.title || file.name,
+        description: metadata.description || null,
+        category: metadata.category || null,
+        file_url: fileUrl,
+        file_type: metadata.file_type || 'pdf',
+        is_members_only: metadata.is_members_only !== false,
+        uploaded_by: metadata.uploaded_by || null,
+      });
 
     return new Response(JSON.stringify({ status: 'ok', resource: created[0] }));
   } catch (e) {
