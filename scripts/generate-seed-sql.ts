@@ -173,6 +173,20 @@ function emitPages(pages: PageSeed[]): string {
 
 function emitSections(sections: SeedSection[]): string {
   if (!sections.length) return '';
+  // promo_cards lint: warn (non-fatal) on empty image_alt for any item.
+  for (const s of sections) {
+    if (s.section_type !== 'promo_cards') continue;
+    const cfg = s.config as Record<string, unknown> | undefined;
+    const items = Array.isArray(cfg?.items) ? (cfg!.items as Array<Record<string, unknown>>) : [];
+    items.forEach((item, i) => {
+      const alt = typeof item?.image_alt === 'string' ? item.image_alt.trim() : '';
+      if (!alt) {
+        process.stderr.write(
+          `[generate-seed-sql] WARN promo_cards on page='${s.page_slug}' zone='${s.zone}' position=${s.position} item ${i} has empty image_alt\n`,
+        );
+      }
+    });
+  }
   const out = [
     '-- sections (chrome + main blocks).',
     "-- Idempotent on (page_slug, zone, scope, section_type, position).",

@@ -4,6 +4,7 @@ const SILVER_PINES_NAV = [
   { label: 'Home', href: '/', icon: 'home', public: true },
   { label: 'Daily Schedule', href: '/page.html?slug=daily-schedule', icon: 'calendar', public: true },
   { label: 'Getting Here', href: '/page.html?slug=getting-here', icon: 'map', public: true },
+  { label: 'Block Showcase', href: '/page.html?slug=showcase', icon: 'star', public: true },
   { label: 'Our Members', href: '/directory.html', icon: 'users', public: true },
   { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
   {
@@ -127,6 +128,7 @@ export const seed: ProjectSeed = {
   pages: [
     { slug: 'getting-here', title: 'Getting Here', published: true },
     { slug: 'daily-schedule', title: 'Daily Schedule', published: true },
+    { slug: 'showcase', title: 'Block Showcase', published: true },
   ],
   sections: [
     // --- Header chrome (global) ---
@@ -170,6 +172,181 @@ export const seed: ProjectSeed = {
       section_type: 'custom',
       config: { html: DAILY_SCHEDULE_HTML },
       position: 1,
+    },
+    // --- Showcase page: every block-types-catalog entry on one page ---
+    // page-scoped header chrome — page_banner appears only on this page.
+    {
+      page_slug: 'showcase',
+      zone: 'header',
+      scope: 'page',
+      section_type: 'page_banner',
+      config: {
+        image_url: '/assets/hero.jpg',
+        image_alt: 'Silver Pines members gathered in the main hall',
+        caption_html: 'A tour of every <strong>block type</strong> &mdash; live on Silver Pines',
+        height: 'medium',
+        overlay_color: 'rgba(20, 30, 20, 0.4)',
+      },
+      position: 10,
+    },
+    // 1. Tagline strip — opens the tour with a heritage-style band.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'tagline_strip',
+      config: {
+        text: 'Every block on this page is a row in the sections table',
+        color_scheme: 'primary',
+        size: 'large',
+        alignment: 'center',
+      },
+      position: 1,
+    },
+    // 2. Promo cards — 3-up grid showcasing program tracks.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'promo_cards',
+      config: {
+        heading: 'Promo cards',
+        columns: 3,
+        items: [
+          {
+            image_url: '/assets/event-tai-chi.jpg',
+            image_alt: 'Members practicing tai chi in the studio',
+            title: 'Wellness',
+            title_position: 'top',
+            cta_text: 'See the schedule',
+            cta_href: '/page.html?slug=daily-schedule',
+          },
+          {
+            image_url: '/assets/event-craft-fair.jpg',
+            image_alt: 'Members at the annual craft fair',
+            title: 'Events',
+            title_position: 'top',
+            cta_text: 'View calendar',
+            cta_href: '/events.html',
+          },
+          {
+            image_url: '/assets/committee-garden.jpg',
+            image_alt: 'Members tending the community garden',
+            title: 'Volunteer',
+            title_position: 'top',
+            cta_text: 'Join a committee',
+            cta_href: '/committees.html',
+          },
+        ],
+      },
+      position: 2,
+    },
+    // 3. Slideshow — auto-rotating gallery with keyboard + reduced-motion support.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'slideshow',
+      config: {
+        heading: 'Slideshow',
+        items: [
+          { src: '/assets/event-tai-chi.jpg', alt: 'Tai chi class', caption: 'Tai chi every Tuesday & Thursday', href: '' },
+          { src: '/assets/event-watercolor.jpg', alt: 'Watercolor class', caption: 'Watercolor with Margaret', href: '' },
+          { src: '/assets/event-craft-fair.jpg', alt: 'Craft fair', caption: 'Annual craft fair', href: '' },
+          { src: '/assets/event-potluck.jpg', alt: 'Friday potluck', caption: 'Friday potluck nights', href: '' },
+        ],
+        auto_rotate_seconds: 4,
+        show_arrows: true,
+        show_dots: true,
+        aspect_ratio: '16/9',
+        fit: 'cover',
+        transition: 'fade',
+      },
+      position: 3,
+    },
+    // 4. Events list (sidebar layout) — dynamic; pulls from events table.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'events_list',
+      config: {
+        heading: 'Events list — sidebar layout',
+        count: 4,
+        filter: 'upcoming',
+        layout: 'sidebar',
+        show_image: false,
+        show_location: true,
+        show_time: true,
+        color_scheme: 'primary',
+      },
+      position: 4,
+    },
+    // 5. Events list (grid layout) — same data, different layout.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'events_list',
+      config: {
+        heading: 'Events list — grid layout',
+        count: 6,
+        filter: 'upcoming',
+        layout: 'grid',
+        show_image: false,
+        show_location: true,
+        show_time: true,
+        color_scheme: 'primary',
+      },
+      position: 5,
+    },
+    // 6. Link list (manual mode, rows layout).
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'link_list',
+      config: {
+        heading: 'Link list — manual, rows',
+        source: 'manual',
+        layout: 'rows',
+        items: [
+          { label: 'Volunteer driver sign-up', href: '/resources.html', date: '2026-04-22', badge: 'NEW' },
+          { label: 'Spring potluck menu', href: '/resources.html', date: '2026-04-18' },
+          { label: 'Medicare Basics (PDF)', href: '/assets/medicare-guide.pdf', date: '2026-04-10', badge: 'PDF' },
+          { label: 'About this site', href: 'https://kychon.com', date: '2026-04-01', external: true },
+        ],
+      },
+      position: 6,
+    },
+    // 7. Link list (resources mode, bullets layout).
+    // Auto-updates from the resources table where category='Health'.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'link_list',
+      config: {
+        heading: 'Link list — resources mode (Health category)',
+        source: 'resources',
+        layout: 'bullets',
+        filter: { category: 'Health', limit: 5, order: 'newest' },
+      },
+      position: 7,
+    },
+    // 8. Tagline strip — different scheme for visual contrast.
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'tagline_strip',
+      config: {
+        text: 'Add, edit, and reorder any of these blocks via the admin overlay',
+        color_scheme: 'dark',
+        size: 'medium',
+        alignment: 'center',
+      },
+      position: 8,
     },
     // --- Homepage main ---
     {
@@ -248,9 +425,76 @@ export const seed: ProjectSeed = {
       page_slug: 'index',
       zone: 'main',
       scope: 'page',
+      section_type: 'tagline_strip',
+      config: {
+        text: 'Welcoming Asheville since 2017 — drop in any weekday',
+        color_scheme: 'primary',
+        size: 'medium',
+        alignment: 'center',
+      },
+      position: 6,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'promo_cards',
+      config: {
+        heading: 'Find your fit',
+        columns: 3,
+        items: [
+          {
+            image_url: '/assets/event-tai-chi.jpg',
+            image_alt: 'Members practicing tai chi in the studio',
+            title: 'Classes & Wellness',
+            title_position: 'top',
+            cta_text: 'See the schedule',
+            cta_href: '/page.html?slug=daily-schedule',
+          },
+          {
+            image_url: '/assets/event-craft-fair.jpg',
+            image_alt: 'Members at the craft fair sharing handmade goods',
+            title: 'Events & Activities',
+            title_position: 'top',
+            cta_text: 'View upcoming events',
+            cta_href: '/events.html',
+          },
+          {
+            image_url: '/assets/committee-garden.jpg',
+            image_alt: 'Members tending the community garden',
+            title: 'Volunteer & Lead',
+            title_position: 'top',
+            cta_text: 'Join a committee',
+            cta_href: '/committees.html',
+          },
+        ],
+      },
+      position: 7,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'events_list',
+      config: {
+        heading: 'Upcoming events',
+        count: 4,
+        filter: 'upcoming',
+        layout: 'sidebar',
+        show_image: false,
+        show_location: true,
+        show_time: true,
+        color_scheme: 'primary',
+      },
+      position: 8,
+    },
+    {
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
-      position: 6,
+      position: 9,
       // column-span-rows: announcements + recent activity side-by-side.
       column_span: '2/3',
     },
@@ -260,7 +504,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'activity_feed',
       config: { limit: 15 },
-      position: 7,
+      position: 10,
       column_span: '1/3',
     },
     {
@@ -274,7 +518,7 @@ export const seed: ProjectSeed = {
         cta_text: 'How to Get Here',
         cta_href: '/page.html?slug=getting-here',
       },
-      position: 8,
+      position: 11,
     },
     // --- Footer chrome (global) ---
     // column-span-rows: address + copyright share a row.

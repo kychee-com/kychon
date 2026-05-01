@@ -59,14 +59,18 @@ const seedAsSections = seed.sections as unknown as Section[];
 
 const cspValue = buildCspValue();
 
+// Bake only global-scoped chrome — page-scoped header/footer blocks
+// (e.g. page_banner) belong to a single page and would otherwise leak into
+// the static HTML of every other page until the runtime hydrate corrects
+// them. Page-scoped chrome paints in the first hydrate frame instead.
 const headerHtml = seedAsSections
-  .filter((s) => s.zone === 'header' && s.visible !== false)
+  .filter((s) => s.zone === 'header' && s.scope === 'global' && s.visible !== false)
   .sort((a, b) => a.position - b.position)
   .map((s) => renderBlock(s, bakeCtx))
   .join('');
 
 const footerHtml = seedAsSections
-  .filter((s) => s.zone === 'footer' && s.visible !== false)
+  .filter((s) => s.zone === 'footer' && s.scope === 'global' && s.visible !== false)
   .sort((a, b) => a.position - b.position)
   .map((s) => renderBlock(s, bakeCtx))
   .join('');
