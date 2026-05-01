@@ -10,17 +10,13 @@ import Portal from '../layouts/Portal.astro';
 </Portal>
 
 <script>
-  import { hydratePage, currentPageSlug } from '../lib/page-render';
   import { preloadHeroImage } from '../lib/config';
 
-  async function boot() {
+  function boot() {
     preloadHeroImage();
     document.getElementById('sections-skeleton')?.remove();
-    await hydratePage(currentPageSlug());
   }
 
   boot();
   document.addEventListener('astro:after-swap', boot);
-  document.addEventListener('wl-locale-changed', boot);
-  document.addEventListener('wl-auth-changed', boot);
 </script>

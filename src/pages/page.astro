@@ -13,7 +13,6 @@ import Portal from '../layouts/Portal.astro';
   import { get } from '../lib/api';
   import { isAdmin, isAuthenticated } from '../lib/auth';
   import { translateItems } from '../lib/config';
-  import { hydratePage } from '../lib/page-render';
 
   async function initPage() {
     const titleEl = document.getElementById('page-title');
@@ -62,8 +61,6 @@ import Portal from '../layouts/Portal.astro';
       titleEl.textContent = 'Error loading page';
       return;
     }
-
-    await hydratePage(slug);
   }
 
   initPage();

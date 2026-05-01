@@ -257,6 +257,15 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
     document.addEventListener('wl-content-rendered', bind);
   </script>
 
+  <script>
+    import { hydratePage, currentPageSlug } from '../lib/page-render';
+    function hydrateChrome() { void hydratePage(currentPageSlug()); }
+    hydrateChrome();
+    document.addEventListener('astro:after-swap', hydrateChrome);
+    document.addEventListener('wl-locale-changed', hydrateChrome);
+    document.addEventListener('wl-auth-changed', hydrateChrome);
+  </script>
+
   <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>
