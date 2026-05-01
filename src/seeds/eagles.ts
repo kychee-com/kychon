@@ -258,7 +258,7 @@ export const seed: ProjectSeed = {
       scope: 'page',
       section_type: 'features',
       config: {
-        columns: 3,
+        columns: 1,
         items: [
           {
             icon: 'heart',
@@ -278,6 +278,9 @@ export const seed: ProjectSeed = {
         ],
       },
       position: 2,
+      // column-span-rows: features card stack on the left at 2/3
+      // shares a row with the stats badges on the right at 1/3.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -286,12 +289,13 @@ export const seed: ProjectSeed = {
       section_type: 'stats',
       config: {
         items: [
-          { value: '12 Years', label: 'Serving Wichita' },
+          { value: '12', label: 'Years Serving Wichita' },
           { value: '5,000+', label: 'Neighbors Helped' },
           { value: '15,000+', label: 'Volunteer Hours' },
         ],
       },
       position: 3,
+      column_span: '1/3',
     },
     {
       page_slug: 'index',
@@ -313,6 +317,9 @@ export const seed: ProjectSeed = {
       section_type: 'announcements_feed',
       config: { heading: 'Announcements', limit: 20 },
       position: 5,
+      // column-span-rows: pair the announcements feed with the activity feed
+      // sidebar — news on the left at 2/3, recent activity on the right at 1/3.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -321,8 +328,11 @@ export const seed: ProjectSeed = {
       section_type: 'activity_feed',
       config: { heading: 'Recent Activity', limit: 15 },
       position: 6,
+      column_span: '1/3',
     },
     // --- Footer chrome (global) ---
+    // column-span-rows: address + copyright share a row at half width;
+    // attribution sits below at full width.
     {
       page_slug: '*',
       zone: 'footer',
@@ -336,6 +346,7 @@ export const seed: ProjectSeed = {
         hours: 'Office: Tue–Sat, 9am–5pm',
       },
       position: 1,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
@@ -349,6 +360,7 @@ export const seed: ProjectSeed = {
         admin_contact_href: 'mailto:volunteer@eagleswichita.org',
       },
       position: 2,
+      column_span: '1/2',
     },
     {
       page_slug: '*',

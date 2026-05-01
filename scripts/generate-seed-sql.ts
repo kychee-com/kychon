@@ -165,17 +165,32 @@ function emitSections(sections: SeedSection[]): string {
     '-- sections (chrome + main blocks).',
     "-- Idempotent on (page_slug, zone, scope, section_type, position).",
   ];
+  const spanUpdates: string[] = [];
   for (const s of sections) {
     const visible = s.visible !== false ? 'true' : 'false';
+    const span = s.column_span ?? '1';
     out.push(
-      `INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible)`,
+      `INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)`,
     );
     out.push(
-      `SELECT '${escSql(s.page_slug)}', '${escSql(s.zone)}', '${escSql(s.scope)}', '${escSql(s.section_type)}', ${jsonbLiteral(s.config)}, ${s.position}, ${visible}`,
+      `SELECT '${escSql(s.page_slug)}', '${escSql(s.zone)}', '${escSql(s.scope)}', '${escSql(s.section_type)}', ${jsonbLiteral(s.config)}, ${s.position}, ${visible}, '${escSql(span)}'`,
     );
     out.push(
       `WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '${escSql(s.page_slug)}' AND zone = '${escSql(s.zone)}' AND scope = '${escSql(s.scope)}' AND section_type = '${escSql(s.section_type)}' AND position = ${s.position});`,
     );
+    // column-span-rows: re-assert the seed's span on existing rows (the
+    // INSERT…WHERE NOT EXISTS skips rows that already exist, so without an
+    // UPDATE pass a span change in the seed wouldn't propagate to deployed DBs).
+    // Skip the default — fresh inserts already carry '1'.
+    if (span !== '1') {
+      spanUpdates.push(
+        `UPDATE sections SET column_span = '${escSql(span)}' WHERE page_slug = '${escSql(s.page_slug)}' AND zone = '${escSql(s.zone)}' AND scope = '${escSql(s.scope)}' AND section_type = '${escSql(s.section_type)}' AND position = ${s.position};`,
+      );
+    }
+  }
+  if (spanUpdates.length) {
+    out.push('-- column-span-rows: re-assert spans on rows that pre-existed the seed change.');
+    out.push(...spanUpdates);
   }
   out.push('');
   return out.join('\n');

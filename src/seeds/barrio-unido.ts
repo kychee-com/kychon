@@ -213,6 +213,8 @@ export const seed: ProjectSeed = {
       section_type: 'announcements_feed',
       config: { heading: 'Avisos', limit: 20 },
       position: 5,
+      // column-span-rows: avisos + actividad reciente side-by-side.
+      column_span: '2/3',
     },
     {
       page_slug: 'index',
@@ -221,6 +223,7 @@ export const seed: ProjectSeed = {
       section_type: 'activity_feed',
       config: { limit: 15 },
       position: 6,
+      column_span: '1/3',
     },
     {
       page_slug: 'index',
@@ -236,6 +239,7 @@ export const seed: ProjectSeed = {
       position: 7,
     },
     // --- Footer chrome (global) ---
+    // column-span-rows: address + copyright share a row in the footer.
     {
       page_slug: '*',
       zone: 'footer',
@@ -249,6 +253,7 @@ export const seed: ProjectSeed = {
         hours: 'Lun–Vie 9am–6pm · Sábados 10am–2pm',
       },
       position: 1,
+      column_span: '1/2',
     },
     {
       page_slug: '*',
@@ -262,6 +267,7 @@ export const seed: ProjectSeed = {
         admin_contact_href: 'mailto:hola@barriounido.org',
       },
       position: 2,
+      column_span: '1/2',
     },
     {
       page_slug: '*',

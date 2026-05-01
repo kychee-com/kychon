@@ -43,6 +43,7 @@ Every visible block on every page — including chrome (`zone='header'`, `zone='
 - **Runtime hydrate** — `src/lib/page-render.ts:hydratePage(slug)` runs on every page load. It reads cached sections from `localStorage` (`wl_cache_sections_{slug}`), renders into zones, then fetches fresh from PostgREST in one query (`?or=(and(page_slug.eq.{slug},scope.eq.page),scope.eq.global,page_slug.eq.*)`), updates if different, and runs each block's hydrator.
 - **Cross-zone drag** — `AdminEditor.astro` has document-level drag handlers. Drop into a different zone PATCHes both `zone` and `position`. Empty zones show a "Drop here" placeholder during admin drag. Cross-zone-into-chrome shows a transient promotion tooltip offering `Make global`.
 - **Scope toggle** — `scope` is an explicit, drag-independent property. The admin section toolbar shows a `GLOBAL` pill when `scope='global'` plus a `Make global` / `Make page-only` toggle.
+- **Column span** — each `sections` row carries `column_span` (`'1' | '1/2' | '1/3' | '2/3'`). The main and footer zone hosts (`#sections`, `[data-zone="footer"] > .container`) render as a 6-column CSS Grid (`public/css/zone-grid.css`); `renderBlock` post-processes the leading tag of every block with `data-column-span`. On tablet (≤900px) the grid drops to 4 cols and thirds collapse to full; on mobile (≤600px) every block stacks. Each `BlockType.supportedSpans` constrains the popover's span radio. The header zone keeps its existing flex layout — chrome is naturally horizontal.
 
 ### i18n (Krello Pattern)
 

@@ -3,6 +3,9 @@
 // strings. Dynamic blocks emit a skeleton at bake time and a per-type
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
+/** column-span-rows: legal fractions of a 6-col zone grid. */
+export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
+
 export interface Section {
   id?: number;
   page_slug: string;
@@ -12,6 +15,8 @@ export interface Section {
   config: Record<string, any>;
   position: number;
   visible?: boolean;
+  /** column-span-rows: width inside the 6-col zone grid (default `'1'`). */
+  column_span?: ColumnSpan;
 }
 
 export interface BlockRenderContext {
@@ -34,6 +39,8 @@ export interface BlockType {
   icon: string;
   dynamic: boolean;
   zoneHints?: ('header' | 'main' | 'footer')[];
+  /** column-span-rows: spans this block accepts; omit for "all four". */
+  supportedSpans?: ColumnSpan[];
 }
 
 // --- Helpers ---
@@ -87,6 +94,15 @@ function adminScopeControls(section: Section, ctx: BlockRenderContext): string {
   return `${pill}<button class="admin-scope-toggle" data-scope-toggle="${sid}" data-scope-next="${toggleNext}" title="${toggleLabel}">${toggleLabel}</button>`;
 }
 
+// column-span-rows: cog button that opens the per-block edit popover (span
+// radio + scope toggle + remove). Rendered alongside the existing inline
+// scope toggle / remove for back-compat — the popover is the primary
+// surface but the inline buttons keep working.
+function adminEditButton(section: Section, ctx: BlockRenderContext): string {
+  if (!ctx.admin || section.id == null) return '';
+  return `<button class="admin-section-edit-btn" data-section-edit="${section.id}" title="Edit block">⚙</button>`;
+}
+
 function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, classes = 'section'): string {
   const sid = section.id;
   const sortable = sid != null
@@ -98,7 +114,7 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
     ? ` data-editable-config="${jsonAttr(section.config || {})}"`
     : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions">${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
     : '';
   return `<section class="${classes}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${adminCtrls}${inner}</section>`;
 }
@@ -175,6 +191,7 @@ const HERO: BlockType = {
   icon: '\u{1F3DE}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1'],
   defaultConfig: {
     heading: 'New Hero',
     subheading: 'Add your subheading here',
@@ -196,7 +213,7 @@ const HERO: BlockType = {
     const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
     const styleAttr = cfg.bg_image ? ` style="background-image:url(${escAttr(cfg.bg_image)})"` : '';
     const adminCtrls = sid != null && ctx.admin
-      ? `<div class="admin-section-actions"><button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+      ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
       : '';
     return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${adminCtrls}${inner}</section>`;
   },
@@ -207,6 +224,7 @@ const FEATURES: BlockType = {
   icon: '✨',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     columns: 3,
     items: [{ icon: 'home', title: 'Feature 1', desc: 'Description' }],
@@ -234,6 +252,7 @@ const CTA: BlockType = {
   icon: '\u{1F4E2}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1'],
   defaultConfig: {
     heading: 'Ready to join?',
     text: 'Get started today.',
@@ -259,6 +278,7 @@ const STATS: BlockType = {
   icon: '\u{1F4CA}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     items: [
       { value: '0', label: 'Stat 1' },
@@ -290,6 +310,7 @@ const TESTIMONIALS: BlockType = {
   icon: '\u{1F4AC}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     items: [{ quote: 'Great community!', name: 'Member', role: '' }],
   },
@@ -310,6 +331,7 @@ const FAQ: BlockType = {
   icon: '❓',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2'],
   defaultConfig: {
     items: [{ q: 'Question?', a: 'Answer here.' }],
   },
@@ -330,6 +352,7 @@ const POLLS: BlockType = {
   icon: '\u{1F4CA}',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2'],
   defaultConfig: { heading: '', poll_ids: [] },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -385,6 +408,7 @@ const EVENT_COUNTDOWN: BlockType = {
   icon: '⏱️',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/3', '1/2'],
   defaultConfig: { heading: 'Next Event' },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -436,6 +460,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
   icon: '\u{1F4E3}',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '2/3'],
   defaultConfig: { heading: 'Announcements', limit: 20 },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -460,6 +485,7 @@ const ACTIVITY_FEED: BlockType = {
   icon: '\u{1F4DD}',
   dynamic: true,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/3', '2/3'],
   defaultConfig: { heading: 'Recent Activity', limit: 15 },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -586,6 +612,7 @@ const NAV: BlockType = {
   icon: '\u{1F9ED}',
   dynamic: false,
   zoneHints: ['header'],
+  supportedSpans: ['1'],
   defaultConfig: {
     items: [
       { label: 'Home', href: '/', icon: 'home', public: true },
@@ -612,6 +639,7 @@ const BRAND_HEADER: BlockType = {
   icon: '\u{1F3F7}️',
   dynamic: false,
   zoneHints: ['header'],
+  supportedSpans: ['1'],
   defaultConfig: {
     name: 'Kychon',
     logo_url: '',
@@ -633,6 +661,7 @@ const SIGN_IN_BAR: BlockType = {
   icon: '\u{1F511}',
   dynamic: true,
   zoneHints: ['header'],
+  supportedSpans: ['1'],
   defaultConfig: { show_lang_toggle: true, show_theme_toggle: true },
   render(_section, _ctx) {
     return `<div class="nav-user" id="nav-user" data-block-hydrate="sign_in_bar"></div>`;
@@ -650,6 +679,7 @@ const FOOTER_ADDRESS: BlockType = {
   icon: '\u{1F4CD}',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1', '1/2', '1/3'],
   defaultConfig: {
     name: '',
     address_lines: [],
@@ -686,6 +716,7 @@ const FOOTER_LINKS: BlockType = {
   icon: '\u{1F517}',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     columns: [
       { heading: 'About', items: [{ label: 'About Us', href: '/page.html?slug=about' }] },
@@ -718,6 +749,7 @@ const FOOTER_COPYRIGHT: BlockType = {
   icon: '©',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1'],
   defaultConfig: {
     year: 'auto',
     org_name: '',
@@ -747,6 +779,7 @@ const FOOTER_SOCIAL: BlockType = {
   icon: '\u{1F30D}',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1', '1/3'],
   defaultConfig: { icons: [] },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -778,6 +811,7 @@ const FOOTER_ATTRIBUTION: BlockType = {
   icon: '✨',
   dynamic: false,
   zoneHints: ['footer'],
+  supportedSpans: ['1'],
   defaultConfig: {
     text: 'Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)',
   },
@@ -799,6 +833,7 @@ const CUSTOM: BlockType = {
   icon: '\u{1F9F1}',
   dynamic: false,
   zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: { html: '<p>Custom HTML</p>' },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -832,6 +867,31 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   footer_attribution: FOOTER_ATTRIBUTION,
 };
 
+const ALL_SPANS: ColumnSpan[] = ['1', '1/2', '1/3', '2/3'];
+
+/** column-span-rows: legal spans for a registered block type. */
+export function getSupportedSpans(type: string): ColumnSpan[] {
+  return BLOCK_TYPES[type]?.supportedSpans ?? ALL_SPANS;
+}
+
+/**
+ * column-span-rows: attach `data-column-span="<value>"` to the leading element
+ * of a rendered block. Single edit point so individual BlockType.render
+ * functions don't need to know about spans. The regex targets the first
+ * opening tag in the string, allowing leading whitespace.
+ *
+ * Defensive: if the rendered HTML doesn't start with a tag (string content,
+ * comment, etc.), the regex no-ops and the block renders without the
+ * attribute. CSS `[data-column-span="1"]` selectors fall through to the
+ * default full-width span via the universal CSS rules.
+ */
+export function applyColumnSpan(html: string, span: ColumnSpan): string {
+  return html.replace(
+    /^(\s*<[a-zA-Z][^>]*?)(\s*\/?\s*>)/,
+    `$1 data-column-span="${span}"$2`,
+  );
+}
+
 export function renderBlock(section: Section, ctx: BlockRenderContext): string {
   const type = BLOCK_TYPES[section.section_type];
   if (!type) {
@@ -839,7 +899,9 @@ export function renderBlock(section: Section, ctx: BlockRenderContext): string {
     return '';
   }
   if (section.visible === false) return '';
-  return type.render(section, ctx);
+  const html = type.render(section, ctx);
+  const span: ColumnSpan = section.column_span ?? '1';
+  return applyColumnSpan(html, span);
 }
 
 export function renderZone(sections: Section[], zone: 'header' | 'main' | 'footer', ctx: BlockRenderContext): string {
