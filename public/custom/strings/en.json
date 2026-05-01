@@ -25,6 +25,15 @@
   "auth.login_error": "Couldn't sign you in. Please check your credentials and try again.",
   "auth.password_mismatch": "Those passwords don't match. Give it another try.",
 
+  "auth.gate.directory.title": "Sign in to view the member directory",
+  "auth.gate.directory.body": "The member directory is private. Sign in to see who else is part of the community.",
+  "auth.gate.profile.title": "Sign in to view your profile",
+  "auth.gate.profile.body": "Your profile is private. Sign in to view and edit it.",
+  "auth.gate.admin.title": "Admin access required",
+  "auth.gate.admin.body": "This page is for site admins. If you think you should have access, ask a current admin to invite you.",
+  "auth.gate.signIn": "Sign in",
+  "auth.gate.backHome": "Back to home",
+
   "profile.title": "Your Profile",
   "profile.display_name": "Display name",
   "profile.email": "Email",

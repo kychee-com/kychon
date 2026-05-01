@@ -49,7 +49,8 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { count, get, patch } from '../lib/api';
-  import { requireAdmin } from '../lib/auth';
+  import { isAdmin } from '../lib/auth';
+  import { showAuthGate } from '../lib/auth-gate';
   import { isFeatureEnabled, ready } from '../lib/config';
 
   function esc(s: string): string {
@@ -151,7 +152,10 @@ import Portal from '../layouts/Portal.astro';
 
   async function initDashboard() {
     await ready;
-    if (!requireAdmin()) return;
+    if (!isAdmin()) {
+      showAuthGate('#main-content', 'admin');
+      return;
+    }
 
     const statPromises: Promise<number>[] = [
       count('members?status=eq.active').catch(() => 0),
