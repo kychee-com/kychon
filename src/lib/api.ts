@@ -144,6 +144,28 @@ export async function getEventRSVPs(eventId: number): Promise<EventRSVP[]> {
   return z.array(EventRSVPSchema).parse(data);
 }
 
+export async function getEventWindow(startIso: string, endIso: string): Promise<Event[]> {
+  const data = await get(
+    `events?starts_at=gte.${encodeURIComponent(startIso)}&starts_at=lt.${encodeURIComponent(endIso)}&order=starts_at.asc`,
+  );
+  return z.array(EventSchema).parse(data);
+}
+
+export interface RsvpAvatar {
+  event_id: number;
+  member_id: number | null;
+  members: { id: number; display_name: string | null; avatar_url: string | null } | null;
+}
+
+export async function getRsvpsForEvents(eventIds: number[]): Promise<RsvpAvatar[]> {
+  if (!eventIds.length) return [];
+  const ids = eventIds.join(',');
+  const data = await get(
+    `event_rsvps?event_id=in.(${ids})&status=eq.going&select=event_id,member_id,members(id,display_name,avatar_url)&limit=300`,
+  );
+  return Array.isArray(data) ? (data as RsvpAvatar[]) : [];
+}
+
 export async function getMembers(query = ''): Promise<Member[]> {
   const data = await get(`members${query ? `?${query}` : ''}`);
   return z.array(MemberSchema).parse(data);
