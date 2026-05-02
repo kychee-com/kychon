@@ -351,7 +351,9 @@ export async function hydrateEventsList(
     query = `events?starts_at=lt.${nowIso}&order=starts_at.desc&limit=${count}`;
   } else if (filter === 'this_week') {
     const inAWeek = new Date(Date.now() + EVENTS_LIST_FILTER_DAYS * 86400 * 1000).toISOString();
-    query = `events?starts_at=gte.${nowIso}&starts_at=lt.${inAWeek}&order=starts_at.asc&limit=${count}`;
+    // PostgREST concatenates duplicate column filters; use and=(...) so both
+    // bounds AND-combine instead of overwriting.
+    query = `events?and=(starts_at.gte.${nowIso},starts_at.lt.${inAWeek})&order=starts_at.asc&limit=${count}`;
   } else {
     query = `events?starts_at=gte.${nowIso}&order=starts_at.asc&limit=${count}`;
   }

@@ -145,8 +145,11 @@ export async function getEventRSVPs(eventId: number): Promise<EventRSVP[]> {
 }
 
 export async function getEventWindow(startIso: string, endIso: string): Promise<Event[]> {
+  // PostgREST concatenates repeated column filters in the query string instead
+  // of AND-ing them, which produces a 400 ("time zone not recognized") on a
+  // pair of starts_at filters. Use the explicit and=(...) form.
   const data = await get(
-    `events?starts_at=gte.${encodeURIComponent(startIso)}&starts_at=lt.${encodeURIComponent(endIso)}&order=starts_at.asc`,
+    `events?and=(starts_at.gte.${encodeURIComponent(startIso)},starts_at.lt.${encodeURIComponent(endIso)})&order=starts_at.asc`,
   );
   return z.array(EventSchema).parse(data);
 }
