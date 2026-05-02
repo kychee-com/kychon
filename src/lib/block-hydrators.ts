@@ -311,6 +311,19 @@ export async function hydrateLinkListResources(
 
 const EVENTS_LIST_FILTER_DAYS = 7;
 
+export async function hydrateEventsCalendar(
+  el: HTMLElement,
+  section: Section,
+  ctx: BlockRenderContext,
+): Promise<void> {
+  const root = el.querySelector('[data-block-hydrate="events_calendar"]') as HTMLElement | null;
+  if (!root) return;
+  if (root.dataset.hydrated === 'true') return;
+  const { initCalendar } = await import('./blocks/events-calendar.js');
+  initCalendar(root, section, ctx);
+  root.dataset.hydrated = 'true';
+}
+
 export async function hydrateEventsList(
   el: HTMLElement,
   _section: Section,

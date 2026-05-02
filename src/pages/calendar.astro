@@ -1,0 +1,71 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Calendar">
+  <div class="container" style="max-width:72rem">
+    <section
+      class="section section-events-calendar block-events-calendar block-events-calendar--view-month block-events-calendar--density-rich"
+      data-section-zone="main"
+      data-section-scope="page"
+    >
+      <div
+        class="container"
+        data-block-hydrate="events_calendar"
+        data-config='{"heading":"Calendar","view":"month","density":"rich","filter":"all","first_day_of_week":0,"show_filter_chips":true}'
+      >
+        <h2 class="block-events-calendar__heading">Calendar</h2>
+        <div class="block-events-calendar__skeleton">
+          <div class="event-skeleton-card skeleton"></div>
+          <div class="event-skeleton-card skeleton"></div>
+          <div class="event-skeleton-card skeleton"></div>
+          <div class="event-skeleton-card skeleton"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</Portal>
+
+<script>
+  import { BLOCK_TYPES, type BlockRenderContext, type Section } from '../lib/blocks';
+  import { getSession, getRole } from '../lib/auth';
+  import { isFeatureEnabled, ready } from '../lib/config';
+  import { getLocale } from '../lib/i18n';
+
+  async function init() {
+    await ready;
+    const host = document.querySelector<HTMLElement>('[data-block-hydrate="events_calendar"]');
+    if (!host) return;
+    if (host.dataset.hydrated === 'true') return;
+
+    const block = BLOCK_TYPES['events_calendar'];
+    if (!block?.hydrate) return;
+
+    const section: Section = {
+      page_slug: 'calendar',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'events_calendar',
+      config: JSON.parse(host.getAttribute('data-config') || '{}'),
+      position: 1,
+    };
+
+    const session = getSession();
+    const role = getRole();
+    const ctx: BlockRenderContext = {
+      admin: role === 'admin',
+      locale: getLocale(),
+      authenticated: !!session,
+      role: (role as BlockRenderContext['role']) ?? null,
+      isFeatureEnabled,
+      session,
+      currentPath: window.location.pathname,
+    };
+
+    const wrapper = host.closest('section') as HTMLElement;
+    await block.hydrate(wrapper, section, ctx);
+  }
+
+  init();
+  document.addEventListener('astro:after-swap', init);
+  document.addEventListener('wl-locale-changed', init);
+</script>

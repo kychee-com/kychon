@@ -1345,6 +1345,46 @@ const EVENTS_LIST: BlockType = {
   },
 };
 
+const EVENTS_CALENDAR: BlockType = {
+  label: 'Events Calendar',
+  icon: '\u{1F5D3}', // 🗓 spiral calendar pad — distinct from events_list (📅)
+  dynamic: true,
+  zoneHints: ['main'],
+  // 1/3 column always falls through to agenda at runtime; the picker still
+  // allows '1' (full) and '2/3' as desktop layouts.
+  supportedSpans: ['1', '2/3', '1/2'],
+  defaultConfig: {
+    heading: 'Calendar',
+    view: 'month',
+    density: 'light',
+    filter: 'all',
+    first_day_of_week: 0,
+    show_filter_chips: true,
+    density_lock: false,
+    agenda_show_empty_days: false,
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const heading = cfg.heading
+      ? `<h2 class="block-events-calendar__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
+      : '';
+    const view = (cfg.view as string) || 'month';
+    const density = (cfg.density as string) || 'light';
+    const skeleton = `<div class="block-events-calendar__skeleton">${'<div class="event-skeleton-card skeleton"></div>'.repeat(4)}</div>`;
+    const inner = `<div class="container" data-block-hydrate="events_calendar" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
+    const cls = `section section-events-calendar block-events-calendar block-events-calendar--view-${escAttr(view)} block-events-calendar--density-${escAttr(density)}`;
+    return adminWrap(section, ctx, inner, cls);
+  },
+  async hydrate(el, section, ctx) {
+    if (!ctx.isFeatureEnabled?.('feature_events')) {
+      el.style.display = 'none';
+      return;
+    }
+    const { hydrateEventsCalendar } = await import('./block-hydrators.js');
+    await hydrateEventsCalendar(el, section, ctx);
+  },
+};
+
 const SLIDESHOW: BlockType = {
   label: 'Slideshow',
   icon: '\u{1F5BC}', // 🖼 (shared with banner; ok)
@@ -1444,6 +1484,7 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   link_list: LINK_LIST,
   promo_cards: PROMO_CARDS,
   events_list: EVENTS_LIST,
+  events_calendar: EVENTS_CALENDAR,
   slideshow: SLIDESHOW,
   nav: NAV,
   brand_header: BRAND_HEADER,
