@@ -89,8 +89,10 @@ describe('hydrateEventsList', () => {
     );
 
     const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain('starts_at=gte.');
-    expect(url).toContain('starts_at=lt.');
+    // Use and=(...) instead of repeated ?starts_at=… params — PostgREST
+    // concatenates duplicate column filters and 400s on the second value.
+    expect(url).toContain('and=(starts_at.gte.');
+    expect(url).toContain(',starts_at.lt.');
   });
 
   it('empty result shows placeholder', async () => {
