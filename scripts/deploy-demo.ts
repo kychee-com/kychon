@@ -165,6 +165,7 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
       // contains the chrome blocks + the demo's `extraSqlFile` content.
       excludeFunctions: ["check-expirations"],
       extraFunction: config.resetDemoFile,
+      allowWarnings: process.env.RUN402_ALLOW_WARNINGS === "true",
     });
 
     console.log("");

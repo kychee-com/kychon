@@ -33,6 +33,8 @@ INSERT INTO site_config (key, value, category) VALUES
   ('feature_ai_event_recaps', 'false', 'features'),
   ('feature_activity_feed', 'true', 'features'),
   ('feature_reactions', 'true', 'features'),
+  ('feature_polls', 'true', 'features'),
+  ('polls_member_create', 'false', 'features'),
   ('directory_public', 'false', 'features'),
   ('signup_mode', '"approved"', 'features'),
   ('demo_mode', 'true', 'features'),
@@ -84,11 +86,14 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT '*', 'header', 'global', 'brand_header', '{"href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Inicio","href":"/","icon":"home","public":true},{"label":"Nosotros","href":"/page.html?slug=nosotros","icon":"info","public":true},{"label":"Miembros","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Eventos","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Recursos","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Foro","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Programas","href":"/committees.html","icon":"heart","feature":"feature_committees"},{"label":"Panel","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Miembros","href":"/admin-members.html","icon":"users","admin":true},{"label":"Configuración","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
+SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Inicio","href":"/","icon":"home","public":true},{"label":"Nosotros","href":"/page.html?slug=nosotros","icon":"info","public":true},{"label":"Miembros","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Eventos","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Recursos","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Foro","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Encuestas","href":"/polls.html","icon":"bar-chart","feature":"feature_polls"},{"label":"Programas","href":"/committees.html","icon":"heart","feature":"feature_committees"},{"label":"Panel","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Miembros","href":"/admin-members.html","icon":"users","admin":true},{"label":"Configuración","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'nav' AND position = 2);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'sign_in_bar' AND position = 3);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'site_search', '{"placeholder":"Buscar Barrio Unido","submit_label":"Buscar","destination":"/search.html","compact":true,"default_type":"all"}', 4, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'site_search' AND position = 4);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'index', 'main', 'page', 'hero', '{"heading":"Bienvenidos a Barrio Unido","subheading":"Tu centro comunitario en el corazón de Boyle Heights. Clases de inglés, clínica legal, despensa de alimentos, eventos culturales y más — todo gratis, todo para ti.","cta_text":"Únete a la comunidad","cta_href":"/page.html?slug=nosotros","bg_image":"/assets/hero.jpg"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
@@ -1641,6 +1646,8 @@ DELETE FROM site_config WHERE key = 'nav';
 -- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
 -- by brand_icon_url / brand_wordmark_url / brand_text.
 DELETE FROM site_config WHERE key = 'logo_url';
+-- native-site-search: repair/backfill search_documents after seed/import SQL.
+SELECT kychon_reindex_search();
 `;
 
 const MUTABLE_TABLES = [

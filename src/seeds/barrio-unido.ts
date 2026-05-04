@@ -7,6 +7,7 @@ const BARRIO_NAV = [
   { label: 'Eventos', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
   { label: 'Recursos', href: '/resources.html', icon: 'book-open', feature: 'feature_resources' },
   { label: 'Foro', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
+  { label: 'Encuestas', href: '/polls.html', icon: 'bar-chart', feature: 'feature_polls' },
   { label: 'Programas', href: '/committees.html', icon: 'heart', feature: 'feature_committees' },
   { label: 'Panel', href: '/admin.html', icon: 'bar-chart-2', admin: true },
   { label: 'Miembros', href: '/admin-members.html', icon: 'users', admin: true },
@@ -60,6 +61,8 @@ export const seed: ProjectSeed = {
     feature_ai_event_recaps: { value: false, category: 'features' },
     feature_activity_feed: { value: true, category: 'features' },
     feature_reactions: { value: true, category: 'features' },
+    feature_polls: { value: true, category: 'features' },
+    polls_member_create: { value: false, category: 'features' },
     directory_public: { value: false, category: 'features' },
     signup_mode: { value: 'approved', category: 'features' },
     demo_mode: { value: true, category: 'features' },
@@ -147,6 +150,20 @@ export const seed: ProjectSeed = {
       section_type: 'sign_in_bar',
       config: { show_lang_toggle: true, show_theme_toggle: true },
       position: 3,
+    },
+    {
+      page_slug: '*',
+      zone: 'header',
+      scope: 'global',
+      section_type: 'site_search',
+      config: {
+        placeholder: 'Buscar Barrio Unido',
+        submit_label: 'Buscar',
+        destination: '/search.html',
+        compact: true,
+        default_type: 'all',
+      },
+      position: 4,
     },
     // --- Homepage main ---
     {
