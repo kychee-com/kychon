@@ -230,6 +230,8 @@ const TRAILING_CLEANUP_SQL = [
   '-- brand-identity-fields: clear legacy site_config.logo_url row. Replaced',
   "-- by brand_icon_url / brand_wordmark_url / brand_text.",
   "DELETE FROM site_config WHERE key = 'logo_url';",
+  '-- native-site-search: repair/backfill search_documents after seed/import SQL.',
+  'SELECT kychon_reindex_search();',
   '',
 ].join('\n');
 

@@ -1,0 +1,157 @@
+---
+import Portal from '../layouts/Portal.astro';
+---
+<Portal title="Search" robots="noindex,follow">
+  <section class="section section-search-page section-visible">
+    <div class="container search-page">
+      <form class="search-page__form" id="search-page-form" action="/search.html" method="get" role="search">
+        <label class="form-label" for="search-page-q">Search</label>
+        <div class="search-page__bar">
+          <input
+            class="form-input search-page__input"
+            id="search-page-q"
+            name="q"
+            type="search"
+            maxlength="300"
+            autocomplete="off"
+            placeholder="Search this site"
+          >
+          <input id="search-page-type-input" name="type" type="hidden" value="all">
+          <button class="btn btn-primary search-page__submit" type="submit">Search</button>
+        </div>
+      </form>
+
+      <div class="search-page__filters" id="search-page-filters" role="group" aria-label="Search result type"></div>
+      <div class="search-page__status" id="search-page-status" aria-live="polite"></div>
+      <div class="search-page__results" id="search-page-results"></div>
+      <nav class="search-page__pagination" id="search-page-pagination" aria-label="Search pagination"></nav>
+    </div>
+  </section>
+</Portal>
+
+<script>
+  import { searchSite } from '../lib/api';
+
+  const TYPE_LABELS: Record<string, string> = {
+    all: 'All',
+    pages: 'Pages',
+    resources: 'Resources',
+    events: 'Events',
+    page: 'Page',
+    resource: 'Resource',
+    event: 'Event',
+  };
+
+  function esc(s: any): string {
+    const d = document.createElement('div');
+    d.textContent = String(s ?? '');
+    return d.innerHTML;
+  }
+
+  function paramsFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      q: (params.get('q') || '').trim(),
+      type: params.get('type') || 'all',
+      page: Number(params.get('page') || '1') || 1,
+    };
+  }
+
+  function buildUrl(next: { q: string; type: string; page?: number }) {
+    const params = new URLSearchParams();
+    if (next.q) params.set('q', next.q);
+    params.set('type', next.type || 'all');
+    if (next.page && next.page > 1) params.set('page', String(next.page));
+    return `/search.html?${params.toString()}`;
+  }
+
+  function renderFilters(currentType: string, q: string, facets: Record<string, number>) {
+    const host = document.getElementById('search-page-filters');
+    if (!host) return;
+    const types = ['all', 'pages', 'resources', 'events'];
+    host.innerHTML = types
+      .map((type) => {
+        const count = facets[type] ?? 0;
+        const active = type === currentType ? ' is-active' : '';
+        const href = buildUrl({ q, type });
+        return `<a class="search-filter${active}" href="${esc(href)}" aria-current="${type === currentType ? 'page' : 'false'}">${esc(TYPE_LABELS[type])}<span>${count}</span></a>`;
+      })
+      .join('');
+  }
+
+  function renderPagination(q: string, type: string, page: number, hasNext: boolean) {
+    const nav = document.getElementById('search-page-pagination');
+    if (!nav) return;
+    const prev = page > 1
+      ? `<a class="btn btn-secondary btn-sm" href="${esc(buildUrl({ q, type, page: page - 1 }))}">Previous</a>`
+      : '';
+    const next = hasNext
+      ? `<a class="btn btn-secondary btn-sm" href="${esc(buildUrl({ q, type, page: page + 1 }))}">Next</a>`
+      : '';
+    nav.innerHTML = prev || next ? `${prev}<span class="search-page__page">Page ${page}</span>${next}` : '';
+  }
+
+  function renderResults(response: any) {
+    const status = document.getElementById('search-page-status');
+    const results = document.getElementById('search-page-results');
+    if (!status || !results) return;
+
+    renderFilters(response.type, response.query, response.facets || {});
+    renderPagination(response.query, response.type, response.page, response.has_next);
+
+    if (!response.query) {
+      status.innerHTML = '';
+      results.innerHTML = '<div class="search-state">Enter a search term to find pages, resources, and events.</div>';
+      return;
+    }
+
+    if (!response.results.length) {
+      status.innerHTML = 'No results';
+      results.innerHTML = '<div class="search-state">No visible results matched your search.</div>';
+      return;
+    }
+
+    const countLabel = response.total === 1 ? '1 result' : `${response.total} results`;
+    status.innerHTML = `${countLabel} for <strong>${esc(response.query)}</strong>`;
+    results.innerHTML = response.results
+      .map((result: any) => {
+        const typeLabel = TYPE_LABELS[result.type] || result.type;
+        return `<article class="search-result">
+          <div class="search-result__meta">${esc(typeLabel)}</div>
+          <h2 class="search-result__title"><a href="${esc(result.url)}">${esc(result.title)}</a></h2>
+          ${result.snippet ? `<p class="search-result__snippet">${result.snippet}</p>` : ''}
+          <a class="search-result__url" href="${esc(result.url)}">${esc(result.url)}</a>
+        </article>`;
+      })
+      .join('');
+  }
+
+  async function runSearch() {
+    const { q, type, page } = paramsFromUrl();
+    const input = document.getElementById('search-page-q') as HTMLInputElement | null;
+    const typeInput = document.getElementById('search-page-type-input') as HTMLInputElement | null;
+    const status = document.getElementById('search-page-status');
+    const results = document.getElementById('search-page-results');
+    if (input) input.value = q;
+    if (typeInput) typeInput.value = type;
+    renderFilters(type, q, { all: 0, pages: 0, resources: 0, events: 0 });
+    if (!q) {
+      renderResults({ query: '', type, page: 1, page_size: 10, total: 0, has_next: false, facets: {}, results: [] });
+      return;
+    }
+    if (status) status.textContent = 'Searching...';
+    if (results) results.innerHTML = '<div class="search-state">Searching...</div>';
+    try {
+      const response = await searchSite({ q, type, page, page_size: 10 });
+      renderResults(response);
+    } catch (e) {
+      console.warn('Search failed:', e);
+      if (status) status.textContent = 'Search unavailable';
+      if (results) results.innerHTML = '<div class="search-state">Search is unavailable right now.</div>';
+    }
+  }
+
+  runSearch();
+  document.addEventListener('astro:after-swap', runSearch);
+  document.addEventListener('wl-auth-changed', runSearch);
+</script>

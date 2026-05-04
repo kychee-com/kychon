@@ -61,6 +61,9 @@ const TABLE_NAMES = [
   "reactions",
 ] as const;
 
+// `search_documents` is intentionally not exposed through PostgREST. The
+// public search surface is the Run402 function, which enforces member
+// visibility and private cache headers before returning snippets/titles.
 export const EXPOSE_TABLES: ReadonlyArray<Record<string, unknown>> = TABLE_NAMES.map(
   (name) => ({ name, expose: true, policy: "public_read_authenticated_write" }),
 );

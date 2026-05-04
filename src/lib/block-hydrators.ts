@@ -226,6 +226,144 @@ export async function hydrateActivityFeed(
   }
 }
 
+export async function hydrateSiteSearch(
+  el: HTMLElement,
+  section: Section,
+  _ctx: BlockRenderContext,
+): Promise<void> {
+  const root = el.querySelector('[data-block-hydrate="site_search"]') as HTMLElement | null;
+  if (!root || root.dataset.hydrated === 'true') return;
+
+  const form = root.querySelector('form') as HTMLFormElement | null;
+  const input = root.querySelector('input[name="q"]') as HTMLInputElement | null;
+  const typeInput = root.querySelector('input[name="type"]') as HTMLInputElement | null;
+  const list = root.querySelector('[role="listbox"]') as HTMLElement | null;
+  if (!form || !input || !typeInput || !list) return;
+  const formEl = form;
+  const inputEl = input;
+  const typeInputEl = typeInput;
+  const listEl = list;
+
+  let cfg: any = section.config || {};
+  try {
+    cfg = { ...cfg, ...JSON.parse(root.getAttribute('data-config') || '{}') };
+  } catch {}
+  const minChars = Math.max(2, Number(cfg.min_chars) || 2);
+  const defaultType = ['all', 'pages', 'resources', 'events'].includes(cfg.default_type)
+    ? cfg.default_type
+    : 'all';
+  typeInputEl.value = defaultType;
+
+  const { getAPI, getAuthHeaders } = await import('./api.js');
+  let timer: number | undefined;
+  let controller: AbortController | null = null;
+  let activeIndex = -1;
+
+  function closeSuggestions() {
+    listEl.hidden = true;
+    listEl.innerHTML = '';
+    inputEl.setAttribute('aria-expanded', 'false');
+    inputEl.removeAttribute('aria-activedescendant');
+    activeIndex = -1;
+  }
+
+  function setActive(next: number) {
+    const options = Array.from(listEl.querySelectorAll<HTMLElement>('[role="option"]'));
+    if (!options.length) {
+      activeIndex = -1;
+      return;
+    }
+    activeIndex = (next + options.length) % options.length;
+    options.forEach((opt, i) => {
+      const active = i === activeIndex;
+      opt.classList.toggle('is-active', active);
+      opt.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    inputEl.setAttribute('aria-activedescendant', options[activeIndex].id);
+  }
+
+  function renderSuggestions(results: any[]) {
+    if (!results.length) {
+      closeSuggestions();
+      return;
+    }
+    const typeLabel: Record<string, string> = { page: 'Page', resource: 'Resource', event: 'Event' };
+    listEl.innerHTML = results
+      .slice(0, 5)
+      .map((result, i) => {
+        const id = `${inputEl.id}-option-${i}`;
+        return `<a id="${esc(id)}" class="site-search__option" role="option" aria-selected="false" href="${esc(result.url)}"><span>${esc(result.title)}</span><small>${esc(typeLabel[result.type] || result.type)}</small></a>`;
+      })
+      .join('');
+    listEl.hidden = false;
+    inputEl.setAttribute('aria-expanded', 'true');
+    activeIndex = -1;
+  }
+
+  async function fetchSuggestions(query: string) {
+    controller?.abort();
+    controller = new AbortController();
+    const params = new URLSearchParams({ q: query, type: typeInputEl.value || defaultType, suggest: '1' });
+    try {
+      const res = await fetch(`${getAPI()}/functions/v1/site-search?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        closeSuggestions();
+        return;
+      }
+      const data = await res.json();
+      if (inputEl.value.trim() !== query) return;
+      renderSuggestions(data.results || []);
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') closeSuggestions();
+    }
+  }
+
+  inputEl.addEventListener('input', () => {
+    window.clearTimeout(timer);
+    const query = inputEl.value.trim();
+    if (query.length < minChars) {
+      controller?.abort();
+      closeSuggestions();
+      return;
+    }
+    timer = window.setTimeout(() => fetchSuggestions(query), 200);
+  });
+
+  inputEl.addEventListener('keydown', (event) => {
+    if (listEl.hidden) return;
+    const options = Array.from(listEl.querySelectorAll<HTMLAnchorElement>('[role="option"]'));
+    if (!options.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActive(activeIndex + 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActive(activeIndex - 1);
+    } else if (event.key === 'Enter' && activeIndex >= 0) {
+      event.preventDefault();
+      options[activeIndex].click();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeSuggestions();
+      inputEl.focus();
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!root.contains(event.target as Node)) closeSuggestions();
+  });
+
+  formEl.addEventListener('submit', () => {
+    controller?.abort();
+    closeSuggestions();
+  });
+
+  root.dataset.hydrated = 'true';
+}
+
 // --- Catalog block hydrators ---
 
 const ALLOWED_LINK_LIST_ORDER = new Set(['newest', 'oldest', 'title']);

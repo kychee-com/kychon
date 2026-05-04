@@ -1,0 +1,50 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const root = join(import.meta.dirname, '../..');
+const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
+const deployLib = readFileSync(join(root, 'scripts/_lib.ts'), 'utf8');
+const seedGenerator = readFileSync(join(root, 'scripts/generate-seed-sql.ts'), 'utf8');
+
+describe('native site search schema', () => {
+  it('defines search_documents with stable source tuple and visibility fields', () => {
+    expect(schema).toContain('CREATE TABLE IF NOT EXISTS search_documents');
+    expect(schema).toContain("source_type TEXT NOT NULL CHECK (source_type IN ('page', 'resource', 'event'))");
+    expect(schema).toContain('source_key TEXT NOT NULL');
+    expect(schema).toContain('UNIQUE(source_type, source_key)');
+    expect(schema).toContain('is_members_only BOOLEAN NOT NULL DEFAULT false');
+    expect(schema).toContain('published BOOLEAN NOT NULL DEFAULT true');
+  });
+
+  it('adds vectors, indexes, and RLS protection', () => {
+    expect(schema).toContain('title_vector TSVECTOR');
+    expect(schema).toContain('search_vector TSVECTOR');
+    expect(schema).toContain('ALTER TABLE search_documents ENABLE ROW LEVEL SECURITY');
+    expect(schema).toContain('idx_search_documents_title_vector');
+    expect(schema).toContain('idx_search_documents_search_vector');
+    expect(schema).toContain('idx_search_documents_visibility');
+    expect(schema).toContain('idx_search_documents_updated');
+  });
+
+  it('defines sync functions and triggers for searchable sources', () => {
+    expect(schema).toContain('CREATE OR REPLACE FUNCTION kychon_upsert_search_page');
+    expect(schema).toContain('CREATE OR REPLACE FUNCTION kychon_upsert_search_resource');
+    expect(schema).toContain('CREATE OR REPLACE FUNCTION kychon_upsert_search_event');
+    expect(schema).toContain('CREATE OR REPLACE FUNCTION kychon_reindex_search');
+    expect(schema).toContain('trg_search_pages_sync');
+    expect(schema).toContain('trg_search_sections_sync');
+    expect(schema).toContain('trg_search_resources_sync');
+    expect(schema).toContain('trg_search_events_sync');
+  });
+
+  it('does not expose search_documents through PostgREST deploy config', () => {
+    const tableArray = deployLib.slice(deployLib.indexOf('const TABLE_NAMES'), deployLib.indexOf('] as const;'));
+    expect(tableArray).not.toContain('"search_documents"');
+    expect(deployLib).toContain('search_documents` is intentionally not exposed');
+  });
+
+  it('runs a reindex pass after generated seed/import SQL', () => {
+    expect(seedGenerator).toContain('SELECT kychon_reindex_search();');
+  });
+});
