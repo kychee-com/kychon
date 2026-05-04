@@ -1,0 +1,160 @@
+{
+  "site_config": {
+    "site_name": "Old Dominion Boat Club",
+    "site_tagline": "A Proud Part of Alexandria's History - Since 1880",
+    "brand_text": "Old Dominion Boat Club",
+    "brand_text_short": "ODBC",
+    "brand_icon_url": "",
+    "brand_wordmark_url": "",
+    "favicon_url": "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2210%22 fill=%22%230B2742%22/%3E%3Ctext x=%2232%22 y=%2244%22 font-family=%22Georgia,serif%22 font-size=%2230%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%23B5853A%22%3EO%3C/text%3E%3C/svg%3E",
+    "feature_events": true,
+    "feature_forum": true,
+    "feature_directory": true,
+    "feature_resources": true,
+    "feature_committees": true,
+    "theme": {
+      "primary": "#0B2742",
+      "primary_hover": "#08203A",
+      "bg": "#FBF7EE",
+      "surface": "#FFFFFF",
+      "text": "#1B1B1B",
+      "text_muted": "#5A6470",
+      "border": "#D7CFC0",
+      "accent": "#B5853A",
+      "font_heading": "Playfair Display",
+      "font_body": "Source Sans 3",
+      "radius": "0.5rem",
+      "max_width": "72rem"
+    }
+  },
+  "sections": [
+    {
+      "page_slug": "*",
+      "zone": "header",
+      "scope": "global",
+      "section_type": "brand_header",
+      "config": { "href": "/" },
+      "position": 1,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "header",
+      "scope": "global",
+      "section_type": "nav",
+      "config": {
+        "items": [
+          { "label": "Home", "href": "/", "icon": "home", "public": true },
+          { "label": "About", "href": "/page.html?slug=about", "icon": "info", "public": true },
+          { "label": "Membership", "href": "/page.html?slug=membership", "icon": "user-plus", "public": true },
+          {
+            "label": "The Club",
+            "href": "/page.html?slug=about",
+            "icon": "anchor",
+            "public": true,
+            "children": [
+              { "label": "Marina", "href": "/page.html?slug=marina", "public": true },
+              { "label": "Tap Room", "href": "/page.html?slug=tap-room", "public": true },
+              { "label": "History", "href": "/page.html?slug=history", "public": true },
+              { "label": "Reciprocity", "href": "/page.html?slug=reciprocity", "public": true }
+            ]
+          },
+          { "label": "Foundation", "href": "/page.html?slug=foundation", "icon": "heart", "public": true },
+          { "label": "Events", "href": "/events.html", "icon": "calendar", "feature": "feature_events" },
+          { "label": "Leadership", "href": "/directory.html", "icon": "users", "public": true },
+          { "label": "Forum", "href": "/forum.html", "icon": "message-circle", "feature": "feature_forum" },
+          { "label": "Committees", "href": "/committees.html", "icon": "briefcase", "feature": "feature_committees" },
+          { "label": "Contact", "href": "/page.html?slug=contact", "icon": "mail", "public": true },
+          { "label": "Dashboard", "href": "/admin.html", "icon": "bar-chart-2", "admin": true },
+          { "label": "Members", "href": "/admin-members.html", "icon": "users", "admin": true },
+          { "label": "Settings", "href": "/admin-settings.html", "icon": "settings", "admin": true }
+        ]
+      },
+      "position": 2,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "header",
+      "scope": "global",
+      "section_type": "sign_in_bar",
+      "config": { "show_lang_toggle": true, "show_theme_toggle": true },
+      "position": 3,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_address",
+      "config": {
+        "name": "Old Dominion Boat Club",
+        "address_lines": ["0 Prince Street", "Alexandria, Virginia 22314"],
+        "phone": "(703) 836-1900",
+        "email": "gm@olddominionboatclub.com",
+        "hours": "Tap Room hours posted weekly"
+      },
+      "position": 1,
+      "column_span": "1/3",
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_links",
+      "config": {
+        "columns": [
+          {
+            "heading": "The Club",
+            "items": [
+              { "label": "About", "href": "/page.html?slug=about" },
+              { "label": "Membership", "href": "/page.html?slug=membership" },
+              { "label": "Marina", "href": "/page.html?slug=marina" },
+              { "label": "Tap Room", "href": "/page.html?slug=tap-room" }
+            ]
+          },
+          {
+            "heading": "Connect",
+            "items": [
+              { "label": "Events", "href": "/events.html" },
+              { "label": "Leadership", "href": "/directory.html" },
+              { "label": "Foundation", "href": "/page.html?slug=foundation" },
+              { "label": "Contact", "href": "/page.html?slug=contact" }
+            ]
+          }
+        ]
+      },
+      "position": 2,
+      "column_span": "1/3",
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_copyright",
+      "config": {
+        "year": "auto",
+        "org_name": "Old Dominion Boat Club",
+        "admin_contact_label": "Contact the GM",
+        "admin_contact_href": "mailto:gm@olddominionboatclub.com"
+      },
+      "position": 3,
+      "column_span": "1/3",
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_attribution",
+      "config": {
+        "text": "Ported from Wild Apricot to [Kychon](https://kychon.com) on [Run402](https://run402.com) - 2026-04-30"
+      },
+      "position": 99,
+      "column_span": "1",
+      "visible": true
+    }
+  ]
+}

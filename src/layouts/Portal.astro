@@ -10,11 +10,9 @@ import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
 
-import { getActiveProjectSeed } from '../seeds';
-import { renderBlock } from '../lib/blocks';
-import type { BlockRenderContext, Section } from '../lib/blocks';
+import { resolveActiveProjectSeed } from '../seeds';
+import { bakeChrome } from '../lib/chrome-bake';
 import { buildCspValue } from '../lib/csp';
-import { renderFontHead } from '../lib/theme/fonts';
 
 interface Props {
   title: string;
@@ -29,82 +27,12 @@ const { title } = Astro.props;
 const BUILD_ID = String(Date.now());
 
 // --- Build-time bake of chrome zones ---
-// Bake context: the build has no auth, so render the public + feature-on view.
-// At runtime, hydrate replaces with the live DB state (which knows admin/auth).
-const seed = await getActiveProjectSeed();
-const seedConfig = seed.site_config as Record<string, any>;
-const featureFromSeed = (flag: string): boolean => {
-  const v = seedConfig[flag];
-  if (v === undefined) return true; // default features visible at bake time
-  if (typeof v === 'object' && v && 'value' in v) return Boolean((v as any).value);
-  return Boolean(v);
-};
-const stringFromSeed = (key: string): string => {
-  const v = seedConfig[key];
-  if (v === undefined) return '';
-  if (typeof v === 'object' && v && 'value' in v) return String((v as any).value);
-  return String(v ?? '');
-};
-const bakeCtx: BlockRenderContext = {
-  admin: false,
-  locale: 'en',
-  authenticated: false,
-  role: null,
-  isFeatureEnabled: featureFromSeed,
-  currentPath: '/',
-  siteName: stringFromSeed('site_name'),
-  // Brand identity fed to brand_header at build time. Picker rules in
-  // src/lib/blocks.ts pick icon / wordmark / text from these values.
-  brandText: stringFromSeed('brand_text') || stringFromSeed('site_name'),
-  brandTextShort: stringFromSeed('brand_text_short'),
-  brandIconUrl: stringFromSeed('brand_icon_url'),
-  brandWordmarkUrl: stringFromSeed('brand_wordmark_url'),
-};
-
-const seedAsSections = seed.sections as unknown as Section[];
+// The bake can come from a typed seed, an external port snapshot, or a neutral
+// fallback. Runtime hydrate still replaces this with live DB state.
+const { seed } = await resolveActiveProjectSeed();
+const chrome = bakeChrome(seed, title);
 
 const cspValue = buildCspValue();
-
-// Bake only global-scoped chrome — page-scoped header/footer blocks
-// (e.g. page_banner) belong to a single page and would otherwise leak into
-// the static HTML of every other page until the runtime hydrate corrects
-// them. Page-scoped chrome paints in the first hydrate frame instead.
-const headerHtml = seedAsSections
-  .filter((s) => s.zone === 'header' && s.scope === 'global' && s.visible !== false)
-  .sort((a, b) => a.position - b.position)
-  .map((s) => renderBlock(s, bakeCtx))
-  .join('');
-
-const footerHtml = seedAsSections
-  .filter((s) => s.zone === 'footer' && s.scope === 'global' && s.visible !== false)
-  .sort((a, b) => a.position - b.position)
-  .map((s) => renderBlock(s, bakeCtx))
-  .join('');
-
-// --- Build-time Google Fonts injection (theme-fonts-injection) ---
-// When the active seed names a non-system font in `theme.font_heading` /
-// `theme.font_body`, emit preconnect + stylesheet <link> tags into <head>
-// so the named font has its CSS request in flight before first paint.
-const themeRaw = (seed.site_config as Record<string, any>).theme;
-const themeValue: Record<string, unknown> =
-  themeRaw && typeof themeRaw === 'object' && 'value' in themeRaw
-    ? ((themeRaw as { value: Record<string, unknown> }).value ?? {})
-    : (themeRaw ?? {});
-const fontHead = renderFontHead(
-  themeValue.font_heading as string | undefined,
-  themeValue.font_body as string | undefined,
-);
-
-// Favicon fallback chain (brand-identity-fields): site_config.favicon_url →
-// brand_icon_url → engine default `/favicon.svg`. Accepts https://,
-// root-relative, and inline `data:image/svg+xml,…` URLs. SVG (file or data
-// URL) gets `type="image/svg+xml"`; other formats omit `type` so the browser
-// infers from the URL. CSP `img-src` includes `data:` (embed-block baseline).
-const faviconUrl =
-  stringFromSeed('favicon_url') ||
-  stringFromSeed('brand_icon_url') ||
-  '/favicon.svg';
-const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('data:image/svg+xml');
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -113,11 +41,11 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content={cspValue}>
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>{title}</title>
-  {isSvgFavicon
-    ? <link rel="icon" type="image/svg+xml" href={faviconUrl} />
-    : <link rel="icon" href={faviconUrl} />}
-  {fontHead && <Fragment set:html={fontHead} />}
+  <title>{chrome.title}</title>
+  {chrome.isSvgFavicon
+    ? <link rel="icon" type="image/svg+xml" href={chrome.faviconUrl} />
+    : <link rel="icon" href={chrome.faviconUrl} />}
+  {chrome.fontHead && <Fragment set:html={chrome.fontHead} />}
   <link rel="stylesheet" href={`/css/theme.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/styles.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/nav-dropdown.css?b=${BUILD_ID}`}>
@@ -160,7 +88,7 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
   <DemoBanner />
   <div class="page">
     <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
-      <div class="container" set:html={headerHtml}></div>
+      <div class="container" set:html={chrome.headerHtml}></div>
     </nav>
 
     <main class="page-content" id="main-content">
@@ -168,7 +96,7 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
     </main>
 
     <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
-      <div class="container" set:html={footerHtml}></div>
+      <div class="container" set:html={chrome.footerHtml}></div>
     </footer>
     <AuthModal />
   </div>
@@ -264,6 +192,7 @@ const isSvgFavicon = /\.svg($|\?)/i.test(faviconUrl) || faviconUrl.startsWith('d
     document.addEventListener('astro:after-swap', hydrateChrome);
     document.addEventListener('wl-locale-changed', hydrateChrome);
     document.addEventListener('wl-auth-changed', hydrateChrome);
+    document.addEventListener('wl-config-changed', hydrateChrome);
   </script>
 
   <div id="wl-sr-live" class="wl-sr-live" aria-live="polite" aria-atomic="true"></div>
