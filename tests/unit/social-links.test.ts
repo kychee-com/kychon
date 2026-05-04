@@ -3,13 +3,17 @@ import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from 
 import {
   normalizeSocialLinkItems,
   normalizeSocialProvider,
-  sanitizeSocialHref,
   SUPPORTED_SOCIAL_PROVIDERS,
+  sanitizeSocialHref,
 } from '../../src/lib/blocks/social-links';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 
-function section(section_type: string, config: Record<string, unknown> = {}, zone: Section['zone'] = 'header'): Section {
+function section(
+  section_type: string,
+  config: Record<string, unknown> = {},
+  zone: Section['zone'] = 'header',
+): Section {
   return {
     id: 92,
     page_slug: '*',
