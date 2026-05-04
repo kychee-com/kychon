@@ -31,6 +31,10 @@ INSERT INTO site_config (key, value, category) VALUES
   ('feature_ai_insights', 'true', 'features'),
   ('feature_ai_onboarding', 'true', 'features'),
   ('feature_ai_event_recaps', 'true', 'features'),
+  ('feature_activity_feed', 'true', 'features'),
+  ('feature_reactions', 'true', 'features'),
+  ('feature_polls', 'true', 'features'),
+  ('polls_member_create', 'false', 'features'),
   ('directory_public', 'false', 'features'),
   ('signup_mode', '"approved"', 'features'),
   ('demo_mode', 'true', 'features')
@@ -183,11 +187,14 @@ INSERT INTO sections (page_slug, zone, scope, section_type, config, position, vi
 SELECT '*', 'header', 'global', 'brand_header', '{"href":"/"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'brand_header' AND position = 1);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
-SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"About","href":"/page.html?slug=about","icon":"info","public":true},{"label":"Volunteer","href":"/page.html?slug=volunteer","icon":"heart","public":true},{"label":"Members","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
+SELECT '*', 'header', 'global', 'nav', '{"items":[{"label":"Home","href":"/","icon":"home","public":true},{"label":"About","href":"/page.html?slug=about","icon":"info","public":true},{"label":"Volunteer","href":"/page.html?slug=volunteer","icon":"heart","public":true},{"label":"Members","href":"/directory.html","icon":"users","auth":true,"feature":"feature_directory"},{"label":"Events","href":"/events.html","icon":"calendar","feature":"feature_events"},{"label":"Resources","href":"/resources.html","icon":"book-open","feature":"feature_resources"},{"label":"Forum","href":"/forum.html","icon":"message-circle","feature":"feature_forum"},{"label":"Polls","href":"/polls.html","icon":"bar-chart","feature":"feature_polls"},{"label":"Committees","href":"/committees.html","icon":"briefcase","feature":"feature_committees"},{"label":"Dashboard","href":"/admin.html","icon":"bar-chart-2","admin":true},{"label":"Members","href":"/admin-members.html","icon":"users","admin":true},{"label":"Settings","href":"/admin-settings.html","icon":"settings","admin":true}]}', 2, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'nav' AND position = 2);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT '*', 'header', 'global', 'sign_in_bar', '{"show_lang_toggle":true,"show_theme_toggle":true}', 3, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'sign_in_bar' AND position = 3);
+INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
+SELECT '*', 'header', 'global', 'site_search', '{"placeholder":"Search The Eagles","submit_label":"Search","destination":"/search.html","compact":true,"default_type":"all"}', 4, true, '1'
+WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '*' AND zone = 'header' AND scope = 'global' AND section_type = 'site_search' AND position = 4);
 INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)
 SELECT 'index', 'main', 'page', 'hero', '{"mode":"foreground","heading":"Lifting Wichita, One Neighbor at a Time","subheading":"The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.","cta_text":"Join The Eagles","cta_href":"/join.html","image_url":"/assets/hero.jpg","image_alt":"Eagles volunteers gathered at a community service event","image_aspect":"auto","logo_overlay_url":"/assets/logo.png","logo_position":"left","logo_max_height":"110px","caption_html":"Founded 1995 · <strong>Sedgwick County, KS</strong>","caption_position":"bottom-right","text_position":"over_image"}', 1, true, '1'
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND zone = 'main' AND scope = 'page' AND section_type = 'hero' AND position = 1);
@@ -1985,6 +1992,8 @@ DELETE FROM site_config WHERE key = 'nav';
 -- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
 -- by brand_icon_url / brand_wordmark_url / brand_text.
 DELETE FROM site_config WHERE key = 'logo_url';
+-- native-site-search: repair/backfill search_documents after seed/import SQL.
+SELECT kychon_reindex_search();
 `;
 
 const MUTABLE_TABLES = [
