@@ -81,6 +81,32 @@ async function request(method: string, path: string, opts: RequestOpts = {}): Pr
   return text ? JSON.parse(text) : null;
 }
 
+async function functionRequest(name: string, query: URLSearchParams, retry = true): Promise<any> {
+  const url = `${getAPI()}/functions/v1/${name}?${query.toString()}`;
+  const headers = getAuthHeaders();
+  let res = await fetch(url, { headers });
+
+  if (res.status === 401 && retry) {
+    const refreshed = await refreshToken();
+    if (refreshed) {
+      headers.Authorization = `Bearer ${refreshed.access_token}`;
+      res = await fetch(url, { headers });
+    }
+  }
+
+  if (!res.ok) {
+    const err: any = new Error(`Function ${name}: ${res.status}`);
+    err.status = res.status;
+    try {
+      err.body = await res.json();
+    } catch {}
+    throw err;
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
 export function get(path: string): Promise<any> {
   return request('GET', path);
 }
@@ -109,6 +135,24 @@ export async function count(path: string): Promise<number> {
     return total === '*' ? 0 : parseInt(total, 10);
   }
   return 0;
+}
+
+export interface SiteSearchParams {
+  q?: string;
+  type?: string;
+  page?: number;
+  page_size?: number;
+  suggest?: boolean;
+}
+
+export async function searchSite(params: SiteSearchParams): Promise<import('./search.js').SearchResponse> {
+  const query = new URLSearchParams();
+  if (params.q != null) query.set('q', params.q);
+  if (params.type) query.set('type', params.type);
+  if (params.page != null) query.set('page', String(params.page));
+  if (params.page_size != null) query.set('page_size', String(params.page_size));
+  if (params.suggest) query.set('suggest', '1');
+  return functionRequest('site-search', query);
 }
 
 // --- Typed wrappers (Zod-validated) ---

@@ -121,6 +121,28 @@ CREATE TABLE IF NOT EXISTS resources (
 );
 
 -- ============================================
+-- SECTION: Native Site Search
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS search_documents (
+  id SERIAL PRIMARY KEY,
+  source_type TEXT NOT NULL CHECK (source_type IN ('page', 'resource', 'event')),
+  source_key TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  url TEXT NOT NULL DEFAULT '/',
+  is_members_only BOOLEAN NOT NULL DEFAULT false,
+  published BOOLEAN NOT NULL DEFAULT true,
+  title_vector TSVECTOR,
+  search_vector TSVECTOR,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(source_type, source_key)
+);
+
+ALTER TABLE search_documents ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
 -- SECTION: Forum (feature: forum)
 -- ============================================
 
@@ -323,3 +345,347 @@ DO $$ BEGIN
   ALTER TABLE sections ADD COLUMN column_span TEXT NOT NULL DEFAULT '1'
     CHECK (column_span IN ('1', '1/2', '1/3', '2/3'));
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- ============================================
+-- SECTION: Native Site Search Migrations
+-- ============================================
+
+CREATE OR REPLACE FUNCTION kychon_search_strip_html(input TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT trim(regexp_replace(regexp_replace(coalesce(input, ''), '<[^>]+>', ' ', 'g'), '[[:space:]]+', ' ', 'g'));
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_jsonb_text(value JSONB)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  result TEXT := '';
+  elem JSONB;
+  item RECORD;
+BEGIN
+  IF value IS NULL THEN
+    RETURN '';
+  END IF;
+
+  CASE jsonb_typeof(value)
+    WHEN 'string' THEN
+      RETURN kychon_search_strip_html(value #>> '{}');
+    WHEN 'array' THEN
+      FOR elem IN SELECT jsonb_array_elements(value) LOOP
+        result := concat_ws(' ', result, kychon_search_jsonb_text(elem));
+      END LOOP;
+      RETURN trim(result);
+    WHEN 'object' THEN
+      FOR item IN SELECT key, val FROM jsonb_each(value) AS t(key, val) LOOP
+        IF item.key !~* '(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id)$' THEN
+          result := concat_ws(' ', result, kychon_search_jsonb_text(item.val));
+        END IF;
+      END LOOP;
+      RETURN trim(result);
+    ELSE
+      RETURN '';
+  END CASE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_resource_file_label(file_url TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT trim(regexp_replace(replace(replace(regexp_replace(regexp_replace(coalesce(file_url, ''), '[?#].*$', ''), '^.*/', ''), '%20', ' '), '_', ' '), '[-]+', ' ', 'g'));
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_set_search_vectors()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.title_vector := to_tsvector('simple', coalesce(NEW.title, ''));
+  NEW.search_vector :=
+    setweight(to_tsvector('simple', coalesce(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(NEW.body, '')), 'B');
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_search_documents_vectors ON search_documents;
+CREATE TRIGGER trg_search_documents_vectors
+BEFORE INSERT OR UPDATE ON search_documents
+FOR EACH ROW EXECUTE FUNCTION kychon_set_search_vectors();
+
+CREATE INDEX IF NOT EXISTS idx_search_documents_title_vector ON search_documents USING GIN (title_vector);
+CREATE INDEX IF NOT EXISTS idx_search_documents_search_vector ON search_documents USING GIN (search_vector);
+CREATE INDEX IF NOT EXISTS idx_search_documents_visibility ON search_documents (published, is_members_only, source_type);
+CREATE INDEX IF NOT EXISTS idx_search_documents_updated ON search_documents (updated_at DESC, source_type, source_key);
+
+CREATE OR REPLACE FUNCTION kychon_upsert_search_page(slug_arg TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  p RECORD;
+  section_text TEXT;
+  page_url TEXT;
+BEGIN
+  SELECT * INTO p FROM pages WHERE slug = slug_arg LIMIT 1;
+  IF NOT FOUND THEN
+    DELETE FROM search_documents WHERE source_type = 'page' AND source_key = slug_arg;
+    RETURN;
+  END IF;
+
+  SELECT string_agg(kychon_search_jsonb_text(config), ' ' ORDER BY position)
+    INTO section_text
+  FROM sections
+  WHERE page_slug = slug_arg
+    AND scope = 'page'
+    AND visible IS NOT false
+    AND section_type NOT IN (
+      'nav',
+      'brand_header',
+      'sign_in_bar',
+      'site_search',
+      'footer_address',
+      'footer_links',
+      'footer_copyright',
+      'footer_social',
+      'footer_attribution'
+    );
+
+  page_url := CASE WHEN slug_arg = 'index' THEN '/' ELSE '/page.html?slug=' || slug_arg END;
+
+  INSERT INTO search_documents (
+    source_type,
+    source_key,
+    title,
+    body,
+    url,
+    is_members_only,
+    published
+  )
+  VALUES (
+    'page',
+    p.slug,
+    coalesce(p.title, ''),
+    concat_ws(' ', kychon_search_strip_html(p.content), section_text),
+    page_url,
+    coalesce(p.requires_auth, false),
+    coalesce(p.published, true)
+  )
+  ON CONFLICT (source_type, source_key) DO UPDATE SET
+    title = EXCLUDED.title,
+    body = EXCLUDED.body,
+    url = EXCLUDED.url,
+    is_members_only = EXCLUDED.is_members_only,
+    published = EXCLUDED.published;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_upsert_search_resource(resource_id INT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  r RECORD;
+  file_label TEXT;
+BEGIN
+  SELECT * INTO r FROM resources WHERE id = resource_id LIMIT 1;
+  IF NOT FOUND THEN
+    DELETE FROM search_documents WHERE source_type = 'resource' AND source_key = resource_id::TEXT;
+    RETURN;
+  END IF;
+
+  file_label := kychon_search_resource_file_label(r.file_url);
+
+  INSERT INTO search_documents (
+    source_type,
+    source_key,
+    title,
+    body,
+    url,
+    is_members_only,
+    published
+  )
+  VALUES (
+    'resource',
+    r.id::TEXT,
+    coalesce(r.title, file_label, ''),
+    concat_ws(' ', r.description, r.category, r.file_type, file_label),
+    '/resources.html#resource-' || r.id::TEXT,
+    coalesce(r.is_members_only, false),
+    true
+  )
+  ON CONFLICT (source_type, source_key) DO UPDATE SET
+    title = EXCLUDED.title,
+    body = EXCLUDED.body,
+    url = EXCLUDED.url,
+    is_members_only = EXCLUDED.is_members_only,
+    published = EXCLUDED.published;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_upsert_search_event(event_id INT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  e RECORD;
+BEGIN
+  SELECT * INTO e FROM events WHERE id = event_id LIMIT 1;
+  IF NOT FOUND THEN
+    DELETE FROM search_documents WHERE source_type = 'event' AND source_key = event_id::TEXT;
+    RETURN;
+  END IF;
+
+  INSERT INTO search_documents (
+    source_type,
+    source_key,
+    title,
+    body,
+    url,
+    is_members_only,
+    published
+  )
+  VALUES (
+    'event',
+    e.id::TEXT,
+    coalesce(e.title, ''),
+    concat_ws(' ', kychon_search_strip_html(e.description), e.location, to_char(e.starts_at, 'FMMonth FMDD, YYYY HH24:MI')),
+    '/event.html?id=' || e.id::TEXT,
+    coalesce(e.is_members_only, false),
+    true
+  )
+  ON CONFLICT (source_type, source_key) DO UPDATE SET
+    title = EXCLUDED.title,
+    body = EXCLUDED.body,
+    url = EXCLUDED.url,
+    is_members_only = EXCLUDED.is_members_only,
+    published = EXCLUDED.published;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_reindex_search()
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  row RECORD;
+BEGIN
+  DELETE FROM search_documents
+  WHERE source_type NOT IN ('page', 'resource', 'event');
+
+  FOR row IN SELECT slug FROM pages LOOP
+    PERFORM kychon_upsert_search_page(row.slug);
+  END LOOP;
+
+  FOR row IN SELECT id FROM resources LOOP
+    PERFORM kychon_upsert_search_resource(row.id);
+  END LOOP;
+
+  FOR row IN SELECT id FROM events LOOP
+    PERFORM kychon_upsert_search_event(row.id);
+  END LOOP;
+
+  DELETE FROM search_documents sd
+  WHERE (sd.source_type = 'page' AND NOT EXISTS (SELECT 1 FROM pages p WHERE p.slug = sd.source_key))
+     OR (sd.source_type = 'resource' AND NOT EXISTS (SELECT 1 FROM resources r WHERE r.id::TEXT = sd.source_key))
+     OR (sd.source_type = 'event' AND NOT EXISTS (SELECT 1 FROM events e WHERE e.id::TEXT = sd.source_key));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_page_row_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM kychon_upsert_search_page(OLD.slug);
+    RETURN OLD;
+  END IF;
+  PERFORM kychon_upsert_search_page(NEW.slug);
+  IF TG_OP = 'UPDATE' AND OLD.slug IS DISTINCT FROM NEW.slug THEN
+    PERFORM kychon_upsert_search_page(OLD.slug);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_section_row_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.scope = 'page' THEN
+      PERFORM kychon_upsert_search_page(OLD.page_slug);
+    END IF;
+    RETURN OLD;
+  END IF;
+
+  IF TG_OP = 'UPDATE' AND OLD.scope = 'page' AND OLD.page_slug IS DISTINCT FROM NEW.page_slug THEN
+    PERFORM kychon_upsert_search_page(OLD.page_slug);
+  END IF;
+
+  IF NEW.scope = 'page' THEN
+    PERFORM kychon_upsert_search_page(NEW.page_slug);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_resource_row_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM kychon_upsert_search_resource(OLD.id);
+    RETURN OLD;
+  END IF;
+  PERFORM kychon_upsert_search_resource(NEW.id);
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_event_row_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM kychon_upsert_search_event(OLD.id);
+    RETURN OLD;
+  END IF;
+  PERFORM kychon_upsert_search_event(NEW.id);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_search_pages_sync ON pages;
+CREATE TRIGGER trg_search_pages_sync
+AFTER INSERT OR UPDATE OR DELETE ON pages
+FOR EACH ROW EXECUTE FUNCTION kychon_search_page_row_trigger();
+
+DROP TRIGGER IF EXISTS trg_search_sections_sync ON sections;
+CREATE TRIGGER trg_search_sections_sync
+AFTER INSERT OR UPDATE OR DELETE ON sections
+FOR EACH ROW EXECUTE FUNCTION kychon_search_section_row_trigger();
+
+DROP TRIGGER IF EXISTS trg_search_resources_sync ON resources;
+CREATE TRIGGER trg_search_resources_sync
+AFTER INSERT OR UPDATE OR DELETE ON resources
+FOR EACH ROW EXECUTE FUNCTION kychon_search_resource_row_trigger();
+
+DROP TRIGGER IF EXISTS trg_search_events_sync ON events;
+CREATE TRIGGER trg_search_events_sync
+AFTER INSERT OR UPDATE OR DELETE ON events
+FOR EACH ROW EXECUTE FUNCTION kychon_search_event_row_trigger();
+
+SELECT kychon_reindex_search();

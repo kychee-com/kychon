@@ -953,6 +953,52 @@ const SIGN_IN_BAR: BlockType = {
   },
 };
 
+const SITE_SEARCH: BlockType = {
+  label: 'Site Search',
+  icon: '\u{1F50D}',
+  dynamic: true,
+  zoneHints: ['header', 'main'],
+  supportedSpans: ['1', '1/2', '1/3'],
+  defaultConfig: {
+    placeholder: 'Search this site',
+    submit_label: 'Search',
+    destination: '/search.html',
+    compact: true,
+    default_type: 'all',
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const destination = cfg.destination || '/search.html';
+    const placeholder = cfg.placeholder || 'Search this site';
+    const submitLabel = cfg.submit_label || 'Search';
+    const defaultType = ['all', 'pages', 'resources', 'events'].includes(cfg.default_type)
+      ? cfg.default_type
+      : 'all';
+    const compact = cfg.compact !== false;
+    const sid = section.id ?? `pos-${section.position}`;
+    const inputId = `site-search-${sid}`;
+    const listId = `site-search-list-${sid}`;
+    const cfgAttr = ` data-config="${jsonAttr({
+      destination,
+      default_type: defaultType,
+      min_chars: cfg.min_chars || 2,
+    })}"`;
+    const form = `<form class="site-search__form" action="${escAttr(destination)}" method="get" role="search">
+      <label class="sr-only" for="${escAttr(inputId)}">${escHtml(placeholder)}</label>
+      <input class="site-search__input" id="${escAttr(inputId)}" name="q" type="search" maxlength="300" autocomplete="off" placeholder="${escAttr(placeholder)}" aria-autocomplete="list" aria-expanded="false" aria-controls="${escAttr(listId)}">
+      <input type="hidden" name="type" value="${escAttr(defaultType)}">
+      <button class="site-search__submit" type="submit">${escHtml(submitLabel)}</button>
+      <div class="site-search__suggestions" id="${escAttr(listId)}" role="listbox" hidden></div>
+    </form>`;
+    const inner = `<div class="site-search site-search--${compact ? 'compact' : 'wide'}" data-block-hydrate="site_search"${cfgAttr}>${form}</div>`;
+    return adminWrap(section, ctx, inner, 'section section-site-search');
+  },
+  async hydrate(el, section, ctx) {
+    const { hydrateSiteSearch } = await import('./block-hydrators.js');
+    await hydrateSiteSearch(el, section, ctx);
+  },
+};
+
 // --- Footer renderers ---
 
 const FOOTER_ADDRESS: BlockType = {
@@ -1474,6 +1520,7 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   nav: NAV,
   brand_header: BRAND_HEADER,
   sign_in_bar: SIGN_IN_BAR,
+  site_search: SITE_SEARCH,
   footer_address: FOOTER_ADDRESS,
   footer_links: FOOTER_LINKS,
   footer_copyright: FOOTER_COPYRIGHT,

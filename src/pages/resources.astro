@@ -99,7 +99,7 @@ import Portal from '../layouts/Portal.astro';
       .map((r) => {
         const icon = fileTypeIcon(r.file_type);
         return `
-        <div class="card">
+        <div class="card" id="resource-${esc(r.id)}">
           <div class="flex items-center gap-1 mb-1">
             <span style="font-size:1.5rem">${icon}</span>
             <div>

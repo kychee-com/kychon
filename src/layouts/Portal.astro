@@ -17,9 +17,10 @@ import { buildCspValue } from '../lib/csp';
 
 interface Props {
   title: string;
+  robots?: string;
 }
 
-const { title } = Astro.props;
+const { title, robots } = Astro.props;
 // Build-time cache-buster for /js/env.js. The deploy injects fresh
 // __KYCHON_* globals into env.js, but the file's URL is otherwise stable —
 // browsers from a previous deploy can ship a stale cached copy that
@@ -42,6 +43,7 @@ const cspValue = buildCspValue();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content={cspValue}>
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  {robots && <meta name="robots" content={robots}>}
   <title>{chrome.title}</title>
   {chrome.isSvgFavicon
     ? <link rel="icon" type="image/svg+xml" href={chrome.faviconUrl} />
