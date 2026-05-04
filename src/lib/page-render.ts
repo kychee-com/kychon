@@ -167,7 +167,9 @@ function findSectionForElement(el: HTMLElement, sections: Section[]): Section | 
     }
   }
   // Chrome blocks may not have a data-sortable-id (rendered without sid in bake).
-  const hydrate = el.querySelector('[data-block-hydrate]') as HTMLElement | null;
+  const hydrate = el.matches('[data-block-hydrate]')
+    ? el
+    : (el.querySelector('[data-block-hydrate]') as HTMLElement | null);
   if (hydrate) {
     const blockType = hydrate.getAttribute('data-block-hydrate');
     if (blockType) {

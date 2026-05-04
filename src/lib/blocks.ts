@@ -949,7 +949,7 @@ const SIGN_IN_BAR: BlockType = {
   },
   async hydrate(el, _section, ctx) {
     const { hydrateSignInBar } = await import('./block-hydrators.js');
-    await hydrateSignInBar(el, ctx);
+    await hydrateSignInBar(el, _section, ctx);
   },
 };
 
