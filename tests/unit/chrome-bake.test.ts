@@ -63,4 +63,63 @@ describe('bakeChrome', () => {
     expect(chrome.headerHtml).toContain('Member Portal');
     expect(chrome.headerHtml + chrome.footerHtml + chrome.title).not.toContain('Kychon Community');
   });
+
+  it('renders header social icons from snapshot chrome before hydration', () => {
+    const snapshot: ProjectSeed = {
+      site_config: {
+        site_name: 'Social Club',
+        brand_text: 'Social Club',
+      },
+      sections: [
+        {
+          page_slug: '*',
+          zone: 'header',
+          scope: 'global',
+          section_type: 'brand_header',
+          config: { href: '/' },
+          position: 1,
+          visible: true,
+        },
+        {
+          page_slug: '*',
+          zone: 'header',
+          scope: 'global',
+          section_type: 'social_links',
+          config: {
+            items: [
+              { platform: 'facebook', href: 'https://facebook.com/socialclub' },
+              { platform: 'instagram', href: 'https://instagram.com/socialclub' },
+            ],
+          },
+          position: 2,
+          visible: true,
+        },
+      ],
+    };
+
+    const chrome = bakeChrome(snapshot, 'Home');
+
+    expect(chrome.headerHtml).toContain('Social Club');
+    expect(chrome.headerHtml).toContain('data-social-provider="facebook"');
+    expect(chrome.headerHtml).toContain('data-social-provider="instagram"');
+    expect(chrome.headerHtml).toContain('class="block-social-links__icon"');
+    expect(chrome.headerHtml).not.toContain('>f</a>');
+    expect(chrome.headerHtml).not.toContain('>ig</a>');
+  });
+
+  it('renders AAGE copied-site social chrome from structured social links', () => {
+    const snapshot = readSnapshot('fixtures/chrome/aage.chrome-snapshot.json');
+
+    const chrome = bakeChrome(snapshot, 'Home');
+
+    for (const provider of ['facebook', 'x', 'linkedin', 'instagram']) {
+      expect(chrome.headerHtml).toContain(`data-social-provider="${provider}"`);
+    }
+    expect(chrome.headerHtml).toContain('aria-label="Facebook"');
+    expect(chrome.headerHtml).toContain('aria-label="LinkedIn"');
+    expect(chrome.headerHtml).not.toContain('class="aage-social"');
+    expect(chrome.headerHtml).not.toContain('>f</a>');
+    expect(chrome.headerHtml).not.toContain('>in</a>');
+    expect(chrome.headerHtml).not.toContain('>ig</a>');
+  });
 });

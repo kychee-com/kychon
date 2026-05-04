@@ -1057,33 +1057,16 @@ const FOOTER_COPYRIGHT: BlockType = {
 
 const FOOTER_SOCIAL: BlockType = {
   label: 'Social Links',
-  icon: '\u{1F30D}',
+  icon: '\u{1F310}',
   dynamic: false,
   zoneHints: ['footer'],
   supportedSpans: ['1', '1/3'],
   defaultConfig: { icons: [] },
   render(section, ctx) {
-    const cfg = section.config || {};
-    const PLATFORM_ICONS: Record<string, string> = {
-      facebook: '\u{1F4D8}',
-      instagram: '\u{1F4F7}',
-      x: '\u{1D54F}',
-      twitter: '\u{1D54F}',
-      linkedin: '\u{1F4BC}',
-      youtube: '\u{1F4FA}',
-      tiktok: '\u{1F3B5}',
-      github: '\u{1F431}',
-    };
-    const icons = (cfg.icons || [])
-      .map((it: any) => {
-        const icon = PLATFORM_ICONS[String(it.platform || '').toLowerCase()] || '\u{1F517}';
-        return `<a href="${escAttr(it.href)}" class="footer-social-link" aria-label="${escAttr(it.platform)}" target="_blank" rel="noopener">${icon}</a>`;
-      })
-      .join('');
-    const sid = section.id;
-    const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
-    const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
-    return `<div class="footer-block footer-social"${sortable}${cfgAttr}>${icons}</div>`;
+    return renderSocialLinksBlock(section, ctx, {
+      className: 'section footer-block',
+      legacyFooter: true,
+    });
   },
 };
 
@@ -1465,6 +1448,7 @@ const SLIDESHOW: BlockType = {
 // --- Registry ---
 
 import EMBED from './blocks/embed.js';
+import SOCIAL_LINKS, { renderSocialLinksBlock } from './blocks/social-links.js';
 
 export const BLOCK_TYPES: Record<string, BlockType> = {
   hero: HERO,
@@ -1486,6 +1470,7 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   events_list: EVENTS_LIST,
   events_calendar: EVENTS_CALENDAR,
   slideshow: SLIDESHOW,
+  social_links: SOCIAL_LINKS,
   nav: NAV,
   brand_header: BRAND_HEADER,
   sign_in_bar: SIGN_IN_BAR,
