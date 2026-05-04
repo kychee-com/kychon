@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest';
+
+import { seed as barrioSeed } from '../../src/seeds/barrio-unido';
+import { seed as eaglesSeed } from '../../src/seeds/eagles';
+import { seed as silverPinesSeed } from '../../src/seeds/silver-pines';
+import type { ProjectSeed, SeedSection, SiteConfigEntry } from '../../src/seeds/types';
+
+const DEMOS = [
+  {
+    name: 'Eagles',
+    seed: eaglesSeed,
+    pollLabel: 'Polls',
+    searchPlaceholder: 'Search The Eagles',
+    searchSubmit: 'Search',
+  },
+  {
+    name: 'Silver Pines',
+    seed: silverPinesSeed,
+    pollLabel: 'Polls',
+    searchPlaceholder: 'Search Silver Pines',
+    searchSubmit: 'Search',
+  },
+  {
+    name: 'Barrio Unido',
+    seed: barrioSeed,
+    pollLabel: 'Encuestas',
+    searchPlaceholder: 'Buscar Barrio Unido',
+    searchSubmit: 'Buscar',
+  },
+] as const;
+
+function entryValue(raw: SiteConfigEntry | unknown): unknown {
+  return raw && typeof raw === 'object' && 'value' in raw ? (raw as SiteConfigEntry).value : raw;
+}
+
+function configValue(seed: ProjectSeed, key: string): unknown {
+  return entryValue(seed.site_config[key]);
+}
+
+function headerSection(seed: ProjectSeed, type: string): SeedSection | undefined {
+  return seed.sections.find(
+    (section) =>
+      section.page_slug === '*' &&
+      section.zone === 'header' &&
+      section.scope === 'global' &&
+      section.section_type === type,
+  );
+}
+
+describe('demo seed feature coverage', () => {
+  for (const demo of DEMOS) {
+    describe(demo.name, () => {
+      it('enables the shared interactive feature flags', () => {
+        expect(configValue(demo.seed, 'feature_activity_feed')).toBe(true);
+        expect(configValue(demo.seed, 'feature_reactions')).toBe(true);
+        expect(configValue(demo.seed, 'feature_polls')).toBe(true);
+        expect(configValue(demo.seed, 'polls_member_create')).toBe(false);
+      });
+
+      it('includes polls in the header navigation', () => {
+        const nav = headerSection(demo.seed, 'nav');
+        const items = Array.isArray(nav?.config.items) ? nav.config.items : [];
+        expect(items).toContainEqual(
+          expect.objectContaining({
+            label: demo.pollLabel,
+            href: '/polls.html',
+            feature: 'feature_polls',
+          }),
+        );
+      });
+
+      it('adds native site search to global chrome', () => {
+        const search = headerSection(demo.seed, 'site_search');
+        expect(search).toEqual(
+          expect.objectContaining({
+            position: 4,
+            config: expect.objectContaining({
+              placeholder: demo.searchPlaceholder,
+              submit_label: demo.searchSubmit,
+              destination: '/search.html',
+              compact: true,
+              default_type: 'all',
+            }),
+          }),
+        );
+      });
+    });
+  }
+});

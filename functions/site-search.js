@@ -37,7 +37,10 @@ export default async (req) => {
 };
 
 function normalizeQuery(input) {
-  return String(input || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return String(input || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
 }
 
 function normalizeType(input) {
@@ -104,27 +107,36 @@ async function runSearch({ query, type, page, pageSize, suggest, canSeeMembersOn
     AND (${match})
   `;
 
-  const rows = await sqlRows(db, `
+  const rows = await sqlRows(
+    db,
+    `
     SELECT source_type, source_key, title, body, url, ${titleMatchExpr} AS title_match, ${rankExpr} AS rank, updated_at
     FROM search_documents
     WHERE ${baseWhere}
     ORDER BY title_match DESC, rank DESC, updated_at DESC, source_type ASC, source_key ASC
     LIMIT ${pageSize} OFFSET ${offset}
-  `);
+  `,
+  );
 
-  const totalRows = await sqlRows(db, `
+  const totalRows = await sqlRows(
+    db,
+    `
     SELECT count(*)::int AS total
     FROM search_documents
     WHERE ${baseWhere}
-  `);
+  `,
+  );
   const total = Number(totalRows[0]?.total || 0);
 
-  const facetRows = await sqlRows(db, `
+  const facetRows = await sqlRows(
+    db,
+    `
     SELECT source_type, count(*)::int AS count
     FROM search_documents
     WHERE ${facetWhere}
     GROUP BY source_type
-  `);
+  `,
+  );
   const facets = { all: 0, pages: 0, resources: 0, events: 0 };
   for (const row of facetRows) {
     const key = SOURCE_TO_TYPE[row.source_type];

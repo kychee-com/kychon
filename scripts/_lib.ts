@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { fileSetFromDir, run402 } from "@run402/sdk/node";
-import type { FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
+import type { ApplyOptions, FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
 
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
@@ -270,6 +270,8 @@ export interface RunDeployOptions {
   extraFunction?: string;
   /** Optional first-byte chrome snapshot for ports without a typed seed module. */
   chromeSnapshot?: string | ProjectSeed;
+  /** Continue past confirmation-required deploy warnings after explicit review. */
+  allowWarnings?: boolean;
   /** When true, prints the assembled spec and returns without calling the API. */
   dryRun?: boolean;
 }
@@ -293,7 +295,11 @@ export async function runDeploy(
   r: Run402Instance,
   opts: RunDeployOptions,
 ): Promise<RunDeployResult> {
-  buildAstro({ chromeSnapshot: opts.chromeSnapshot });
+  const buildOptions: BuildAstroOptions = {};
+  if (opts.chromeSnapshot !== undefined) {
+    buildOptions.chromeSnapshot = opts.chromeSnapshot;
+  }
+  buildAstro(buildOptions);
 
   const distDir = join(ROOT, "dist");
   injectEnvJs(distDir, opts.anonKey);
@@ -355,8 +361,26 @@ export async function runDeploy(
     return { ok: true };
   }
 
+  const applyOptions: ApplyOptions = {
+    onEvent(event) {
+      if (event.type !== "plan.warnings") return;
+      console.warn("\nDeploy plan warnings:");
+      for (const warning of event.warnings) {
+        console.warn(
+          `  [${warning.severity ?? "warning"}] ${warning.code}: ${warning.message}`,
+        );
+      }
+    },
+  };
+  if (opts.allowWarnings) {
+    applyOptions.allowWarnings = true;
+    console.warn(
+      "\nContinuing past confirmation-required deploy warnings because allowWarnings is enabled.",
+    );
+  }
+
   const startedAt = Date.now();
-  const result = await r.deploy.apply(spec);
+  const result = await r.deploy.apply(spec, applyOptions);
   const elapsedMs = Date.now() - startedAt;
 
   console.log(`\nDeploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
