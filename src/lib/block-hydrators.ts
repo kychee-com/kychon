@@ -422,7 +422,11 @@ function renderEventCard(
   return `<a href="${esc(href)}" class="event-card event-card--sidebar">${dateBlock}${body}</a>`;
 }
 
-export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext): Promise<void> {
+export async function hydrateSignInBar(
+  el: HTMLElement,
+  section: Section,
+  _ctx: BlockRenderContext,
+): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="sign_in_bar"]') as HTMLElement | null;
   if (!root) return;
   const [{ getSession }, i18n, { t }] = await Promise.all([
@@ -435,6 +439,8 @@ export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const locales = getAvailableLocales();
   const currentLocale = getLocale();
+  const showLangToggle = section.config.show_lang_toggle !== false;
+  const showThemeToggle = section.config.show_theme_toggle !== false;
   const LANG_LABELS: Record<string, string> = {
     en: 'EN',
     es: 'ES',
@@ -445,10 +451,12 @@ export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext
     ja: '日本語',
     ko: '한국어',
   };
-  const langBtn = locales.length >= 2
+  const langBtn = showLangToggle && locales.length >= 2
     ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
     : '';
-  const themeBtn = `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '☀️' : '🌙'}</button>`;
+  const themeBtn = showThemeToggle
+    ? `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '☀️' : '🌙'}</button>`
+    : '';
   if (!session) {
     root.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
   } else {
@@ -465,16 +473,18 @@ export async function hydrateSignInBar(el: HTMLElement, _ctx: BlockRenderContext
     localStorage.removeItem('wl_session');
     window.location.href = '/';
   });
-  document.getElementById('theme-toggle')?.addEventListener('click', () => {
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const next = dark ? 'light' : 'dark';
-    if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-    else document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem('wl_theme', next);
-    const btn = document.getElementById('theme-toggle');
-    if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
-  });
-  if (locales.length >= 2) {
+  if (showThemeToggle) {
+    document.getElementById('theme-toggle')?.addEventListener('click', () => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const next = dark ? 'light' : 'dark';
+      if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('wl_theme', next);
+      const btn = document.getElementById('theme-toggle');
+      if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+  }
+  if (showLangToggle && locales.length >= 2) {
     document.getElementById('lang-toggle')?.addEventListener('click', async () => {
       const idx = locales.indexOf(currentLocale);
       const next = locales[(idx + 1) % locales.length];

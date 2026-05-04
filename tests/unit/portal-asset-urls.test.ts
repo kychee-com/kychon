@@ -20,6 +20,13 @@ describe('Portal asset URLs', () => {
     expect(portalSource).toContain(buildIdTemplate);
   });
 
+  it('exposes BUILD_ID to client cache logic', () => {
+    expect(portalSource).toContain("import { KYCHON_BUILD_ID } from '../lib/build-id'");
+    expect(portalSource).toContain('const BUILD_ID = KYCHON_BUILD_ID');
+    expect(portalSource).toContain('define:vars={{ BUILD_ID }}');
+    expect(portalSource).toContain('__KYCHON_BUILD_ID');
+  });
+
   it('keeps chrome hydration owned by the layout including config changes', () => {
     expect(portalSource).toContain("import { hydratePage, currentPageSlug } from '../lib/page-render'");
     expect(portalSource).toContain('hydratePage(currentPageSlug())');
