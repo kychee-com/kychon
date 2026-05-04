@@ -62,7 +62,8 @@ describe('site_search hydration', () => {
   it('fetches title-only suggestions after debounce and renders visible options', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ results: [{ type: 'page', title: 'Membership', url: '/page.html?slug=membership' }] }),
+      json: () =>
+        Promise.resolve({ results: [{ type: 'page', title: 'Membership', url: '/page.html?slug=membership' }] }),
     });
     const host = mount();
     await hydrateSiteSearch(host, section, ctx);
