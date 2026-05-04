@@ -279,7 +279,10 @@ export async function hydrateSiteSearch(
       opt.classList.toggle('is-active', active);
       opt.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    inputEl.setAttribute('aria-activedescendant', options[activeIndex].id);
+    const activeOption = options[activeIndex];
+    if (activeOption) {
+      inputEl.setAttribute('aria-activedescendant', activeOption.id);
+    }
   }
 
   function renderSuggestions(results: any[]) {
@@ -344,7 +347,7 @@ export async function hydrateSiteSearch(
       setActive(activeIndex - 1);
     } else if (event.key === 'Enter' && activeIndex >= 0) {
       event.preventDefault();
-      options[activeIndex].click();
+      options[activeIndex]?.click();
     } else if (event.key === 'Escape') {
       event.preventDefault();
       closeSuggestions();

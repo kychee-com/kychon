@@ -189,15 +189,16 @@ export function normalizeSocialLinkItems(config: Record<string, unknown>): Norma
       const fallbackLabel = SOCIAL_PROVIDER_DISPLAY_NAMES[provider] || SOCIAL_PROVIDER_DISPLAY_NAMES.unknown;
       const label = String(item.label || fallbackLabel).trim() || fallbackLabel;
       const isHttp = /^https?:\/\//i.test(href);
-      return {
+      const normalized: NormalizedSocialLinkItem = {
         provider,
         href,
         label,
         external: item.external !== false && isHttp,
-        target: item.target,
-        rel: item.rel,
         showLabel: item.show_label === true,
       };
+      if (typeof item.target === 'string') normalized.target = item.target;
+      if (typeof item.rel === 'string') normalized.rel = item.rel;
+      return normalized;
     })
     .filter((item) => item.href);
 }
