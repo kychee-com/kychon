@@ -20,6 +20,7 @@ const SILVER_PINES_NAV = [
     ],
   },
   { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
+  { label: 'Polls', href: '/polls.html', icon: 'bar-chart', feature: 'feature_polls' },
   { label: 'Committees', href: '/committees.html', icon: 'briefcase', feature: 'feature_committees' },
   { label: 'Announcements', href: '/#announcements-section', icon: 'bell', public: true },
   { label: 'Dashboard', href: '/admin.html', icon: 'bar-chart-2', admin: true },
@@ -70,6 +71,8 @@ export const seed: ProjectSeed = {
     feature_committees: { value: true, category: 'features' },
     feature_reactions: { value: true, category: 'features' },
     feature_activity_feed: { value: true, category: 'features' },
+    feature_polls: { value: true, category: 'features' },
+    polls_member_create: { value: false, category: 'features' },
     feature_ai_moderation: { value: false, category: 'features' },
     feature_ai_translation: { value: false, category: 'features' },
     feature_ai_newsletter: { value: false, category: 'features' },
@@ -155,6 +158,20 @@ export const seed: ProjectSeed = {
       section_type: 'sign_in_bar',
       config: { show_lang_toggle: true, show_theme_toggle: true },
       position: 3,
+    },
+    {
+      page_slug: '*',
+      zone: 'header',
+      scope: 'global',
+      section_type: 'site_search',
+      config: {
+        placeholder: 'Search Silver Pines',
+        submit_label: 'Search',
+        destination: '/search.html',
+        compact: true,
+        default_type: 'all',
+      },
+      position: 4,
     },
     // --- Custom pages content ---
     {
