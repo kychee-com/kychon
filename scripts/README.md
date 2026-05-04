@@ -57,6 +57,8 @@ npx tsx scripts/deploy.ts --dry-run
 
 `deploy-all.sh` loads `.env` for you via `tsx --env-file=.env`. The TS scripts will surface a fast-fail error message if a required env var is missing.
 
+Set `RUN402_ALLOW_WARNINGS=true` only after reviewing confirmation-required deploy warnings (for example, expected full-site static file replacement on demo deploys).
+
 ## Type-checking
 
 ```bash
