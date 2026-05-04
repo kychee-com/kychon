@@ -16,6 +16,7 @@ import { fileSetFromDir, run402 } from "@run402/sdk/node";
 import type { FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
 
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
+import type { ProjectSeed } from "../src/seeds/types.ts";
 
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
@@ -128,14 +129,42 @@ function makeFunctionSpec(
  * and the bake in `Portal.astro` and the migration reader both expect a
  * project-matched `seed.sql` to exist.
  */
-export function buildAstro(): void {
+export interface BuildAstroOptions {
+  chromeSnapshot?: string | ProjectSeed;
+}
+
+function resolveChromeSnapshotForBuild(input: string | ProjectSeed | undefined): string | undefined {
+  if (!input) return undefined;
+  if (typeof input === "string") {
+    return input.startsWith("/") ? input : join(ROOT, input);
+  }
+
+  const tmpDir = join(ROOT, "tmp");
+  mkdirSync(tmpDir, { recursive: true });
+  const target = join(tmpDir, "kychon-chrome-snapshot.build.json");
+  writeFileSync(target, JSON.stringify(input, null, 2), "utf-8");
+  return target;
+}
+
+export function buildAstro(opts: BuildAstroOptions = {}): void {
+  const chromeSnapshot = resolveChromeSnapshotForBuild(opts.chromeSnapshot);
+  const env = { ...process.env };
+  if (chromeSnapshot) {
+    env.KYCHON_CHROME_SNAPSHOT = chromeSnapshot;
+    console.log(`First-byte chrome source: external snapshot (${chromeSnapshot})`);
+  } else {
+    delete env.KYCHON_CHROME_SNAPSHOT;
+    console.log("First-byte chrome source: typed seed or neutral fallback");
+  }
+
   console.log("Generating seed.sql from active project's TS seed...");
   execSync("npx tsx scripts/generate-seed-sql.ts", {
     stdio: "inherit",
     cwd: ROOT,
+    env,
   });
   console.log("Building Astro project...");
-  execSync("npx astro build", { stdio: "inherit", cwd: ROOT });
+  execSync("npx astro build", { stdio: "inherit", cwd: ROOT, env });
 }
 
 /**
@@ -236,6 +265,8 @@ export interface RunDeployOptions {
   excludeFunctions?: readonly string[];
   /** Path to an extra function file to add. */
   extraFunction?: string;
+  /** Optional first-byte chrome snapshot for ports without a typed seed module. */
+  chromeSnapshot?: string | ProjectSeed;
   /** When true, prints the assembled spec and returns without calling the API. */
   dryRun?: boolean;
 }
@@ -259,7 +290,7 @@ export async function runDeploy(
   r: Run402Instance,
   opts: RunDeployOptions,
 ): Promise<RunDeployResult> {
-  buildAstro();
+  buildAstro({ chromeSnapshot: opts.chromeSnapshot });
 
   const distDir = join(ROOT, "dist");
   injectEnvJs(distDir, opts.anonKey);

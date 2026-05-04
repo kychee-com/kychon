@@ -14,7 +14,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getActiveProjectSeed } from '../src/seeds/index.ts';
+import { describeSeedSource, resolveActiveProjectSeed } from '../src/seeds/index.ts';
 import type {
   MemberCustomFieldSeed,
   PageSeed,
@@ -277,7 +277,8 @@ async function main(): Promise<void> {
   const project = process.env.KYCHON_PROJECT || 'kychon';
   process.stdout.write(`Generating seed.sql for project: ${project}\n`);
 
-  const seed = await getActiveProjectSeed();
+  const { seed, source } = await resolveActiveProjectSeed();
+  process.stdout.write(`First-byte chrome source: ${describeSeedSource(source)}\n`);
   const sql = generateSeedSql(seed);
 
   if (dryRun) {
