@@ -136,6 +136,26 @@ import Portal from '../layouts/Portal.astro';
       <button class="btn btn-primary mt-1" id="as-general-save">Save</button>
     </div>
 
+    <!-- Event Display -->
+    <div class="card mb-2">
+      <h3 class="mb-1">Event Display</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Default source timezone</label>
+          <input class="form-input" id="as-event-source-timezone" placeholder="Australia/Sydney">
+          <p class="form-help text-sm text-muted">Used by imported events that do not set their own source timezone.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Default event time display</label>
+          <select class="form-select" id="as-event-time-display-mode">
+            <option value="visitor">Visitor local time</option>
+            <option value="source">Source timezone</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-1" id="as-event-display-save">Save</button>
+    </div>
+
     <!-- Feature Flags -->
     <div class="card mb-2">
       <h3 class="mb-1">Features</h3>
@@ -215,8 +235,12 @@ import Portal from '../layouts/Portal.astro';
     setTimeout(() => (btn.textContent = 'Save'), 2000);
   }
 
-  async function patchConfig(key: string, value: any) {
-    await patch(`site_config?key=eq.${key}`, { value });
+  async function patchConfig(key: string, value: any, category = 'general') {
+    const updated = await patch(`site_config?key=eq.${key}`, { value });
+    if (Array.isArray(updated) && updated.length === 0) {
+      await post('site_config', { key, value, category });
+    }
+    configMap[key] = value;
   }
 
   async function saveBranding(e: Event) {
@@ -641,6 +665,8 @@ import Portal from '../layouts/Portal.astro';
     setVal('as-default-language', configMap.default_language || 'en');
     (document.getElementById('as-directory-public') as HTMLInputElement).checked = configMap.directory_public === true;
     (document.getElementById('as-polls-member-create') as HTMLInputElement).checked = configMap.polls_member_create === true;
+    setVal('as-event-source-timezone', configMap.event_source_timezone || '');
+    setVal('as-event-time-display-mode', configMap.event_time_display_mode || 'visitor');
 
     // Populate feature flags
     const featureContainer = document.getElementById('as-features');
@@ -674,6 +700,15 @@ import Portal from '../layouts/Portal.astro';
         patchConfig('polls_member_create', (document.getElementById('as-polls-member-create') as HTMLInputElement).checked),
       ]);
       showSaved('as-general-save');
+    });
+
+    document.getElementById('as-event-display-save')?.addEventListener('click', async () => {
+      await Promise.all([
+        patchConfig('event_source_timezone', getVal('as-event-source-timezone').trim(), 'events'),
+        patchConfig('event_time_display_mode', getVal('as-event-time-display-mode') === 'source' ? 'source' : 'visitor', 'events'),
+      ]);
+      clearCache('wl_cache_site_config');
+      showSaved('as-event-display-save');
     });
 
     // Feature flag toggles

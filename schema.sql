@@ -91,9 +91,40 @@ CREATE TABLE IF NOT EXISTS events (
   capacity INT,
   image_url TEXT,
   is_members_only BOOLEAN DEFAULT false,
+  source_timezone TEXT,
+  source_timezone_label TEXT,
+  time_display_mode TEXT NOT NULL DEFAULT 'visitor' CHECK (time_display_mode IN ('visitor', 'source')),
+  import_review_state TEXT,
+  source_metadata JSONB DEFAULT '{}',
   created_by INT REFERENCES members(id),
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS event_registration_options (
+  id SERIAL PRIMARY KEY,
+  event_id INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  position INT NOT NULL DEFAULT 0,
+  label TEXT NOT NULL,
+  description TEXT,
+  price_amount NUMERIC(12, 2),
+  currency TEXT,
+  raw_price_label TEXT,
+  guest_policy TEXT,
+  capacity INT,
+  spaces_left INT,
+  availability_status TEXT NOT NULL DEFAULT 'unknown'
+    CHECK (availability_status IN ('available', 'waitlist', 'full', 'closed', 'unknown')),
+  cancellation_note TEXT,
+  source_registration_url TEXT,
+  review_state TEXT NOT NULL DEFAULT 'needs_review'
+    CHECK (review_state IN ('needs_review', 'reviewed', 'ignored')),
+  is_disabled BOOLEAN NOT NULL DEFAULT false,
+  raw_source_metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_event_registration_options_event_position
+  ON event_registration_options (event_id, position, id);
 
 CREATE TABLE IF NOT EXISTS event_rsvps (
   id SERIAL PRIMARY KEY,
@@ -345,6 +376,18 @@ DO $$ BEGIN
   ALTER TABLE sections ADD COLUMN column_span TEXT NOT NULL DEFAULT '1'
     CHECK (column_span IN ('1', '1/2', '1/3', '2/3'));
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- ported-event-registration + source-timezone-event-display: preserve richer
+-- imported event data without changing canonical timestamp storage.
+DO $$ BEGIN ALTER TABLE events ADD COLUMN source_timezone TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE events ADD COLUMN source_timezone_label TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE events ADD COLUMN time_display_mode TEXT NOT NULL DEFAULT 'visitor'; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE events ADD COLUMN import_review_state TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE events ADD COLUMN source_metadata JSONB DEFAULT '{}'; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE events ADD CONSTRAINT events_time_display_mode_check
+    CHECK (time_display_mode IN ('visitor', 'source'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ============================================
 -- SECTION: Native Site Search Migrations

@@ -82,6 +82,7 @@ export const seed: ProjectSeed = {
     directory_public: { value: true, category: 'features' },
     signup_mode: { value: 'open', category: 'features' },
     demo_mode: { value: true, category: 'features' },
+    event_time_display_mode: { value: 'visitor', category: 'events' },
   },
   membership_tiers: [
     {

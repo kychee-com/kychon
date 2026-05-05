@@ -66,6 +66,7 @@ export const seed: ProjectSeed = {
     directory_public: { value: false, category: 'features' },
     signup_mode: { value: 'approved', category: 'features' },
     demo_mode: { value: true, category: 'features' },
+    event_time_display_mode: { value: 'visitor', category: 'events' },
     languages: { value: ['es', 'en'], category: 'i18n' },
     default_language: { value: 'es', category: 'i18n' },
   },

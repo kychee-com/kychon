@@ -81,6 +81,17 @@ export interface BrandConfig {
   favicon_url?: string;
 }
 
+/**
+ * Event display config used by imported association ports.
+ * - `event_source_timezone`: optional IANA timezone such as "Australia/Sydney".
+ * - `event_time_display_mode`: "source" preserves source-local event listings;
+ *   "visitor" keeps Kychon's existing browser-local display.
+ */
+export interface EventDisplaySiteConfig {
+  event_source_timezone?: string;
+  event_time_display_mode?: 'visitor' | 'source';
+}
+
 export interface ProjectSeed {
   /** Map of site_config rows, keyed by config key (no `nav` here — nav is a block). */
   site_config: Record<string, SiteConfigEntry | unknown>;

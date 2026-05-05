@@ -168,6 +168,7 @@ export const seed: ProjectSeed = {
     polls_member_create: { value: false, category: 'features' },
     directory_public: { value: false, category: 'features' },
     signup_mode: { value: 'approved', category: 'features' },
+    event_time_display_mode: { value: 'visitor', category: 'events' },
     demo_mode: { value: true, category: 'features' },
   },
   membership_tiers: [
