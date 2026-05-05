@@ -60,6 +60,19 @@ describe('slideshow block-type', () => {
     expect(lazy.length).toBe(2);
   });
 
+  it('emits picture sources when AVIF/WebP derivatives are provided', () => {
+    const html = renderBlock(
+      slideshowSection({
+        items: [{ src: '/a.jpg', webp_src: '/a.webp', avif_src: '/a.avif', alt: 'A' }],
+      }),
+      ctx,
+    );
+    expect(html).toContain('<picture>');
+    expect(html).toContain('srcset="/a.avif" type="image/avif"');
+    expect(html).toContain('srcset="/a.webp" type="image/webp"');
+    expect(html).toContain('src="/a.jpg"');
+  });
+
   it('first slide has is-active class', () => {
     const html = renderBlock(
       slideshowSection({

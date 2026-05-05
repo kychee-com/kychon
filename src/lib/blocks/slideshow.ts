@@ -114,9 +114,10 @@ export function initSlideshow(root: HTMLElement): void {
 
   // Tab visibility.
   document.addEventListener('visibilitychange', state.onVis);
-  // SPA cleanup hooks.
+  // SPA cleanup hook. Runtime page hydration emits `wl-content-rendered` after
+  // dynamic blocks bind; treating that event as teardown immediately disables
+  // the carousel on normal page loads.
   document.addEventListener('astro:before-swap', state.onSwap);
-  document.addEventListener('wl-content-rendered', state.onSwap);
 
   // IntersectionObserver lazy-load: ensure off-screen slides only fetch
   // their image when scrolled near the viewport.
@@ -201,7 +202,6 @@ export function destroySlideshow(root: HTMLElement): void {
   }
   document.removeEventListener('visibilitychange', state.onVis);
   document.removeEventListener('astro:before-swap', state.onSwap);
-  document.removeEventListener('wl-content-rendered', state.onSwap);
   state.io?.disconnect();
   STATES.delete(root);
   // Allow re-init if the same node is re-rendered.
