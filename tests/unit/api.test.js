@@ -17,7 +17,16 @@ global.localStorage = {
   },
 };
 
-const { get, post, patch, del, count } = await import('../../src/lib/api.ts');
+const {
+  get,
+  post,
+  patch,
+  del,
+  count,
+  createEventRegistrationOption,
+  updateEventRegistrationOption,
+  updateEventTimezone,
+} = await import('../../src/lib/api.ts');
 
 describe('api.js', () => {
   beforeEach(() => {
@@ -102,5 +111,35 @@ describe('api.js', () => {
     });
     const c = await count('members?status=eq.active');
     expect(c).toBe(42);
+  });
+
+  it('persists new event registration options through the registration table', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":7}]') });
+    await createEventRegistrationOption({ event_id: 1, label: 'Member', review_state: 'needs_review' });
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://api.test/rest/v1/event_registration_options');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toMatchObject({ event_id: 1, label: 'Member' });
+  });
+
+  it('persists registration review edits through the registration table', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":7}]') });
+    await updateEventRegistrationOption(7, { review_state: 'reviewed', is_disabled: true });
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://api.test/rest/v1/event_registration_options?id=eq.7');
+    expect(opts.method).toBe('PATCH');
+    expect(JSON.parse(opts.body)).toMatchObject({ review_state: 'reviewed', is_disabled: true });
+  });
+
+  it('persists event timezone overrides through the events table', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":3}]') });
+    await updateEventTimezone(3, { source_timezone: 'Australia/Sydney', time_display_mode: 'source' });
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://api.test/rest/v1/events?id=eq.3');
+    expect(opts.method).toBe('PATCH');
+    expect(JSON.parse(opts.body)).toMatchObject({
+      source_timezone: 'Australia/Sydney',
+      time_display_mode: 'source',
+    });
   });
 });

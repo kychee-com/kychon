@@ -214,6 +214,51 @@ VALUES (
 The event appears on `events.html` automatically when `feature_events` is enabled.
 Members RSVP via the event detail page (`event.html?id=UUID`).
 
+### Source-Timezone Event Display
+
+Kychon stores event timestamps as instants, then formats them for visitors. Native
+sites use browser-local display by default:
+
+```sql
+INSERT INTO site_config (key, value, category)
+VALUES ('event_time_display_mode', '"visitor"', 'events')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
+```
+
+Imported association sites can preserve source-local listings with an IANA
+timezone. Use `event_source_timezone` as the site default and set
+`event_time_display_mode` to `"source"`:
+
+```sql
+INSERT INTO site_config (key, value, category)
+VALUES
+  ('event_source_timezone', '"Australia/Sydney"', 'events'),
+  ('event_time_display_mode', '"source"', 'events')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.category;
+```
+
+Individual events can override the site default with `events.source_timezone`,
+`events.source_timezone_label`, and `events.time_display_mode`.
+
+### Structured Registration Options
+
+Ported Wild Apricot-style registration classes live in
+`event_registration_options`, one row per option:
+
+```sql
+INSERT INTO event_registration_options (
+  event_id, position, label, raw_price_label, availability_status,
+  spaces_left, source_registration_url, review_state
+) VALUES (
+  1, 1, 'Member registration', '$25.00', 'available',
+  12, 'https://example.org/event-registration', 'needs_review'
+);
+```
+
+Public event pages render these options above the native RSVP panel. External
+registration links remain external CTAs; Kychon does not process source checkout
+or payment forms.
+
 ## Add a Forum Category
 
 ```sql

@@ -158,14 +158,14 @@ export async function searchSite(params: SiteSearchParams): Promise<import('./se
 // --- Typed wrappers (Zod-validated) ---
 
 import { z } from 'astro/zod';
-import { EventSchema, EventRSVPSchema } from '../schemas/event.js';
+import { EventRegistrationOptionSchema, EventSchema, EventRSVPSchema } from '../schemas/event.js';
 import { MemberSchema, MemberTierSchema } from '../schemas/member.js';
 import { SiteConfigRowSchema } from '../schemas/config.js';
 import { AnnouncementSchema, ResourceSchema, SectionSchema, PageSchema, ReactionSchema } from '../schemas/content.js';
 import { ForumCategorySchema, ForumTopicSchema, ForumReplySchema } from '../schemas/forum.js';
 import { CommitteeSchema, CommitteeMemberSchema } from '../schemas/committee.js';
 import { PollSchema, PollOptionSchema, PollVoteSchema } from '../schemas/poll.js';
-import type { Event, EventRSVP } from '../schemas/event.js';
+import type { Event, EventRegistrationOption, EventRSVP } from '../schemas/event.js';
 import type { Member, MemberTier } from '../schemas/member.js';
 import type { SiteConfigRow } from '../schemas/config.js';
 import type { Announcement, Resource, Section, Page, Reaction } from '../schemas/content.js';
@@ -186,6 +186,33 @@ export async function getEvents(query = ''): Promise<Event[]> {
 export async function getEventRSVPs(eventId: number): Promise<EventRSVP[]> {
   const data = await get(`event_rsvps?event_id=eq.${eventId}`);
   return z.array(EventRSVPSchema).parse(data);
+}
+
+export async function getEventRegistrationOptions(eventId: number): Promise<EventRegistrationOption[]> {
+  const data = await get(`event_registration_options?event_id=eq.${eventId}&order=position.asc,id.asc`);
+  return z.array(EventRegistrationOptionSchema).parse(data);
+}
+
+export async function getRegistrationOptionsForEvents(eventIds: number[]): Promise<EventRegistrationOption[]> {
+  if (!eventIds.length) return [];
+  const ids = eventIds.join(',');
+  const data = await get(`event_registration_options?event_id=in.(${ids})&order=event_id.asc,position.asc,id.asc`);
+  return z.array(EventRegistrationOptionSchema).parse(data);
+}
+
+export function createEventRegistrationOption(body: Record<string, unknown>): Promise<EventRegistrationOption[]> {
+  return post('event_registration_options', body);
+}
+
+export function updateEventRegistrationOption(
+  optionId: number,
+  body: Record<string, unknown>,
+): Promise<EventRegistrationOption[]> {
+  return patch(`event_registration_options?id=eq.${optionId}`, body);
+}
+
+export function updateEventTimezone(eventId: number, body: Record<string, unknown>): Promise<Event[]> {
+  return patch(`events?id=eq.${eventId}`, body);
 }
 
 export async function getEventWindow(startIso: string, endIso: string): Promise<Event[]> {

@@ -3,6 +3,8 @@
 // (Astro frontmatter runs in Node and shouldn't pull in localStorage/auth).
 
 import type { Section, BlockRenderContext } from './blocks.js';
+import { siteConfig } from './config.js';
+import { formatEventDateTime } from './event-display.js';
 
 function esc(s: any): string {
   const d = document.createElement('div');
@@ -535,12 +537,9 @@ function renderEventCard(
   opts: { showImage: boolean; showLocation: boolean; showTime: boolean },
 ): string {
   const title = esc(evt.title || 'Untitled event');
-  const dateObj = evt.starts_at ? new Date(evt.starts_at) : null;
-  const dateLabel = dateObj ? dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
-  const timeLabel =
-    opts.showTime && dateObj
-      ? dateObj.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-      : '';
+  const dateTime = formatEventDateTime(evt, undefined, siteConfig, { dateStyle: 'card' });
+  const dateLabel = dateTime.dateLabel;
+  const timeLabel = opts.showTime ? dateTime.timeRangeLabel : '';
   const location = opts.showLocation && evt.location ? esc(evt.location) : '';
   const href = evt.id ? `/event.html?id=${encodeURIComponent(evt.id)}` : '/events.html';
   const imageUrl = evt.image_url || evt.cover_image_url || '';

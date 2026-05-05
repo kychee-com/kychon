@@ -59,6 +59,7 @@ export const seed: ProjectSeed = {
     feature_reactions: { value: true, category: 'features' },
     feature_polls: { value: true, category: 'features' },
     polls_member_create: { value: false, category: 'features' },
+    event_time_display_mode: { value: 'visitor', category: 'events' },
   },
   membership_tiers: [
     {

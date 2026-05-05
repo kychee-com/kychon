@@ -47,6 +47,7 @@ const TABLE_NAMES = [
   "activity_log",
   "members",
   "events",
+  "event_registration_options",
   "event_rsvps",
   "resources",
   "forum_categories",

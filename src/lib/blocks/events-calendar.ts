@@ -19,6 +19,8 @@ import {
 } from '../calendar-cache.js';
 import type { Event } from '../../schemas/event.js';
 import type { RsvpAvatar } from '../api.js';
+import { siteConfig } from '../config.js';
+import { eventDayKey, formatEventDateTime } from '../event-display.js';
 
 type ViewMode = 'month' | 'week' | 'agenda';
 type Density = 'glance' | 'light' | 'rich';
@@ -130,10 +132,6 @@ function fmtAgendaDayHeading(d: Date, locale: string): string {
   }).format(d);
 }
 
-function fmtTime(d: Date, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(d);
-}
-
 function fmtDateLong(d: Date, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
@@ -169,21 +167,31 @@ function startOfDay(d: Date): Date {
 }
 
 // Group events by local-day key. Multi-day events appear on each day they span.
-function groupByDay(events: Event[]): Map<string, Event[]> {
+function addDayKey(key: string): string {
+  const d = new Date(`${key}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function groupByDay(events: Event[], locale: string): Map<string, Event[]> {
   const map = new Map<string, Event[]>();
   for (const e of events) {
-    const start = new Date(e.starts_at);
-    const end = e.ends_at ? new Date(e.ends_at) : start;
-    const startDay = startOfDay(start);
-    const endDay = startOfDay(end);
-    let cursor = startDay;
-    while (cursor <= endDay) {
-      const k = dayKey(cursor);
-      const list = map.get(k) || [];
+    const startKey = eventDayKey(e, siteConfig, locale);
+    const endKey = e.ends_at
+      ? eventDayKey({ ...e, starts_at: e.ends_at }, siteConfig, locale)
+      : startKey;
+    let cursor = startKey;
+    let guard = 0;
+    while (cursor && cursor <= endKey) {
+      const list = map.get(cursor) || [];
       list.push(e);
-      map.set(k, list);
-      cursor = addDays(cursor, 1);
-      if (cursor.getTime() - startDay.getTime() > 365 * 86400000) break; // safety
+      map.set(cursor, list);
+      cursor = addDayKey(cursor);
+      guard++;
+      if (guard > 365) break; // safety
     }
   }
   return map;
@@ -368,8 +376,7 @@ function renderEventChip(
   now: Date,
   density: Density,
 ): string {
-  const start = new Date(evt.starts_at);
-  const time = fmtTime(start, locale);
+  const time = formatEventDateTime(evt, locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
   const live = isLiveNow(evt, now);
   const liveDot = live
     ? `<span class="block-events-calendar__live-dot" role="img" aria-label="${escAttr(t('Live now', locale))}"></span>`
@@ -386,7 +393,7 @@ function renderEventChip(
     <a class="block-events-calendar__chip block-events-calendar__chip--${density}${live ? ' is-live' : ''}"
        href="/event.html?id=${evt.id}"
        data-event-id="${evt.id}"
-       data-day="${escAttr(dayKey(start))}"
+       data-day="${escAttr(eventDayKey(evt, siteConfig, locale))}"
        draggable="true">
       ${thumb}${liveDot}${timeHtml}${titleHtml}${lock}${cap}${avatars}
     </a>
@@ -406,7 +413,7 @@ function renderMonthView(state: State, locale: string, _ctx: BlockRenderContext)
   }
 
   const filtered = filterEvents(state.events, state, now);
-  const grouped = groupByDay(filtered);
+  const grouped = groupByDay(filtered, locale);
 
   const rows: string[] = [];
   for (let row = 0; row < 6; row++) {
@@ -455,7 +462,7 @@ function renderAgendaView(state: State, locale: string): string {
     return `<div class="block-events-calendar__empty">${escHtml(t('No events this month.', locale))}</div>`;
   }
   // Group by day key, render header + chip list.
-  const grouped = groupByDay(filtered);
+  const grouped = groupByDay(filtered, locale);
   const dayKeys = Array.from(grouped.keys()).sort();
   const sections = dayKeys.map((k) => {
     const dayDate = new Date(k + 'T00:00:00');
@@ -479,7 +486,7 @@ function renderWeekView(state: State, locale: string): string {
   const start = startOfWeek(state.focusDate || new Date(), firstDow);
   const now = new Date();
   const filtered = filterEvents(state.events, state, now);
-  const grouped = groupByDay(filtered);
+  const grouped = groupByDay(filtered, locale);
   const cols: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(start, i);
@@ -713,7 +720,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       root.querySelectorAll<HTMLElement>('.block-events-calendar__cell').forEach((cell) => {
         cell.addEventListener('mouseenter', () => {
           const events = (state.events && state.events.length)
-            ? filterEvents(state.events, state, new Date()).filter((e) => dayKey(new Date(e.starts_at)) === cell.dataset.day)
+            ? filterEvents(state.events, state, new Date()).filter((e) => eventDayKey(e, siteConfig, ctx.locale) === cell.dataset.day)
             : [];
           if (!events.length) return;
           window.clearTimeout(hoverTimer);
@@ -736,7 +743,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
 
     const dayDate = new Date(state.peekDayKey + 'T00:00:00');
     const events = filterEvents(state.events, state, new Date()).filter((e) => {
-      const k = dayKey(new Date(e.starts_at));
+      const k = eventDayKey(e, siteConfig, ctx.locale);
       return k === state.peekDayKey;
     });
     if (!events.length) {
@@ -745,8 +752,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     }
     const heading = fmtDateLong(dayDate, ctx.locale);
     const items = events.map((e) => {
-      const start = new Date(e.starts_at);
-      const time = fmtTime(start, ctx.locale);
+      const time = formatEventDateTime(e, ctx.locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
       const lock = e.is_members_only ? `<span class="block-events-calendar__lock" aria-label="${escAttr(t('Members only', ctx.locale))}">🔒</span>` : '';
       const live = isLiveNow(e, new Date()) ? `<span class="block-events-calendar__live-dot" aria-label="${escAttr(t('Live now', ctx.locale))}"></span>` : '';
       const cap = capacityBadge(e, state.rsvps, ctx.locale);
