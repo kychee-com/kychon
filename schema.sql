@@ -398,7 +398,25 @@ RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE
 AS $$
-  SELECT trim(regexp_replace(regexp_replace(coalesce(input, ''), '<[^>]+>', ' ', 'g'), '[[:space:]]+', ' ', 'g'));
+  SELECT trim(regexp_replace(
+    replace(
+      replace(
+        replace(
+          replace(
+            replace(
+              replace(regexp_replace(coalesce(input, ''), '<[^>]+>', ' ', 'g'), '&amp;nbsp;', ' '),
+              '&nbsp;', ' '
+            ),
+            '&#160;', ' '
+          ),
+          '&#xA0;', ' '
+        ),
+        '&#xa0;', ' '
+      ),
+      chr(160), ' '
+    ),
+    '[[:space:]]+', ' ', 'g'
+  ));
 $$;
 
 CREATE OR REPLACE FUNCTION kychon_search_jsonb_text(value JSONB)

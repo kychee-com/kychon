@@ -54,6 +54,7 @@ const cspValue = buildCspValue();
   <link rel="stylesheet" href={`/css/nav-dropdown.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/zone-grid.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/a11y.css?b=${BUILD_ID}`}>
+  {chrome.customCss && <style is:inline set:html={chrome.customCss}></style>}
   <ClientRouter />
   <script is:inline define:vars={{ BUILD_ID }}>
     window.__KYCHON_BUILD_ID = BUILD_ID;

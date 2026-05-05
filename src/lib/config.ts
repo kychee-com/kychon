@@ -17,7 +17,7 @@ interface CacheOptions {
   buildAware?: boolean;
 }
 
-function currentBuildId(): string | null {
+export function currentBuildId(): string | null {
   if (typeof window === 'undefined') return null;
   const win = window as Window & { __KYCHON_BUILD_ID?: string };
   return typeof win.__KYCHON_BUILD_ID === 'string' && win.__KYCHON_BUILD_ID

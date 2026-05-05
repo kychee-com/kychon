@@ -47,4 +47,13 @@ describe('native site search schema', () => {
   it('runs a reindex pass after generated seed/import SQL', () => {
     expect(seedGenerator).toContain('SELECT kychon_reindex_search();');
   });
+
+  it('normalizes non-breaking space entities before indexing search text', () => {
+    expect(schema).toContain('kychon_search_strip_html');
+    expect(schema).toContain('&amp;nbsp;');
+    expect(schema).toContain('&nbsp;');
+    expect(schema).toContain('&#160;');
+    expect(schema).toContain('&#xA0;');
+    expect(schema).toContain('chr(160)');
+  });
 });

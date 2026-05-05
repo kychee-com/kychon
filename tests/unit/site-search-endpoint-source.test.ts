@@ -25,4 +25,11 @@ describe('site-search function source', () => {
     expect(source).toContain('/resources.html#resource-');
     expect(source).toContain('/event.html?id=');
   });
+
+  it('normalizes imported HTML entities before rendering snippets', () => {
+    expect(source).toContain('decodeSearchEntities');
+    expect(source).toContain('&nbsp;|&#160;|&#xA0;');
+    expect(source).toContain('&amp;');
+    expect(source).toContain('return decodeSearchEntities(input)');
+  });
 });

@@ -211,8 +211,30 @@ function safeResultUrl(url, sourceType, sourceKey) {
   return raw;
 }
 
+function decodeSearchEntities(input) {
+  let out = String(input || '');
+  for (let i = 0; i < 2; i += 1) {
+    out = out
+      .replace(/&nbsp;|&#160;|&#xA0;/gi, ' ')
+      .replace(/&quot;/gi, '"')
+      .replace(/&apos;|&#39;/gi, "'")
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&#(\d+);/g, (_m, code) => {
+        const n = Number(code);
+        return Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ' ';
+      })
+      .replace(/&#x([0-9a-f]+);/gi, (_m, code) => {
+        const n = Number.parseInt(code, 16);
+        return Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ' ';
+      })
+      .replace(/&amp;/gi, '&');
+  }
+  return out.replace(/\u00a0/g, ' ');
+}
+
 function stripHtml(input) {
-  return String(input || '')
+  return decodeSearchEntities(input)
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
