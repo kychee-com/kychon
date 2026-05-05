@@ -6,6 +6,7 @@ export interface BakedChrome {
   headerHtml: string;
   footerHtml: string;
   fontHead: string;
+  customCss: string;
   faviconUrl: string;
   isSvgFavicon: boolean;
   title: string;
@@ -102,6 +103,7 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
       theme.font_heading as string | undefined,
       theme.font_body as string | undefined,
     ),
+    customCss: stringFromSeed(seed, 'custom_css'),
     faviconUrl,
     isSvgFavicon: isSvgFaviconUrl(faviconUrl),
     title: getBrandedTitle(pageTitle, bakeCtx.siteName || bakeCtx.brandText || ''),

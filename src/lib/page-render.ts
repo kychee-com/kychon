@@ -13,7 +13,7 @@
 
 import { get } from './api';
 import { getSession, getRole } from './auth';
-import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
+import { cacheHeroImage, currentBuildId, isFeatureEnabled, ready, siteConfig } from './config';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 
@@ -23,6 +23,7 @@ const CACHE_TTL = 5 * 60 * 1000;
 interface CachedSections {
   data: Section[];
   ts: number;
+  buildId?: string;
 }
 
 function readCache(slug: string): Section[] | null {
@@ -30,6 +31,11 @@ function readCache(slug: string): Section[] | null {
     const raw = localStorage.getItem(CACHE_PREFIX + slug);
     if (!raw) return null;
     const parsed: CachedSections = JSON.parse(raw);
+    const buildId = currentBuildId();
+    if (buildId && parsed?.buildId !== buildId) {
+      localStorage.removeItem(CACHE_PREFIX + slug);
+      return null;
+    }
     return parsed?.data ?? null;
   } catch {
     return null;
@@ -38,7 +44,8 @@ function readCache(slug: string): Section[] | null {
 
 function writeCache(slug: string, data: Section[]): void {
   try {
-    localStorage.setItem(CACHE_PREFIX + slug, JSON.stringify({ data, ts: Date.now() }));
+    const buildId = currentBuildId();
+    localStorage.setItem(CACHE_PREFIX + slug, JSON.stringify({ data, ts: Date.now(), ...(buildId ? { buildId } : {}) }));
   } catch {}
 }
 
@@ -46,7 +53,9 @@ function cacheIsFresh(slug: string): boolean {
   try {
     const raw = localStorage.getItem(CACHE_PREFIX + slug);
     if (!raw) return false;
-    const { ts } = JSON.parse(raw);
+    const { ts, buildId } = JSON.parse(raw);
+    const activeBuildId = currentBuildId();
+    if (activeBuildId && buildId !== activeBuildId) return false;
     return typeof ts === 'number' && ts + CACHE_TTL > Date.now();
   } catch {
     return false;
