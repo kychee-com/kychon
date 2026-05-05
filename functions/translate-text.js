@@ -1,6 +1,6 @@
 // On-demand text translation for user-generated content (Twitter-style "Translate" button)
-// Caches results in content_translations table. Uses OpenAI API via OPENAI_API_KEY secret.
-import { adminDb } from '@run402/functions';
+// Caches results in content_translations table. Uses Run402's native AI translation helper.
+import { adminDb, ai } from '@run402/functions';
 
 export default async (req) => {
   let body;
@@ -15,10 +15,15 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: 'text and target_lang required' }), { status: 400 });
   }
 
+  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_translation').limit(1);
+  if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
+    return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_translation disabled' }));
+  }
+
   // Check cache first (if content_type/content_id/field provided)
   if (content_type && content_id && field) {
     try {
-      const cached = await db
+      const cached = await adminDb()
         .from('content_translations')
         .select('translated_text')
         .eq('content_type', content_type)
@@ -34,38 +39,12 @@ export default async (req) => {
     }
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), { status: 500 });
-  }
-
   const trimmed = text.substring(0, 5000);
-  const langNames = { en: 'English', es: 'Spanish', pt: 'Portuguese', fr: 'French', de: 'German' };
-  const langName = langNames[target_lang] || target_lang;
+  const context = content_type ? `${content_type} on a community portal` : 'forum post on a community portal';
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Translate the following text to ${langName}. Return only the translation, no explanations. Preserve the original tone and meaning. This is a community forum post.`,
-          },
-          { role: 'user', content: trimmed },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      }),
-    });
-
-    const data = await res.json();
-    const translated = data.choices?.[0]?.message?.content?.trim();
+    const result = await ai.translate(trimmed, target_lang, { context });
+    const translated = result?.text?.trim();
 
     if (!translated) {
       return new Response(JSON.stringify({ error: 'No translation returned' }), { status: 500 });
