@@ -138,6 +138,15 @@ describe('slideshow controller', () => {
     expect(root.querySelectorAll('.block-slideshow__slide')[0].classList.contains('is-active')).toBe(true);
   });
 
+  it('stays hydrated after page-render announces content rendered', async () => {
+    const root = buildSlideshowDOM({ autoMs: 500, slides: 3 });
+    await init(root);
+    document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+    expect(root.dataset.hydrated).toBe('true');
+    vi.advanceTimersByTime(500);
+    expect(root.querySelectorAll('.block-slideshow__slide')[1].classList.contains('is-active')).toBe(true);
+  });
+
   it('updates the aria-live region on slide change', async () => {
     const root = buildSlideshowDOM({ autoMs: 0, slides: 2 });
     await init(root);

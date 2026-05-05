@@ -1457,7 +1457,12 @@ const SLIDESHOW: BlockType = {
         const figcaption = it.caption
           ? `<figcaption class="block-slideshow__caption">${escHtml(it.caption)}</figcaption>`
           : '';
-        const imgInner = `<img src="${escAttr(it.src || '')}" alt="${escAttr(it.alt || '')}" loading="${loading}">`;
+        const img = `<img src="${escAttr(it.src || '')}" alt="${escAttr(it.alt || '')}" loading="${loading}">`;
+        const sources = [
+          it.avif_src ? `<source srcset="${escAttr(it.avif_src)}" type="image/avif">` : '',
+          it.webp_src ? `<source srcset="${escAttr(it.webp_src)}" type="image/webp">` : '',
+        ].join('');
+        const imgInner = sources ? `<picture>${sources}${img}</picture>` : img;
         const linked = it.href
           ? `<a href="${escAttr(it.href)}" class="block-slideshow__link">${imgInner}</a>`
           : imgInner;
