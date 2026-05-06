@@ -41,7 +41,7 @@ npx tsx scripts/deploy.ts --dry-run
 | Var | Purpose |
 |---|---|
 | `RUN402_PROJECT_ID` | Target project. Falls back to `r.projects.active()` if unset. |
-| `SUBDOMAIN` | Target subdomain (defaults to `kychon`). |
+| `SUBDOMAIN` | Required target subdomain. Deploys fail fast when unset. |
 | `ANON_KEY` | Override anon key. Falls back to local keystore via `r.projects.keys()`. |
 | `SEED_FILE` | Path to seed SQL (default: `seed.sql`). |
 | `EXCLUDE_FUNCTIONS` | Comma-separated function names to skip. |

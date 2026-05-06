@@ -17,7 +17,7 @@ The system SHALL provide a `deploy.js` script that assembles a Run402 bundle dep
 
 ### Requirement: Deploy script reads project config
 
-The deploy script SHALL read `project_id` from environment variable `RUN402_PROJECT_ID` or from `~/.config/run402/projects.json` (active project). The subdomain SHALL be configurable via environment variable `SUBDOMAIN` or default to the project name.
+The deploy script SHALL read `project_id` from environment variable `RUN402_PROJECT_ID` or from `~/.config/run402/projects.json` (active project). The deploy script SHALL require `SUBDOMAIN` to be set explicitly and SHALL fail before deploying when `SUBDOMAIN` is unset or blank.
 
 #### Scenario: Project ID from environment
 - **WHEN** `RUN402_PROJECT_ID` is set and `node deploy.js` is run
