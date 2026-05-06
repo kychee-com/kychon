@@ -22,7 +22,7 @@ The system SHALL provide a TypeScript deploy entry point at `scripts/deploy.ts` 
 
 ### Requirement: Deploy script reads project config
 
-The deploy script SHALL resolve the target project id in this order: (1) `RUN402_PROJECT_ID` environment variable, (2) the active project returned by `r.projects.active()` via the SDK's Node credential provider. The subdomain SHALL be configurable via `SUBDOMAIN` environment variable or default to the project name.
+The deploy script SHALL resolve the target project id in this order: (1) `RUN402_PROJECT_ID` environment variable, (2) the active project returned by `r.projects.active()` via the SDK's Node credential provider. The deploy script SHALL require `SUBDOMAIN` to be set explicitly and SHALL fail before deploying when `SUBDOMAIN` is unset or blank.
 
 #### Scenario: Project ID from environment
 - **WHEN** `RUN402_PROJECT_ID` is set and `npx tsx scripts/deploy.ts` is run

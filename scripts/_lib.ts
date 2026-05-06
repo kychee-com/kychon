@@ -206,8 +206,8 @@ export interface ResolvedDeployTarget {
 
 /**
  * Resolve target from env vars (RUN402_PROJECT_ID / ANON_KEY / SUBDOMAIN),
- * falling back to the SDK's active project + keystore. Used by `deploy.ts`
- * (production deploy entry point).
+ * falling back to the SDK's active project + keystore for project/key lookup.
+ * Used by `deploy.ts` (production deploy entry point).
  */
 export async function resolveDeployTarget(r: Run402Instance): Promise<ResolvedDeployTarget> {
   const fromEnv = process.env["RUN402_PROJECT_ID"];
@@ -240,7 +240,14 @@ export async function resolveDeployTarget(r: Run402Instance): Promise<ResolvedDe
     );
   }
 
-  const subdomain = process.env["SUBDOMAIN"] ?? "kychon";
+  const subdomain = process.env["SUBDOMAIN"]?.trim();
+  if (!subdomain) {
+    throw new Error(
+      "No subdomain resolved.\n" +
+        "  Set SUBDOMAIN explicitly, e.g. `SUBDOMAIN=my-portal npx tsx scripts/deploy.ts`.\n" +
+        "  Do not rely on the active project for subdomain selection.",
+    );
+  }
   return { projectId, anonKey, subdomain };
 }
 
