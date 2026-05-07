@@ -1,9 +1,31 @@
 ---
+import AdminAccessShell from '../components/AdminAccessShell.astro';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Admin Dashboard">
-  <div class="container">
+  <AdminAccessShell />
+  <div class="container" data-admin-content hidden>
     <h2 class="mb-2">Dashboard</h2>
+
+    <section class="card admin-checklist hidden mb-2" id="fresh-start-checklist" aria-labelledby="fresh-start-checklist-title">
+      <div class="admin-checklist__header">
+        <div>
+          <span class="badge badge-primary">First run</span>
+          <h3 id="fresh-start-checklist-title">Launch checklist</h3>
+          <p class="text-muted">Work through the basics before inviting members in.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" id="fresh-start-checklist-dismiss">Hide</button>
+      </div>
+
+      <div class="admin-checklist__progress" aria-live="polite">
+        <span id="fresh-start-checklist-count">0 of 9 complete</span>
+        <div class="admin-checklist__bar" aria-hidden="true">
+          <span id="fresh-start-checklist-bar"></span>
+        </div>
+      </div>
+
+      <div class="admin-checklist__items" id="fresh-start-checklist-items"></div>
+    </section>
 
     <div class="stats-grid mb-2">
       <div class="card stat-card">
@@ -49,9 +71,19 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { count, get, patch } from '../lib/api';
+  import { revealAdminContent, showAdminAccessDenied } from '../lib/admin-access';
   import { isAdmin } from '../lib/auth';
-  import { showAuthGate } from '../lib/auth-gate';
   import { isFeatureEnabled, ready } from '../lib/config';
+  import {
+    FRESH_START_CHECKLIST_ITEMS,
+    FRESH_START_CHECKLIST_KEY,
+    checklistProgress,
+    dismissChecklist,
+    normalizeChecklistState,
+    shouldShowChecklist,
+    toggleChecklistItem,
+    type FreshStartChecklistState,
+  } from '../lib/fresh-start-checklist';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -82,6 +114,87 @@ import Portal from '../layouts/Portal.astro';
 
   function statCard(value: any, label: string): string {
     return `<div class="card stat-card"><div class="stat-value">${value}</div><div class="stat-label">${label}</div></div>`;
+  }
+
+  let freshStartChecklistState: FreshStartChecklistState | null = null;
+
+  async function saveFreshStartChecklist(state: FreshStartChecklistState) {
+    await patch(`site_config?key=eq.${FRESH_START_CHECKLIST_KEY}`, {
+      value: state,
+      category: 'onboarding',
+    });
+  }
+
+  function renderFreshStartChecklist(state: FreshStartChecklistState) {
+    const list = document.getElementById('fresh-start-checklist-items');
+    const countEl = document.getElementById('fresh-start-checklist-count');
+    const bar = document.getElementById('fresh-start-checklist-bar');
+    if (!list || !countEl || !bar) return;
+
+    freshStartChecklistState = state;
+    const completed = new Set(state.completed);
+    const progress = checklistProgress(state);
+    countEl.textContent = `${progress.completed} of ${progress.total} complete`;
+    bar.style.width = `${progress.percent}%`;
+
+    list.innerHTML = FRESH_START_CHECKLIST_ITEMS.map((item) => {
+      const checked = completed.has(item.id);
+      return `
+        <label class="admin-checklist__item">
+          <input type="checkbox" data-checklist-item="${esc(item.id)}" ${checked ? 'checked' : ''}>
+          <span class="admin-checklist__item-copy">
+            <strong>${esc(item.label)}</strong>
+            <small>${esc(item.description)}</small>
+          </span>
+          <a href="${esc(item.href)}">Open</a>
+        </label>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-checklist-item]').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const checkbox = input as HTMLInputElement;
+        const next = toggleChecklistItem(
+          freshStartChecklistState || state,
+          checkbox.dataset.checklistItem || '',
+          checkbox.checked,
+        );
+        renderFreshStartChecklist(next);
+        await saveFreshStartChecklist(next).catch(() => {});
+      });
+    });
+  }
+
+  async function loadFreshStartChecklist() {
+    const shell = document.getElementById('fresh-start-checklist');
+    if (!shell) return;
+
+    try {
+      const rows = await get(`site_config?key=eq.${FRESH_START_CHECKLIST_KEY}&limit=1`);
+      const row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) return;
+
+      const state = normalizeChecklistState(row.value);
+      freshStartChecklistState = state;
+      renderFreshStartChecklist(state);
+
+      if (shouldShowChecklist(state)) {
+        shell.classList.remove('hidden');
+      } else {
+        shell.classList.add('hidden');
+      }
+
+      const dismissButton = document.getElementById('fresh-start-checklist-dismiss');
+      if (dismissButton && dismissButton.dataset.bound !== 'true') {
+        dismissButton.dataset.bound = 'true';
+        dismissButton.addEventListener('click', async () => {
+          const next = dismissChecklist(freshStartChecklistState || state);
+          freshStartChecklistState = next;
+          shell.classList.add('hidden');
+          await saveFreshStartChecklist(next).catch(() => {});
+        });
+      }
+    } catch {}
   }
 
   async function loadModerationQueue() {
@@ -153,9 +266,12 @@ import Portal from '../layouts/Portal.astro';
   async function initDashboard() {
     await ready;
     if (!isAdmin()) {
-      showAuthGate('#main-content', 'admin');
+      showAdminAccessDenied();
       return;
     }
+    revealAdminContent();
+
+    await loadFreshStartChecklist();
 
     const statPromises: Promise<number>[] = [
       count('members?status=eq.active').catch(() => 0),

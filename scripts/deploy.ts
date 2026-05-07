@@ -29,6 +29,7 @@ async function main(): Promise<void> {
     anonKey: target.anonKey,
     subdomain: target.subdomain,
     dryRun: isDryRun(process.argv),
+    allowWarnings: process.env["RUN402_ALLOW_WARNINGS"] === "true",
   };
   const seedFile = process.env["SEED_FILE"];
   if (seedFile) opts.seedFile = seedFile;

@@ -35,7 +35,7 @@ function readImageDimensions(bytes, mime) {
     }
   }
   // SVG: parse viewBox or width/height attributes from the first ~2KB.
-  if ((mime && mime.includes('svg')) || (bytes.length >= 5 && bytes[0] === 0x3c)) {
+  if (mime?.includes('svg') || (bytes.length >= 5 && bytes[0] === 0x3c)) {
     const head = new TextDecoder().decode(bytes.slice(0, Math.min(2048, bytes.length)));
     const vb = head.match(/viewBox\s*=\s*["']\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)/i);
     if (vb) {

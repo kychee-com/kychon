@@ -1018,3 +1018,134 @@ body.admin .admin-zone-add-btn {
 .admin-section-edit-body .hero-settings-link {
   margin-top: 0.75rem;
 }
+
+.admin-section-edit-body .source-settings-link {
+  margin-top: 0.75rem;
+}
+
+/* Copied-theme source fidelity editor. */
+.admin-copied-theme-editor {
+  width: min(760px, 92vw);
+  max-width: 760px;
+  max-height: 86vh;
+}
+
+.admin-copied-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.admin-copied-header h3 {
+  margin: 0;
+}
+
+.admin-copied-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-copied-subtitle {
+  margin: 0 0 1rem;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.8125rem;
+}
+
+.admin-copied-group {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.admin-copied-group legend,
+.admin-copied-item legend {
+  padding: 0 0.35rem;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-copied-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-copied-field,
+.admin-copied-check {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.admin-copied-field span,
+.admin-copied-check span {
+  font-weight: 600;
+}
+
+.admin-copied-field input,
+.admin-copied-field select,
+.admin-copied-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.admin-copied-field textarea {
+  resize: vertical;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.admin-copied-field--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-copied-check {
+  justify-content: flex-end;
+  flex-direction: row;
+  align-items: center;
+  min-height: 2.5rem;
+}
+
+.admin-copied-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-copied-item {
+  position: relative;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 0.8rem;
+  background: var(--color-surface, #f8fafc);
+}
+
+.admin-copied-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+@media (max-width: 640px) {
+  .admin-copied-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-copied-grid {
+    grid-template-columns: 1fr;
+  }
+}

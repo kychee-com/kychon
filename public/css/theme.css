@@ -18,6 +18,30 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --transition: 150ms ease;
+  --interaction-hover-bg: var(--color-surface);
+  --interaction-hover-text: var(--color-text);
+  --interaction-focus-color: var(--color-primary);
+  --interaction-transform: translateY(-2px);
+  --interaction-duration: 150ms;
+  --interaction-easing: ease;
+  --button-hover-bg: var(--color-primary-hover);
+  --button-hover-text: #ffffff;
+  --card-hover-transform: var(--interaction-transform);
+  --card-hover-shadow: var(--shadow-md);
+  --nav-header-padding: 0.75rem 0;
+  --nav-logo-max-height: 2rem;
+  --nav-wordmark-max-height: 2.25rem;
+  --nav-link-color: var(--color-text-muted);
+  --nav-link-hover-bg: var(--color-surface);
+  --nav-link-hover-color: var(--color-text);
+  --nav-link-active-bg: rgba(99, 102, 241, 0.08);
+  --nav-link-active-color: var(--color-primary);
+  --nav-mobile-menu-bg: rgba(255, 255, 255, 0.95);
+  --slideshow-arrow-bg: rgba(0, 0, 0, 0.5);
+  --slideshow-arrow-color: #ffffff;
+  --slideshow-arrow-hover-bg: rgba(0, 0, 0, 0.7);
+  --slideshow-dot-bg: rgba(255, 255, 255, 0.45);
+  --slideshow-dot-active-bg: #ffffff;
 }
 
 [data-theme="dark"] {

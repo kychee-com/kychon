@@ -14,6 +14,7 @@ import { resolveActiveProjectSeed } from '../seeds';
 import { KYCHON_BUILD_ID } from '../lib/build-id';
 import { bakeChrome } from '../lib/chrome-bake';
 import { buildCspValue } from '../lib/csp';
+import { isDemoModeSeed } from '../lib/demo-mode';
 
 interface Props {
   title: string;
@@ -33,6 +34,7 @@ const BUILD_ID = KYCHON_BUILD_ID;
 // fallback. Runtime hydrate still replaces this with live DB state.
 const { seed } = await resolveActiveProjectSeed();
 const chrome = bakeChrome(seed, title);
+const renderDemoBanner = isDemoModeSeed(seed);
 
 const cspValue = buildCspValue();
 ---
@@ -92,7 +94,7 @@ const cspValue = buildCspValue();
 </head>
 <body>
   <a href="#main-content" class="wl-skip-nav">Skip to main content</a>
-  <DemoBanner />
+  {renderDemoBanner && <DemoBanner />}
   <div class="page">
     <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
       <div class="container" set:html={chrome.headerHtml}></div>

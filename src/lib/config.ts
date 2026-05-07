@@ -4,7 +4,7 @@
 // This module no longer touches #nav-links / #nav-user.
 
 import { get } from './api.js';
-import { getSession } from './auth.js';
+import { getSession, getSessionEmail } from './auth.js';
 import { loadLocale, setAvailableLocales, t } from './i18n.js';
 
 // --- Cache layer (stale-while-revalidate) ---
@@ -120,6 +120,7 @@ export function cacheHeroImage(input: string | HeroSectionLike): void {
 // --- Config state ---
 const siteConfig: Record<string, any> = {};
 const features: Record<string, boolean> = {};
+const ADMIN_PATHS = ['/admin.html', '/admin-members.html', '/admin-settings.html'];
 
 let resolveReady: () => void;
 export const ready: Promise<void> = new Promise((r) => {
@@ -200,31 +201,112 @@ export function getBrandedTitle(title: string, siteName: string): string {
 }
 
 // --- Theme ---
-export function applyTheme(theme: Record<string, string> | null): void {
+export const THEME_CSS_VAR_MAP: Record<string, string> = {
+  primary: '--color-primary',
+  primary_hover: '--color-primary-hover',
+  accent: '--color-accent',
+  bg: '--color-bg',
+  surface: '--color-surface',
+  text: '--color-text',
+  text_muted: '--color-text-muted',
+  border: '--color-border',
+  font_heading: '--font-heading',
+  font_body: '--font-body',
+  radius: '--radius',
+  max_width: '--max-width',
+};
+
+export const COPIED_THEME_CSS_VAR_PATHS: Record<string, string> = {
+  'interactions.default.hover.background': '--interaction-hover-bg',
+  'interactions.default.hover.text': '--interaction-hover-text',
+  'interactions.default.hover.transform': '--interaction-transform',
+  'interactions.default.hover.duration': '--interaction-duration',
+  'interactions.default.hover.easing': '--interaction-easing',
+  'interactions.default.focus.border': '--interaction-focus-color',
+  'interactions.button.hover.background': '--button-hover-bg',
+  'interactions.button.hover.text': '--button-hover-text',
+  'interactions.card.hover.transform': '--card-hover-transform',
+  'interactions.card.hover.shadow': '--card-hover-shadow',
+  'interactions.social.hover.background': '--social-link-hover-bg',
+  'interactions.social.hover.text': '--social-link-hover-color',
+  'interactions.social.hover.border': '--social-link-hover-border',
+  'interactions.social.hover.transform': '--social-link-hover-transform',
+  'header.padding': '--nav-header-padding',
+  'header.logo_max_height': '--nav-logo-max-height',
+  'header.logo_max_width': '--nav-logo-max-width',
+  'header.wordmark_max_height': '--nav-wordmark-max-height',
+  'nav.link_color': '--nav-link-color',
+  'nav.link_hover_bg': '--nav-link-hover-bg',
+  'nav.link_hover_color': '--nav-link-hover-color',
+  'nav.link_active_bg': '--nav-link-active-bg',
+  'nav.link_active_color': '--nav-link-active-color',
+  'nav.link_gap': '--nav-link-gap',
+  'nav.link_padding': '--nav-link-padding',
+  'nav.font_family': '--nav-link-font-family',
+  'nav.font_size': '--nav-link-font-size',
+  'nav.font_weight': '--nav-link-font-weight',
+  'nav.dropdown_bg': '--nav-dropdown-bg',
+  'nav.dropdown_color': '--nav-dropdown-color',
+  'nav.dropdown_hover_bg': '--nav-dropdown-hover-bg',
+  'nav.dropdown_hover_color': '--nav-dropdown-hover-color',
+  'nav.dropdown_border': '--nav-dropdown-border',
+  'nav.dropdown_shadow': '--nav-dropdown-shadow',
+  'nav.dropdown_width': '--nav-dropdown-width',
+  'nav.chevron_color': '--nav-chevron-color',
+  'nav.transition': '--nav-transition',
+  'nav.mobile_menu_bg': '--nav-mobile-menu-bg',
+  'nav.mobile_menu_padding': '--nav-mobile-menu-padding',
+  'carousel.arrow.background': '--slideshow-arrow-bg',
+  'carousel.arrow.text': '--slideshow-arrow-color',
+  'carousel.arrow.hover.background': '--slideshow-arrow-hover-bg',
+  'carousel.arrow.hover.text': '--slideshow-arrow-hover-color',
+  'carousel.dot.background': '--slideshow-dot-bg',
+  'carousel.dot.active_background': '--slideshow-dot-active-bg',
+};
+
+const SAFE_THEME_CSS_VALUE_RE = /^[#%(),./"'`\-\w\s]+$/;
+
+function safeThemeCssValue(value: unknown): string {
+  const s = String(value ?? '').trim();
+  if (!s || s.length > 180) return '';
+  return SAFE_THEME_CSS_VALUE_RE.test(s) ? s : '';
+}
+
+function readPath(obj: Record<string, any>, path: string): unknown {
+  let cur: any = obj;
+  for (const part of path.split('.')) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[part];
+  }
+  return cur;
+}
+
+export function themeCssVars(theme: Record<string, any> | null): Record<string, string> {
+  const vars: Record<string, string> = {};
+  if (!theme) return vars;
+  for (const [key, prop] of Object.entries(THEME_CSS_VAR_MAP)) {
+    const safe = safeThemeCssValue(theme[key]);
+    if (safe) vars[prop] = safe;
+  }
+  for (const [path, prop] of Object.entries(COPIED_THEME_CSS_VAR_PATHS)) {
+    const safe = safeThemeCssValue(readPath(theme, path));
+    if (safe) vars[prop] = safe;
+  }
+  return vars;
+}
+
+export function applyTheme(theme: Record<string, any> | null): void {
   if (!theme) return;
   const el = document.documentElement;
   const darkOverridable = new Set(['bg', 'surface', 'text', 'text_muted', 'border']);
-  const map: Record<string, string> = {
-    primary: '--color-primary',
-    primary_hover: '--color-primary-hover',
-    accent: '--color-accent',
-    bg: '--color-bg',
-    surface: '--color-surface',
-    text: '--color-text',
-    text_muted: '--color-text-muted',
-    border: '--color-border',
-    font_heading: '--font-heading',
-    font_body: '--font-body',
-    radius: '--radius',
-    max_width: '--max-width',
-  };
+  const vars = themeCssVars(theme);
   const rootVars: string[] = [];
-  for (const [key, prop] of Object.entries(map)) {
-    if (!theme[key]) continue;
-    if (darkOverridable.has(key)) {
-      rootVars.push(`${prop}: ${theme[key]};`);
+  for (const [prop, value] of Object.entries(vars)) {
+    const key = Object.entries(THEME_CSS_VAR_MAP).find(([, mappedProp]) => mappedProp === prop)?.[0];
+    if (key && darkOverridable.has(key)) {
+      rootVars.push(`${prop}: ${value};`);
     } else {
-      el.style.setProperty(prop, theme[key]);
+      el.style.setProperty(prop, value);
     }
   }
   let styleEl = document.getElementById('wl-theme-vars');
@@ -275,12 +357,37 @@ function applyMemberToSession(member: any): void {
   localStorage.setItem('wl_session', JSON.stringify(session));
 }
 
+async function findMemberForSession(session: any): Promise<any | null> {
+  const userId = session?.user?.id;
+  if (userId) {
+    const members = await get(`members?user_id=eq.${userId}&limit=1`);
+    if (members?.[0]) return members[0];
+  }
+
+  const email = getSessionEmail(session);
+  if (!email) return null;
+
+  const members = await get(`members?email=eq.${encodeURIComponent(email)}&limit=1`);
+  const member = members?.[0] || null;
+  if (member && userId && member.user_id !== userId) {
+    patchMemberUserId(member.id, userId).catch(() => {});
+  }
+  return member;
+}
+
+async function patchMemberUserId(memberId: unknown, userId: string): Promise<void> {
+  if (!memberId || !userId) return;
+  const { patch } = await import('./api.js');
+  await patch(`members?id=eq.${memberId}`, { user_id: userId });
+}
+
 async function loadMemberRecord(): Promise<void> {
   const session = getSession();
   if (!session) return;
 
   const cacheKey = WL_CACHE_MEMBER_PREFIX + session.user.id;
-  const cached = readCache(cacheKey);
+  const useMemberCache = !ADMIN_PATHS.includes(window.location.pathname);
+  const cached = useMemberCache ? readCache(cacheKey) : null;
   if (cached) {
     applyMemberToSession(cached);
     if (!isFresh(cacheKey, MEMBER_TTL)) {
@@ -299,10 +406,10 @@ async function loadMemberRecord(): Promise<void> {
   }
 
   try {
-    const members = await get(`members?user_id=eq.${session.user.id}&limit=1`);
-    if (members?.[0]) {
-      applyMemberToSession(members[0]);
-      writeCache(cacheKey, members[0]);
+    const member = await findMemberForSession(session);
+    if (member) {
+      applyMemberToSession(member);
+      writeCache(cacheKey, member);
     }
   } catch (e) {
     console.warn('loadMemberRecord failed:', e);
@@ -332,8 +439,6 @@ export function applyA11yPrefs(): void {
 }
 
 // --- Main init ---
-const ADMIN_PATHS = ['/admin.html', '/admin-members.html', '/admin-settings.html'];
-
 export async function init(): Promise<Record<string, any>> {
   const isAdminPage = ADMIN_PATHS.includes(window.location.pathname);
   const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG, { buildAware: true }) : null;

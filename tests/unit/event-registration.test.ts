@@ -55,9 +55,7 @@ describe('event registration options', () => {
   });
 
   it('does not present closed options as freely available', () => {
-    const html = renderRegistrationOptions([
-      { label: 'Late registration', availability_status: 'closed' },
-    ]);
+    const html = renderRegistrationOptions([{ label: 'Late registration', availability_status: 'closed' }]);
 
     expect(html).toContain('Registration closed');
     expect(html).not.toContain('spaces left');
@@ -100,12 +98,14 @@ describe('event registration options', () => {
   });
 
   it('builds admin payloads for event timezone overrides', () => {
-    expect(eventTimezonePayload({
-      source_timezone: ' Australia/Sydney ',
-      source_timezone_label: ' AEDT ',
-      time_display_mode: 'source',
-      import_review_state: 'reviewed',
-    })).toEqual({
+    expect(
+      eventTimezonePayload({
+        source_timezone: ' Australia/Sydney ',
+        source_timezone_label: ' AEDT ',
+        time_display_mode: 'source',
+        import_review_state: 'reviewed',
+      }),
+    ).toEqual({
       source_timezone: 'Australia/Sydney',
       source_timezone_label: 'AEDT',
       time_display_mode: 'source',

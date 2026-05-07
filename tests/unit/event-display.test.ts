@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  eventDayKey,
-  formatEventDateTime,
-  getTimezoneLabel,
-  resolveEventTimezone,
-} from '../../src/lib/event-display';
+import { eventDayKey, formatEventDateTime, getTimezoneLabel, resolveEventTimezone } from '../../src/lib/event-display';
 
 describe('event source timezone display', () => {
   it('resolves event override before site default', () => {
