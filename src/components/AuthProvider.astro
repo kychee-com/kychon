@@ -4,10 +4,28 @@
 <div id="auth-provider" transition:persist></div>
 
 <script>
-  import { handleOAuthCallback, getSession } from '../lib/auth';
+  import { consumeAuthReturnTo, handleOAuthCallback } from '../lib/auth';
 
-  // Handle OAuth callback if hash contains code
-  if (window.location.hash.includes('code=')) {
-    await handleOAuthCallback();
+  const hasOAuthCallback =
+    new URLSearchParams(window.location.hash.replace(/^#/, '')).has('code') ||
+    new URLSearchParams(window.location.search.replace(/^\?/, '')).has('code');
+
+  if (hasOAuthCallback) {
+    const session = await handleOAuthCallback();
+    if (session) {
+      const returnTo = consumeAuthReturnTo();
+      const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}`;
+      if (returnTo && returnTo !== currentPath) {
+        window.location.replace(returnTo);
+      } else {
+        const [{ init }, { currentPageSlug, hydratePage }] = await Promise.all([
+          import('../lib/config'),
+          import('../lib/page-render'),
+        ]);
+        await init();
+        await hydratePage(currentPageSlug());
+        document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+      }
+    }
   }
 </script>

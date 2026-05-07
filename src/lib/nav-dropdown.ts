@@ -277,15 +277,35 @@ function bindClickOutside(): void {
   });
 }
 
+function applySourceMobileMode(root: HTMLElement): void {
+  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  if (!nav) return;
+  const raw = Number(root.dataset.mobileBreakpoint || 0);
+  const active = Number.isFinite(raw) && raw > 0 && window.innerWidth <= raw;
+  nav.classList.toggle('nav--source-mobile', active);
+  if (!active) root.classList.remove('open');
+}
+
+function bindResponsiveModes(root: HTMLElement): void {
+  applySourceMobileMode(root);
+  if ((window as any).__navResponsiveModeBound === true) return;
+  (window as any).__navResponsiveModeBound = true;
+  window.addEventListener('resize', () => {
+    document.querySelectorAll<HTMLElement>('[data-block-nav]').forEach(applySourceMobileMode);
+  });
+}
+
 export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
   const root = navRoot || (document.getElementById('nav-links') as HTMLElement | null);
   if (!root) return;
+  bindResponsiveModes(root);
   if (root.dataset[BOUND_FLAG] === 'true') {
     // Re-scan: new nav items may have appeared via SPA re-render. The flags on
     // individual elements (chevronBound / focusBound) keep this idempotent.
     bindChevronToggles(root);
     bindHoverSync(root);
     bindClickOutside();
+    bindResponsiveModes(root);
     return;
   }
   root.dataset[BOUND_FLAG] = 'true';
@@ -294,6 +314,7 @@ export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
   bindFocusSync(root);
   bindHoverSync(root);
   bindClickOutside();
+  bindResponsiveModes(root);
 }
 
 export function rebindNavDropdowns(): void {
@@ -306,4 +327,5 @@ export function rebindNavDropdowns(): void {
   // already rely on per-element `dataset.chevronBound` to gate.
   bindChevronToggles(root);
   bindHoverSync(root);
+  bindResponsiveModes(root);
 }

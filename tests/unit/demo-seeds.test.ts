@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { isDemoModeSeed } from '../../src/lib/demo-mode';
 import { seed as barrioSeed } from '../../src/seeds/barrio-unido';
 import { seed as eaglesSeed } from '../../src/seeds/eagles';
 import { seed as silverPinesSeed } from '../../src/seeds/silver-pines';
@@ -51,6 +51,7 @@ describe('demo seed feature coverage', () => {
   for (const demo of DEMOS) {
     describe(demo.name, () => {
       it('enables the shared interactive feature flags', () => {
+        expect(isDemoModeSeed(demo.seed)).toBe(true);
         expect(configValue(demo.seed, 'feature_activity_feed')).toBe(true);
         expect(configValue(demo.seed, 'feature_reactions')).toBe(true);
         expect(configValue(demo.seed, 'feature_polls')).toBe(true);

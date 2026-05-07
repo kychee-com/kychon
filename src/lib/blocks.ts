@@ -60,6 +60,109 @@ export interface BlockType {
   fullBleed?: boolean;
 }
 
+export interface InteractionStateConfig {
+  background?: string;
+  text?: string;
+  icon?: string;
+  border?: string;
+  shadow?: string;
+  transform?: string;
+  duration?: string;
+  easing?: string;
+}
+
+export interface InteractionConfig {
+  default?: InteractionStateConfig;
+  hover?: InteractionStateConfig;
+  focus?: InteractionStateConfig;
+}
+
+export interface NavPresentationConfig {
+  link_color?: string;
+  link_hover_bg?: string;
+  link_hover_color?: string;
+  link_active_bg?: string;
+  link_active_color?: string;
+  link_padding?: string;
+  link_gap?: string;
+  font_family?: string;
+  font_size?: string;
+  font_weight?: string;
+  dropdown_bg?: string;
+  dropdown_color?: string;
+  dropdown_hover_bg?: string;
+  dropdown_hover_color?: string;
+  dropdown_border?: string;
+  dropdown_shadow?: string;
+  dropdown_width?: string;
+  dropdown_offset_x?: string;
+  dropdown_offset_y?: string;
+  chevron_color?: string;
+  transition?: string;
+  mobile_menu_bg?: string;
+  mobile_menu_padding?: string;
+}
+
+export interface NavBehaviorConfig {
+  desktop_open?: 'hover' | 'click' | 'focus';
+  mobile_breakpoint?: number | string;
+  mobile_closed_layout?: 'hidden' | 'overlay';
+  mobile_open_layout?: 'dropdown' | 'drawer' | 'inline';
+}
+
+export interface ImageAccordionPanelConfig {
+  image_url?: string;
+  image_alt?: string;
+  href?: string;
+  title?: string;
+  description?: string;
+  cta_label?: string;
+  fit?: 'cover' | 'contain';
+  object_position?: string;
+  interactions?: InteractionConfig;
+}
+
+export interface ImageAccordionConfig {
+  heading?: string;
+  panels?: ImageAccordionPanelConfig[];
+  active_ratio?: number | string;
+  idle_ratio?: number | string;
+  overlay_color?: string;
+  overlay_opacity?: number | string;
+  reveal_duration?: string;
+  mobile_fallback?: 'stack' | 'cards';
+  interactions?: InteractionConfig;
+}
+
+export interface ShapeDividerLayerConfig {
+  path?: string;
+  fill?: string;
+  opacity?: number | string;
+  translate_y?: number | string;
+}
+
+export interface ShapeDividerConfig {
+  preset?: 'wave' | 'tilt' | 'curve';
+  path?: string;
+  view_box?: string;
+  layers?: ShapeDividerLayerConfig[];
+  top_color?: string;
+  bottom_color?: string;
+  placement?: 'between' | 'top' | 'bottom';
+  flip_x?: boolean;
+  flip_y?: boolean;
+  height?: string;
+}
+
+export interface SlideshowItemConfig {
+  src?: string;
+  alt?: string;
+  caption?: string;
+  href?: string;
+  fit?: 'cover' | 'contain';
+  object_position?: string;
+}
+
 // --- Helpers ---
 
 const FEATURE_ICONS: Record<string, string> = {
@@ -91,6 +194,36 @@ export function escHtml(s: any): string {
 
 export function escAttr(s: any): string {
   return escHtml(s);
+}
+
+const SAFE_CSS_VALUE_RE = /^[#%(),./"'`\-\w\s]+$/;
+const SAFE_SVG_PATH_RE = /^[MmZzLlHhVvCcSsQqTtAa0-9,.\-\s+]+$/;
+
+export function safeCssValue(value: any, maxLength = 180): string {
+  const s = String(value ?? '').trim();
+  if (!s || s.length > maxLength) return '';
+  return SAFE_CSS_VALUE_RE.test(s) ? s : '';
+}
+
+function cssVar(name: string, value: any): string {
+  const safe = safeCssValue(value);
+  return safe ? `${name}:${safe};` : '';
+}
+
+function styleAttr(vars: string[]): string {
+  const style = vars.filter(Boolean).join('');
+  return style ? ` style="${escAttr(style)}"` : '';
+}
+
+function numberCssVar(name: string, value: any): string {
+  const n = Number(value);
+  return Number.isFinite(n) ? `${name}:${n};` : '';
+}
+
+export function sanitizeSvgPathData(path: any): string {
+  const s = String(path ?? '').trim();
+  if (!s || s.length > 4000) return '';
+  return SAFE_SVG_PATH_RE.test(s) ? s : '';
 }
 
 function jsonAttr(value: any): string {
@@ -766,6 +899,13 @@ export interface NavItem {
   children?: NavItem[];
 }
 
+export interface NavConfig {
+  items?: NavItem[];
+  presentation?: NavPresentationConfig;
+  behavior?: NavBehaviorConfig;
+  interactions?: InteractionConfig;
+}
+
 const NAV_LABEL_KEYS: Record<string, string> = {
   Home: 'nav.home',
   Inicio: 'nav.home',
@@ -851,6 +991,50 @@ function renderNavTopItem(item: NavItem, ctx: BlockRenderContext, idx: number): 
   return `<div class="nav-item-wrap">${trigger}<ul class="nav-dropdown" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></div>`;
 }
 
+function renderNavPresentationAttrs(cfg: NavConfig): string {
+  const p = cfg.presentation || {};
+  const b = cfg.behavior || {};
+  const i = cfg.interactions || {};
+  const hover = i.hover || {};
+  const focus = i.focus || {};
+  const style = styleAttr([
+    cssVar('--nav-link-color', p.link_color),
+    cssVar('--nav-link-hover-bg', p.link_hover_bg || hover.background),
+    cssVar('--nav-link-hover-color', p.link_hover_color || hover.text),
+    cssVar('--nav-link-active-bg', p.link_active_bg),
+    cssVar('--nav-link-active-color', p.link_active_color),
+    cssVar('--nav-link-padding', p.link_padding),
+    cssVar('--nav-link-gap', p.link_gap),
+    cssVar('--nav-link-font-family', p.font_family),
+    cssVar('--nav-link-font-size', p.font_size),
+    cssVar('--nav-link-font-weight', p.font_weight),
+    cssVar('--nav-dropdown-bg', p.dropdown_bg),
+    cssVar('--nav-dropdown-color', p.dropdown_color),
+    cssVar('--nav-dropdown-hover-bg', p.dropdown_hover_bg || hover.background),
+    cssVar('--nav-dropdown-hover-color', p.dropdown_hover_color || hover.text),
+    cssVar('--nav-dropdown-border', p.dropdown_border),
+    cssVar('--nav-dropdown-shadow', p.dropdown_shadow),
+    cssVar('--nav-dropdown-width', p.dropdown_width),
+    cssVar('--nav-dropdown-offset-x', p.dropdown_offset_x),
+    cssVar('--nav-dropdown-offset-y', p.dropdown_offset_y),
+    cssVar('--nav-chevron-color', p.chevron_color || hover.icon),
+    cssVar('--nav-focus-color', focus.border || focus.text),
+    cssVar('--nav-transition', p.transition || hover.duration),
+    cssVar('--nav-mobile-menu-bg', p.mobile_menu_bg),
+    cssVar('--nav-mobile-menu-padding', p.mobile_menu_padding),
+  ]);
+  const attrs: string[] = [];
+  if (style) attrs.push(style);
+  if (b.mobile_breakpoint != null) {
+    const n = Number(b.mobile_breakpoint);
+    if (Number.isFinite(n) && n > 0) attrs.push(` data-mobile-breakpoint="${Math.round(n)}"`);
+  }
+  if (b.mobile_closed_layout) attrs.push(` data-mobile-closed-layout="${escAttr(b.mobile_closed_layout)}"`);
+  if (b.mobile_open_layout) attrs.push(` data-mobile-open-layout="${escAttr(b.mobile_open_layout)}"`);
+  if (b.desktop_open) attrs.push(` data-desktop-open="${escAttr(b.desktop_open)}"`);
+  return attrs.join('');
+}
+
 const NAV: BlockType = {
   label: 'Navigation',
   icon: '\u{1F9ED}',
@@ -863,7 +1047,7 @@ const NAV: BlockType = {
     ],
   },
   render(section, ctx) {
-    const cfg = section.config || {};
+    const cfg: NavConfig = section.config || {};
     const items: NavItem[] = cfg.items || [];
     const visible = items.filter((item) => navItemVisible(item, ctx));
     const links = visible.map((item, i) => renderNavTopItem(item, ctx, i)).join('');
@@ -874,7 +1058,8 @@ const NAV: BlockType = {
     const adminEditBtn = sid != null && ctx.admin
       ? `<button class="admin-nav-edit-btn" data-nav-edit="${sid}" title="Edit navigation">&#9998;</button>`
       : '';
-    return `<button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button><div class="nav-links" id="nav-links" data-block-nav${editAttrs}>${links}</div>${adminEditBtn}`;
+    const presentationAttrs = renderNavPresentationAttrs(cfg);
+    return `<button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button><div class="nav-links" id="nav-links" data-block-nav${editAttrs}${presentationAttrs}>${links}</div>${adminEditBtn}`;
   },
 };
 
@@ -1337,6 +1522,163 @@ const PROMO_CARDS: BlockType = {
   },
 };
 
+function renderImageAccordionPanel(
+  panel: ImageAccordionPanelConfig,
+  section: Section,
+  ctx: BlockRenderContext,
+  index: number,
+): string {
+  const fit = panel.fit === 'contain' ? 'contain' : 'cover';
+  const panelStyle = styleAttr([
+    cssVar('--accordion-panel-fit', fit),
+    cssVar('--accordion-panel-position', panel.object_position || 'center'),
+    cssVar('--accordion-panel-hover-bg', panel.interactions?.hover?.background),
+    cssVar('--accordion-panel-hover-color', panel.interactions?.hover?.text),
+    cssVar('--accordion-panel-focus-color', panel.interactions?.focus?.border || panel.interactions?.focus?.text),
+  ]);
+  const imageEdit = ctx.admin && section.id != null
+    ? ` data-editable-image="sections.${section.id}.config.panels.${index}.image_url"`
+    : '';
+  const titleEdit = editableAttr(section, `panels.${index}.title`, ctx);
+  const descEdit = editableAttr(section, `panels.${index}.description`, ctx);
+  const ctaEdit = editableAttr(section, `panels.${index}.cta_label`, ctx);
+  const img = panel.image_url
+    ? `<img class="image-accordion__image" src="${escAttr(panel.image_url)}" alt="${escAttr(panel.image_alt || '')}" loading="${index === 0 ? 'eager' : 'lazy'}"${imageEdit}>`
+    : `<span class="image-accordion__placeholder"${imageEdit}></span>`;
+  const description = panel.description
+    ? `<p class="image-accordion__description"${descEdit}>${escHtml(panel.description)}</p>`
+    : '';
+  const cta = panel.cta_label
+    ? `<span class="image-accordion__cta"${ctaEdit}>${escHtml(panel.cta_label)}</span>`
+    : '';
+  const content = `<span class="image-accordion__overlay" aria-hidden="true"></span><span class="image-accordion__content"><span class="image-accordion__title"${titleEdit}>${escHtml(panel.title || '')}</span>${description}${cta}</span>`;
+  const body = `${img}${content}`;
+  const common = `class="image-accordion__panel" data-accordion-panel="${index}"${panelStyle}`;
+  if (panel.href) {
+    return `<a ${common} href="${escAttr(panel.href)}">${body}</a>`;
+  }
+  return `<div ${common} tabindex="0" role="group" aria-label="${escAttr(panel.title || `Panel ${index + 1}`)}">${body}</div>`;
+}
+
+const IMAGE_ACCORDION: BlockType = {
+  label: 'Image Accordion',
+  icon: '\u{1F5BC}',
+  dynamic: false,
+  zoneHints: ['main'],
+  supportedSpans: ['1', '2/3', '1/2'],
+  defaultConfig: {
+    heading: 'Image accordion',
+    active_ratio: 2.5,
+    idle_ratio: 1,
+    overlay_color: 'rgba(0,0,0,0.55)',
+    overlay_opacity: 1,
+    reveal_duration: '260ms',
+    mobile_fallback: 'stack',
+    panels: [
+      { image_url: '', image_alt: '', title: 'Panel 1', description: 'Add source text.', cta_label: 'Learn more', href: '' },
+      { image_url: '', image_alt: '', title: 'Panel 2', description: 'Add source text.', cta_label: 'Learn more', href: '' },
+      { image_url: '', image_alt: '', title: 'Panel 3', description: 'Add source text.', cta_label: 'Learn more', href: '' },
+    ],
+  },
+  render(section, ctx) {
+    const cfg: ImageAccordionConfig = section.config || {};
+    const panels = Array.isArray(cfg.panels) ? cfg.panels : [];
+    const heading = cfg.heading
+      ? `<h2 class="image-accordion__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
+      : '';
+    const mobileFallback = cfg.mobile_fallback === 'cards' ? 'cards' : 'stack';
+    const style = styleAttr([
+      numberCssVar('--accordion-active', cfg.active_ratio ?? 2.5),
+      numberCssVar('--accordion-idle', cfg.idle_ratio ?? 1),
+      cssVar('--accordion-overlay-color', cfg.overlay_color || 'rgba(0,0,0,0.55)'),
+      numberCssVar('--accordion-overlay-opacity', cfg.overlay_opacity ?? 1),
+      cssVar('--accordion-reveal-duration', cfg.reveal_duration || '260ms'),
+      cssVar('--accordion-hover-bg', cfg.interactions?.hover?.background),
+      cssVar('--accordion-hover-color', cfg.interactions?.hover?.text),
+      cssVar('--accordion-focus-color', cfg.interactions?.focus?.border || cfg.interactions?.focus?.text),
+    ]);
+    const renderedPanels = panels
+      .map((panel, index) => renderImageAccordionPanel(panel, section, ctx, index))
+      .join('');
+    const empty = ctx.admin && panels.length === 0
+      ? '<p class="text-muted">No accordion panels yet — add panels via the editor.</p>'
+      : '';
+    const inner = `<div class="container">${heading}<div class="image-accordion image-accordion--mobile-${escAttr(mobileFallback)}"${style}>${renderedPanels}${empty}</div></div>`;
+    return adminWrap(section, ctx, inner, 'section section-image-accordion');
+  },
+};
+
+const SHAPE_PRESETS: Record<string, string> = {
+  wave: 'M0,64 C240,128 480,0 720,64 C960,128 1200,0 1440,64 L1440,120 L0,120 Z',
+  tilt: 'M0,30 L1440,100 L1440,120 L0,120 Z',
+  curve: 'M0,90 C360,0 1080,0 1440,90 L1440,120 L0,120 Z',
+};
+
+function renderShapeLayer(layer: ShapeDividerLayerConfig, fallbackPath: string, index: number): string {
+  const path = sanitizeSvgPathData(layer.path || fallbackPath);
+  if (!path) return '';
+  const fill = safeCssValue(layer.fill || 'var(--shape-bottom-color)');
+  const opacity = Number(layer.opacity);
+  const opacityAttr = Number.isFinite(opacity) ? ` opacity="${Math.max(0, Math.min(1, opacity))}"` : '';
+  const translate = safeCssValue(layer.translate_y != null ? `translate(0 ${layer.translate_y})` : '');
+  const transformAttr = translate ? ` transform="${escAttr(translate)}"` : '';
+  return `<path class="shape-divider__path shape-divider__path--${index}" d="${escAttr(path)}" fill="${escAttr(fill || 'currentColor')}"${opacityAttr}${transformAttr}></path>`;
+}
+
+const SHAPE_DIVIDER: BlockType = {
+  label: 'Shape Divider',
+  icon: '\u{3030}',
+  dynamic: false,
+  zoneHints: ['main'],
+  supportedSpans: ['1'],
+  fullBleed: true,
+  defaultConfig: {
+    preset: 'wave',
+    path: '',
+    view_box: '0 0 1440 120',
+    top_color: 'var(--color-bg)',
+    bottom_color: 'var(--color-primary)',
+    placement: 'between',
+    flip_x: false,
+    flip_y: false,
+    height: '96px',
+    layers: [
+      { fill: 'var(--shape-bottom-color)', opacity: 1 },
+      { fill: 'var(--shape-top-color)', opacity: 0.35, translate_y: -18 },
+    ],
+  },
+  render(section, ctx) {
+    const cfg: ShapeDividerConfig = section.config || {};
+    const presetPath = SHAPE_PRESETS[cfg.preset || 'wave'] || SHAPE_PRESETS.wave;
+    const path = sanitizeSvgPathData(cfg.path || presetPath);
+    if (!path) {
+      const placeholder = ctx.admin
+        ? '<div class="shape-divider__invalid">Invalid shape divider path</div>'
+        : '';
+      return adminWrap(section, ctx, placeholder, 'section section-shape-divider shape-divider shape-divider--invalid');
+    }
+    const viewBox = safeCssValue(cfg.view_box || '0 0 1440 120');
+    const layers = Array.isArray(cfg.layers) && cfg.layers.length > 0
+      ? cfg.layers
+      : [{ fill: 'var(--shape-bottom-color)', opacity: 1 }];
+    const paths = layers.map((layer, index) => renderShapeLayer(layer, path, index)).join('');
+    const transforms = [
+      cfg.flip_x ? 'scaleX(-1)' : '',
+      cfg.flip_y ? 'scaleY(-1)' : '',
+    ].filter(Boolean).join(' ');
+    const style = styleAttr([
+      cssVar('--shape-height', cfg.height || '96px'),
+      cssVar('--shape-top-color', cfg.top_color || 'var(--color-bg)'),
+      cssVar('--shape-bottom-color', cfg.bottom_color || 'var(--color-primary)'),
+      transforms ? `--shape-transform:${transforms};` : '',
+    ]);
+    const placement = cfg.placement || 'between';
+    const aria = ' aria-hidden="true"';
+    const inner = `<div class="shape-divider__surface"${style} data-shape-placement="${escAttr(placement)}" data-top-color="${escAttr(cfg.top_color || 'var(--color-bg)')}" data-bottom-color="${escAttr(cfg.bottom_color || 'var(--color-primary)')}"><svg class="shape-divider__svg" viewBox="${escAttr(viewBox || '0 0 1440 120')}" preserveAspectRatio="none"${aria}>${paths}</svg></div>`;
+    return adminWrap(section, ctx, inner, 'section section-shape-divider shape-divider');
+  },
+};
+
 const EVENTS_LIST: BlockType = {
   label: 'Events List',
   icon: '\u{1F4C5}', // 📅
@@ -1429,8 +1771,17 @@ const SLIDESHOW: BlockType = {
     show_arrows: true,
     show_dots: true,
     aspect_ratio: '16/9',
+    height: '',
+    mobile_height: '',
     fit: 'cover',
     transition: 'fade',
+    transition_ms: 400,
+    transition_easing: 'ease',
+    pause_on_hover: true,
+    pause_on_focus: true,
+    manual_pause: false,
+    arrow_style: {},
+    dot_style: {},
   },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -1454,10 +1805,15 @@ const SLIDESHOW: BlockType = {
         const isFirst = i === 0;
         const loading = isFirst ? 'eager' : 'lazy';
         const visible = isFirst ? ' is-active' : '';
+        const slideFit = it.fit === 'contain' ? 'contain' : (it.fit === 'cover' ? 'cover' : fit);
+        const imgStyle = styleAttr([
+          cssVar('--slide-fit', slideFit),
+          cssVar('--slide-position', it.object_position || cfg.object_position || 'center'),
+        ]);
         const figcaption = it.caption
           ? `<figcaption class="block-slideshow__caption">${escHtml(it.caption)}</figcaption>`
           : '';
-        const img = `<img src="${escAttr(it.src || '')}" alt="${escAttr(it.alt || '')}" loading="${loading}">`;
+        const img = `<img src="${escAttr(it.src || '')}" alt="${escAttr(it.alt || '')}" loading="${loading}"${imgStyle}>`;
         const sources = [
           it.avif_src ? `<source srcset="${escAttr(it.avif_src)}" type="image/avif">` : '',
           it.webp_src ? `<source srcset="${escAttr(it.webp_src)}" type="image/webp">` : '',
@@ -1484,7 +1840,28 @@ const SLIDESHOW: BlockType = {
     const ariaLabel = cfg.heading ? escAttr(cfg.heading) : 'Slideshow';
     const auto = Number(cfg.auto_rotate_seconds);
     const autoMs = Number.isFinite(auto) && auto > 0 ? Math.round(auto * 1000) : 0;
-    const inner = `<div class="container">${heading}<div class="block-slideshow block-slideshow--${escAttr(transition)}" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${ariaLabel}" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-fit="${escAttr(fit)}" style="--aspect:${escAttr(aspect)};--fit:${escAttr(fit)}"><div class="block-slideshow__track">${slides}</div>${arrows}${dots}${liveRegion}</div></div>`;
+    const transitionMs = Number(cfg.transition_ms);
+    const safeTransitionMs = Number.isFinite(transitionMs) && transitionMs >= 0 ? Math.round(transitionMs) : 400;
+    const arrowStyle = cfg.arrow_style || {};
+    const dotStyle = cfg.dot_style || {};
+    const rootStyle = styleAttr([
+      cssVar('--aspect', aspect),
+      cssVar('--fit', fit),
+      cssVar('--slideshow-height', cfg.height),
+      cssVar('--slideshow-mobile-height', cfg.mobile_height),
+      `${'--slideshow-transition-ms'}:${safeTransitionMs}ms;`,
+      cssVar('--slideshow-transition-easing', cfg.transition_easing || 'ease'),
+      cssVar('--slideshow-arrow-bg', arrowStyle.background),
+      cssVar('--slideshow-arrow-color', arrowStyle.text || arrowStyle.icon),
+      cssVar('--slideshow-arrow-hover-bg', arrowStyle.hover?.background),
+      cssVar('--slideshow-arrow-hover-color', arrowStyle.hover?.text || arrowStyle.hover?.icon),
+      cssVar('--slideshow-dot-bg', dotStyle.background),
+      cssVar('--slideshow-dot-active-bg', dotStyle.active_background || dotStyle.hover?.background),
+    ]);
+    const pauseHover = cfg.pause_on_hover === false ? 'false' : 'true';
+    const pauseFocus = cfg.pause_on_focus === false ? 'false' : 'true';
+    const manualPause = cfg.manual_pause === true ? 'true' : 'false';
+    const inner = `<div class="container">${heading}<div class="block-slideshow block-slideshow--${escAttr(transition)}" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${ariaLabel}" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-fit="${escAttr(fit)}" data-pause-hover="${pauseHover}" data-pause-focus="${pauseFocus}" data-manual-pause="${manualPause}"${rootStyle}><div class="block-slideshow__track">${slides}</div>${arrows}${dots}${liveRegion}</div></div>`;
     return adminWrap(section, ctx, inner, 'section section-slideshow');
   },
   async hydrate(el, _section, _ctx) {
@@ -1518,6 +1895,8 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   page_banner: PAGE_BANNER,
   link_list: LINK_LIST,
   promo_cards: PROMO_CARDS,
+  image_accordion: IMAGE_ACCORDION,
+  shape_divider: SHAPE_DIVIDER,
   events_list: EVENTS_LIST,
   events_calendar: EVENTS_CALENDAR,
   slideshow: SLIDESHOW,

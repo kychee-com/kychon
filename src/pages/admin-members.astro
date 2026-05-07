@@ -1,8 +1,10 @@
 ---
+import AdminAccessShell from '../components/AdminAccessShell.astro';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Manage Members">
-  <div class="container">
+  <AdminAccessShell />
+  <div class="container" data-admin-content hidden>
     <div class="flex justify-between items-center mb-2">
       <h2>Members</h2>
       <button class="btn btn-secondary" id="am-export">Export CSV</button>
@@ -44,8 +46,8 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { get, patch } from '../lib/api';
+  import { revealAdminContent, showAdminAccessDenied } from '../lib/admin-access';
   import { isAdmin } from '../lib/auth';
-  import { showAuthGate } from '../lib/auth-gate';
   import { ready } from '../lib/config';
 
   let allMembers: any[] = [];
@@ -197,9 +199,10 @@ import Portal from '../layouts/Portal.astro';
   async function initAdminMembers() {
     await ready;
     if (!isAdmin()) {
-      showAuthGate('#main-content', 'admin');
+      showAdminAccessDenied();
       return;
     }
+    revealAdminContent();
 
     // Load tiers
     try {

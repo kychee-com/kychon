@@ -15,7 +15,10 @@ interface SlideshowState {
   autoMs: number;
   reduced: boolean;
   intervalId: number | null;
-  paused: { hover: boolean; focus: boolean; hidden: boolean };
+  pauseOnHover: boolean;
+  pauseOnFocus: boolean;
+  manualPauseAfterInteraction: boolean;
+  paused: { hover: boolean; focus: boolean; hidden: boolean; manual: boolean };
   onVis: () => void;
   onSwap: () => void;
   io: IntersectionObserver | null;
@@ -34,6 +37,9 @@ export function initSlideshow(root: HTMLElement): void {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const autoMs = Math.max(0, Number(root.dataset.autoMs) || 0);
+  const pauseOnHover = root.dataset.pauseHover !== 'false';
+  const pauseOnFocus = root.dataset.pauseFocus !== 'false';
+  const manualPauseAfterInteraction = root.dataset.manualPause === 'true';
 
   const state: SlideshowState = {
     root,
@@ -44,7 +50,10 @@ export function initSlideshow(root: HTMLElement): void {
     autoMs,
     reduced,
     intervalId: null,
-    paused: { hover: false, focus: false, hidden: false },
+    pauseOnHover,
+    pauseOnFocus,
+    manualPauseAfterInteraction,
+    paused: { hover: false, focus: false, hidden: false, manual: false },
     onVis: () => {
       state.paused.hidden = document.visibilityState !== 'visible';
       reschedule(state);
@@ -60,10 +69,12 @@ export function initSlideshow(root: HTMLElement): void {
   // Arrow buttons.
   root.querySelector('[data-slide-prev]')?.addEventListener('click', () => {
     setActive(state, state.index - 1, true);
+    pauseManual(state);
     reschedule(state);
   });
   root.querySelector('[data-slide-next]')?.addEventListener('click', () => {
     setActive(state, state.index + 1, true);
+    pauseManual(state);
     reschedule(state);
   });
 
@@ -72,6 +83,7 @@ export function initSlideshow(root: HTMLElement): void {
     dot.addEventListener('click', () => {
       const target = Number(dot.dataset.slideGo) || 0;
       setActive(state, target, true);
+      pauseManual(state);
       reschedule(state);
     });
   }
@@ -81,24 +93,29 @@ export function initSlideshow(root: HTMLElement): void {
     if (e.key === 'ArrowRight') {
       e.preventDefault();
       setActive(state, state.index + 1, true);
+      pauseManual(state);
       reschedule(state);
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
       setActive(state, state.index - 1, true);
+      pauseManual(state);
       reschedule(state);
     }
   });
 
   // Pause on hover / focus.
   root.addEventListener('mouseenter', () => {
+    if (!state.pauseOnHover) return;
     state.paused.hover = true;
     reschedule(state);
   });
   root.addEventListener('mouseleave', () => {
+    if (!state.pauseOnHover) return;
     state.paused.hover = false;
     reschedule(state);
   });
   root.addEventListener('focusin', () => {
+    if (!state.pauseOnFocus) return;
     state.paused.focus = true;
     reschedule(state);
   });
@@ -149,6 +166,11 @@ export function initSlideshow(root: HTMLElement): void {
   }
 }
 
+function pauseManual(state: SlideshowState): void {
+  if (!state.manualPauseAfterInteraction) return;
+  state.paused.manual = true;
+}
+
 function setActive(state: SlideshowState, raw: number, announce: boolean): void {
   const total = state.slides.length;
   if (total === 0) return;
@@ -186,8 +208,8 @@ function reschedule(state: SlideshowState): void {
   }
   if (state.reduced) return;
   if (state.autoMs <= 0) return;
-  const { hover, focus, hidden } = state.paused;
-  if (hover || focus || hidden) return;
+  const { hover, focus, hidden, manual } = state.paused;
+  if (hover || focus || hidden || manual) return;
   state.intervalId = window.setInterval(() => {
     setActive(state, state.index + 1, true);
   }, state.autoMs);
