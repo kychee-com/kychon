@@ -1,8 +1,10 @@
 ---
+import AdminAccessShell from '../components/AdminAccessShell.astro';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Site Settings">
-  <div class="container" style="max-width:48rem">
+  <AdminAccessShell />
+  <div class="container" style="max-width:48rem" data-admin-content hidden>
     <h2 class="mb-2">Site Settings</h2>
 
     <!-- Branding -->
@@ -187,8 +189,8 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { del, get, patch, post } from '../lib/api';
+  import { revealAdminContent, showAdminAccessDenied } from '../lib/admin-access';
   import { isAdmin } from '../lib/auth';
-  import { showAuthGate } from '../lib/auth-gate';
   import { ready, applyTheme, clearCache } from '../lib/config';
 
   const configMap: Record<string, any> = {};
@@ -603,9 +605,10 @@ import Portal from '../layouts/Portal.astro';
   async function initAdminSettings() {
     await ready;
     if (!isAdmin()) {
-      showAuthGate('#main-content', 'admin');
+      showAdminAccessDenied();
       return;
     }
+    revealAdminContent();
 
     // Load current config
     try {

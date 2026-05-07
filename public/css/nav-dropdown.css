@@ -56,15 +56,15 @@
   background: none;
   border: none;
   border-radius: var(--radius);
-  color: var(--color-text-muted);
+  color: var(--nav-chevron-color, var(--color-text-muted));
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--nav-transition, var(--transition)), color var(--nav-transition, var(--transition));
   align-self: center;
 }
 
 .nav-chevron-toggle:hover {
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--nav-link-hover-bg, var(--color-surface));
+  color: var(--nav-link-hover-color, var(--color-text));
 }
 
 .nav-chevron {
@@ -96,18 +96,18 @@
 .nav-menuitem {
   display: block;
   padding: 0.5rem 1rem;
-  color: var(--color-text-muted);
+  color: var(--nav-dropdown-color, var(--color-text-muted));
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
   border-radius: var(--radius);
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--nav-transition, var(--transition)), color var(--nav-transition, var(--transition));
 }
 
 .nav-menuitem:hover,
 .nav-menuitem:focus {
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--nav-dropdown-hover-bg, var(--color-surface));
+  color: var(--nav-dropdown-hover-color, var(--color-text));
   outline: none;
 }
 
@@ -127,14 +127,15 @@
     position: absolute;
     top: 100%;
     left: 0;
-    min-width: 12rem;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
+    min-width: var(--nav-dropdown-width, 12rem);
+    background: var(--nav-dropdown-bg, var(--color-bg));
+    border: var(--nav-dropdown-border, 1px solid var(--color-border));
     border-radius: var(--radius);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--nav-dropdown-shadow, var(--shadow-md));
     z-index: 50;
     /* Zero gap between trigger and menu — cursor must not cross dead space. */
-    margin-top: 0;
+    margin-top: var(--nav-dropdown-offset-y, 0);
+    margin-left: var(--nav-dropdown-offset-x, 0);
   }
 
   .nav-dropdown-nested {
@@ -161,7 +162,7 @@
   /* JS-controlled aria-expanded="true" also forces open (covers focus + click). */
   .nav-dropdown:not([hidden]) {
     display: block;
-    animation: nav-dropdown-fade 150ms ease-out;
+    animation: nav-dropdown-fade var(--nav-transition, 150ms ease-out);
   }
 
   @keyframes nav-dropdown-fade {
@@ -175,6 +176,7 @@
 .nav-link.nav-parent-button:focus-visible,
 .nav-menuitem:focus-visible {
   outline: 2px solid var(--color-primary);
+  outline-color: var(--nav-focus-color, var(--color-primary));
   outline-offset: 2px;
 }
 
@@ -194,10 +196,10 @@
 
   .nav-dropdown {
     position: static;
-    background: transparent;
+    background: var(--nav-mobile-submenu-bg, transparent);
     border: none;
     box-shadow: none;
-    padding-left: 1.5rem;
+    padding-left: var(--nav-mobile-submenu-indent, 1.5rem);
     width: 100%;
   }
 

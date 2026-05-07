@@ -1,46 +1,24 @@
-## ADDED Requirements
+## Purpose
 
+Kychon's frontend UI is driven by `sections` rows and `site_config` values so navigation, page composition, theme, branding, feature flags, translations, and visual polish can update from configuration and cache without code edits.
+## Requirements
 ### Requirement: Config-driven navigation
 
-Navigation SHALL be rendered from a `nav` block stored in the `sections` table at `zone = 'header'`. The block's `config.items` SHALL be an array where each item carries `label`, `href`, `icon`, and optional `public`, `auth`, `feature`, `admin`, and `children` properties. Items SHALL be filtered based on: feature flags (hide if flag is false), auth state (hide `auth: true` items for anonymous users), and admin role (hide `admin: true` items for non-admins). On repeat visits, navigation SHALL be rendered immediately from the cached `sections` data (per-slug `wl_cache_sections_{slug}` and global `wl_cache_sections__global`) without waiting for a network request. If the cached data is stale, a background fetch SHALL update the nav if the data has changed. On first visit (no cache), navigation SHALL paint from the build-time bake of the chrome zones.
+The nav config SHALL include items for events, resources, forum, and committees, each gated by their respective feature flag.
 
-The system SHALL NOT read navigation data from `site_config.nav`. The `site_config.nav` key SHALL NOT be seeded by the generator and SHALL be removed from any pre-existing database during this change's rollout.
+#### Scenario: Events nav item shown when enabled
+- **WHEN** `feature_events` is true
+- **THEN** the nav includes an "Events" link to `/events.html`
 
-#### Scenario: Nav renders instantly from build-time bake on cold visit
-- **WHEN** a first-time visitor (empty localStorage) loads a Kychon page
-- **THEN** the header zone is populated by build-time-baked HTML for the `nav` block on the first frame
+#### Scenario: Forum nav item hidden when disabled
+- **WHEN** `feature_forum` is false
+- **THEN** the nav does not include a "Forum" link
 
-#### Scenario: Nav renders immediately from cache on warm visit
-- **WHEN** a returning visitor loads a page and `wl_cache_sections__global` exists with a `nav` block
-- **THEN** navigation links are rendered before any API call completes
-
-#### Scenario: Nav updates after background refresh
-- **WHEN** an admin adds a new nav item and another visitor loads a page with stale cache
-- **THEN** navigation initially shows the cached items
-- **THEN** after the background refresh, the new nav item appears without a page reload
-
-#### Scenario: Feature flag hides nav item
-- **WHEN** `feature_forum` is `false` in `site_config`
-- **THEN** the nav item with `feature: "feature_forum"` is not rendered
-
-#### Scenario: Auth-gated nav item hidden for anonymous
-- **WHEN** a user is not logged in
-- **THEN** nav items with `auth: true` are not shown
-
-#### Scenario: Admin nav items visible to admins only
-- **WHEN** a user with `role = 'admin'` loads the page
-- **THEN** nav items with `admin: true` are shown
-- **WHEN** a user with `role = 'member'` loads the page
-- **THEN** nav items with `admin: true` are hidden
-
-#### Scenario: site_config.nav is no longer read
-- **WHEN** any rendering path executes
-- **THEN** no code reads `site_config.nav`
-- **THEN** removing `site_config.nav` from the database has no effect on navigation
+<!-- Phase 2 additions: added requirements -->
 
 ### Requirement: Theme injection via CSS custom properties
 
-`config.js` SHALL read the `theme` JSONB from `site_config` and set CSS custom properties on `document.documentElement`. On repeat visits, theme SHALL be applied immediately from cached data. Properties SHALL include: `--color-primary`, `--color-primary-hover`, `--color-bg`, `--color-surface`, `--color-text`, `--color-text-muted`, `--color-border`, `--font-heading`, `--font-body`, `--radius`, `--max-width`.
+`src/lib/config.ts` SHALL read the `theme` JSONB from `site_config` and set CSS custom properties on `document.documentElement`. On repeat visits, theme SHALL be applied immediately from cached data. Properties SHALL include: `--color-primary`, `--color-primary-hover`, `--color-bg`, `--color-surface`, `--color-text`, `--color-text-muted`, `--color-border`, `--font-heading`, `--font-body`, `--radius`, `--max-width`.
 
 #### Scenario: Theme applied instantly from cache
 - **WHEN** a page loads with cached `site_config` containing theme data
@@ -104,7 +82,7 @@ The system SHALL render every page (home, custom pages, events, directory, etc.)
 
 ### Requirement: Schema-driven custom pages
 
-`page.html` SHALL be a generic page renderer. Given a `?slug=about` query parameter, it SHALL fetch the `pages` row with that slug and render its `content`. It SHALL also fetch associated `sections` and render them.
+`src/pages/page.astro` SHALL build a generic `page.html` route. Given a `?slug=about` query parameter, it SHALL fetch the `pages` row with that slug and render its `content`. It SHALL also fetch associated `sections` and render them.
 
 #### Scenario: Custom page renders
 - **WHEN** a user visits `page.html?slug=about`
@@ -117,7 +95,7 @@ The system SHALL render every page (home, custom pages, events, directory, etc.)
 
 ### Requirement: Site branding from config
 
-`config.js` SHALL set the page title from `site_config.site_name`, display the logo from `site_config.logo_url`, and set the favicon from `site_config.favicon_url`. On repeat visits, branding SHALL be applied immediately from cached data.
+`src/lib/config.ts` SHALL set the page title from `site_config.site_name`, display the logo from `site_config.logo_url`, and set the favicon from `site_config.favicon_url`. On repeat visits, branding SHALL be applied immediately from cached data.
 
 #### Scenario: Branding applied instantly from cache
 - **WHEN** a page loads with cached `site_config` containing branding data
@@ -130,7 +108,6 @@ The system SHALL render every page (home, custom pages, events, directory, etc.)
 - **THEN** the favicon link element points to the configured URL
 
 <!-- Phase 2 additions -->
-## MODIFIED Requirements
 
 ### Requirement: Config-driven navigation
 
@@ -144,7 +121,7 @@ The nav config SHALL include items for events, resources, forum, and committees,
 - **WHEN** `feature_forum` is false
 - **THEN** the nav does not include a "Forum" link
 
-## ADDED Requirements
+<!-- Phase 2 additions: added requirements -->
 
 ### Requirement: Feature flags for new modules
 
@@ -171,7 +148,6 @@ Pages that display announcements, events, or page content SHALL check the `conte
 - **THEN** the original content is displayed
 
 <!-- visual-polish-batch-2 additions -->
-## ADDED Requirements
 
 ### Requirement: Glassmorphic navigation bar
 
@@ -196,7 +172,7 @@ The hero section `h1` SHALL display a text gradient using `background-clip: text
 
 ### Requirement: Hero image preloading from cached config
 
-When `site_config` is read from cache in `config.js`, the init function SHALL check for a hero background image URL in the cached sections data or site_config. If found, it SHALL inject a `<link rel="preload" as="image" href="...">` tag into `<head>` immediately, before any API calls complete. This allows the browser to start downloading the hero image in parallel with data fetches.
+When `site_config` is read from cache in `src/lib/config.ts`, the init function SHALL check for a hero background image URL in the cached sections data or site_config. If found, it SHALL inject a `<link rel="preload" as="image" href="...">` tag into `<head>` immediately, before any API calls complete. This allows the browser to start downloading the hero image in parallel with data fetches.
 
 #### Scenario: Cached config has hero image
 - **WHEN** `site_config` is loaded from localStorage cache and contains a sections entry with a hero `bg_image`
@@ -210,3 +186,65 @@ When `site_config` is read from cache in `config.js`, the init function SHALL ch
 #### Scenario: Hero section has no background image
 - **WHEN** cached config exists but the hero section has no `bg_image`
 - **THEN** no preload tag is injected
+
+### Requirement: Theme injection supports source interaction state tokens
+
+`site_config.theme` SHALL support optional source interaction-state tokens in addition to the existing base theme tokens. The theme injector SHALL map supported interaction tokens onto CSS custom properties on `document.documentElement` or scoped style elements before copied-theme blocks render.
+
+Supported interaction tokens SHALL include hover and focus state values for background, text, icon, border, shadow, transform, transition duration, and transition easing. The system SHALL provide reusable defaults for buttons, CTA links, cards, nav links, social icons, carousel controls, and hover-reveal panels. Blocks MAY override theme-level interaction tokens through their own structured config.
+
+#### Scenario: Hover token is injected
+- **WHEN** `site_config.theme` contains a button hover background token
+- **THEN** the theme injector sets the corresponding CSS custom property
+- **THEN** buttons or CTAs using that token render the configured hover background
+
+#### Scenario: Focus token is injected
+- **WHEN** `site_config.theme` contains a focus outline or focus color token
+- **THEN** keyboard focus states use the configured token
+- **THEN** the focus state remains visible
+
+#### Scenario: Block override wins over theme default
+- **WHEN** a copied-theme block config contains an interaction override for a specific hover color or transform
+- **THEN** that block uses the override
+- **THEN** other blocks continue to use the theme-level interaction token
+
+#### Scenario: Missing interaction tokens fall back safely
+- **WHEN** `site_config.theme` does not define copied-theme interaction tokens
+- **THEN** existing Kychon hover/focus/transition styling remains in effect
+- **THEN** no copied-theme block requires interaction tokens to render
+
+### Requirement: Theme injection supports source header and nav presentation tokens
+
+`site_config.theme` SHALL support optional header/nav presentation tokens for copied themes. Supported tokens SHALL include header height or padding, logo max height/width, nav font family/size/weight, nav link spacing, nav background, dropdown background, dropdown border, dropdown shadow, chevron color, active/hover colors, mobile breakpoint, mobile menu background, and mobile menu spacing.
+
+These tokens SHALL be available to the `nav` and `brand_header` blocks through CSS custom properties or scoped style data. Missing tokens SHALL fall back to the existing Kychon header/nav presentation.
+
+#### Scenario: Header footprint tokens apply
+- **WHEN** `site_config.theme` contains header padding and logo max-height tokens
+- **THEN** the header and brand/logo render with those source-like dimensions
+- **THEN** the nav remains in normal document flow unless overlay behavior is explicitly configured
+
+#### Scenario: Dropdown presentation tokens apply
+- **WHEN** `site_config.theme` contains dropdown background, border, shadow, and transition tokens
+- **THEN** source-configured nav dropdowns use those visual tokens
+- **THEN** keyboard and pointer dropdown behavior remains unchanged
+
+#### Scenario: Mobile menu presentation tokens apply
+- **WHEN** `site_config.theme` contains mobile menu background and spacing tokens
+- **WHEN** the nav menu is opened at the mobile breakpoint
+- **THEN** the mobile menu renders with those source-like values
+- **THEN** inactive links remain readable
+
+### Requirement: Theme token application is cache-friendly
+
+Copied-theme interaction and header/nav tokens SHALL follow the existing cache-first theme application model. When cached `site_config` contains copied-theme tokens, the system SHALL apply those tokens before network refresh so returning visitors do not see a flash of generic Kychon hover/nav styling.
+
+#### Scenario: Returning visitor gets copied-theme tokens before fetch
+- **WHEN** a returning visitor loads a copied-theme site with cached `site_config.theme`
+- **THEN** copied-theme interaction and header/nav tokens are applied before the fresh config request completes
+- **THEN** the first rendered hover/nav state uses copied-theme values rather than generic defaults
+
+#### Scenario: Fresh config refresh updates copied-theme tokens
+- **WHEN** an admin changes copied-theme interaction or nav tokens
+- **WHEN** another visitor's stale cache is refreshed
+- **THEN** the new tokens are applied after the refresh without a full page reload

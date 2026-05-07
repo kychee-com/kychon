@@ -132,6 +132,39 @@ describe('slideshow block-type', () => {
     expect(html).toContain('data-auto-ms="0"');
   });
 
+  it('emits rich carousel styling hooks while preserving legacy fields', () => {
+    const html = renderBlock(
+      slideshowSection({
+        items: [
+          { src: '/a.jpg', alt: 'A', object_position: '30% 40%', fit: 'contain' },
+          { src: '/b.jpg', alt: 'B' },
+        ],
+        height: '420px',
+        mobile_height: '260px',
+        transition_ms: 700,
+        transition_easing: 'ease-in-out',
+        manual_pause: true,
+        arrow_style: {
+          background: '#111111',
+          text: '#ffffff',
+          hover: { background: '#333333' },
+        },
+        dot_style: { background: 'rgba(255,255,255,0.4)', active_background: '#ffcc00' },
+      }),
+      ctx,
+    );
+    expect(html).toContain('--slideshow-height:420px;');
+    expect(html).toContain('--slideshow-mobile-height:260px;');
+    expect(html).toContain('--slideshow-transition-ms:700ms;');
+    expect(html).toContain('--slideshow-transition-easing:ease-in-out;');
+    expect(html).toContain('--slideshow-arrow-bg:#111111;');
+    expect(html).toContain('--slideshow-arrow-hover-bg:#333333;');
+    expect(html).toContain('--slideshow-dot-active-bg:#ffcc00;');
+    expect(html).toContain('data-manual-pause="true"');
+    expect(html).toContain('--slide-position:30% 40%;');
+    expect(html).toContain('--slide-fit:contain;');
+  });
+
   it('empty items hides the slideshow for visitors', () => {
     const html = renderBlock(slideshowSection({ items: [] }), ctx);
     expect(html).not.toContain('data-block-hydrate="slideshow"');

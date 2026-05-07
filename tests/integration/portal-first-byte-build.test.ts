@@ -26,6 +26,8 @@ const REPRESENTATIVE_PAGES = [
   'admin-settings.html',
 ];
 
+const ADMIN_PAGES = new Set(['admin.html', 'admin-members.html', 'admin-settings.html']);
+
 describe('Portal first-byte build output', () => {
   it('renders project chrome before runtime hydration', () => {
     execFileSync('npm', ['run', 'build'], {
@@ -47,6 +49,12 @@ describe('Portal first-byte build output', () => {
       expect(html, page).toContain('/css/zone-grid.css?b=');
       expect(html, page).toContain('/css/a11y.css?b=');
       expect(html, page).toContain('/js/env.js?b=');
+
+      if (ADMIN_PAGES.has(page)) {
+        expect(html, page).toContain('data-admin-access-checking');
+        expect(html, page).toContain('Checking access');
+        expect(html, page).toMatch(/<div[^>]*data-admin-content[^>]*hidden|<div[^>]*hidden[^>]*data-admin-content/);
+      }
     }
   }, 30_000);
 });

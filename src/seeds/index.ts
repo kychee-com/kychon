@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import type { ProjectSeed } from './types.js';
 
-const PROJECTS = ['kychon', 'eagles', 'silver-pines', 'barrio-unido'] as const;
+const PROJECTS = ['kychon', 'fresh', 'eagles', 'silver-pines', 'barrio-unido'] as const;
 export type ProjectName = (typeof PROJECTS)[number];
 
 export type ActiveProjectSeedSource =
@@ -64,6 +64,8 @@ async function loadTypedSeed(name: ProjectName): Promise<ProjectSeed> {
   switch (name) {
     case 'kychon':
       return (await import('./kychon.js')).seed;
+    case 'fresh':
+      return (await import('./fresh.js')).buildFreshSeed();
     case 'eagles':
       return (await import('./eagles.js')).seed;
     case 'silver-pines':
