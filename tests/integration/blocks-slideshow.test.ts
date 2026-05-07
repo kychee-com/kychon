@@ -9,14 +9,23 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function buildSlideshowDOM(opts: { autoMs?: number; slides?: number; reducedMotion?: boolean } = {}) {
+function buildSlideshowDOM(
+  opts: {
+    autoMs?: number;
+    slides?: number;
+    reducedMotion?: boolean;
+    pauseHover?: boolean;
+    pauseFocus?: boolean;
+    manualPause?: boolean;
+  } = {},
+) {
   const autoMs = opts.autoMs ?? 1000;
   const total = opts.slides ?? 3;
   const wrapper = document.createElement('section');
   wrapper.className = 'section section-slideshow';
   wrapper.innerHTML = `
     <div class="container">
-      <div class="block-slideshow block-slideshow--fade" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Test" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" style="--aspect:16/9;--fit:cover">
+      <div class="block-slideshow block-slideshow--fade" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Test" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-pause-hover="${opts.pauseHover === false ? 'false' : 'true'}" data-pause-focus="${opts.pauseFocus === false ? 'false' : 'true'}" data-manual-pause="${opts.manualPause ? 'true' : 'false'}" style="--aspect:16/9;--fit:cover">
         <div class="block-slideshow__track">
           ${Array.from({ length: total })
             .map(
@@ -83,6 +92,23 @@ describe('slideshow controller', () => {
     expect(root.querySelectorAll('.block-slideshow__slide')[0].classList.contains('is-active')).toBe(true);
     root.dispatchEvent(new Event('mouseleave'));
     vi.advanceTimersByTime(500);
+    expect(root.querySelectorAll('.block-slideshow__slide')[1].classList.contains('is-active')).toBe(true);
+  });
+
+  it('can disable hover pause for source carousels', async () => {
+    const root = buildSlideshowDOM({ autoMs: 500, slides: 3, pauseHover: false });
+    await init(root);
+    root.dispatchEvent(new Event('mouseenter'));
+    vi.advanceTimersByTime(500);
+    expect(root.querySelectorAll('.block-slideshow__slide')[1].classList.contains('is-active')).toBe(true);
+  });
+
+  it('manual interaction can pause future auto rotation', async () => {
+    const root = buildSlideshowDOM({ autoMs: 500, slides: 3, manualPause: true });
+    await init(root);
+    (root.querySelector('[data-slide-next]') as HTMLButtonElement).click();
+    expect(root.querySelectorAll('.block-slideshow__slide')[1].classList.contains('is-active')).toBe(true);
+    vi.advanceTimersByTime(2000);
     expect(root.querySelectorAll('.block-slideshow__slide')[1].classList.contains('is-active')).toBe(true);
   });
 

@@ -7,6 +7,7 @@
 
 <script>
   import { patch, get } from '../lib/api';
+  import { COPIED_THEME_EDITOR_TYPES, openCopiedThemeEditor } from '../lib/admin/copied-theme-editor';
   import { clearCache, ready } from '../lib/config';
 
   function esc(s: string): string {
@@ -49,6 +50,10 @@
       toast.classList.add('out');
       setTimeout(() => toast.remove(), 200);
     }, 2000);
+  }
+
+  function openSourceSettings(sectionId: number) {
+    return openCopiedThemeEditor(sectionId, { get, patch, showToast });
   }
 
   // --- Save animation on element ---
@@ -678,6 +683,7 @@
       <div class="admin-nav-editor-header">
         <h3>Edit Navigation</h3>
         <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-secondary btn-sm" id="nav-editor-source-settings">Source settings</button>
           <button class="btn btn-primary btn-sm" id="nav-editor-save">Save</button>
           <button class="btn btn-secondary btn-sm" id="nav-editor-cancel">Cancel</button>
         </div>
@@ -886,6 +892,13 @@
         console.error('Nav save failed:', e);
         showToast('Save failed', 'error');
       }
+    });
+
+    panel.querySelector('#nav-editor-source-settings')?.addEventListener('click', () => {
+      const id = navBlockId;
+      if (id == null) return;
+      closeNavEditor();
+      void openSourceSettings(id);
     });
 
     // Cancel
@@ -1797,6 +1810,9 @@
     const heroLink = row.section_type === 'hero'
       ? `<div class="hero-settings-link"><label class="admin-section-edit-label">Hero</label><button type="button" class="btn btn-secondary btn-sm" data-edit-hero-settings>Hero settings…</button></div>`
       : '';
+    const sourceSettingsLink = COPIED_THEME_EDITOR_TYPES.has(row.section_type)
+      ? `<div class="source-settings-link"><label class="admin-section-edit-label">Source fidelity</label><button type="button" class="btn btn-secondary btn-sm" data-edit-source-settings>Source settings...</button></div>`
+      : '';
 
     popover.innerHTML = `
       <div class="admin-section-edit-header">
@@ -1809,6 +1825,7 @@
         <label class="admin-section-edit-label mt-2">Scope</label>
         <button type="button" class="btn btn-secondary btn-sm" data-edit-scope-toggle data-edit-scope-next="${scopeNext}">${esc(scopeLabel)}</button>
         ${heroLink}
+        ${sourceSettingsLink}
         <div class="mt-2">
           <button type="button" class="btn btn-secondary btn-sm danger" data-edit-remove>Remove block</button>
         </div>
@@ -1830,6 +1847,10 @@
     popover.querySelector('[data-edit-hero-settings]')?.addEventListener('click', () => {
       close();
       void openHeroEditor(sectionId);
+    });
+    popover.querySelector('[data-edit-source-settings]')?.addEventListener('click', () => {
+      close();
+      void openSourceSettings(sectionId);
     });
 
     // Span radio change → PATCH column_span

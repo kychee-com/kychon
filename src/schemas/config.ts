@@ -1,5 +1,35 @@
 import { z } from 'astro/zod';
 
+const InteractionStateSchema = z.object({
+  background: z.string().optional(),
+  text: z.string().optional(),
+  icon: z.string().optional(),
+  border: z.string().optional(),
+  shadow: z.string().optional(),
+  transform: z.string().optional(),
+  duration: z.string().optional(),
+  easing: z.string().optional(),
+}).partial();
+
+const InteractionSchema = z.object({
+  default: z.object({
+    hover: InteractionStateSchema.optional(),
+    focus: InteractionStateSchema.optional(),
+  }).partial().optional(),
+  button: z.object({
+    hover: InteractionStateSchema.optional(),
+    focus: InteractionStateSchema.optional(),
+  }).partial().optional(),
+  card: z.object({
+    hover: InteractionStateSchema.optional(),
+    focus: InteractionStateSchema.optional(),
+  }).partial().optional(),
+  social: z.object({
+    hover: InteractionStateSchema.optional(),
+    focus: InteractionStateSchema.optional(),
+  }).partial().optional(),
+}).partial();
+
 export const ThemeSchema = z.object({
   primary: z.string().optional(),
   primary_hover: z.string().optional(),
@@ -13,6 +43,47 @@ export const ThemeSchema = z.object({
   font_body: z.string().optional(),
   radius: z.string().optional(),
   max_width: z.string().optional(),
+  interactions: InteractionSchema.optional(),
+  header: z.object({
+    padding: z.string().optional(),
+    logo_max_height: z.string().optional(),
+    logo_max_width: z.string().optional(),
+    wordmark_max_height: z.string().optional(),
+  }).partial().optional(),
+  nav: z.object({
+    link_color: z.string().optional(),
+    link_hover_bg: z.string().optional(),
+    link_hover_color: z.string().optional(),
+    link_active_bg: z.string().optional(),
+    link_active_color: z.string().optional(),
+    link_gap: z.string().optional(),
+    link_padding: z.string().optional(),
+    font_family: z.string().optional(),
+    font_size: z.string().optional(),
+    font_weight: z.string().optional(),
+    dropdown_bg: z.string().optional(),
+    dropdown_color: z.string().optional(),
+    dropdown_hover_bg: z.string().optional(),
+    dropdown_hover_color: z.string().optional(),
+    dropdown_border: z.string().optional(),
+    dropdown_shadow: z.string().optional(),
+    dropdown_width: z.string().optional(),
+    chevron_color: z.string().optional(),
+    transition: z.string().optional(),
+    mobile_menu_bg: z.string().optional(),
+    mobile_menu_padding: z.string().optional(),
+  }).partial().optional(),
+  carousel: z.object({
+    arrow: z.object({
+      background: z.string().optional(),
+      text: z.string().optional(),
+      hover: InteractionStateSchema.optional(),
+    }).partial().optional(),
+    dot: z.object({
+      background: z.string().optional(),
+      active_background: z.string().optional(),
+    }).partial().optional(),
+  }).partial().optional(),
 });
 
 export const NavItemSchema = z.object({

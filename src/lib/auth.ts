@@ -8,6 +8,43 @@ function getAnonKey(): string {
   return window.__KYCHON_ANON_KEY || '';
 }
 
+const AUTH_RETURN_TO_KEY = 'wl_auth_return_to';
+
+function currentPathWithSearch(): string {
+  return `${window.location.pathname || '/'}${window.location.search || ''}`;
+}
+
+function getOAuthCallbackParams(): URLSearchParams {
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (hashParams.has('code') || hashParams.has('error')) return hashParams;
+
+  const queryParams = new URLSearchParams(window.location.search.replace(/^\?/, ''));
+  if (queryParams.has('code') || queryParams.has('error')) return queryParams;
+
+  return new URLSearchParams();
+}
+
+function cleanOAuthCallbackUrl(): string {
+  const queryParams = new URLSearchParams(window.location.search.replace(/^\?/, ''));
+  queryParams.delete('code');
+  queryParams.delete('state');
+  queryParams.delete('error');
+  queryParams.delete('error_description');
+  const query = queryParams.toString();
+  return `${window.location.pathname || '/'}${query ? `?${query}` : ''}`;
+}
+
+function safeReturnTo(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
 // PKCE helpers
 export function generateVerifier(): string {
   const arr = new Uint8Array(32);
@@ -35,9 +72,76 @@ function saveSession(session: any): void {
   localStorage.setItem('wl_session', JSON.stringify(session));
 }
 
+function decodeBase64UrlJson(value: string): any | null {
+  try {
+    const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((value.length + 3) % 4);
+    const raw = typeof atob === 'function'
+      ? atob(padded)
+      : Buffer.from(padded, 'base64').toString('binary');
+    const json = decodeURIComponent(
+      Array.from(raw)
+        .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+        .join(''),
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export function getSessionClaims(session = getSession()): any | null {
+  const token = session?.access_token;
+  if (typeof token !== 'string') return null;
+  const payload = token.split('.')[1];
+  return payload ? decodeBase64UrlJson(payload) : null;
+}
+
+function normalizeEmail(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+export function getSessionEmail(session = getSession()): string {
+  const user = session?.user || {};
+  const claims = getSessionClaims(session) || {};
+  const identities = Array.isArray(user.identities) ? user.identities : [];
+  const candidates = [
+    user.email,
+    session?.email,
+    user.user_metadata?.email,
+    user.raw_user_meta_data?.email,
+    user.identity_data?.email,
+    identities[0]?.identity_data?.email,
+    claims.email,
+    claims.user_metadata?.email,
+    claims.raw_user_meta_data?.email,
+    claims.app_metadata?.email,
+  ];
+
+  for (const candidate of candidates) {
+    const email = normalizeEmail(candidate);
+    if (email) return email;
+  }
+  return '';
+}
+
+export function isProjectAdminSession(session = getSession()): boolean {
+  const user = session?.user || {};
+  const claims = getSessionClaims(session) || {};
+  return (
+    user.is_admin === true ||
+    user.role === 'project_admin' ||
+    user.app_metadata?.role === 'project_admin' ||
+    user.app_metadata?.is_admin === true ||
+    claims.role === 'project_admin' ||
+    claims.is_admin === true ||
+    claims.app_metadata?.role === 'project_admin' ||
+    claims.app_metadata?.is_admin === true
+  );
+}
+
 export function getRole(): string | null {
   const session = getSession();
-  return session?.user?.member?.role || null;
+  return session?.user?.member?.role || (isProjectAdminSession(session) ? 'admin' : null);
 }
 
 export function isAdmin(): boolean {
@@ -61,6 +165,7 @@ export async function signInWithGoogle(): Promise<void> {
   const verifier = generateVerifier();
   const challenge = await generateChallenge(verifier);
   localStorage.setItem('wl_pkce_verifier', verifier);
+  localStorage.setItem(AUTH_RETURN_TO_KEY, currentPathWithSearch());
 
   const res = await fetch(`${getAPI()}/auth/v1/oauth/google/start`, {
     method: 'POST',
@@ -77,11 +182,11 @@ export async function signInWithGoogle(): Promise<void> {
 }
 
 export async function handleOAuthCallback(): Promise<any> {
-  const params = new URLSearchParams(window.location.hash.substring(1));
+  const params = getOAuthCallbackParams();
   const code = params.get('code');
   if (!code) return null;
 
-  window.history.replaceState(null, '', window.location.pathname);
+  window.history.replaceState(null, '', cleanOAuthCallbackUrl());
   const verifier = localStorage.getItem('wl_pkce_verifier');
   localStorage.removeItem('wl_pkce_verifier');
 
@@ -95,6 +200,12 @@ export async function handleOAuthCallback(): Promise<any> {
   const session = await res.json();
   saveSession(session);
   return session;
+}
+
+export function consumeAuthReturnTo(): string | null {
+  const returnTo = safeReturnTo(localStorage.getItem(AUTH_RETURN_TO_KEY));
+  localStorage.removeItem(AUTH_RETURN_TO_KEY);
+  return returnTo;
 }
 
 // Password auth

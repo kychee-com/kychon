@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Kychon's admin inline editing lets admins edit text, rich text, images, and related admin-only editor code directly on rendered pages while keeping editing affordances hidden from members.
+
+## Requirements
 
 ### Requirement: Simple text editing via contenteditable
 
@@ -27,7 +31,7 @@ Elements with `data-editable-rich="{table}.{id}.{field}"` SHALL initialize a Tip
 
 #### Scenario: Tiptap not loaded for members
 - **WHEN** a non-admin user loads any page
-- **THEN** no Tiptap code is downloaded (not even the import statement)
+- **THEN** no external Tiptap editor bundle is loaded
 
 ### Requirement: Image editing via click-to-upload
 
@@ -40,16 +44,16 @@ Elements with `data-editable-image="{storage_path}"` SHALL show a camera/upload 
 - **THEN** the file is uploaded to Run402 storage
 - **THEN** the image `src` is updated to the new URL
 
-### Requirement: Admin-editor.js loads only for admins
+### Requirement: AdminEditor Astro island initializes only for admins
 
-`admin-editor.js` SHALL be loaded as a separate `<script>` tag that is only inserted into the DOM when the current user's role is `admin`. It SHALL scan the page for `data-editable`, `data-editable-rich`, and `data-editable-image` attributes and attach the appropriate handlers.
+The inline editing system SHALL be packaged as an `AdminEditor.astro` component. It SHALL initialize editor behavior only when the current user's role is `admin`. It SHALL scan the page for `data-editable`, `data-editable-rich`, and `data-editable-image` attributes and attach the appropriate handlers after admin status is confirmed.
 
-#### Scenario: Admin page load includes editor script
+#### Scenario: Admin page load enables editor behavior
 - **WHEN** an admin loads any page
-- **THEN** `admin-editor.js` is dynamically loaded
+- **THEN** the AdminEditor island initializes
 - **THEN** all editable elements gain hover highlights and click handlers
 
-#### Scenario: Member page load excludes editor script
+#### Scenario: Member page load leaves editor inactive
 - **WHEN** a non-admin loads the same page
-- **THEN** `admin-editor.js` is never loaded
-- **THEN** page weight is ~15kB instead of ~60kB
+- **THEN** editor behavior does not initialize
+- **THEN** edit affordances, admin CSS, and Tiptap loading remain inactive

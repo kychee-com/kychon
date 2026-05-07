@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { getBrandedTitle, getRouteKey, isNavItemActive } from '../../src/lib/config.ts';
+import {
+  COPIED_THEME_CSS_VAR_PATHS,
+  getBrandedTitle,
+  getRouteKey,
+  isNavItemActive,
+  THEME_CSS_VAR_MAP,
+  themeCssVars,
+} from '../../src/lib/config.ts';
 import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js';
 
 // We test the pure logic functions of config.js by testing the patterns they use
@@ -8,24 +15,46 @@ import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js'
 describe('config logic', () => {
   describe('theme injection', () => {
     it('maps theme keys to CSS custom properties', () => {
-      const map = {
-        primary: '--color-primary',
-        primary_hover: '--color-primary-hover',
-        bg: '--color-bg',
-        surface: '--color-surface',
-        text: '--color-text',
-        text_muted: '--color-text-muted',
-        border: '--color-border',
-        font_heading: '--font-heading',
-        font_body: '--font-body',
-        radius: '--radius',
-        max_width: '--max-width',
-      };
-
       // Verify all theme keys are mapped
       for (const key of Object.keys(defaultTheme)) {
-        expect(map).toHaveProperty(key);
+        expect(THEME_CSS_VAR_MAP).toHaveProperty(key);
       }
+    });
+
+    it('maps copied-theme interaction and nav tokens to CSS custom properties', () => {
+      expect(COPIED_THEME_CSS_VAR_PATHS['interactions.button.hover.background']).toBe('--button-hover-bg');
+      expect(COPIED_THEME_CSS_VAR_PATHS['header.logo_max_height']).toBe('--nav-logo-max-height');
+      expect(COPIED_THEME_CSS_VAR_PATHS['nav.dropdown_bg']).toBe('--nav-dropdown-bg');
+      expect(COPIED_THEME_CSS_VAR_PATHS['carousel.arrow.hover.background']).toBe('--slideshow-arrow-hover-bg');
+    });
+
+    it('flattens copied-theme tokens for cache-first application', () => {
+      const vars = themeCssVars({
+        primary: '#123456',
+        interactions: {
+          button: { hover: { background: '#ffcc00', text: '#111111' } },
+          card: { hover: { transform: 'translateY(-4px)', shadow: '0 8px 20px rgba(0,0,0,0.2)' } },
+        },
+        header: { padding: '1rem 0', logo_max_height: '4rem' },
+        nav: { dropdown_bg: '#ffffff', mobile_menu_bg: '#f7f7f7' },
+        carousel: { arrow: { hover: { background: 'rgba(0,0,0,0.8)' } } },
+      });
+      expect(vars['--color-primary']).toBe('#123456');
+      expect(vars['--button-hover-bg']).toBe('#ffcc00');
+      expect(vars['--button-hover-text']).toBe('#111111');
+      expect(vars['--card-hover-transform']).toBe('translateY(-4px)');
+      expect(vars['--nav-header-padding']).toBe('1rem 0');
+      expect(vars['--nav-logo-max-height']).toBe('4rem');
+      expect(vars['--nav-dropdown-bg']).toBe('#ffffff');
+      expect(vars['--nav-mobile-menu-bg']).toBe('#f7f7f7');
+      expect(vars['--slideshow-arrow-hover-bg']).toBe('rgba(0,0,0,0.8)');
+    });
+
+    it('ignores unsafe copied-theme token values', () => {
+      const vars = themeCssVars({
+        interactions: { button: { hover: { background: 'red;background:url(javascript:alert(1))' } } },
+      });
+      expect(vars['--button-hover-bg']).toBeUndefined();
     });
 
     it('default theme has valid values', () => {

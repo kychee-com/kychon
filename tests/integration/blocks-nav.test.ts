@@ -15,13 +15,13 @@ const baseCtx: BlockRenderContext = {
   currentPath: '/',
 };
 
-function makeSection(items: any[]): Section {
+function makeSection(items: any[], extraConfig: Record<string, unknown> = {}): Section {
   return {
     page_slug: '*',
     zone: 'header',
     scope: 'global',
     section_type: 'nav',
-    config: { items },
+    config: { items, ...extraConfig },
     position: 1,
   };
 }
@@ -75,6 +75,7 @@ describe('nav block — flat behavior preserved', () => {
     expect(html).toContain('>About<');
     expect(html).not.toContain('nav-chevron-toggle');
     expect(html).not.toContain('nav-dropdown');
+    expect(html).not.toContain('data-mobile-breakpoint');
   });
 
   it('respects feature/auth/admin gates for top-level items', () => {
@@ -87,6 +88,46 @@ describe('nav block — flat behavior preserved', () => {
     expect(html).toContain('Public');
     expect(html).not.toContain('Members');
     expect(html).not.toContain('Admin');
+  });
+});
+
+describe('nav block — source presentation config', () => {
+  it('emits scoped variables and behavior data attributes', () => {
+    const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
+      presentation: {
+        link_hover_bg: '#ffcc00',
+        link_hover_color: '#111111',
+        dropdown_bg: '#ffffff',
+        dropdown_shadow: '0 10px 20px rgba(0,0,0,0.2)',
+        dropdown_width: '18rem',
+        chevron_color: '#0057b8',
+        transition: '220ms ease',
+        mobile_menu_bg: '#f7f7f7',
+      },
+      behavior: {
+        mobile_breakpoint: 960,
+        mobile_closed_layout: 'hidden',
+        mobile_open_layout: 'inline',
+      },
+    });
+    const html = BLOCK_TYPES.nav.render(section, baseCtx);
+    expect(html).toContain('--nav-link-hover-bg:#ffcc00;');
+    expect(html).toContain('--nav-dropdown-bg:#ffffff;');
+    expect(html).toContain('--nav-dropdown-shadow:0 10px 20px rgba(0,0,0,0.2);');
+    expect(html).toContain('--nav-dropdown-width:18rem;');
+    expect(html).toContain('--nav-chevron-color:#0057b8;');
+    expect(html).toContain('data-mobile-breakpoint="960"');
+    expect(html).toContain('data-mobile-closed-layout="hidden"');
+  });
+
+  it('toggles source mobile mode at custom breakpoint', () => {
+    const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
+      behavior: { mobile_breakpoint: 2000 },
+    });
+    document.body.innerHTML = `<nav id="zone-header" class="nav"><div class="container">${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
+    const host = document.getElementById('nav-links') as HTMLElement;
+    bindNavDropdowns(host);
+    expect(document.getElementById('zone-header')?.classList.contains('nav--source-mobile')).toBe(true);
   });
 });
 
