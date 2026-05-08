@@ -27,7 +27,7 @@ afterEach(() => {
 function makeWrapper(cfg: Record<string, unknown>): HTMLElement {
   const wrapper = document.createElement('section');
   wrapper.innerHTML = `
-    <div class="container" data-block-hydrate="events_list" data-config='${JSON.stringify(cfg)}'>
+    <div class="ky-container" data-block-hydrate="events_list" data-config='${JSON.stringify(cfg)}'>
       <div class="block-events-list__skeleton">
         <div class="event-skeleton-card"></div>
       </div>

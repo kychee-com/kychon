@@ -28,8 +28,11 @@ describe('copied-theme token application', () => {
     });
 
     expect(document.documentElement.style.getPropertyValue('--color-bg')).toBe('#ffffff');
+    expect(document.documentElement.style.getPropertyValue('--ky-color-bg')).toBe('#ffffff');
     expect(document.documentElement.style.getPropertyValue('--color-text')).toBe('#1f2933');
+    expect(document.documentElement.style.getPropertyValue('--ky-color-text')).toBe('#1f2933');
     expect(document.documentElement.style.getPropertyValue('--color-surface')).toBe('#f9f5f5');
+    expect(document.documentElement.style.getPropertyValue('--ky-color-surface')).toBe('#f9f5f5');
     expect(document.getElementById('wl-theme-vars')?.textContent).toContain(':root');
   });
 });

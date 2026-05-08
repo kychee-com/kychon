@@ -33,15 +33,15 @@ function writeCache(store: Record<string, string>, key: string, data: unknown, t
 function mountPortalShell(): void {
   document.body.innerHTML = `
     <nav id="zone-header" class="nav" data-zone="header">
-      <div class="container"></div>
+      <div class="ky-container"></div>
     </nav>
     <main class="page-content" id="main-content">
       <div id="sections" data-zone="main"></div>
     </main>
     <footer id="zone-footer" class="footer" data-zone="footer">
-      <div class="container"></div>
+      <div class="ky-container"></div>
     </footer>
-    <div id="auth-modal" class="hidden"></div>
+    <div id="auth-modal-root"></div>
   `;
 }
 
@@ -112,5 +112,22 @@ describe('sign_in_bar hydration', () => {
     expect(document.querySelector('#login-btn')).toBeTruthy();
     expect(document.querySelector('#lang-toggle')).toBeTruthy();
     expect(document.querySelector('#theme-toggle')).toBeTruthy();
+  });
+
+  it('opens auth through the Kychon event boundary', async () => {
+    await hydrateFromCachedSections([signInBarSection({ show_lang_toggle: false, show_theme_toggle: false })]);
+
+    const events: CustomEvent[] = [];
+    document.addEventListener('kychon:auth-open', ((event: CustomEvent) => {
+      events.push(event);
+    }) as EventListener);
+
+    const login = document.querySelector('#login-btn') as HTMLButtonElement | null;
+    login?.click();
+
+    await vi.waitFor(() => {
+      expect(events).toHaveLength(1);
+    });
+    expect(events[0]?.detail.trigger).toBe(login);
   });
 });

@@ -1,18 +1,54 @@
 :root {
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
-  --color-accent: #f59e0b;
-  --color-bg: #ffffff;
-  --color-surface: #f8fafc;
-  --color-text: #0f172a;
-  --color-text-muted: #64748b;
-  --color-border: #e2e8f0;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  /* Kychon runtime tokens: tenant/demo themes should write these first. */
+  --ky-color-primary: #6366f1;
+  --ky-color-primary-hover: #4f46e5;
+  --ky-color-accent: #f59e0b;
+  --ky-color-bg: #ffffff;
+  --ky-color-surface: #f8fafc;
+  --ky-color-text: #0f172a;
+  --ky-color-text-muted: #64748b;
+  --ky-color-border: #e2e8f0;
+  --ky-color-success: #22c55e;
+  --ky-color-warning: #f59e0b;
+  --ky-color-danger: #ef4444;
+  --ky-radius: 0.5rem;
+
+  /* shadcn/Tailwind semantic tokens used by React islands and future blocks. */
+  --background: var(--ky-color-bg);
+  --foreground: var(--ky-color-text);
+  --card: var(--ky-color-surface);
+  --card-foreground: var(--ky-color-text);
+  --popover: var(--ky-color-surface);
+  --popover-foreground: var(--ky-color-text);
+  --primary: var(--ky-color-primary);
+  --primary-foreground: #ffffff;
+  --secondary: color-mix(in srgb, var(--ky-color-primary) 10%, var(--ky-color-surface));
+  --secondary-foreground: var(--ky-color-text);
+  --muted: color-mix(in srgb, var(--ky-color-text-muted) 12%, var(--ky-color-surface));
+  --muted-foreground: var(--ky-color-text-muted);
+  --accent: var(--ky-color-accent);
+  --accent-foreground: var(--ky-color-text);
+  --destructive: var(--ky-color-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--ky-color-border);
+  --input: var(--ky-color-border);
+  --ring: var(--ky-color-primary);
+
+  /* Legacy public CSS aliases. Delete after the block CSS migration finishes. */
+  --color-primary: var(--ky-color-primary);
+  --color-primary-hover: var(--ky-color-primary-hover);
+  --color-accent: var(--ky-color-accent);
+  --color-bg: var(--ky-color-bg);
+  --color-surface: var(--ky-color-surface);
+  --color-text: var(--ky-color-text);
+  --color-text-muted: var(--ky-color-text-muted);
+  --color-border: var(--ky-color-border);
+  --color-success: var(--ky-color-success);
+  --color-warning: var(--ky-color-warning);
+  --color-danger: var(--ky-color-danger);
   --font-heading: "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
-  --radius: 0.5rem;
+  --radius: var(--ky-radius);
   --max-width: 72rem;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
@@ -77,14 +113,17 @@
 }
 
 [data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
+  --ky-color-bg: #0f172a;
+  --ky-color-surface: #1e293b;
+  --ky-color-text: #e2e8f0;
+  --ky-color-text-muted: #94a3b8;
+  --ky-color-border: #334155;
+  --ky-color-success: #4ade80;
+  --ky-color-warning: #fbbf24;
+  --ky-color-danger: #f87171;
+  --secondary: color-mix(in srgb, var(--ky-color-primary) 18%, var(--ky-color-surface));
+  --muted: color-mix(in srgb, var(--ky-color-text-muted) 18%, var(--ky-color-surface));
+  --accent: color-mix(in srgb, var(--ky-color-primary) 22%, var(--ky-color-surface));
   --nav-link-active-color: #ffffff;
   --nav-link-active-bg: rgba(99, 102, 241, 0.35);
   --nav-mobile-menu-bg: rgba(15, 23, 42, 0.95);

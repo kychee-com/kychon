@@ -1,0 +1,59 @@
+---
+import Portal from '../layouts/Portal.astro';
+import { StaticReactProbe } from '../components/kychon/StaticReactProbe';
+---
+
+<Portal title="UI Tokens">
+  <StaticReactProbe />
+  <section class="bg-background text-foreground" style="padding: 2rem 0">
+    <div class="ky-container" style="max-width: 64rem">
+      <h1>UI Tokens</h1>
+      <p class="text-muted-foreground" style="margin-top: 0.5rem">
+        Visual fixture for the Kychon token bridge and Tailwind v4 utility foundation.
+      </p>
+
+      <div class="grid gap-4 md:grid-cols-2" style="margin-top: 1.5rem">
+        <div class="rounded-lg border border-border bg-card text-card-foreground" style="padding: 1rem">
+          <h2 style="font-size: 1rem">Surface</h2>
+          <p class="text-muted-foreground" style="margin-top: 0.5rem">
+            Background, foreground, card, muted foreground, border, and radius.
+          </p>
+        </div>
+
+        <div class="rounded-lg border border-border bg-card text-card-foreground" style="padding: 1rem">
+          <h2 style="font-size: 1rem">Actions</h2>
+          <div class="flex gap-2" style="margin-top: 0.75rem">
+            <button class="rounded-md bg-primary text-primary-foreground" type="button" style="padding: 0.5rem 0.75rem">
+              Primary
+            </button>
+            <button class="rounded-md bg-destructive text-destructive-foreground" type="button" style="padding: 0.5rem 0.75rem">
+              Destructive
+            </button>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-border bg-card text-card-foreground" style="padding: 1rem">
+          <h2 style="font-size: 1rem">Form</h2>
+          <input
+            class="rounded-md border border-input bg-background text-foreground ring-ring"
+            style="margin-top: 0.75rem; width: 100%; padding: 0.5rem 0.75rem"
+            value="Tokenized input"
+          />
+        </div>
+
+        <div
+          class="rounded-lg border border-border bg-card text-card-foreground"
+          style="--ky-color-primary: #7c3aed; --ky-color-border: #a78bfa; padding: 1rem"
+        >
+          <h2 style="font-size: 1rem">Tenant Override</h2>
+          <p class="text-muted-foreground" style="margin-top: 0.5rem">
+            This fixture overrides Kychon runtime tokens locally with CSS variables.
+          </p>
+          <button class="rounded-md bg-primary text-primary-foreground" type="button" style="margin-top: 0.75rem; padding: 0.5rem 0.75rem">
+            Tenant Primary
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</Portal>

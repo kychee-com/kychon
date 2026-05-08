@@ -2,7 +2,7 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Committees">
-  <div class="container">
+  <div class="ky-container">
     <div class="flex justify-between items-center mb-2">
       <h2>Committees</h2>
       <button class="btn btn-primary hidden" id="committee-create-btn">Create Committee</button>
@@ -50,7 +50,7 @@ import Portal from '../layouts/Portal.astro';
       });
 
       if (committees.length === 0) {
-        container.innerHTML = '<p class="text-muted">No committees yet.</p>';
+        container.innerHTML = '<p class="ky-text-muted">No committees yet.</p>';
       } else {
         container.innerHTML =
           '<div class="card-grid">' +
@@ -59,7 +59,7 @@ import Portal from '../layouts/Portal.astro';
               (c: any) => `
           <a href="/committees.html?id=${c.id}" class="card" style="text-decoration:none;color:inherit">
             <h3>${esc(c.name)}</h3>
-            <p class="text-sm text-muted">${esc(c.description || '')}</p>
+            <p class="text-sm ky-text-muted">${esc(c.description || '')}</p>
             <span class="badge badge-primary">${countMap[c.id] || 0} members</span>
           </a>
         `,
@@ -73,7 +73,7 @@ import Portal from '../layouts/Portal.astro';
         setupCreate();
       }
     } catch (_e) {
-      container.innerHTML = '<p class="text-muted">Failed to load committees.</p>';
+      container.innerHTML = '<p class="ky-text-muted">Failed to load committees.</p>';
     }
   }
 
@@ -96,11 +96,11 @@ import Portal from '../layouts/Portal.astro';
       container.innerHTML = `
         <p class="mb-1"><a href="/committees.html">&larr; All Committees</a></p>
         <h2${admin ? ` data-editable="committees.${committee.id}.name"` : ''}>${esc(committee.name)}</h2>
-        <p class="text-muted"${admin ? ` data-editable="committees.${committee.id}.description"` : ''}>${esc(committee.description || '')}</p>
+        <p class="ky-text-muted"${admin ? ` data-editable="committees.${committee.id}.description"` : ''}>${esc(committee.description || '')}</p>
 
         <div class="mt-2">
           <h3 class="mb-1">Members (${members.length})</h3>
-          ${members.length === 0 ? '<p class="text-muted">No members assigned.</p>' : ''}
+          ${members.length === 0 ? '<p class="ky-text-muted">No members assigned.</p>' : ''}
           ${members
             .map(
               (m: any) => `

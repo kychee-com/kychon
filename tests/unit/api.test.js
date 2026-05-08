@@ -103,10 +103,13 @@ describe('api.js', () => {
   });
 
   it('refreshes once on 403 when a stored session has a refresh token', async () => {
-    localStorage.setItem('wl_session', JSON.stringify({
-      access_token: tokenWithClaims({ role: 'project_admin' }),
-      refresh_token: 'ref123',
-    }));
+    localStorage.setItem(
+      'wl_session',
+      JSON.stringify({
+        access_token: tokenWithClaims({ role: 'project_admin' }),
+        refresh_token: 'ref123',
+      }),
+    );
 
     mockFetch.mockResolvedValueOnce({ ok: false, status: 403 });
     mockFetch.mockResolvedValueOnce({
@@ -123,9 +126,12 @@ describe('api.js', () => {
   });
 
   it('does not refresh 403 responses without a refresh token', async () => {
-    localStorage.setItem('wl_session', JSON.stringify({
-      access_token: tokenWithClaims({ role: 'authenticated' }),
-    }));
+    localStorage.setItem(
+      'wl_session',
+      JSON.stringify({
+        access_token: tokenWithClaims({ role: 'authenticated' }),
+      }),
+    );
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 403,

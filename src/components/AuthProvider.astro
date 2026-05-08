@@ -5,15 +5,10 @@
 
 <script>
   import { consumeAuthReturnTo, consumeOAuthCallbackError, handleOAuthCallback } from '../lib/auth';
+  import { openAuthModal } from '../lib/auth-modal-events';
 
   function showAuthError(message: string) {
-    const errorEl = document.getElementById('auth-error');
-    if (errorEl) {
-      errorEl.textContent = message;
-      errorEl.style.color = 'var(--color-danger)';
-      errorEl.classList.remove('hidden');
-    }
-    document.getElementById('auth-modal')?.classList.remove('hidden');
+    openAuthModal({ error: message });
   }
 
   const hasOAuthCallback =

@@ -13,12 +13,27 @@
 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { getActiveProjectSeed } from '../src/seeds/index.js';
 import { renderBlock, type BlockRenderContext, type Section } from '../src/lib/blocks.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+function readAstroCssBundle(): string {
+  const astroDir = join(ROOT, 'dist/_astro');
+  try {
+    const css = readdirSync(astroDir)
+      .filter((file) => file.endsWith('.css'))
+      .map((file) => readFileSync(join(astroDir, file), 'utf-8'))
+      .join('\n');
+    if (css.trim()) return css;
+  } catch {
+    // The script is often run after `npm run build`, but source CSS still gives
+    // a useful static preview when dist is absent.
+  }
+  return readFileSync(join(ROOT, 'src/styles/public.css'), 'utf-8');
+}
 
 const ctx: BlockRenderContext = {
   admin: false,
@@ -48,26 +63,35 @@ async function main(): Promise<void> {
   const mainHtml = showcaseMain.map((s) => renderBlock(s, ctx)).join('');
 
   const themeCss = readFileSync(join(ROOT, 'public/css/theme.css'), 'utf-8');
-  const stylesCss = readFileSync(join(ROOT, 'public/css/styles.css'), 'utf-8');
+  const stylesCss = readAstroCssBundle();
   const a11yCss = readFileSync(join(ROOT, 'public/css/a11y.css'), 'utf-8');
 
   // Inject silver-pines theme overrides (matches what ConfigProvider does at runtime).
   const sp = (seed.site_config as Record<string, any>).theme?.value || {};
-  const themeOverride = `:root { --color-primary: ${sp.primary || '#5B7F5E'}; --color-primary-hover: ${sp.primary_hover || '#4A6B4D'}; --color-bg: ${sp.bg || '#FFFDF7'}; --color-surface: ${sp.surface || '#F5F0E8'}; --color-text: ${sp.text || '#2C2C2C'}; --color-text-muted: ${sp.text_muted || '#5A5A5A'}; --color-border: ${sp.border || '#D5CFC4'}; --radius: ${sp.radius || '0.75rem'}; --max-width: ${sp.max_width || '68rem'}; }`;
+  const themeOverride = `:root {
+    --ky-color-primary: ${sp.primary || '#5B7F5E'};
+    --ky-color-primary-hover: ${sp.primary_hover || '#4A6B4D'};
+    --ky-color-bg: ${sp.bg || '#FFFDF7'};
+    --ky-color-surface: ${sp.surface || '#F5F0E8'};
+    --ky-color-text: ${sp.text || '#2C2C2C'};
+    --ky-color-text-muted: ${sp.text_muted || '#5A5A5A'};
+    --ky-color-border: ${sp.border || '#D5CFC4'};
+    --ky-radius: ${sp.radius || '0.75rem'};
+    --max-width: ${sp.max_width || '68rem'};
+  }`;
 
   // Compile slideshow.ts on the fly using esbuild — it ships with vite, but
   // simpler: convert top-level types ourselves, ship as plain JS.
   // Easiest path: import from dist (already built).
   const slideshowJsPath = join(ROOT, 'dist/_astro');
   // Find the slideshow.*.js file
-  const { readdirSync } = await import('node:fs');
   const slideshowFile = readdirSync(slideshowJsPath).find((f) => f.startsWith('slideshow.'));
   const slideshowBundled = slideshowFile
     ? readFileSync(join(slideshowJsPath, slideshowFile), 'utf-8')
     : '';
 
   // Render the page banner OUTSIDE the nav so its full-bleed CSS is not
-  // constrained by .nav .container. The brand_header / nav / sign_in_bar
+  // constrained by .nav .ky-container. The brand_header / nav / sign_in_bar
   // blocks (the genuine header chrome) stay inside the nav.
   const chromeHeaderBlocks = headerBlocks.filter((s) => s.section_type !== 'page_banner');
   const pageBannerBlocks = headerBlocks.filter((s) => s.section_type === 'page_banner');
@@ -98,11 +122,11 @@ async function main(): Promise<void> {
 </head>
 <body>
   <nav class="nav" data-zone="header" aria-label="Primary navigation">
-    <div class="container">${chromeHtml}</div>
+    <div class="ky-container">${chromeHtml}</div>
   </nav>
   ${bannerHtml}
   <main class="page-content" id="main-content">
-    <div class="container">
+    <div class="ky-container">
       <h1 id="page-title">Block Showcase — local preview</h1>
       <p style="color: var(--color-text-muted); margin-top: 0.5rem">
         Every block on this page is a <code>sections</code> row in the silver-pines seed.
@@ -112,7 +136,7 @@ async function main(): Promise<void> {
     <div id="sections" data-zone="main">${mainHtml}</div>
   </main>
   <footer class="footer" data-zone="footer" aria-label="Site footer">
-    <div class="container">${footerHtml}</div>
+    <div class="ky-container">${footerHtml}</div>
   </footer>
   <script type="module">
     // Sections are opacity:0 by default in production CSS; the layout adds

@@ -44,7 +44,8 @@ describe('Portal first-byte build output', () => {
       expect(html, page).toContain(BRAND);
       expect(html, page).not.toContain(FORBIDDEN_BRAND);
       expect(html, page).toContain('/css/theme.css?b=');
-      expect(html, page).toContain('/css/styles.css?b=');
+      expect(html, page).not.toContain('/css/styles.css?b=');
+      expect(html, page).toMatch(/\/_astro\/[^"']+\.css/);
       expect(html, page).toContain('/css/nav-dropdown.css?b=');
       expect(html, page).toContain('/css/zone-grid.css?b=');
       expect(html, page).toContain('/css/a11y.css?b=');

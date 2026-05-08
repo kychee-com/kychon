@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = join(import.meta.dirname, '../..');
 const page = readFileSync(join(root, 'src/pages/search.astro'), 'utf8');
-const css = readFileSync(join(root, 'public/css/styles.css'), 'utf8');
+const css = readFileSync(join(root, 'src/styles/public.css'), 'utf8');
 
 describe('search results page source', () => {
   it('defines the native route with robots metadata and URL state', () => {

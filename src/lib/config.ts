@@ -210,10 +210,28 @@ export const THEME_CSS_VAR_MAP: Record<string, string> = {
   text: '--color-text',
   text_muted: '--color-text-muted',
   border: '--color-border',
+  success: '--color-success',
+  warning: '--color-warning',
+  danger: '--color-danger',
   font_heading: '--font-heading',
   font_body: '--font-body',
   radius: '--radius',
   max_width: '--max-width',
+};
+
+export const THEME_KYCHON_CSS_VAR_MAP: Record<string, string> = {
+  primary: '--ky-color-primary',
+  primary_hover: '--ky-color-primary-hover',
+  accent: '--ky-color-accent',
+  bg: '--ky-color-bg',
+  surface: '--ky-color-surface',
+  text: '--ky-color-text',
+  text_muted: '--ky-color-text-muted',
+  border: '--ky-color-border',
+  success: '--ky-color-success',
+  warning: '--ky-color-warning',
+  danger: '--ky-color-danger',
+  radius: '--ky-radius',
 };
 
 export const COPIED_THEME_CSS_VAR_PATHS: Record<string, string> = {
@@ -324,6 +342,10 @@ export function themeCssVars(theme: Record<string, any> | null): Record<string, 
     const safe = safeThemeCssValue(theme[key]);
     if (safe) vars[prop] = safe;
   }
+  for (const [key, prop] of Object.entries(THEME_KYCHON_CSS_VAR_MAP)) {
+    const safe = safeThemeCssValue(theme[key]);
+    if (safe) vars[prop] = safe;
+  }
   for (const [path, prop] of Object.entries(COPIED_THEME_CSS_VAR_PATHS)) {
     const safe = safeThemeCssValue(readPath(theme, path));
     if (safe) vars[prop] = safe;
@@ -339,8 +361,9 @@ export function applyTheme(theme: Record<string, any> | null): void {
     : new Set(['bg', 'surface', 'text', 'text_muted', 'border']);
   const vars = themeCssVars(theme);
   const rootVars: string[] = [];
+  const themeVarEntries = [...Object.entries(THEME_CSS_VAR_MAP), ...Object.entries(THEME_KYCHON_CSS_VAR_MAP)];
   for (const [prop, value] of Object.entries(vars)) {
-    const key = Object.entries(THEME_CSS_VAR_MAP).find(([, mappedProp]) => mappedProp === prop)?.[0];
+    const key = themeVarEntries.find(([, mappedProp]) => mappedProp === prop)?.[0];
     if (key && darkOverridable.has(key)) {
       rootVars.push(`${prop}: ${value};`);
     } else {
@@ -391,6 +414,7 @@ export function applyBranding(config: Record<string, any>): void {
 function applyMemberToSession(member: any): void {
   const session = getSession();
   if (!session) return;
+  if (!session.user || typeof session.user !== 'object') session.user = {};
   session.user.member = member;
   localStorage.setItem('wl_session', JSON.stringify(session));
 }
@@ -419,21 +443,23 @@ async function patchMemberUserId(memberId: unknown, userId: string): Promise<voi
   await patch(`members?id=eq.${memberId}`, { user_id: userId });
 }
 
-async function loadMemberRecord(): Promise<void> {
+export async function refreshMemberRecord(): Promise<void> {
   const session = getSession();
   if (!session) return;
 
-  const cacheKey = WL_CACHE_MEMBER_PREFIX + session.user.id;
+  const userId = session?.user?.id;
+  const sessionKey = userId || getSessionEmail(session) || String(session?.access_token || '').slice(0, 16);
+  const cacheKey = WL_CACHE_MEMBER_PREFIX + sessionKey;
   const useMemberCache = !ADMIN_PATHS.includes(window.location.pathname);
   const cached = useMemberCache ? readCache(cacheKey) : null;
   if (cached) {
     applyMemberToSession(cached);
     if (!isFresh(cacheKey, MEMBER_TTL)) {
-      get(`members?user_id=eq.${session.user.id}&limit=1`).then((members: any[]) => {
-        if (members?.[0]) {
-          writeCache(cacheKey, members[0]);
-          if (JSON.stringify(members[0]) !== JSON.stringify(cached)) {
-            applyMemberToSession(members[0]);
+      findMemberForSession(session).then((member) => {
+        if (member) {
+          writeCache(cacheKey, member);
+          if (JSON.stringify(member) !== JSON.stringify(cached)) {
+            applyMemberToSession(member);
             // Page-render hydration will refresh the sign_in_bar block.
             document.dispatchEvent(new CustomEvent('wl-auth-changed'));
           }
@@ -491,7 +517,7 @@ export async function init(): Promise<Record<string, any>> {
     if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
     await loadLocale(null, siteConfig.default_language);
 
-    await loadMemberRecord();
+    await refreshMemberRecord();
 
     if (!isFresh(WL_CACHE_CONFIG, CONFIG_TTL, { buildAware: true })) {
       get('site_config').then((rows: any[]) => {
@@ -524,7 +550,7 @@ export async function init(): Promise<Record<string, any>> {
     if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
     await loadLocale(null, siteConfig.default_language);
 
-    await loadMemberRecord();
+    await refreshMemberRecord();
   }
 
   const navToggle = document.getElementById('nav-toggle');

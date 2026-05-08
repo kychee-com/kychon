@@ -54,7 +54,7 @@ describe('hydrateLinkListResources', () => {
     const wrapper = document.createElement('section');
     wrapper.className = 'section section-link-list block-link-list block-link-list--rows';
     wrapper.innerHTML = `
-      <div class="container" data-block-hydrate="link_list" data-config='${JSON.stringify({
+      <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
         layout: 'rows',
         source: 'resources',
         filter: { category: 'newsletters', limit: 3, order: 'newest' },
@@ -108,7 +108,7 @@ describe('hydrateLinkListResources', () => {
 
     const wrapper = document.createElement('section');
     wrapper.innerHTML = `
-      <div class="container" data-block-hydrate="link_list" data-config='${JSON.stringify({
+      <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
         layout: 'rows',
         source: 'resources',
         filter: { category: 'nope', limit: 5, order: 'newest' },

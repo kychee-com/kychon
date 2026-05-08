@@ -70,8 +70,23 @@ const TABLE_NAMES = [
 // `search_documents` is intentionally not exposed through PostgREST. The
 // public search surface is the Run402 function, which enforces member
 // visibility and private cache headers before returning snippets/titles.
+function publicReadAuthenticatedWriteSql(tableName: string): string {
+  const writerRoleCheck = "auth.role() IN ('authenticated', 'project_admin')";
+  return [
+    `CREATE POLICY "Anyone can read" ON ${tableName} FOR SELECT USING (true)`,
+    `CREATE POLICY "Authenticated users can insert" ON ${tableName} FOR INSERT WITH CHECK (${writerRoleCheck})`,
+    `CREATE POLICY "Authenticated users can update" ON ${tableName} FOR UPDATE USING (${writerRoleCheck})`,
+    `CREATE POLICY "Authenticated users can delete" ON ${tableName} FOR DELETE USING (${writerRoleCheck})`,
+  ].join(";\n");
+}
+
 export const EXPOSE_TABLES: ReadonlyArray<Record<string, unknown>> = TABLE_NAMES.map(
-  (name) => ({ name, expose: true, policy: "public_read_authenticated_write" }),
+  (name) => ({
+    name,
+    expose: true,
+    policy: "custom",
+    custom_sql: publicReadAuthenticatedWriteSql(name),
+  }),
 );
 
 export interface CollectFunctionsOptions {

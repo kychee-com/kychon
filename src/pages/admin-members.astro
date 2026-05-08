@@ -4,7 +4,7 @@ import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Manage Members">
   <AdminAccessShell />
-  <div class="container" data-admin-content hidden>
+  <div class="ky-container" data-admin-content hidden>
     <div class="flex justify-between items-center mb-2">
       <h2>Members</h2>
       <button class="btn btn-secondary" id="am-export">Export CSV</button>
@@ -48,7 +48,7 @@ import Portal from '../layouts/Portal.astro';
   import { get, patch } from '../lib/api';
   import { revealAdminContent, showAdminAccessDenied } from '../lib/admin-access';
   import { isAdmin } from '../lib/auth';
-  import { ready } from '../lib/config';
+  import { ready, refreshMemberRecord } from '../lib/config';
 
   let allMembers: any[] = [];
   let tiers: any[] = [];
@@ -90,7 +90,7 @@ import Portal from '../layouts/Portal.astro';
     if (!tbody) return;
 
     if (members.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center">No members found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="ky-text-muted text-center">No members found.</td></tr>';
       return;
     }
 
@@ -109,14 +109,14 @@ import Portal from '../layouts/Portal.astro';
             }
             <div>
               <div style="font-weight:500">${esc(m.display_name)}</div>
-              <div class="text-sm text-muted">${esc(m.email)}</div>
+              <div class="text-sm ky-text-muted">${esc(m.email)}</div>
             </div>
           </div>
         </td>
         <td><span class="badge badge-${statusColor(m.status)}">${esc(m.status)}</span></td>
         <td>${esc(m.tier_name)}</td>
         <td>${esc(m.role)}</td>
-        <td class="text-sm text-muted">${formatDate(m.joined_at)}</td>
+        <td class="text-sm ky-text-muted">${formatDate(m.joined_at)}</td>
         <td>
           <div class="flex gap-1" style="flex-wrap:wrap">
             ${m.status === 'pending' ? `<button class="btn btn-sm btn-primary am-action" data-id="${m.id}" data-action="approve">Approve</button>` : ''}
@@ -198,6 +198,7 @@ import Portal from '../layouts/Portal.astro';
 
   async function initAdminMembers() {
     await ready;
+    await refreshMemberRecord();
     if (!isAdmin()) {
       showAdminAccessDenied();
       return;

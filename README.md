@@ -28,7 +28,8 @@ A forkable, AI-powered membership portal built on [Run402](https://run402.com). 
 
 ## Tech Stack
 
-- **Frontend:** Vanilla JS, HTML5, CSS3 (no frameworks, no build step)
+- **Frontend:** Astro SSG shell with static public blocks, Tailwind v4 design tokens, and React islands for admin/auth/editor surfaces
+- **UI system:** Kychon-owned wrappers over shadcn/ui + Radix by default; Base UI only behind wrappers when it is the better primitive
 - **Runtime:** Node.js edge functions on Run402
 - **Database:** PostgreSQL via Run402 (PostgREST)
 - **Auth:** Google OAuth + password (Run402 built-in)
@@ -64,12 +65,17 @@ Your portal is live at `<your-name>.run402.com`.
 kychon/
 ├── scripts/deploy.ts      # One-command deploy to Run402 (typed @run402/sdk)
 ├── schema.sql             # All tables (idempotent migrations)
-├── seed.sql               # Default config + sample data
-├── site/                  # Static frontend
-│   ├── *.html             # One HTML file per page
-│   ├── css/               # Theme variables + component styles
-│   ├── js/                # One JS file per feature
-│   └── custom/            # Brand config + i18n strings
+├── seed.sql               # Generated default config + sample data
+├── src/
+│   ├── pages/             # Astro routes, emitted as static HTML
+│   ├── layouts/           # Portal shell, baked chrome, persisted providers
+│   ├── components/
+│   │   ├── ui/            # Product-owned shadcn component source
+│   │   └── kychon/        # App-facing UI facade and wrappers
+│   ├── lib/blocks.ts      # Public block registry and static renderers
+│   ├── seeds/             # Typed demo/project seeds
+│   └── styles/            # Tailwind v4 entrypoint, tokens, public CSS
+├── public/                # Static adjunct assets, env.js, custom strings
 ├── functions/             # Serverless edge functions
 ├── marketing/             # Marketing site (kychon.com)
 ├── demo/                  # Demo seed data (Eagles, Silver Pines, etc.)
@@ -94,13 +100,22 @@ npx tsc --noEmit --project jsconfig.json
 npm run check
 ```
 
+## New Deployment UI Contract
+
+New demo, Fresh Start, copied-site, and ported deployments should compose from Kychon's existing library before creating custom markup or styles:
+
+- **Public pages:** use `sections` rows and the block registry in `src/lib/blocks.ts` first. Prefer existing blocks such as `brand_header`, `nav`, `hero`, `features`, `stats`, `testimonials`, `cta`, `promo_cards`, `events_list`, `events_calendar`, `link_list`, `slideshow`, `embed`, `social_links`, and `page_banner`.
+- **Visual variation:** use `site_config.theme`, block config, `--ky-*` tokens, and documented public CSS hooks. Do not build dynamic Tailwind class names from tenant data.
+- **Interactive UI:** use `@/components/kychon/ui`. shadcn is fully available as copy-owned source, but missing shadcn components must be added under `src/components/ui/*` and exposed through Kychon before feature code imports them.
+- **New library pieces:** add a new block or component when the pattern is reusable across deployments. Treat raw custom HTML/CSS as a source-fidelity escape hatch.
+
 ## Customization
 
 Kychon is designed to be customized by AI agents. Three tiers:
 
-1. **SQL only** (80%) - Rebrand, toggle features, restructure via `site_config` table
-2. **HTML/CSS** (15%) - Visual and layout changes
-3. **Full fork** (5%) - New tables, edge functions, page types
+1. **SQL/config + block composition** (80%) - Rebrand, toggle features, restructure pages with `site_config`, `pages`, and `sections`
+2. **Tokenized CSS + Kychon library extensions** (15%) - Add reusable block variants or Kychon/shadcn components behind the owned facade
+3. **Full fork** (5%) - New tables, edge functions, page types, or platform behavior
 
 See [CUSTOMIZING.md](CUSTOMIZING.md) for the agent guide.
 

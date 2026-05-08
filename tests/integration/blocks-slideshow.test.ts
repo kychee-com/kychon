@@ -24,7 +24,7 @@ function buildSlideshowDOM(
   const wrapper = document.createElement('section');
   wrapper.className = 'section section-slideshow';
   wrapper.innerHTML = `
-    <div class="container">
+    <div class="ky-container">
       <div class="block-slideshow block-slideshow--fade" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Test" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-pause-hover="${opts.pauseHover === false ? 'false' : 'true'}" data-pause-focus="${opts.pauseFocus === false ? 'false' : 'true'}" data-manual-pause="${opts.manualPause ? 'true' : 'false'}" style="--aspect:16/9;--fit:cover">
         <div class="block-slideshow__track">
           ${Array.from({ length: total })

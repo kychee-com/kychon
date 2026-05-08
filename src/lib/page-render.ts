@@ -90,12 +90,12 @@ function renderZoneInto(
   ctx: BlockRenderContext,
 ): { container: HTMLElement | null; rendered: HTMLElement[] } {
   const containerWrapper = document.getElementById(`zone-${zone}`);
-  // Header/footer: the inner container holds the rendered HTML so we don't
+  // Header/footer: the inner Kychon container holds the rendered HTML so we don't
   // clobber the .nav / .footer wrappers (and their transition:persist).
   const container =
     zone === 'main'
       ? (document.getElementById('main-content') as HTMLElement | null)
-      : (containerWrapper?.querySelector('.container') as HTMLElement | null);
+      : (containerWrapper?.querySelector('.ky-container') as HTMLElement | null);
   if (!container) return { container: null, rendered: [] };
 
   const filtered = sections
@@ -122,9 +122,9 @@ function renderZoneInto(
   }
 
   // Header / footer zones split into "chrome" blocks (rendered inside the
-  // existing .container — brand_header, nav, sign_in_bar, footer_address,
+  // existing .ky-container — brand_header, nav, sign_in_bar, footer_address,
   // etc.) and "full-bleed" blocks (page_banner today; rendered as siblings
-  // of .container so they span the viewport without forcing the chrome row
+  // of .ky-container so they span the viewport without forcing the chrome row
   // to absorb their height).
   const chromeBlocks: Section[] = [];
   const fullBleedBlocks: Section[] = [];
@@ -139,7 +139,7 @@ function renderZoneInto(
   }
 
   // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container
-  // adjacent to `.container` inside the same zone wrapper. Created lazily on
+  // adjacent to `.ky-container` inside the same zone wrapper. Created lazily on
   // first need; idempotent across re-renders.
   if (containerWrapper) {
     let bleedHost = containerWrapper.querySelector<HTMLElement>('[data-fullbleed-host]');

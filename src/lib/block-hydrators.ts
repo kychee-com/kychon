@@ -55,7 +55,7 @@ export async function hydrateAnnouncementsFeed(
       const items = await get(`announcements?order=is_pinned.desc,created_at.desc&limit=${limit}`);
       await translateItems('announcement', items, ['title', 'body']);
       if (items.length === 0) {
-        feed.innerHTML = '<p class="text-muted">No announcements yet.</p>';
+        feed.innerHTML = '<p class="ky-text-muted">No announcements yet.</p>';
         return;
       }
       const session = getSession();
@@ -125,7 +125,7 @@ export async function hydrateAnnouncementsFeed(
         });
       });
     } catch {
-      feed.innerHTML = '<p class="text-muted">Could not load announcements.</p>';
+      feed.innerHTML = '<p class="ky-text-muted">Could not load announcements.</p>';
     }
   }
 
@@ -204,7 +204,7 @@ export async function hydrateActivityFeed(
   try {
     const entries = await get(`activity_log?order=created_at.desc&limit=${limit}`);
     if (entries.length === 0) {
-      feed.innerHTML = '<p class="text-muted">No recent activity yet.</p>';
+      feed.innerHTML = '<p class="ky-text-muted">No recent activity yet.</p>';
       return;
     }
     const memberIds = [...new Set(entries.map((e: any) => e.member_id).filter(Boolean))];
@@ -224,7 +224,7 @@ export async function hydrateActivityFeed(
       })
       .join('');
   } catch {
-    feed.innerHTML = '<p class="text-muted">Could not load activity.</p>';
+    feed.innerHTML = '<p class="ky-text-muted">Could not load activity.</p>';
   }
 }
 
@@ -515,7 +515,7 @@ export async function hydrateEventsList(
 
   if (!events.length) {
     const empty = document.createElement('p');
-    empty.className = 'text-muted block-events-list__empty';
+    empty.className = 'ky-text-muted block-events-list__empty';
     empty.textContent = 'No upcoming events.';
     root.appendChild(empty);
     root.dataset.hydrated = 'true';
@@ -606,8 +606,11 @@ export async function hydrateSignInBar(
       : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
     root.innerHTML = `${langBtn}${themeBtn}<a href="/profile.html" class="nav-link">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
   }
-  document.getElementById('login-btn')?.addEventListener('click', () => {
-    document.getElementById('auth-modal')?.classList.remove('hidden');
+  document.getElementById('login-btn')?.addEventListener('click', (event) => {
+    const trigger = event.currentTarget as HTMLElement;
+    void import('./auth-modal-events.js').then(({ openAuthModal }) => {
+      openAuthModal({ trigger });
+    });
   });
   document.getElementById('logout-btn')?.addEventListener('click', () => {
     localStorage.removeItem('wl_session');

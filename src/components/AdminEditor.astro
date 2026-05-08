@@ -4,11 +4,15 @@
 // Supports: text, rich text (Tiptap), image upload, JSONB paths, drag reorder
 ---
 <div id="admin-editor-root"></div>
+<div id="admin-editor-controls-root" transition:persist></div>
 
 <script>
   import { patch, get } from '../lib/api';
   import { COPIED_THEME_EDITOR_TYPES, openCopiedThemeEditor } from '../lib/admin/copied-theme-editor';
-  import { clearCache, ready } from '../lib/config';
+  import { clearCache, ready, refreshMemberRecord } from '../lib/config';
+  import { showToast as showKychonToast } from '../lib/toast-events';
+
+  type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -33,23 +37,46 @@
     if (cssLoaded) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/css/admin-editing.css';
+    const buildId = (window as any).__KYCHON_BUILD_ID;
+    link.href = buildId
+      ? `/css/admin-editing.css?b=${encodeURIComponent(String(buildId))}`
+      : '/css/admin-editing.css';
     document.head.appendChild(link);
     cssLoaded = true;
   }
 
   // --- Toast notifications ---
   function showToast(message: string, type: 'success' | 'error' = 'success') {
-    const existing = document.querySelector('.admin-toast');
-    if (existing) existing.remove();
-    const toast = document.createElement('div');
-    toast.className = `admin-toast ${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.classList.add('out');
-      setTimeout(() => toast.remove(), 200);
-    }, 2000);
+    showKychonToast({ message, type });
+  }
+
+  let adminEditorControlsPromise: Promise<AdminEditorControlsModule | null> | null = null;
+
+  async function ensureAdminEditorControls(): Promise<AdminEditorControlsModule | null> {
+    const root = document.getElementById('admin-editor-controls-root');
+    if (!root) return null;
+    adminEditorControlsPromise ??= import('./kychon/AdminEditorControlsIsland')
+      .then((module) => {
+        module.mountAdminEditorControls(root);
+        return module;
+      })
+      .catch((error) => {
+        console.error('Failed to load admin editor controls:', error);
+        adminEditorControlsPromise = null;
+        return null;
+      });
+    return adminEditorControlsPromise;
+  }
+
+  function initAdminEditorControlBridge() {
+    if ((document.body as any).__adminEditorControlBridgeBound) return;
+    (document.body as any).__adminEditorControlBridgeBound = true;
+    window.addEventListener('kychon:admin-editor-open-hero-settings', ((event: CustomEvent<{ sectionId: number }>) => {
+      if (Number.isFinite(event.detail?.sectionId)) void openHeroEditor(event.detail.sectionId);
+    }) as EventListener);
+    window.addEventListener('kychon:admin-editor-open-source-settings', ((event: CustomEvent<{ sectionId: number }>) => {
+      if (Number.isFinite(event.detail?.sectionId)) void openSourceSettings(event.detail.sectionId);
+    }) as EventListener);
   }
 
   function openSourceSettings(sectionId: number) {
@@ -450,9 +477,9 @@
   }
 
   function findZoneItemHost(zone: HTMLElement): HTMLElement {
-    // Header / footer: the inner .container holds blocks. Main: the #sections
+    // Header / footer: the inner .ky-container holds blocks. Main: the #sections
     // child or the page <main> itself.
-    const inner = zone.querySelector(':scope > .container') as HTMLElement | null;
+    const inner = zone.querySelector(':scope > .ky-container') as HTMLElement | null;
     if (inner) return inner;
     const sections = zone.querySelector('#sections') as HTMLElement | null;
     if (sections) return sections;
@@ -1057,7 +1084,7 @@
             <span>Background image URL</span>
             <input type="text" data-field="bg_image" value="${esc(cfg.bg_image || '')}" placeholder="/assets/hero.jpg">
           </label>
-          <p class="text-muted text-sm">The image is rendered as a CSS <code>background-image: cover</code> at fixed height. Use this for mood/decoration. Switch to Foreground for banners that must show their full content.</p>
+          <p class="ky-text-muted text-sm">The image is rendered as a CSS <code>background-image: cover</code> at fixed height. Use this for mood/decoration. Switch to Foreground for banners that must show their full content.</p>
         </fieldset>
       `;
     }
@@ -1764,6 +1791,12 @@
   // PATCHes the row, busts wl_cache_sections_*, and dispatches
   // `wl-content-rendered` so page-render.ts re-renders the zone.
   async function openSectionEditPopover(sectionId: number) {
+    const controls = await ensureAdminEditorControls();
+    if (controls) {
+      controls.openSectionEditControl(sectionId);
+      return;
+    }
+
     const { BLOCK_TYPES, getSupportedSpans } = await import('../lib/blocks');
     document.querySelector('.admin-popover-backdrop')?.remove();
     document.querySelector('.admin-popover')?.remove();
@@ -1955,10 +1988,13 @@
   // --- Main init ---
   async function initAdminEditor() {
     await ready;
+    await refreshMemberRecord();
     const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
     if (session?.user?.member?.role !== 'admin') return;
     document.body.classList.add('admin');
     loadAdminCSS();
+    initAdminEditorControlBridge();
+    void ensureAdminEditorControls();
     initEditableText();
     initEditableRich();
     initEditableImage();

@@ -7,12 +7,17 @@ const buildIdTemplate = '$' + '{BUILD_ID}';
 
 describe('Portal asset URLs', () => {
   it('versions every chrome-critical stylesheet with BUILD_ID', () => {
-    const stylesheets = ['theme.css', 'styles.css', 'nav-dropdown.css', 'zone-grid.css', 'a11y.css'];
+    const stylesheets = ['theme.css', 'nav-dropdown.css', 'zone-grid.css', 'a11y.css'];
 
     for (const file of stylesheets) {
       expect(portalSource).toContain(`/css/${file}?b=`);
       expect(portalSource).toContain(buildIdTemplate);
     }
+  });
+
+  it('bundles owned public styles through the Astro/Tailwind entrypoint', () => {
+    expect(portalSource).toContain("import '../styles/globals.css'");
+    expect(portalSource).not.toContain('/css/styles.css?b=');
   });
 
   it('versions env.js with BUILD_ID', () => {

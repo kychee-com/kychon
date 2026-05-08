@@ -50,10 +50,10 @@ export interface BlockType {
   /** column-span-rows: spans this block accepts; omit for "all four". */
   supportedSpans?: ColumnSpan[];
   /**
-   * When true, the block opts out of the zone's `.container` (max-width
+   * When true, the block opts out of the zone's `.ky-container` (max-width
    * constrained) wrapper and renders as a full-bleed sibling below it.
    * Used for blocks like `page_banner` that need 100% viewport width and
-   * their own intrinsic vertical space — putting them inside `.container`
+   * their own intrinsic vertical space — putting them inside `.ky-container`
    * forces the chrome row (brand / nav / sign-in) to absorb the banner's
    * height, which is exactly the wrong layout.
    */
@@ -505,7 +505,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const cta = cfg.cta_text
     ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
     : '';
-  const inner = `<div class="container">${heading}${sub}${cta}</div>`;
+  const inner = `<div class="ky-container">${heading}${sub}${cta}</div>`;
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
@@ -566,7 +566,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
     : '';
   const headingGroup = heading || sub || cta
-    ? `<div class="hero-text"><div class="container">${heading}${sub}${cta}</div></div>`
+    ? `<div class="hero-text"><div class="ky-container">${heading}${sub}${cta}</div></div>`
     : '';
 
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -632,7 +632,7 @@ const FEATURES: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container"><div class="features-grid" style="--cols:${cols}">${items}</div></div>`,
+      `<div class="ky-container"><div class="features-grid" style="--cols:${cols}">${items}</div></div>`,
       'section section-features',
     );
   },
@@ -658,7 +658,7 @@ const CTA: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container"><h2${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2><p class="text-muted mt-1"${editableAttr(section, 'text', ctx)}>${escHtml(cfg.text)}</p>${cta}</div>`,
+      `<div class="ky-container"><h2${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2><p class="ky-text-muted mt-1"${editableAttr(section, 'text', ctx)}>${escHtml(cfg.text)}</p>${cta}</div>`,
       'section section-cta',
     );
   },
@@ -690,7 +690,7 @@ const STATS: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container"><div class="stats-grid">${items}</div></div>`,
+      `<div class="ky-container"><div class="stats-grid">${items}</div></div>`,
       'section section-stats',
     );
   },
@@ -710,10 +710,10 @@ const TESTIMONIALS: BlockType = {
     const items = (cfg.items || [])
       .map(
         (t: any, i: number) =>
-          `<div class="card"><p style="font-style:italic"${editableAttr(section, `items.${i}.quote`, ctx)}>"${escHtml(t.quote)}"</p><p class="text-sm text-muted mt-1"${editableAttr(section, `items.${i}.name`, ctx)}>- ${escHtml(t.name)}${t.role ? `, ${escHtml(t.role)}` : ''}</p></div>`,
+          `<figure class="card testimonial-card"><blockquote class="testimonial-quote"${editableAttr(section, `items.${i}.quote`, ctx)}>&ldquo;${escHtml(t.quote)}&rdquo;</blockquote><figcaption class="testimonial-author"${editableAttr(section, `items.${i}.name`, ctx)}>— ${escHtml(t.name)}${t.role ? `, ${escHtml(t.role)}` : ''}</figcaption></figure>`,
       )
       .join('');
-    return adminWrap(section, ctx, `<div class="container"><div class="card-grid">${items}</div></div>`);
+    return adminWrap(section, ctx, `<div class="ky-container"><div class="card-grid">${items}</div></div>`);
   },
 };
 
@@ -731,10 +731,10 @@ const FAQ: BlockType = {
     const items = (cfg.items || [])
       .map(
         (f: any, i: number) =>
-          `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600"${editableAttr(section, `items.${i}.q`, ctx)}>${escHtml(f.q)}</summary><p class="text-muted mt-1"${editableAttr(section, `items.${i}.a`, ctx)}>${escHtml(f.a)}</p></details>`,
+          `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600"${editableAttr(section, `items.${i}.q`, ctx)}>${escHtml(f.q)}</summary><p class="ky-text-muted mt-1"${editableAttr(section, `items.${i}.a`, ctx)}>${escHtml(f.a)}</p></details>`,
       )
       .join('');
-    return adminWrap(section, ctx, `<div class="container"><h2 class="mb-2">FAQ</h2>${items}</div>`);
+    return adminWrap(section, ctx, `<div class="ky-container"><h2 class="mb-2">FAQ</h2>${items}</div>`);
   },
 };
 
@@ -751,7 +751,7 @@ const POLLS: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container" data-block-hydrate="polls">${heading}<div class="polls-skeleton"><div class="skeleton skeleton-card mb-1"></div></div></div>`,
+      `<div class="ky-container" data-block-hydrate="polls">${heading}<div class="polls-skeleton"><div class="skeleton skeleton-card mb-1"></div></div></div>`,
       'section section-polls',
     );
   },
@@ -789,7 +789,7 @@ const POLLS: BlockType = {
       }
     }
     if (!container.querySelector('[data-section-poll]')) {
-      container.innerHTML += '<p class="text-muted">No polls to display.</p>';
+      container.innerHTML += '<p class="ky-text-muted">No polls to display.</p>';
     }
   },
 };
@@ -807,7 +807,7 @@ const EVENT_COUNTDOWN: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container" data-block-hydrate="event_countdown">${heading}<div class="skeleton skeleton-card"></div></div>`,
+      `<div class="ky-container" data-block-hydrate="event_countdown">${heading}<div class="skeleton skeleton-card"></div></div>`,
       'section section-event-countdown',
     );
   },
@@ -824,7 +824,7 @@ const EVENT_COUNTDOWN: BlockType = {
       const skeleton = container.querySelector('.skeleton');
       if (skeleton) skeleton.remove();
       if (!events.length) {
-        container.innerHTML += '<p class="text-muted">No upcoming events.</p>';
+        container.innerHTML += '<p class="ky-text-muted">No upcoming events.</p>';
         return;
       }
       const evt = events[0];
@@ -861,7 +861,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container" data-block-hydrate="announcements_feed"><div class="block-content"><div id="announcement-create" class="hidden mb-2"></div>${heading}<div id="announcements-feed"><div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></div><div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div></div></div></div></div>`,
+      `<div class="ky-container" data-block-hydrate="announcements_feed"><div class="block-content"><div id="announcement-create" class="hidden mb-2"></div>${heading}<div id="announcements-feed"><div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></div><div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div></div></div></div></div>`,
       'section section-visible',
     );
   },
@@ -886,7 +886,7 @@ const ACTIVITY_FEED: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="container" data-block-hydrate="activity_feed">${heading}<div id="activity-feed"><div class="skeleton skeleton-card"></div></div></div>`,
+      `<div class="ky-container" data-block-hydrate="activity_feed">${heading}<div id="activity-feed"><div class="skeleton skeleton-card"></div></div></div>`,
       'section section-activity',
     );
   },
@@ -1373,7 +1373,7 @@ const CUSTOM: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const richEdit = richEditableAttr(section, 'html', ctx);
-    const inner = `<div class="container"${richEdit}>${cfg.html || ''}</div>`;
+    const inner = `<div class="ky-container"${richEdit}>${cfg.html || ''}</div>`;
     return adminWrap(section, ctx, inner);
   },
 };
@@ -1402,7 +1402,7 @@ const TAGLINE_STRIP: BlockType = {
       ? `<span class="block-tagline-strip__icon" aria-hidden="true">${escHtml(featureIcon(String(cfg.icon)))}</span>`
       : '';
     const textHtml = `<p class="block-tagline-strip__text"${editableAttr(section, 'text', ctx)}>${escHtml(cfg.text || '')}</p>`;
-    const inner = `<div class="container">${iconHtml}${textHtml}</div>`;
+    const inner = `<div class="ky-container">${iconHtml}${textHtml}</div>`;
     return adminWrap(section, ctx, inner, cls);
   },
 };
@@ -1499,12 +1499,12 @@ const LINK_LIST: BlockType = {
     const source = cfg.source || 'manual';
     if (source === 'resources') {
       const skeleton = `<ul class="block-link-list__list block-link-list__skeleton">${'<li class="skeleton skeleton-text"></li>'.repeat(Math.max(1, cfg.filter?.limit || 6))}</ul>`;
-      const inner = `<div class="container" data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
+      const inner = `<div class="ky-container" data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
       return adminWrap(section, ctx, inner, cls);
     }
     const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
     const itemsHtml = items.map((item) => renderLinkListItem(item, layout)).join('');
-    const inner = `<div class="container">${heading}<ul class="block-link-list__list">${itemsHtml}</ul></div>`;
+    const inner = `<div class="ky-container">${heading}<ul class="block-link-list__list">${itemsHtml}</ul></div>`;
     return adminWrap(section, ctx, inner, cls);
   },
   async hydrate(el, section, ctx) {
@@ -1557,7 +1557,7 @@ const PROMO_CARDS: BlockType = {
         return `<a class="promo-card promo-card--title-${titlePos}" href="${escAttr(href)}" aria-label="${escAttr(ariaLabel)}"><span class="promo-card__image"${imgStyle}${imgEdit}>${overlay}</span><span class="promo-card__body"><h3 class="promo-card__title"${titleEdit}>${escHtml(item.title || '')}</h3>${ctaHtml}</span></a>`;
       })
       .join('');
-    const inner = `<div class="container">${heading}<div class="block-promo-cards" style="--cols:${cols}">${cards}</div></div>`;
+    const inner = `<div class="ky-container">${heading}<div class="block-promo-cards" style="--cols:${cols}">${cards}</div></div>`;
     return adminWrap(section, ctx, inner, 'section section-promo-cards');
   },
 };
@@ -1641,9 +1641,9 @@ const IMAGE_ACCORDION: BlockType = {
       .map((panel, index) => renderImageAccordionPanel(panel, section, ctx, index))
       .join('');
     const empty = ctx.admin && panels.length === 0
-      ? '<p class="text-muted">No accordion panels yet — add panels via the editor.</p>'
+      ? '<p class="ky-text-muted">No accordion panels yet — add panels via the editor.</p>'
       : '';
-    const inner = `<div class="container">${heading}<div class="image-accordion image-accordion--mobile-${escAttr(mobileFallback)}"${style}>${renderedPanels}${empty}</div></div>`;
+    const inner = `<div class="ky-container">${heading}<div class="image-accordion image-accordion--mobile-${escAttr(mobileFallback)}"${style}>${renderedPanels}${empty}</div></div>`;
     return adminWrap(section, ctx, inner, 'section section-image-accordion');
   },
 };
@@ -1742,7 +1742,7 @@ const EVENTS_LIST: BlockType = {
     const count = Math.max(1, Number(cfg.count) || 4);
     const layout = cfg.layout || 'sidebar';
     const skeletons = `<div class="block-events-list__skeleton block-events-list__skeleton--${escAttr(layout)}">${'<div class="event-skeleton-card skeleton"></div>'.repeat(count)}</div>`;
-    const inner = `<div class="container" data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}">${heading}${skeletons}</div>`;
+    const inner = `<div class="ky-container" data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}">${heading}${skeletons}</div>`;
     const cls = `section section-events-list block-events-list block-events-list--${escAttr(layout)} block-events-list--${escAttr(cfg.color_scheme || 'primary')}`;
     return adminWrap(section, ctx, inner, cls);
   },
@@ -1782,7 +1782,7 @@ const EVENTS_CALENDAR: BlockType = {
     const view = (cfg.view as string) || 'month';
     const density = (cfg.density as string) || 'light';
     const skeleton = `<div class="block-events-calendar__skeleton">${'<div class="event-skeleton-card skeleton"></div>'.repeat(4)}</div>`;
-    const inner = `<div class="container" data-block-hydrate="events_calendar" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
+    const inner = `<div class="ky-container" data-block-hydrate="events_calendar" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
     const cls = `section section-events-calendar block-events-calendar block-events-calendar--view-${escAttr(view)} block-events-calendar--density-${escAttr(density)}`;
     return adminWrap(section, ctx, inner, cls);
   },
@@ -1832,9 +1832,9 @@ const SLIDESHOW: BlockType = {
     if (!items.length) {
       // Empty: show a placeholder for admins, hide for visitors.
       const empty = ctx.admin
-        ? `<div class="block-slideshow block-slideshow--empty"><p class="text-muted">No slides yet — add some via the editor.</p></div>`
+        ? `<div class="block-slideshow block-slideshow--empty"><p class="ky-text-muted">No slides yet — add some via the editor.</p></div>`
         : '';
-      const inner = `<div class="container">${heading}${empty}</div>`;
+      const inner = `<div class="ky-container">${heading}${empty}</div>`;
       return adminWrap(section, ctx, inner, 'section section-slideshow');
     }
     const aspect = cfg.aspect_ratio || '16/9';
@@ -1901,7 +1901,7 @@ const SLIDESHOW: BlockType = {
     const pauseHover = cfg.pause_on_hover === false ? 'false' : 'true';
     const pauseFocus = cfg.pause_on_focus === false ? 'false' : 'true';
     const manualPause = cfg.manual_pause === true ? 'true' : 'false';
-    const inner = `<div class="container">${heading}<div class="block-slideshow block-slideshow--${escAttr(transition)}" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${ariaLabel}" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-fit="${escAttr(fit)}" data-pause-hover="${pauseHover}" data-pause-focus="${pauseFocus}" data-manual-pause="${manualPause}"${rootStyle}><div class="block-slideshow__track">${slides}</div>${arrows}${dots}${liveRegion}</div></div>`;
+    const inner = `<div class="ky-container">${heading}<div class="block-slideshow block-slideshow--${escAttr(transition)}" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${ariaLabel}" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-fit="${escAttr(fit)}" data-pause-hover="${pauseHover}" data-pause-focus="${pauseFocus}" data-manual-pause="${manualPause}"${rootStyle}><div class="block-slideshow__track">${slides}</div>${arrows}${dots}${liveRegion}</div></div>`;
     return adminWrap(section, ctx, inner, 'section section-slideshow');
   },
   async hydrate(el, _section, _ctx) {
