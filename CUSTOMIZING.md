@@ -2,6 +2,19 @@
 
 Read `STRUCTURE.md` first for the full project map. This file has step-by-step recipes.
 
+## New Deployment UI Contract
+
+Before adding custom HTML/CSS or a new React component, check the Kychon library first. New demo, Fresh Start, copied-site, and ported deployments should use these paths in order:
+
+1. Use existing `sections` rows and block types for public pages. The block registry in `src/lib/blocks.ts` is the source of truth for reusable presentation surfaces such as heroes, stats, feature grids, testimonials, CTAs, promo cards, events, links, slideshows, embeds, social links, page banners, header chrome, and footer chrome.
+2. Use `site_config.theme`, block config fields, `--ky-*` CSS variables, and documented public CSS hooks for brand variation. Avoid per-deployment utility classes and dynamic Tailwind class names derived from runtime data.
+3. Use Kychon UI exports for interactive admin/editor/auth surfaces. Feature code imports from `@/components/kychon/ui` or another Kychon wrapper. It does not import `@/components/ui/*`, `@radix-ui/*`, or `@base-ui-components/*` directly.
+4. Add a new block or component only when the shape will be reusable across deployments. Raw custom HTML/CSS is an escape hatch for source-fidelity ports, not the default authoring model.
+
+### shadcn availability
+
+Yes: Kychon can use any shadcn/ui component. Add the component as product-owned source under `src/components/ui/*`, wire it to Kychon's tokens and accessibility expectations, then export it from `src/components/kychon/ui.ts` or a Kychon wrapper before any deployment or feature code imports it.
+
 ## Branding
 
 Kychon represents your brand with three explicit fields and a separate favicon.

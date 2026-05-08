@@ -1,0 +1,453 @@
+{
+  "generatedAt": "2026-05-08T12:14:04.781Z",
+  "dist": "/Users/talweiss/Developer/kychon/dist",
+  "note": "Local asset byte counts are uncompressed and include assets referenced directly by each HTML file.",
+  "routes": [
+    {
+      "id": "home",
+      "kind": "public",
+      "route": "/",
+      "file": "index.html",
+      "htmlBytes": 7622,
+      "inlineScriptBytes": 2986,
+      "inlineStyleBytes": 0,
+      "localJsBytes": 72226,
+      "localCssBytes": 108387,
+      "localJs": [
+        {
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.j4L7xoGn.js",
+          "bytes": 59335
+        },
+        {
+          "path": "/_astro/AuthModal.astro_astro_type_script_index_0_lang.Bf7wlVO8.js",
+          "bytes": 814
+        },
+        {
+          "path": "/_astro/AuthProvider.astro_astro_type_script_index_0_lang.QH48Vk80.js",
+          "bytes": 1414
+        },
+        {
+          "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BIYsaiAn.js",
+          "bytes": 3874
+        },
+        {
+          "path": "/_astro/ConfigProvider.astro_astro_type_script_index_0_lang.C3V-ORQH.js",
+          "bytes": 246
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_1_lang.BReKoWPH.js",
+          "bytes": 5157
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.t6NIdFkP.js",
+          "bytes": 295
+        },
+        {
+          "path": "/_astro/Toast.astro_astro_type_script_index_0_lang.1Rs4gMu8.js",
+          "bytes": 758
+        },
+        {
+          "path": "/_astro/index.astro_astro_type_script_index_0_lang.C1sPXUPC.js",
+          "bytes": 166
+        },
+        {
+          "path": "/js/env.js",
+          "bytes": 167
+        }
+      ],
+      "localCss": [
+        {
+          "path": "/_astro/Portal.BS8tkXo-.css",
+          "bytes": 89952
+        },
+        {
+          "path": "/css/a11y.css",
+          "bytes": 4521
+        },
+        {
+          "path": "/css/nav-dropdown.css",
+          "bytes": 6391
+        },
+        {
+          "path": "/css/theme.css",
+          "bytes": 5293
+        },
+        {
+          "path": "/css/zone-grid.css",
+          "bytes": 2230
+        }
+      ]
+    },
+    {
+      "id": "events",
+      "kind": "public",
+      "route": "/events",
+      "file": "events.html",
+      "htmlBytes": 9297,
+      "inlineScriptBytes": 2986,
+      "inlineStyleBytes": 0,
+      "localJsBytes": 75383,
+      "localCssBytes": 108387,
+      "localJs": [
+        {
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.j4L7xoGn.js",
+          "bytes": 59335
+        },
+        {
+          "path": "/_astro/AuthModal.astro_astro_type_script_index_0_lang.Bf7wlVO8.js",
+          "bytes": 814
+        },
+        {
+          "path": "/_astro/AuthProvider.astro_astro_type_script_index_0_lang.QH48Vk80.js",
+          "bytes": 1414
+        },
+        {
+          "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BIYsaiAn.js",
+          "bytes": 3874
+        },
+        {
+          "path": "/_astro/ConfigProvider.astro_astro_type_script_index_0_lang.C3V-ORQH.js",
+          "bytes": 246
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_1_lang.BReKoWPH.js",
+          "bytes": 5157
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.t6NIdFkP.js",
+          "bytes": 295
+        },
+        {
+          "path": "/_astro/Toast.astro_astro_type_script_index_0_lang.1Rs4gMu8.js",
+          "bytes": 758
+        },
+        {
+          "path": "/_astro/events.astro_astro_type_script_index_0_lang.DLk9dJie.js",
+          "bytes": 3323
+        },
+        {
+          "path": "/js/env.js",
+          "bytes": 167
+        }
+      ],
+      "localCss": [
+        {
+          "path": "/_astro/Portal.BS8tkXo-.css",
+          "bytes": 89952
+        },
+        {
+          "path": "/css/a11y.css",
+          "bytes": 4521
+        },
+        {
+          "path": "/css/nav-dropdown.css",
+          "bytes": 6391
+        },
+        {
+          "path": "/css/theme.css",
+          "bytes": 5293
+        },
+        {
+          "path": "/css/zone-grid.css",
+          "bytes": 2230
+        }
+      ]
+    },
+    {
+      "id": "resources",
+      "kind": "public",
+      "route": "/resources",
+      "file": "resources.html",
+      "htmlBytes": 9209,
+      "inlineScriptBytes": 2986,
+      "inlineStyleBytes": 0,
+      "localJsBytes": 78458,
+      "localCssBytes": 108387,
+      "localJs": [
+        {
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.j4L7xoGn.js",
+          "bytes": 59335
+        },
+        {
+          "path": "/_astro/AuthModal.astro_astro_type_script_index_0_lang.Bf7wlVO8.js",
+          "bytes": 814
+        },
+        {
+          "path": "/_astro/AuthProvider.astro_astro_type_script_index_0_lang.QH48Vk80.js",
+          "bytes": 1414
+        },
+        {
+          "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BIYsaiAn.js",
+          "bytes": 3874
+        },
+        {
+          "path": "/_astro/ConfigProvider.astro_astro_type_script_index_0_lang.C3V-ORQH.js",
+          "bytes": 246
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_1_lang.BReKoWPH.js",
+          "bytes": 5157
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.t6NIdFkP.js",
+          "bytes": 295
+        },
+        {
+          "path": "/_astro/Toast.astro_astro_type_script_index_0_lang.1Rs4gMu8.js",
+          "bytes": 758
+        },
+        {
+          "path": "/_astro/resources.astro_astro_type_script_index_0_lang.Dl-F-CBn.js",
+          "bytes": 6398
+        },
+        {
+          "path": "/js/env.js",
+          "bytes": 167
+        }
+      ],
+      "localCss": [
+        {
+          "path": "/_astro/Portal.BS8tkXo-.css",
+          "bytes": 89952
+        },
+        {
+          "path": "/css/a11y.css",
+          "bytes": 4521
+        },
+        {
+          "path": "/css/nav-dropdown.css",
+          "bytes": 6391
+        },
+        {
+          "path": "/css/theme.css",
+          "bytes": 5293
+        },
+        {
+          "path": "/css/zone-grid.css",
+          "bytes": 2230
+        }
+      ]
+    },
+    {
+      "id": "forum",
+      "kind": "public",
+      "route": "/forum",
+      "file": "forum.html",
+      "htmlBytes": 10719,
+      "inlineScriptBytes": 2986,
+      "inlineStyleBytes": 3319,
+      "localJsBytes": 85719,
+      "localCssBytes": 108387,
+      "localJs": [
+        {
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.j4L7xoGn.js",
+          "bytes": 59335
+        },
+        {
+          "path": "/_astro/AuthModal.astro_astro_type_script_index_0_lang.Bf7wlVO8.js",
+          "bytes": 814
+        },
+        {
+          "path": "/_astro/AuthProvider.astro_astro_type_script_index_0_lang.QH48Vk80.js",
+          "bytes": 1414
+        },
+        {
+          "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BIYsaiAn.js",
+          "bytes": 3874
+        },
+        {
+          "path": "/_astro/ConfigProvider.astro_astro_type_script_index_0_lang.C3V-ORQH.js",
+          "bytes": 246
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_1_lang.BReKoWPH.js",
+          "bytes": 5157
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.t6NIdFkP.js",
+          "bytes": 295
+        },
+        {
+          "path": "/_astro/Toast.astro_astro_type_script_index_0_lang.1Rs4gMu8.js",
+          "bytes": 758
+        },
+        {
+          "path": "/_astro/forum.astro_astro_type_script_index_0_lang.BB1mzzB_.js",
+          "bytes": 13659
+        },
+        {
+          "path": "/js/env.js",
+          "bytes": 167
+        }
+      ],
+      "localCss": [
+        {
+          "path": "/_astro/Portal.BS8tkXo-.css",
+          "bytes": 89952
+        },
+        {
+          "path": "/css/a11y.css",
+          "bytes": 4521
+        },
+        {
+          "path": "/css/nav-dropdown.css",
+          "bytes": 6391
+        },
+        {
+          "path": "/css/theme.css",
+          "bytes": 5293
+        },
+        {
+          "path": "/css/zone-grid.css",
+          "bytes": 2230
+        }
+      ]
+    },
+    {
+      "id": "admin-settings",
+      "kind": "admin",
+      "route": "/admin-settings",
+      "file": "admin-settings.html",
+      "htmlBytes": 31354,
+      "inlineScriptBytes": 6599,
+      "inlineStyleBytes": 59,
+      "localJsBytes": 72060,
+      "localCssBytes": 108387,
+      "localJs": [
+        {
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.j4L7xoGn.js",
+          "bytes": 59335
+        },
+        {
+          "path": "/_astro/AuthModal.astro_astro_type_script_index_0_lang.Bf7wlVO8.js",
+          "bytes": 814
+        },
+        {
+          "path": "/_astro/AuthProvider.astro_astro_type_script_index_0_lang.QH48Vk80.js",
+          "bytes": 1414
+        },
+        {
+          "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BIYsaiAn.js",
+          "bytes": 3874
+        },
+        {
+          "path": "/_astro/ConfigProvider.astro_astro_type_script_index_0_lang.C3V-ORQH.js",
+          "bytes": 246
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_1_lang.BReKoWPH.js",
+          "bytes": 5157
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.t6NIdFkP.js",
+          "bytes": 295
+        },
+        {
+          "path": "/_astro/Toast.astro_astro_type_script_index_0_lang.1Rs4gMu8.js",
+          "bytes": 758
+        },
+        {
+          "path": "/js/env.js",
+          "bytes": 167
+        }
+      ],
+      "localCss": [
+        {
+          "path": "/_astro/Portal.BS8tkXo-.css",
+          "bytes": 89952
+        },
+        {
+          "path": "/css/a11y.css",
+          "bytes": 4521
+        },
+        {
+          "path": "/css/nav-dropdown.css",
+          "bytes": 6391
+        },
+        {
+          "path": "/css/theme.css",
+          "bytes": 5293
+        },
+        {
+          "path": "/css/zone-grid.css",
+          "bytes": 2230
+        }
+      ]
+    },
+    {
+      "id": "baked-chrome-page",
+      "kind": "public",
+      "route": "/page.html?slug=showcase",
+      "file": "page.html",
+      "htmlBytes": 7514,
+      "inlineScriptBytes": 2986,
+      "inlineStyleBytes": 0,
+      "localJsBytes": 73325,
+      "localCssBytes": 108387,
+      "localJs": [
+        {
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.j4L7xoGn.js",
+          "bytes": 59335
+        },
+        {
+          "path": "/_astro/AuthModal.astro_astro_type_script_index_0_lang.Bf7wlVO8.js",
+          "bytes": 814
+        },
+        {
+          "path": "/_astro/AuthProvider.astro_astro_type_script_index_0_lang.QH48Vk80.js",
+          "bytes": 1414
+        },
+        {
+          "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BIYsaiAn.js",
+          "bytes": 3874
+        },
+        {
+          "path": "/_astro/ConfigProvider.astro_astro_type_script_index_0_lang.C3V-ORQH.js",
+          "bytes": 246
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_1_lang.BReKoWPH.js",
+          "bytes": 5157
+        },
+        {
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.t6NIdFkP.js",
+          "bytes": 295
+        },
+        {
+          "path": "/_astro/Toast.astro_astro_type_script_index_0_lang.1Rs4gMu8.js",
+          "bytes": 758
+        },
+        {
+          "path": "/_astro/page.astro_astro_type_script_index_0_lang.CRGqCK1-.js",
+          "bytes": 1265
+        },
+        {
+          "path": "/js/env.js",
+          "bytes": 167
+        }
+      ],
+      "localCss": [
+        {
+          "path": "/_astro/Portal.BS8tkXo-.css",
+          "bytes": 89952
+        },
+        {
+          "path": "/css/a11y.css",
+          "bytes": 4521
+        },
+        {
+          "path": "/css/nav-dropdown.css",
+          "bytes": 6391
+        },
+        {
+          "path": "/css/theme.css",
+          "bytes": 5293
+        },
+        {
+          "path": "/css/zone-grid.css",
+          "bytes": 2230
+        }
+      ]
+    }
+  ]
+}

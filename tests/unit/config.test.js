@@ -5,6 +5,7 @@ import {
   getRouteKey,
   isNavItemActive,
   THEME_CSS_VAR_MAP,
+  THEME_KYCHON_CSS_VAR_MAP,
   themeCssVars,
 } from '../../src/lib/config.ts';
 import { defaultConfig, defaultNav, defaultTheme } from '../fixtures/configs.js';
@@ -19,6 +20,14 @@ describe('config logic', () => {
       for (const key of Object.keys(defaultTheme)) {
         expect(THEME_CSS_VAR_MAP).toHaveProperty(key);
       }
+    });
+
+    it('maps runtime theme keys to Kychon token bridge properties', () => {
+      expect(THEME_KYCHON_CSS_VAR_MAP.primary).toBe('--ky-color-primary');
+      expect(THEME_KYCHON_CSS_VAR_MAP.bg).toBe('--ky-color-bg');
+      expect(THEME_KYCHON_CSS_VAR_MAP.text).toBe('--ky-color-text');
+      expect(THEME_KYCHON_CSS_VAR_MAP.border).toBe('--ky-color-border');
+      expect(THEME_KYCHON_CSS_VAR_MAP.radius).toBe('--ky-radius');
     });
 
     it('maps copied-theme interaction and nav tokens to CSS custom properties', () => {
@@ -45,6 +54,7 @@ describe('config logic', () => {
         carousel: { arrow: { hover: { background: 'rgba(0,0,0,0.8)' } } },
       });
       expect(vars['--color-primary']).toBe('#123456');
+      expect(vars['--ky-color-primary']).toBe('#123456');
       expect(vars['--button-hover-bg']).toBe('#ffcc00');
       expect(vars['--button-hover-text']).toBe('#111111');
       expect(vars['--card-hover-transform']).toBe('translateY(-4px)');

@@ -28,7 +28,7 @@ function makeSection(items: any[], extraConfig: Record<string, unknown> = {}): S
 
 function renderInto(html: string): HTMLElement {
   const wrap = document.createElement('div');
-  // Wrap as Portal does — `nav#zone-header > .container > <html>`.
+  // Wrap as Portal does — `nav#zone-header > .ky-container > <html>`.
   wrap.innerHTML = html;
   return wrap.firstElementChild as HTMLElement;
 }
@@ -130,7 +130,7 @@ describe('nav block — source presentation config', () => {
     const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
       behavior: { mobile_breakpoint: 2000 },
     });
-    document.body.innerHTML = `<nav id="zone-header" class="nav"><div class="container">${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
+    document.body.innerHTML = `<nav id="zone-header" class="nav"><div class="ky-container">${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
     const host = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(host);
     expect(document.getElementById('zone-header')?.classList.contains('nav--source-mobile')).toBe(true);
@@ -289,7 +289,7 @@ describe('nav block — runtime keyboard + click', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    document.body.innerHTML = `<nav id="zone-header"><div class="container">${html}</div></nav>`;
+    document.body.innerHTML = `<nav id="zone-header"><div class="ky-container">${html}</div></nav>`;
     host = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(host);
   });

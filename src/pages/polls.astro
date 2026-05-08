@@ -2,7 +2,7 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Polls">
-  <div class="container">
+  <div class="ky-container">
     <h2 class="mb-2">Polls</h2>
     <div id="poll-create" class="hidden mb-2"></div>
     <div id="polls-list">
@@ -33,7 +33,7 @@ import Portal from '../layouts/Portal.astro';
       // Fetch standalone polls only (not attached)
       const polls = await get('polls?attached_to=is.null&order=is_open.desc,created_at.desc');
       if (polls.length === 0) {
-        listEl.innerHTML = '<p class="text-muted">No polls yet.</p>';
+        listEl.innerHTML = '<p class="ky-text-muted">No polls yet.</p>';
         return;
       }
 
@@ -92,7 +92,7 @@ import Portal from '../layouts/Portal.astro';
       });
     } catch (e) {
       console.error('Failed to load polls:', e);
-      listEl.innerHTML = '<p class="text-muted">Could not load polls.</p>';
+      listEl.innerHTML = '<p class="ky-text-muted">Could not load polls.</p>';
     }
   }
 

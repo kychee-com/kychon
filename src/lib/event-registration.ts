@@ -138,8 +138,8 @@ export function renderRegistrationOptions(
           </div>
         </div>
         ${option.description ? `<p class="text-sm">${escHtml(option.description)}</p>` : ''}
-        ${option.guest_policy ? `<p class="text-sm text-muted">${escHtml(option.guest_policy)}</p>` : ''}
-        ${option.cancellation_note ? `<p class="text-sm text-muted">${escHtml(option.cancellation_note)}</p>` : ''}
+        ${option.guest_policy ? `<p class="text-sm ky-text-muted">${escHtml(option.guest_policy)}</p>` : ''}
+        ${option.cancellation_note ? `<p class="text-sm ky-text-muted">${escHtml(option.cancellation_note)}</p>` : ''}
         ${cta}
       </article>
     `;

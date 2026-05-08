@@ -2,7 +2,7 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Members">
-  <div class="container">
+  <div class="ky-container">
     <h2 class="mb-2">Member Directory</h2>
     <div class="flex gap-1 mb-2" style="flex-wrap:wrap">
       <input class="form-input" id="dir-search" placeholder="Search members..." style="max-width:20rem">
@@ -20,9 +20,9 @@ import Portal from '../layouts/Portal.astro';
         <img id="mm-avatar" class="member-avatar" src="" alt="" style="width:5rem;height:5rem;margin:0 auto;display:block">
         <h3 id="mm-name" class="mt-1"></h3>
         <span class="badge badge-primary" id="mm-tier"></span>
-        <p class="text-sm text-muted" id="mm-joined"></p>
+        <p class="text-sm ky-text-muted" id="mm-joined"></p>
       </div>
-      <p id="mm-bio" class="text-muted"></p>
+      <p id="mm-bio" class="ky-text-muted"></p>
       <div id="mm-custom-fields" class="mt-1"></div>
       <button class="btn btn-secondary mt-2" style="width:100%" id="member-modal-close">Close</button>
     </div>
@@ -70,7 +70,7 @@ import Portal from '../layouts/Portal.astro';
     if (!grid) return;
 
     if (members.length === 0) {
-      grid.innerHTML = '<p class="text-muted text-center">No members found.</p>';
+      grid.innerHTML = '<p class="ky-text-muted text-center">No members found.</p>';
       return;
     }
 

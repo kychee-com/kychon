@@ -1,0 +1,13 @@
+@layer theme, base, components, utilities;
+
+/*
+ * Tailwind foundation slice:
+ * - theme, owned public CSS, and utilities are bundled through Astro/Vite
+ * - Preflight is intentionally not imported yet, so DB-rendered prose and
+ *   copied block HTML keep their current browser/global defaults
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "./tokens.css" layer(theme);
+@import "./public.css" layer(components);
+@import "tw-animate-css";
+@import "tailwindcss/utilities.css" layer(utilities);

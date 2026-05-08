@@ -17,7 +17,7 @@ function htmlFor(type: string): string {
 
 describe('copied-theme visual verification hooks', () => {
   it('keeps desktop hover/focus and mobile source-nav selectors in CSS', () => {
-    const styles = readFileSync('public/css/styles.css', 'utf8');
+    const styles = readFileSync('src/styles/public.css', 'utf8');
     const navStyles = readFileSync('public/css/nav-dropdown.css', 'utf8');
     const navHtml = htmlFor('nav');
 
@@ -29,7 +29,7 @@ describe('copied-theme visual verification hooks', () => {
   });
 
   it('keeps image accordion hover and keyboard focus reveal hooks', () => {
-    const styles = readFileSync('public/css/styles.css', 'utf8');
+    const styles = readFileSync('src/styles/public.css', 'utf8');
     const accordionHtml = htmlFor('image_accordion');
 
     expect(accordionHtml).toContain('data-accordion-panel="0"');
@@ -40,7 +40,7 @@ describe('copied-theme visual verification hooks', () => {
   });
 
   it('keeps carousel control and orientation hooks visible to browser checks', () => {
-    const styles = readFileSync('public/css/styles.css', 'utf8');
+    const styles = readFileSync('src/styles/public.css', 'utf8');
     const carouselHtml = htmlFor('slideshow');
     const shapeHtml = htmlFor('shape_divider');
 

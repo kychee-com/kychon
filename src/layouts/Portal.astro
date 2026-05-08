@@ -3,6 +3,7 @@
 // where header/footer chrome is BAKED at build time from the active project's
 // typed seed module, and main content is each page's own slot.
 import { ClientRouter } from 'astro:transitions';
+import '../styles/globals.css';
 import ConfigProvider from '../components/ConfigProvider.astro';
 import AuthProvider from '../components/AuthProvider.astro';
 import AuthModal from '../components/AuthModal.astro';
@@ -52,7 +53,6 @@ const cspValue = buildCspValue();
     : <link rel="icon" href={chrome.faviconUrl} />}
   {chrome.fontHead && <Fragment set:html={chrome.fontHead} />}
   <link rel="stylesheet" href={`/css/theme.css?b=${BUILD_ID}`}>
-  <link rel="stylesheet" href={`/css/styles.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/nav-dropdown.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/zone-grid.css?b=${BUILD_ID}`}>
   <link rel="stylesheet" href={`/css/a11y.css?b=${BUILD_ID}`}>
@@ -97,7 +97,7 @@ const cspValue = buildCspValue();
   {renderDemoBanner && <DemoBanner />}
   <div class="page">
     <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
-      <div class="container" set:html={chrome.headerHtml}></div>
+      <div class="ky-container" set:html={chrome.headerHtml}></div>
     </nav>
 
     <main class="page-content" id="main-content">
@@ -105,7 +105,7 @@ const cspValue = buildCspValue();
     </main>
 
     <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
-      <div class="container" set:html={chrome.footerHtml}></div>
+      <div class="ky-container" set:html={chrome.footerHtml}></div>
     </footer>
     <AuthModal />
   </div>

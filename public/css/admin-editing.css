@@ -561,9 +561,9 @@
 /* composable-layout: cross-zone drag affordances --- */
 
 /* Empty-zone "drop here" placeholder appears only while admin is dragging. */
-body.admin-dragging [data-zone] .container:empty::before,
-body.admin-dragging #zone-header > .container:empty::before,
-body.admin-dragging #zone-footer > .container:empty::before,
+body.admin-dragging [data-zone] .ky-container:empty::before,
+body.admin-dragging #zone-header > .ky-container:empty::before,
+body.admin-dragging #zone-footer > .ky-container:empty::before,
 body.admin-dragging #sections:empty::before {
   content: 'Drop a block here';
   display: block;
@@ -656,7 +656,7 @@ body.admin .admin-zone-add-btn {
    9. EMBED BLOCK
    ═══════════════════════════════════════════════════ */
 
-.block-embed .container {
+.block-embed .ky-container {
   width: 100%;
   position: relative;
 }

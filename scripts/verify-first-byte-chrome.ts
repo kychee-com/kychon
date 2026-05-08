@@ -65,7 +65,6 @@ function urlFor(base: string, path: string): string {
 function assertFreshAssetUrls(html: string, path: string): void {
   const expected = [
     '/css/theme.css?b=',
-    '/css/styles.css?b=',
     '/css/nav-dropdown.css?b=',
     '/css/zone-grid.css?b=',
     '/css/a11y.css?b=',
@@ -75,6 +74,9 @@ function assertFreshAssetUrls(html: string, path: string): void {
     if (!html.includes(marker)) {
       throw new Error(`${path}: missing deploy-fresh asset marker ${marker}`);
     }
+  }
+  if (!/\/_astro\/[^"']+\.css/.test(html)) {
+    throw new Error(`${path}: missing hashed Astro CSS bundle`);
   }
 }
 

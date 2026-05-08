@@ -1,6 +1,7 @@
 node_modules/
 coverage/
 .env
+.DS_Store
 *.local
 .migrations*.sql
 app.json

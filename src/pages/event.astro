@@ -2,7 +2,7 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Event">
-  <div class="container" style="max-width:48rem">
+  <div class="ky-container" style="max-width:48rem">
     <p class="mb-2"><a href="/events.html">&larr; All Events</a></p>
     <div id="event-detail"></div>
   </div>
@@ -28,6 +28,7 @@ import Portal from '../layouts/Portal.astro';
     renderRegistrationOptions,
     visibleRegistrationOptions,
   } from '../lib/event-registration';
+  import { showToast as showKychonToast, type KychonToastType } from '../lib/toast-events';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -35,8 +36,8 @@ import Portal from '../layouts/Portal.astro';
     return d.innerHTML;
   }
 
-  function showToast(message: string, type = 'info') {
-    (window as any).__wl_showToast?.(message, type);
+  function showToast(message: string, type: KychonToastType = 'info') {
+    showKychonToast({ message, type });
   }
 
   async function initEvent() {
@@ -100,8 +101,8 @@ import Portal from '../layouts/Portal.astro';
     container.innerHTML = `
       ${event.image_url ? `<img src="${esc(event.image_url)}" alt="" style="width:100%;max-height:300px;object-fit:cover;border-radius:var(--radius);margin-bottom:1.5rem"${admin ? ` data-editable-image="events.${event.id}.image_url"` : ''}>` : ''}
       <h1${admin ? ` data-editable="events.${event.id}.title"` : ''}>${esc(event.title)}</h1>
-      <p class="text-muted">${esc(dateTime.dateTimeLabel)}</p>
-      ${event.location ? `<p class="text-muted"${admin ? ` data-editable="events.${event.id}.location"` : ''}>\u{1F4CD} ${esc(event.location)}</p>` : ''}
+      <p class="ky-text-muted">${esc(dateTime.dateTimeLabel)}</p>
+      ${event.location ? `<p class="ky-text-muted"${admin ? ` data-editable="events.${event.id}.location"` : ''}>\u{1F4CD} ${esc(event.location)}</p>` : ''}
       ${event.is_members_only ? '<span class="badge badge-primary mb-1">Members Only</span>' : ''}
 
       <div class="mt-2">${event.description || ''}</div>
@@ -111,9 +112,9 @@ import Portal from '../layouts/Portal.astro';
       <div class="card mt-2">
         <div class="flex justify-between items-center mb-1">
           <strong>${visibleOptions.length ? 'Kychon RSVP' : `${goingCount} going${maybeCount ? `, ${maybeCount} maybe` : ''}`}</strong>
-          ${event.capacity ? `<span class="text-sm text-muted">${spotsLeft} of ${event.capacity} spots left</span>` : ''}
+          ${event.capacity ? `<span class="text-sm ky-text-muted">${spotsLeft} of ${event.capacity} spots left</span>` : ''}
         </div>
-        ${visibleOptions.length ? `<p class="text-sm text-muted mb-1">Source registration options are listed above. Use RSVP here only for Kychon attendance tracking.</p>` : ''}
+        ${visibleOptions.length ? `<p class="text-sm ky-text-muted mb-1">Source registration options are listed above. Use RSVP here only for Kychon attendance tracking.</p>` : ''}
         ${event.capacity ? `<div style="height:6px;background:var(--color-border);border-radius:3px;overflow:hidden"><div style="width:${capacityPct}%;height:100%;background:var(--color-primary);border-radius:3px"></div></div>` : ''}
 
         ${
@@ -125,7 +126,7 @@ import Portal from '../layouts/Portal.astro';
             ${myRsvp ? '<button class="btn btn-secondary btn-sm" data-rsvp="cancel">Cancel RSVP</button>' : ''}
           </div>
         `
-            : '<p class="text-sm text-muted mt-1">Sign in to RSVP</p>'
+            : '<p class="text-sm ky-text-muted mt-1">Sign in to RSVP</p>'
         }
       </div>
 
@@ -245,7 +246,7 @@ import Portal from '../layouts/Portal.astro';
 
   function renderRegistrationAdmin(options: any[]): string {
     if (!options.length) {
-      return '<p class="text-sm text-muted mb-1">No structured registration options yet.</p>';
+      return '<p class="text-sm ky-text-muted mb-1">No structured registration options yet.</p>';
     }
     return options
       .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))

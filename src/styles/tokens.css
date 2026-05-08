@@ -1,0 +1,77 @@
+:root {
+  /* Kychon runtime tokens. ConfigProvider writes these alongside legacy
+     --color-* variables during migration; do not map them back through
+     Tailwind's --color-* theme variables. */
+  --ky-color-bg: #ffffff;
+  --ky-color-text: #111827;
+  --ky-color-text-muted: #6b7280;
+  --ky-color-surface: #ffffff;
+  --ky-color-primary: #2563eb;
+  --ky-color-primary-hover: #1d4ed8;
+  --ky-color-accent: #f59e0b;
+  --ky-color-border: #d1d5db;
+  --ky-color-danger: #dc2626;
+  --ky-color-success: #16a34a;
+  --ky-color-warning: #f59e0b;
+  --ky-radius: 0.5rem;
+
+  /* shadcn semantic tokens */
+  --background: var(--ky-color-bg);
+  --foreground: var(--ky-color-text);
+  --card: var(--ky-color-surface);
+  --card-foreground: var(--ky-color-text);
+  --popover: var(--ky-color-surface);
+  --popover-foreground: var(--ky-color-text);
+  --primary: var(--ky-color-primary);
+  --primary-foreground: #ffffff;
+  --secondary: color-mix(in srgb, var(--ky-color-primary) 10%, var(--ky-color-surface));
+  --secondary-foreground: var(--ky-color-text);
+  --muted: color-mix(in srgb, var(--ky-color-text-muted) 12%, var(--ky-color-surface));
+  --muted-foreground: var(--ky-color-text-muted);
+  --accent: var(--ky-color-accent);
+  --accent-foreground: var(--ky-color-text);
+  --destructive: var(--ky-color-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--ky-color-border);
+  --input: var(--ky-color-border);
+  --ring: var(--ky-color-primary);
+  --radius: var(--ky-radius);
+}
+
+[data-theme="dark"] {
+  --background: var(--ky-color-bg);
+  --foreground: var(--ky-color-text);
+  --card: var(--ky-color-surface);
+  --card-foreground: var(--ky-color-text);
+  --popover: var(--ky-color-surface);
+  --popover-foreground: var(--ky-color-text);
+  --secondary: color-mix(in srgb, var(--ky-color-primary) 18%, var(--ky-color-surface));
+  --muted: color-mix(in srgb, var(--ky-color-text-muted) 18%, var(--ky-color-surface));
+  --accent: color-mix(in srgb, var(--ky-color-primary) 22%, var(--ky-color-surface));
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}

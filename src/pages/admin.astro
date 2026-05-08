@@ -4,7 +4,7 @@ import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Admin Dashboard">
   <AdminAccessShell />
-  <div class="container" data-admin-content hidden>
+  <div class="ky-container" data-admin-content hidden>
     <h2 class="mb-2">Dashboard</h2>
 
     <section class="card admin-checklist hidden mb-2" id="fresh-start-checklist" aria-labelledby="fresh-start-checklist-title">
@@ -12,7 +12,7 @@ import Portal from '../layouts/Portal.astro';
         <div>
           <span class="badge badge-primary">First run</span>
           <h3 id="fresh-start-checklist-title">Launch checklist</h3>
-          <p class="text-muted">Work through the basics before inviting members in.</p>
+          <p class="ky-text-muted">Work through the basics before inviting members in.</p>
         </div>
         <button type="button" class="btn btn-sm btn-secondary" id="fresh-start-checklist-dismiss">Hide</button>
       </div>
@@ -73,7 +73,7 @@ import Portal from '../layouts/Portal.astro';
   import { count, get, patch } from '../lib/api';
   import { revealAdminContent, showAdminAccessDenied } from '../lib/admin-access';
   import { isAdmin } from '../lib/auth';
-  import { isFeatureEnabled, ready } from '../lib/config';
+  import { isFeatureEnabled, ready, refreshMemberRecord } from '../lib/config';
   import {
     FRESH_START_CHECKLIST_ITEMS,
     FRESH_START_CHECKLIST_KEY,
@@ -208,7 +208,7 @@ import Portal from '../layouts/Portal.astro';
       if (!list) return;
 
       if (flagged.length === 0) {
-        list.innerHTML = '<p class="text-muted">No flagged content.</p>';
+        list.innerHTML = '<p class="ky-text-muted">No flagged content.</p>';
         return;
       }
 
@@ -232,7 +232,7 @@ import Portal from '../layouts/Portal.astro';
           <div style="flex:1">
             <span class="badge badge-danger">${esc(i.content_type)}</span>
             <span class="text-sm">${esc(i.preview)}</span>
-            <div class="text-sm text-muted">Reason: ${esc(i.reason)} (${Math.round(i.confidence * 100)}%)</div>
+            <div class="text-sm ky-text-muted">Reason: ${esc(i.reason)} (${Math.round(i.confidence * 100)}%)</div>
           </div>
           <div class="flex gap-1">
             <button class="btn btn-sm btn-primary mod-action" data-id="${i.id}" data-content-type="${i.content_type}" data-content-id="${i.content_id}" data-action="approve">Approve</button>
@@ -265,6 +265,7 @@ import Portal from '../layouts/Portal.astro';
 
   async function initDashboard() {
     await ready;
+    await refreshMemberRecord();
     if (!isAdmin()) {
       showAdminAccessDenied();
       return;
@@ -318,12 +319,12 @@ import Portal from '../layouts/Portal.astro';
           <div class="flex items-center gap-1" style="padding:0.5rem 0;border-bottom:1px solid var(--color-border)">
             <span class="badge badge-primary">${esc(a.action)}</span>
             <span>${esc(a.members?.display_name || 'Unknown')}</span>
-            <span class="text-muted text-sm" style="margin-left:auto">${formatDate(a.created_at)}</span>
+            <span class="ky-text-muted text-sm" style="margin-left:auto">${formatDate(a.created_at)}</span>
           </div>`,
           )
           .join('');
       } else if (feed) {
-        feed.innerHTML = '<p class="text-muted">No activity yet.</p>';
+        feed.innerHTML = '<p class="ky-text-muted">No activity yet.</p>';
       }
     } catch {}
 

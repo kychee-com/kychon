@@ -3,6 +3,7 @@
 // / requireAdmin used to perform. Page chrome (header / footer) stays put so
 // the user keeps their bearings and sees a clear next action.
 
+import { openAuthModal } from './auth-modal-events';
 import { t } from './i18n';
 
 export type AuthGateKind = 'auth' | 'admin';
@@ -57,11 +58,11 @@ export function showAuthGate(
     : '';
 
   target.innerHTML = `
-    <div class="container auth-gate">
+    <div class="ky-container auth-gate">
       <div class="auth-gate__card card" role="status" aria-live="polite">
         <div class="auth-gate__icon" aria-hidden="true">${icon}</div>
         <h2 class="auth-gate__title">${escHtml(title)}</h2>
-        <p class="auth-gate__body text-muted">${escHtml(body)}</p>
+        <p class="auth-gate__body ky-text-muted">${escHtml(body)}</p>
         <div class="auth-gate__actions">
           ${signInBtn}
           <a class="btn btn-secondary" href="/" data-auth-gate-action="home">${escHtml(backLabel)}</a>
@@ -73,12 +74,18 @@ export function showAuthGate(
   const signInEl = target.querySelector('[data-auth-gate-action="sign-in"]');
   signInEl?.addEventListener('click', (e) => {
     e.preventDefault();
-    document.getElementById('auth-modal')?.classList.remove('hidden');
+    openAuthModal({ trigger: e.currentTarget as HTMLElement });
     // The gate wiped the page's interactive elements, so the page's own
     // wl-auth-changed listener can't repaint them. Reload once the modal
     // completes sign-in so the page boots fresh against the new session.
     document.addEventListener('wl-auth-changed', () => window.location.reload(), {
       once: true,
     });
+  });
+
+  const homeEl = target.querySelector('[data-auth-gate-action="home"]');
+  homeEl?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.assign('/');
   });
 }

@@ -2,6 +2,8 @@
 
 Kychon's theme system reads `site_config.theme` (a JSONB row) and projects each key onto a CSS custom property on `document.documentElement`. Every property has at least one downstream consumer in `public/css/` — no orphan keys. When a theme names a non-system font, `Portal.astro`'s build-time bake injects Google Fonts `<link>` tags into the page head so the named font loads at first paint.
 
+Deployment styling should start with `site_config.theme`, block config, and documented Kychon CSS variables. Do not create a second utility system per deployment, and do not build Tailwind class names dynamically from tenant data; use CSS variables or finite static variants instead.
+
 ## Theme keys
 
 | `theme.*` key | CSS custom property | Default | What it controls |
@@ -17,7 +19,7 @@ Kychon's theme system reads `site_config.theme` (a JSONB row) and projects each 
 | `font_heading` | `--font-heading` | `"Inter", system-ui, sans-serif` | `<h1>` through `<h6>` font-family (Google Fonts auto-injected for non-system names) |
 | `font_body` | `--font-body` | `"Inter", system-ui, sans-serif` | `<body>` font-family (Google Fonts auto-injected for non-system names) |
 | `radius` | `--radius` | `0.5rem` | Corner radius for cards, buttons, inputs, badges, modals (avatars and pill shapes are intentionally fixed) |
-| `max_width` | `--max-width` | `72rem` | `.container` max width (modals, toasts, and feed lists keep their component-local caps) |
+| `max_width` | `--max-width` | `72rem` | `.ky-container` max width (modals, toasts, and feed lists keep their component-local caps) |
 
 ## Recommended values
 
@@ -78,5 +80,5 @@ Each demo exercises a distinct heading + body pairing so the injector is visibly
 - `src/schemas/config.ts` — `ThemeSchema` validates the JSONB shape.
 - `src/layouts/Portal.astro` — frontmatter calls `renderFontHead` and emits the link tags via `<Fragment set:html={…} />`.
 - `public/css/theme.css` — `:root` defaults for every custom property.
-- `public/css/styles.css` — every property has at least one `var(--…)` consumer.
+- `src/styles/public.css` — public chrome/block/component styles bundled through the Astro/Tailwind entrypoint.
 - `tests/unit/theme-fonts.test.ts` — unit tests for the injector (allowlist, URL builder, dedupe, encoding).

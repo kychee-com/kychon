@@ -69,7 +69,7 @@ export function renderEmbedError(
   return (
     `<section class="section block-embed block-embed--error"${attrs}>` +
     adminCtrls +
-    `<div class="container"><div class="block-embed__error" role="alert">` +
+    `<div class="ky-container"><div class="block-embed__error" role="alert">` +
     `<strong>Embed unavailable</strong>` +
     `<p>${escHtml(message)}</p>` +
     `</div></div>` +
@@ -160,7 +160,7 @@ const EMBED: BlockType = {
       `<section class="section block-embed block-embed--${escAttr(provider.id)}" ` +
       `data-provider="${escAttr(provider.id)}"${attrs}>` +
       adminCtrls +
-      `<div class="container">${heading}${iframe}${pill}</div>` +
+      `<div class="ky-container">${heading}${iframe}${pill}</div>` +
       `</section>`
     );
   },

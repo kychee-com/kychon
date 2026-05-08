@@ -47,6 +47,16 @@ function headerSection(seed: ProjectSeed, type: string): SeedSection | undefined
   );
 }
 
+function indexSection(seed: ProjectSeed, type: string): SeedSection | undefined {
+  return seed.sections.find(
+    (section) =>
+      section.page_slug === 'index' &&
+      section.zone === 'main' &&
+      section.scope === 'page' &&
+      section.section_type === type,
+  );
+}
+
 describe('demo seed feature coverage', () => {
   for (const demo of DEMOS) {
     describe(demo.name, () => {
@@ -82,6 +92,35 @@ describe('demo seed feature coverage', () => {
               compact: true,
               default_type: 'all',
             }),
+          }),
+        );
+      });
+
+      it('uses the tokenized demo theme and foreground hero path', () => {
+        const theme = configValue(demo.seed, 'theme');
+        expect(theme).toEqual(
+          expect.objectContaining({
+            primary: expect.any(String),
+            primary_hover: expect.any(String),
+            accent: expect.any(String),
+            success: expect.any(String),
+            warning: expect.any(String),
+            danger: expect.any(String),
+            header: expect.any(Object),
+            nav: expect.any(Object),
+            footer: expect.any(Object),
+            interactions: expect.any(Object),
+          }),
+        );
+
+        const hero = indexSection(demo.seed, 'hero');
+        expect(hero?.config).toEqual(
+          expect.objectContaining({
+            mode: 'foreground',
+            image_url: expect.stringMatching(/^\/assets\/.+/),
+            image_alt: expect.any(String),
+            image_aspect: '21/9',
+            text_position: 'over_image',
           }),
         );
       });

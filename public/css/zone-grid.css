@@ -4,12 +4,12 @@
  * Each block carries `data-column-span` set by `renderBlock`'s
  * post-process. Span values map to `grid-column: span N`.
  *
- * Header zone is intentionally exempt — its existing `.nav .container`
+ * Header zone is intentionally exempt — its existing `.nav .ky-container`
  * flex layout gives chrome (brand+nav+sign-in-bar) its horizontal flow.
  */
 
 #sections,
-[data-zone="footer"] > .container {
+[data-zone="footer"] > .ky-container {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 1.5rem;
@@ -24,7 +24,7 @@
 /* Tablet — drop to 4 cols so halves stay halves and thirds become full. */
 @media (max-width: 900px) {
   #sections,
-  [data-zone="footer"] > .container {
+  [data-zone="footer"] > .ky-container {
     grid-template-columns: repeat(4, 1fr);
   }
   [data-column-span="1"]   { grid-column: span 4; }
@@ -36,7 +36,7 @@
 /* Mobile — single column, every block stacks. */
 @media (max-width: 600px) {
   #sections,
-  [data-zone="footer"] > .container {
+  [data-zone="footer"] > .ky-container {
     grid-template-columns: 1fr;
   }
   [data-column-span]       { grid-column: span 1; }

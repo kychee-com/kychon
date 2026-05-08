@@ -2,7 +2,7 @@
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Resources">
-  <div class="container">
+  <div class="ky-container">
     <div class="flex justify-between items-center mb-2">
       <h2>Resources</h2>
       <button class="btn btn-primary hidden" id="res-upload-btn">Upload Resource</button>
@@ -47,7 +47,8 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { del, get, post } from '../lib/api';
   import { isAdmin, isAuthenticated } from '../lib/auth';
-  import { translateItems } from '../lib/config';
+  import { openAuthModal } from '../lib/auth-modal-events';
+  import { refreshMemberRecord, translateItems } from '../lib/config';
 
   let allResources: any[] = [];
 
@@ -60,6 +61,66 @@ import Portal from '../layouts/Portal.astro';
   function fileTypeIcon(type: string): string {
     const icons: Record<string, string> = { pdf: '\u{1F4C4}', video: '\u{1F3AC}', link: '\u{1F517}', image: '\u{1F5BC}\uFE0F' };
     return icons[type] || '\u{1F4C1}';
+  }
+
+  function safeStorageName(name: string): string {
+    const base = name.split(/[\\/]/).pop() || 'resource';
+    return base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'resource';
+  }
+
+  async function sha256Hex(file: File): Promise<string> {
+    const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    return Array.from(new Uint8Array(hash))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  async function uploadResourceFile(file: File): Promise<string> {
+    const API = window.__KYCHON_API || 'https://api.run402.com';
+    const ANON_KEY = window.__KYCHON_ANON_KEY || '';
+    const key = `resources/${Date.now()}_${safeStorageName(file.name)}`;
+    const initRes = await fetch(`${API}/storage/v1/uploads`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        key,
+        size_bytes: file.size,
+        content_type: file.type || 'application/octet-stream',
+        visibility: 'public',
+        immutable: true,
+        sha256: await sha256Hex(file),
+      }),
+    });
+    if (!initRes.ok) throw new Error(await initRes.text());
+
+    const init = await initRes.json();
+    const parts: Array<{ part_number: number; etag: string }> = [];
+    for (const part of init.parts || []) {
+      const putRes = await fetch(part.url, {
+        method: 'PUT',
+        body: file.slice(part.byte_start, part.byte_end + 1),
+      });
+      if (!putRes.ok) throw new Error(`Part ${part.part_number} upload failed`);
+      parts.push({ part_number: part.part_number, etag: putRes.headers.get('etag') || '' });
+    }
+
+    const completeRes = await fetch(`${API}/storage/v1/uploads/${encodeURIComponent(init.upload_id)}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify(init.mode === 'multipart' ? { parts } : {}),
+    });
+    if (!completeRes.ok) throw new Error(await completeRes.text());
+
+    const completed = await completeRes.json();
+    return completed.cdn_immutable_url || completed.immutable_url || completed.cdn_url || completed.url || `/storage/${key}`;
   }
 
   function applyFilter() {
@@ -85,12 +146,12 @@ import Portal from '../layouts/Portal.astro';
 
     if (visible.length === 0) {
       if (resources.length > 0 && !isAuthenticated()) {
-        grid.innerHTML = `<div class="text-center text-muted"><p class="mb-1">Sign in to view resources.</p><button class="btn btn-primary" id="res-signin-btn">Sign in</button></div>`;
-        document.getElementById('res-signin-btn')?.addEventListener('click', () => {
-          document.getElementById('auth-modal')?.classList.remove('hidden');
+        grid.innerHTML = `<div class="text-center ky-text-muted"><p class="mb-1">Sign in to view resources.</p><button class="btn btn-primary" id="res-signin-btn">Sign in</button></div>`;
+        document.getElementById('res-signin-btn')?.addEventListener('click', (event) => {
+          openAuthModal({ trigger: event.currentTarget as HTMLElement });
         });
       } else {
-        grid.innerHTML = '<p class="text-muted">No resources yet.</p>';
+        grid.innerHTML = '<p class="ky-text-muted">No resources yet.</p>';
       }
       return;
     }
@@ -107,7 +168,7 @@ import Portal from '../layouts/Portal.astro';
               ${r.category ? `<span class="badge badge-primary">${esc(r.category)}</span>` : ''}
             </div>
           </div>
-          ${r.description ? `<p class="text-sm text-muted">${esc(r.description)}</p>` : ''}
+          ${r.description ? `<p class="text-sm ky-text-muted">${esc(r.description)}</p>` : ''}
           <div class="flex gap-1 mt-1">
             ${r.file_url ? `<a href="${esc(r.file_url)}" class="btn btn-sm btn-secondary" target="_blank">Download</a>` : ''}
             ${r.is_members_only ? '<span class="badge badge-warning">Members Only</span>' : ''}
@@ -132,69 +193,75 @@ import Portal from '../layouts/Portal.astro';
     const btn = document.getElementById('res-upload-btn');
     if (!btn) return;
     btn.classList.remove('hidden');
-    btn.addEventListener('click', () => {
-      document.getElementById('res-form-modal')?.classList.remove('hidden');
-    });
+    if (btn.dataset.bound !== 'true') {
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', () => {
+        document.getElementById('res-form-modal')?.classList.remove('hidden');
+      });
+    }
 
-    document.getElementById('res-form-cancel')?.addEventListener('click', () => {
-      document.getElementById('res-form-modal')?.classList.add('hidden');
-    });
+    const cancel = document.getElementById('res-form-cancel');
+    if (cancel && (cancel as HTMLElement).dataset.bound !== 'true') {
+      (cancel as HTMLElement).dataset.bound = 'true';
+      cancel.addEventListener('click', () => {
+        document.getElementById('res-form-modal')?.classList.add('hidden');
+      });
+    }
 
-    document.getElementById('res-form')?.addEventListener('submit', async (e) => {
+    const form = document.getElementById('res-form') as HTMLFormElement | null;
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
+      const submit = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const originalLabel = submit?.textContent || 'Upload';
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = 'Uploading...';
+      }
 
-      const fileType = (document.getElementById('rf-type') as HTMLSelectElement).value;
-      const data: any = {
-        title: (document.getElementById('rf-title') as HTMLInputElement).value,
-        description: (document.getElementById('rf-description') as HTMLTextAreaElement).value,
-        category: (document.getElementById('rf-category') as HTMLInputElement).value,
-        file_type: fileType,
-        is_members_only: (document.getElementById('rf-members-only') as HTMLInputElement).checked,
-        uploaded_by: session.user?.member?.id,
-      };
+      try {
+        const fileType = (document.getElementById('rf-type') as HTMLSelectElement).value;
+        const data: any = {
+          title: (document.getElementById('rf-title') as HTMLInputElement).value,
+          description: (document.getElementById('rf-description') as HTMLTextAreaElement).value,
+          category: (document.getElementById('rf-category') as HTMLInputElement).value,
+          file_type: fileType,
+          is_members_only: (document.getElementById('rf-members-only') as HTMLInputElement).checked,
+          uploaded_by: session.user?.member?.id,
+        };
 
-      if (fileType === 'link') {
-        data.file_url = (document.getElementById('rf-url') as HTMLInputElement).value;
+        if (fileType === 'link') {
+          data.file_url = (document.getElementById('rf-url') as HTMLInputElement).value;
+        } else {
+          const fileInput = document.getElementById('rf-file') as HTMLInputElement;
+          const file = fileInput?.files?.[0];
+          if (!file) throw new Error('Choose a file to upload.');
+          data.file_url = await uploadResourceFile(file);
+        }
+
         await post('resources', data);
-      } else {
-        const fileInput = document.getElementById('rf-file') as HTMLInputElement;
-        const file = fileInput?.files?.[0];
-        if (file) {
-          const buf = await file.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-          const fileB64 = btoa(binary);
-          const res = await fetch(`${window.__KYCHON_API}/functions/v1/upload-resource`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              apikey: window.__KYCHON_ANON_KEY,
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              file: { name: file.name, type: file.type, data: fileB64 },
-              metadata: data,
-            }),
-          });
-          if (!res.ok) {
-            console.error('Upload failed:', await res.text());
-            return;
-          }
+
+        // Log activity
+        const uploaderId = session.user?.member?.id;
+        if (uploaderId) {
+          await post('activity_log', { member_id: uploaderId, action: 'resource_upload', metadata: { title: data.title } });
+        }
+
+        document.getElementById('res-form-modal')?.classList.add('hidden');
+        form.reset();
+        allResources = await get('resources?order=created_at.desc');
+        renderResources(allResources);
+      } catch (err) {
+        console.error('Upload failed:', err);
+        alert(err instanceof Error ? err.message : 'Upload failed');
+      } finally {
+        if (submit) {
+          submit.disabled = false;
+          submit.textContent = originalLabel;
         }
       }
-
-      // Log activity
-      const uploaderId = session.user?.member?.id;
-      if (uploaderId) {
-        await post('activity_log', { member_id: uploaderId, action: 'resource_upload', metadata: { title: data.title } });
-      }
-
-      document.getElementById('res-form-modal')?.classList.add('hidden');
-      (document.getElementById('res-form') as HTMLFormElement)?.reset();
-      allResources = await get('resources?order=created_at.desc');
-      renderResources(allResources);
     });
   }
 
@@ -220,6 +287,7 @@ import Portal from '../layouts/Portal.astro';
 
     document.getElementById('res-category-filter')?.addEventListener('change', applyFilter);
 
+    await refreshMemberRecord();
     if (isAdmin()) setupUpload();
 
     // Toggle file/url input based on type

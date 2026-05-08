@@ -164,7 +164,7 @@ import Portal from '../layouts/Portal.astro';
     }
   </style>
 
-  <div class="container">
+  <div class="ky-container">
     <div id="forum-root"></div>
   </div>
 </Portal>
@@ -238,7 +238,7 @@ import Portal from '../layouts/Portal.astro';
       await translateItems('forum_category', categories, ['name', 'description']);
     } catch (e) {
       console.warn('Failed to load forum categories:', e);
-      root.innerHTML = '<p class="text-muted">Could not load forum categories.</p>';
+      root.innerHTML = '<p class="ky-text-muted">Could not load forum categories.</p>';
       return;
     }
 
@@ -255,7 +255,7 @@ import Portal from '../layouts/Portal.astro';
     let html = '<h2 class="mb-2">Forum</h2>';
 
     if (categories.length === 0) {
-      html += '<p class="text-muted">No categories yet.</p>';
+      html += '<p class="ky-text-muted">No categories yet.</p>';
       root.innerHTML = html;
       return;
     }
@@ -297,7 +297,7 @@ import Portal from '../layouts/Portal.astro';
       await enrichWithAvatars(topics);
     } catch (e) {
       console.warn('Failed to load topics:', e);
-      root.innerHTML = '<p class="text-muted">Could not load topics.</p>';
+      root.innerHTML = '<p class="ky-text-muted">Could not load topics.</p>';
       return;
     }
 
@@ -310,7 +310,7 @@ import Portal from '../layouts/Portal.astro';
       </div>`;
 
     if (topics.length === 0) {
-      html += '<p class="text-muted">No topics yet. Be the first to start a discussion!</p>';
+      html += '<p class="ky-text-muted">No topics yet. Be the first to start a discussion!</p>';
     } else {
       html += '<div class="card forum-topic-list" style="padding:0;overflow:hidden">';
       for (const t of topics) {
@@ -451,12 +451,12 @@ import Portal from '../layouts/Portal.astro';
     }
 
     if (!topic) {
-      root.innerHTML = '<p class="text-muted">Topic not found.</p>';
+      root.innerHTML = '<p class="ky-text-muted">Topic not found.</p>';
       return;
     }
 
     if (topic.hidden && !isAdmin()) {
-      root.innerHTML = '<p class="text-muted">Topic not found.</p>';
+      root.innerHTML = '<p class="ky-text-muted">Topic not found.</p>';
       return;
     }
 
@@ -530,7 +530,7 @@ import Portal from '../layouts/Portal.astro';
       }
       html += '</div>';
     } else {
-      html += '<p class="text-muted mt-2">No replies yet.</p>';
+      html += '<p class="ky-text-muted mt-2">No replies yet.</p>';
     }
 
     // Reply form

@@ -1,45 +1,47 @@
 ---
 // Toast.astro — Notification toast system
 ---
-<div id="toast-root"></div>
+<div id="toast-root" transition:persist></div>
 
 <script>
-  const ICONS: Record<string, string> = {
-    success: '\u2713',
-    error: '\u2717',
-    info: '\u2139',
-  };
+  import { KYCHON_TOAST_EVENT, showToast, type KychonToast } from '../lib/toast-events';
 
-  let container: HTMLElement | null = null;
-  let dismissTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function getContainer(): HTMLElement {
-    if (container) return container;
-    container = document.createElement('div');
-    container.className = 'toast-container';
-    container.setAttribute('role', 'status');
-    container.setAttribute('aria-live', 'polite');
-    document.body.appendChild(container);
-    return container;
+  interface ToastLauncherState {
+    listener?: EventListener;
+    mountPromise?: Promise<typeof import('./kychon/ToastIsland')>;
+    mounted?: boolean;
   }
 
-  function showToast(message: string, type = 'info'): void {
-    const c = getContainer();
+  const stateKey = '__kychonToastLauncher';
+  const win = window as Window &
+    typeof globalThis & {
+      [stateKey]?: ToastLauncherState;
+      __wl_showToast?: (message: string, type?: KychonToast['type']) => void;
+    };
+  const state = (win[stateKey] ??= {});
 
-    if (dismissTimer) clearTimeout(dismissTimer);
-    c.innerHTML = '';
+  async function emitToast(detail: KychonToast): Promise<void> {
+    const root = document.getElementById('toast-root');
+    if (!root) return;
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<span class="toast-icon">${ICONS[type] || ICONS.info}</span><span>${message}</span>`;
-    c.appendChild(toast);
-
-    dismissTimer = setTimeout(() => {
-      toast.classList.add('dismissing');
-      toast.addEventListener('animationend', () => toast.remove(), { once: true });
-    }, 3000);
+    const module = await (state.mountPromise ??= import('./kychon/ToastIsland'));
+    if (!state.mounted) {
+      module.mountToastIsland(root);
+      state.mounted = true;
+    }
+    module.emitKychonToast(detail);
   }
 
-  // Expose globally for other islands to use
-  (window as any).__wl_showToast = showToast;
+  if (state.listener) {
+    document.removeEventListener(KYCHON_TOAST_EVENT, state.listener);
+  }
+
+  state.listener = ((event: CustomEvent<KychonToast>) => {
+    void emitToast(event.detail);
+  }) as EventListener;
+
+  document.addEventListener(KYCHON_TOAST_EVENT, state.listener);
+
+  // Compatibility for older call sites while feature code migrates to showToast({ type, message }).
+  win.__wl_showToast = (message: string, type?: KychonToast['type']) => showToast(message, type);
 </script>
