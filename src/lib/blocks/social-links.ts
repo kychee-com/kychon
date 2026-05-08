@@ -1,5 +1,5 @@
 import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
-import { escAttr, escHtml } from '../blocks.js';
+import { escAttr, escHtml, safeCssValue } from '../blocks.js';
 
 export const SUPPORTED_SOCIAL_PROVIDERS = [
   'facebook',
@@ -101,6 +101,16 @@ function buildSectionAttrs(section: Section, ctx: BlockRenderContext, cfg: Recor
     ? ` data-editable-config="${jsonAttr(cfg)}"`
     : '';
   return `${sortable}${zoneAttr}${scopeAttr}${cfgAttr}`;
+}
+
+function styleAttr(vars: string[]): string {
+  const style = vars.filter(Boolean).join('');
+  return style ? ` style="${escAttr(style)}"` : '';
+}
+
+function cssVar(name: string, value: unknown): string {
+  const safe = safeCssValue(value);
+  return safe ? `${name}:${safe};` : '';
 }
 
 function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
@@ -244,6 +254,7 @@ export function renderSocialLinksBlock(
 ): string {
   const cfg = section.config || {};
   const items = normalizeSocialLinkItems(cfg);
+  const p = (cfg.presentation || {}) as Record<string, unknown>;
   const zone = section.zone;
   const layout = String(cfg.layout || (zone === 'header' ? 'compact' : 'icons')).toLowerCase();
   const baseClass = options.className || 'section section-social-links';
@@ -255,9 +266,19 @@ export function renderSocialLinksBlock(
     options.legacyFooter ? 'footer-social' : '',
   ].filter(Boolean).join(' ');
   const attrs = buildSectionAttrs(section, ctx, cfg);
+  const style = styleAttr([
+    cssVar('--social-link-size', p.size),
+    cssVar('--social-link-icon-size', p.icon_size),
+    cssVar('--social-link-radius', p.radius),
+    cssVar('--social-link-bg', p.bg),
+    cssVar('--social-link-color', p.color),
+    cssVar('--social-link-border', p.border),
+    cssVar('--social-link-gap', p.gap),
+    cssVar('--social-link-justify', p.justify),
+  ]);
   const adminControls = buildAdminControls(section, ctx);
   const links = items.map(renderSocialAnchor).join('');
-  return `<section class="${classes}" data-social-links${attrs}>${adminControls}<div class="block-social-links__list">${links}</div></section>`;
+  return `<section class="${classes}" data-social-links${attrs}${style}>${adminControls}<div class="block-social-links__list">${links}</div></section>`;
 }
 
 const SOCIAL_LINKS: BlockType = {

@@ -34,6 +34,23 @@ function cleanOAuthCallbackUrl(): string {
   return `${window.location.pathname || '/'}${query ? `?${query}` : ''}`;
 }
 
+function oauthErrorMessage(code: string): string {
+  switch (code) {
+    case 'account_exists_requires_link':
+      return 'That Google account already exists here, but it is not connected to Google sign-in yet.';
+    case 'identity_already_linked':
+      return 'That Google account is already connected to another user.';
+    case 'identity_resolution_failed':
+      return 'We could not finish connecting that Google account.';
+    case 'id_token_invalid':
+      return 'Google sign-in could not be verified. Please try again.';
+    case 'token_exchange_failed':
+      return 'Google sign-in could not be completed. Please try again.';
+    default:
+      return 'Google sign-in could not be completed. Please try again.';
+  }
+}
+
 function safeReturnTo(value: string | null): string | null {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
   try {
@@ -196,10 +213,25 @@ export async function handleOAuthCallback(): Promise<any> {
     body: JSON.stringify({ code, code_verifier: verifier }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    let message = 'Google sign-in could not be completed. Please try again.';
+    try {
+      const err = await res.json();
+      if (err?.message) message = err.message;
+    } catch {}
+    throw new Error(message);
+  }
   const session = await res.json();
   saveSession(session);
   return session;
+}
+
+export function consumeOAuthCallbackError(): string | null {
+  const params = getOAuthCallbackParams();
+  const error = params.get('error');
+  if (!error) return null;
+  window.history.replaceState(null, '', cleanOAuthCallbackUrl());
+  return oauthErrorMessage(error);
 }
 
 export function consumeAuthReturnTo(): string | null {

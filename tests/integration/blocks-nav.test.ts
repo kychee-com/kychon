@@ -102,6 +102,9 @@ describe('nav block — source presentation config', () => {
         dropdown_width: '18rem',
         chevron_color: '#0057b8',
         transition: '220ms ease',
+        surface_bg: '#0057b8',
+        surface_padding: '0 .5rem',
+        full_row: true,
         mobile_menu_bg: '#f7f7f7',
       },
       behavior: {
@@ -116,6 +119,9 @@ describe('nav block — source presentation config', () => {
     expect(html).toContain('--nav-dropdown-shadow:0 10px 20px rgba(0,0,0,0.2);');
     expect(html).toContain('--nav-dropdown-width:18rem;');
     expect(html).toContain('--nav-chevron-color:#0057b8;');
+    expect(html).toContain('--nav-links-bg:#0057b8;');
+    expect(html).toContain('--nav-links-padding:0 .5rem;');
+    expect(html).toContain('data-nav-full-row="true"');
     expect(html).toContain('data-mobile-breakpoint="960"');
     expect(html).toContain('data-mobile-closed-layout="hidden"');
   });

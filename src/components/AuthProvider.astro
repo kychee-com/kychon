@@ -4,27 +4,48 @@
 <div id="auth-provider" transition:persist></div>
 
 <script>
-  import { consumeAuthReturnTo, handleOAuthCallback } from '../lib/auth';
+  import { consumeAuthReturnTo, consumeOAuthCallbackError, handleOAuthCallback } from '../lib/auth';
+
+  function showAuthError(message: string) {
+    const errorEl = document.getElementById('auth-error');
+    if (errorEl) {
+      errorEl.textContent = message;
+      errorEl.style.color = 'var(--color-danger)';
+      errorEl.classList.remove('hidden');
+    }
+    document.getElementById('auth-modal')?.classList.remove('hidden');
+  }
 
   const hasOAuthCallback =
     new URLSearchParams(window.location.hash.replace(/^#/, '')).has('code') ||
-    new URLSearchParams(window.location.search.replace(/^\?/, '')).has('code');
+    new URLSearchParams(window.location.hash.replace(/^#/, '')).has('error') ||
+    new URLSearchParams(window.location.search.replace(/^\?/, '')).has('code') ||
+    new URLSearchParams(window.location.search.replace(/^\?/, '')).has('error');
 
   if (hasOAuthCallback) {
-    const session = await handleOAuthCallback();
-    if (session) {
-      const returnTo = consumeAuthReturnTo();
-      const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}`;
-      if (returnTo && returnTo !== currentPath) {
-        window.location.replace(returnTo);
-      } else {
-        const [{ init }, { currentPageSlug, hydratePage }] = await Promise.all([
-          import('../lib/config'),
-          import('../lib/page-render'),
-        ]);
-        await init();
-        await hydratePage(currentPageSlug());
-        document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+    const callbackError = consumeOAuthCallbackError();
+    if (callbackError) {
+      showAuthError(callbackError);
+    } else {
+      try {
+        const session = await handleOAuthCallback();
+        if (session) {
+          const returnTo = consumeAuthReturnTo();
+          const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}`;
+          if (returnTo && returnTo !== currentPath) {
+            window.location.replace(returnTo);
+          } else {
+            const [{ init }, { currentPageSlug, hydratePage }] = await Promise.all([
+              import('../lib/config'),
+              import('../lib/page-render'),
+            ]);
+            await init();
+            await hydratePage(currentPageSlug());
+            document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+          }
+        }
+      } catch (err: any) {
+        showAuthError(err?.message || 'Google sign-in could not be completed. Please try again.');
       }
     }
   }

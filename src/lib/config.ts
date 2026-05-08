@@ -232,9 +232,18 @@ export const COPIED_THEME_CSS_VAR_PATHS: Record<string, string> = {
   'interactions.social.hover.border': '--social-link-hover-border',
   'interactions.social.hover.transform': '--social-link-hover-transform',
   'header.padding': '--nav-header-padding',
+  'header.background': '--nav-header-bg',
+  'header.border_bottom': '--nav-header-border-bottom',
+  'header.shadow': '--nav-header-shadow',
+  'header.gap': '--nav-header-gap',
+  'header.wrap': '--nav-header-wrap',
+  'header.align_items': '--nav-header-align-items',
   'header.logo_max_height': '--nav-logo-max-height',
   'header.logo_max_width': '--nav-logo-max-width',
   'header.wordmark_max_height': '--nav-wordmark-max-height',
+  'header.brand_text_color': '--brand-text-color',
+  'header.brand_text_size': '--brand-text-size',
+  'header.brand_text_weight': '--brand-text-weight',
   'nav.link_color': '--nav-link-color',
   'nav.link_hover_bg': '--nav-link-hover-bg',
   'nav.link_hover_color': '--nav-link-hover-color',
@@ -242,9 +251,15 @@ export const COPIED_THEME_CSS_VAR_PATHS: Record<string, string> = {
   'nav.link_active_color': '--nav-link-active-color',
   'nav.link_gap': '--nav-link-gap',
   'nav.link_padding': '--nav-link-padding',
+  'nav.link_radius': '--nav-link-radius',
   'nav.font_family': '--nav-link-font-family',
   'nav.font_size': '--nav-link-font-size',
   'nav.font_weight': '--nav-link-font-weight',
+  'nav.surface_bg': '--nav-links-bg',
+  'nav.surface_padding': '--nav-links-padding',
+  'nav.surface_radius': '--nav-links-radius',
+  'nav.surface_shadow': '--nav-links-shadow',
+  'nav.wrap': '--nav-links-wrap',
   'nav.dropdown_bg': '--nav-dropdown-bg',
   'nav.dropdown_color': '--nav-dropdown-color',
   'nav.dropdown_hover_bg': '--nav-dropdown-hover-bg',
@@ -256,6 +271,23 @@ export const COPIED_THEME_CSS_VAR_PATHS: Record<string, string> = {
   'nav.transition': '--nav-transition',
   'nav.mobile_menu_bg': '--nav-mobile-menu-bg',
   'nav.mobile_menu_padding': '--nav-mobile-menu-padding',
+  'social.size': '--social-link-size',
+  'social.icon_size': '--social-link-icon-size',
+  'social.radius': '--social-link-radius',
+  'social.bg': '--social-link-bg',
+  'social.color': '--social-link-color',
+  'social.border': '--social-link-border',
+  'social.gap': '--social-link-gap',
+  'social.justify': '--social-link-justify',
+  'footer.background': '--footer-bg',
+  'footer.text': '--footer-text',
+  'footer.link_color': '--footer-link-color',
+  'footer.heading_color': '--footer-heading-color',
+  'footer.border_top': '--footer-border-top',
+  'footer.padding': '--footer-padding',
+  'footer.text_align': '--footer-text-align',
+  'footer.link_columns': '--footer-link-columns',
+  'footer.link_gap': '--footer-link-gap',
   'carousel.arrow.background': '--slideshow-arrow-bg',
   'carousel.arrow.text': '--slideshow-arrow-color',
   'carousel.arrow.hover.background': '--slideshow-arrow-hover-bg',
@@ -281,6 +313,10 @@ function readPath(obj: Record<string, any>, path: string): unknown {
   return cur;
 }
 
+function preservesSourceColorScheme(theme: Record<string, any>): boolean {
+  return String(theme.color_scheme || '').toLowerCase() === 'source';
+}
+
 export function themeCssVars(theme: Record<string, any> | null): Record<string, string> {
   const vars: Record<string, string> = {};
   if (!theme) return vars;
@@ -298,7 +334,9 @@ export function themeCssVars(theme: Record<string, any> | null): Record<string, 
 export function applyTheme(theme: Record<string, any> | null): void {
   if (!theme) return;
   const el = document.documentElement;
-  const darkOverridable = new Set(['bg', 'surface', 'text', 'text_muted', 'border']);
+  const darkOverridable = preservesSourceColorScheme(theme)
+    ? new Set<string>()
+    : new Set(['bg', 'surface', 'text', 'text_muted', 'border']);
   const vars = themeCssVars(theme);
   const rootVars: string[] = [];
   for (const [prop, value] of Object.entries(vars)) {

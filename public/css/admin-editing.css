@@ -57,8 +57,18 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
   border-radius: 4px;
   outline: none;
-  background: rgba(59, 130, 246, 0.04);
-  transition: box-shadow 200ms ease;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #111827) !important;
+  caret-color: var(--color-primary, #3b82f6);
+  text-shadow: none !important;
+  -webkit-text-fill-color: currentColor;
+  transition: box-shadow 200ms ease, background 200ms ease;
+}
+
+.admin [contenteditable="true"]::selection,
+.admin [contenteditable="true"] *::selection {
+  background: rgba(59, 130, 246, 0.24);
+  color: var(--color-text, #111827);
 }
 
 .admin .tiptap-active {

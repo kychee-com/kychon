@@ -15,12 +15,28 @@ function getAnonKey(): string {
   return window.__KYCHON_ANON_KEY || '';
 }
 
-function getAuthHeaders(): Record<string, string> {
+function getStoredSession(): any {
+  try {
+    return JSON.parse(localStorage.getItem('wl_session') || 'null');
+  } catch {
+    localStorage.removeItem('wl_session');
+    return null;
+  }
+}
+
+function shouldRefresh(status: number, session: any): boolean {
+  if (status === 401) return true;
+  // PostgREST 403 can be caused by a stale/mismatched caller JWT as well as
+  // real RLS denial. Refresh once when the browser has a refresh token; if the
+  // fresh caller is still forbidden, the original API error path handles it.
+  return status === 403 && !!session?.refresh_token;
+}
+
+function getAuthHeaders(session = getStoredSession()): Record<string, string> {
   const headers: Record<string, string> = {
     apikey: getAnonKey(),
     'Content-Type': 'application/json',
   };
-  const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`;
   }
@@ -28,7 +44,7 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function refreshToken(): Promise<any> {
-  const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
+  const session = getStoredSession();
   if (!session?.refresh_token) return null;
   const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
@@ -53,13 +69,14 @@ interface RequestOpts {
 async function request(method: string, path: string, opts: RequestOpts = {}): Promise<any> {
   const { body, headers: extra, retry = true } = opts;
   const url = `${getAPI()}/rest/v1/${path}`;
-  const headers = { ...getAuthHeaders(), ...extra };
+  const session = getStoredSession();
+  const headers = { ...getAuthHeaders(session), ...extra };
   const fetchOpts: RequestInit = { method, headers };
   if (body !== undefined) fetchOpts.body = JSON.stringify(body);
 
   let res = await fetch(url, fetchOpts);
 
-  if (res.status === 401 && retry) {
+  if (shouldRefresh(res.status, session) && retry) {
     const refreshed = await refreshToken();
     if (refreshed) {
       (headers as Record<string, string>).Authorization = `Bearer ${refreshed.access_token}`;

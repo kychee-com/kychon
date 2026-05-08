@@ -123,6 +123,29 @@ describe('social_links block rendering', () => {
     expect(html).not.toContain('target="_blank"');
   });
 
+  it('emits copied presentation variables for admin-editable icon styling', () => {
+    const html = renderBlock(
+      section('social_links', {
+        items: [{ platform: 'facebook', href: 'https://www.facebook.com/example' }],
+        presentation: {
+          size: '1.8rem',
+          icon_size: '1rem',
+          radius: '.2rem',
+          bg: '#3F88E8',
+          color: '#ffffff',
+          border: 'transparent',
+          gap: '.35rem',
+        },
+      }),
+      ctx,
+    );
+
+    expect(html).toContain('--social-link-size:1.8rem;');
+    expect(html).toContain('--social-link-bg:#3F88E8;');
+    expect(html).toContain('--social-link-border:transparent;');
+    expect(html).toContain('--social-link-gap:.35rem;');
+  });
+
   it('renders legacy footer_social icons through the same renderer', () => {
     const html = renderBlock(
       section(

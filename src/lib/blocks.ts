@@ -84,10 +84,17 @@ export interface NavPresentationConfig {
   link_active_bg?: string;
   link_active_color?: string;
   link_padding?: string;
+  link_radius?: string;
   link_gap?: string;
   font_family?: string;
   font_size?: string;
   font_weight?: string;
+  surface_bg?: string;
+  surface_padding?: string;
+  surface_radius?: string;
+  surface_shadow?: string;
+  full_row?: boolean;
+  wrap?: string;
   dropdown_bg?: string;
   dropdown_color?: string;
   dropdown_hover_bg?: string;
@@ -611,8 +618,15 @@ const FEATURES: BlockType = {
     const cols = cfg.columns || 3;
     const items = (cfg.items || [])
       .map(
-        (item: any, i: number) =>
-          `<div class="feature-card"><div class="feature-icon">${escHtml(featureIcon(item.icon))}</div><h3${editableAttr(section, `items.${i}.title`, ctx)}>${escHtml(item.title)}</h3><p${editableAttr(section, `items.${i}.desc`, ctx)}>${escHtml(item.desc)}</p></div>`,
+        (item: any, i: number) => {
+          const icon = item.icon
+            ? `<div class="feature-icon">${escHtml(featureIcon(item.icon))}</div>`
+            : '';
+          const cta = item.cta_text && item.cta_href
+            ? `<a class="btn btn-primary" href="${escAttr(item.cta_href)}"${editableAttr(section, `items.${i}.cta_text`, ctx)}>${escHtml(item.cta_text)}</a>`
+            : '';
+          return `<div class="feature-card">${icon}<h3${editableAttr(section, `items.${i}.title`, ctx)}>${escHtml(item.title)}</h3><p${editableAttr(section, `items.${i}.desc`, ctx)}>${escHtml(item.desc)}</p>${cta}</div>`;
+        },
       )
       .join('');
     return adminWrap(
@@ -1004,10 +1018,16 @@ function renderNavPresentationAttrs(cfg: NavConfig): string {
     cssVar('--nav-link-active-bg', p.link_active_bg),
     cssVar('--nav-link-active-color', p.link_active_color),
     cssVar('--nav-link-padding', p.link_padding),
+    cssVar('--nav-link-radius', p.link_radius),
     cssVar('--nav-link-gap', p.link_gap),
     cssVar('--nav-link-font-family', p.font_family),
     cssVar('--nav-link-font-size', p.font_size),
     cssVar('--nav-link-font-weight', p.font_weight),
+    cssVar('--nav-links-bg', p.surface_bg),
+    cssVar('--nav-links-padding', p.surface_padding),
+    cssVar('--nav-links-radius', p.surface_radius),
+    cssVar('--nav-links-shadow', p.surface_shadow),
+    cssVar('--nav-links-wrap', p.wrap),
     cssVar('--nav-dropdown-bg', p.dropdown_bg),
     cssVar('--nav-dropdown-color', p.dropdown_color),
     cssVar('--nav-dropdown-hover-bg', p.dropdown_hover_bg || hover.background),
@@ -1025,6 +1045,7 @@ function renderNavPresentationAttrs(cfg: NavConfig): string {
   ]);
   const attrs: string[] = [];
   if (style) attrs.push(style);
+  if (p.full_row === true) attrs.push(' data-nav-full-row="true"');
   if (b.mobile_breakpoint != null) {
     const n = Number(b.mobile_breakpoint);
     if (Number.isFinite(n) && n > 0) attrs.push(` data-mobile-breakpoint="${Math.round(n)}"`);
@@ -1153,6 +1174,7 @@ const SITE_SEARCH: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
+    const p = cfg.presentation || {};
     const destination = cfg.destination || '/search.html';
     const placeholder = cfg.placeholder || 'Search this site';
     const submitLabel = cfg.submit_label || 'Search';
@@ -1168,6 +1190,24 @@ const SITE_SEARCH: BlockType = {
       default_type: defaultType,
       min_chars: cfg.min_chars || 2,
     })}"`;
+    const style = styleAttr([
+      cssVar('--site-search-max-width', p.max_width),
+      cssVar('--site-search-form-gap', p.form_gap),
+      cssVar('--site-search-form-border', p.form_border),
+      cssVar('--site-search-form-radius', p.form_radius),
+      cssVar('--site-search-form-overflow', p.form_overflow),
+      cssVar('--site-search-form-bg', p.form_bg),
+      cssVar('--site-search-input-height', p.input_height),
+      cssVar('--site-search-input-border', p.input_border),
+      cssVar('--site-search-input-radius', p.input_radius),
+      cssVar('--site-search-input-padding', p.input_padding),
+      cssVar('--site-search-submit-height', p.submit_height),
+      cssVar('--site-search-submit-border', p.submit_border),
+      cssVar('--site-search-submit-radius', p.submit_radius),
+      cssVar('--site-search-submit-padding', p.submit_padding),
+      cssVar('--site-search-submit-bg', p.submit_bg),
+      cssVar('--site-search-submit-color', p.submit_color),
+    ]);
     const form = `<form class="site-search__form" action="${escAttr(destination)}" method="get" role="search">
       <label class="sr-only" for="${escAttr(inputId)}">${escHtml(placeholder)}</label>
       <input class="site-search__input" id="${escAttr(inputId)}" name="q" type="search" maxlength="300" autocomplete="off" placeholder="${escAttr(placeholder)}" aria-autocomplete="list" aria-expanded="false" aria-controls="${escAttr(listId)}">
@@ -1175,7 +1215,7 @@ const SITE_SEARCH: BlockType = {
       <button class="site-search__submit" type="submit">${escHtml(submitLabel)}</button>
       <div class="site-search__suggestions" id="${escAttr(listId)}" role="listbox" hidden></div>
     </form>`;
-    const inner = `<div class="site-search site-search--${compact ? 'compact' : 'wide'}" data-block-hydrate="site_search"${cfgAttr}>${form}</div>`;
+    const inner = `<div class="site-search site-search--${compact ? 'compact' : 'wide'}" data-block-hydrate="site_search"${cfgAttr}${style}>${form}</div>`;
     return adminWrap(section, ctx, inner, 'section section-site-search');
   },
   async hydrate(el, section, ctx) {
