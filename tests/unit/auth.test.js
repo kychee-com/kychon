@@ -231,6 +231,25 @@ describe('auth.js', () => {
       localStorage.setItem('wl_auth_return_to', '//evil.test/admin.html');
       expect(auth.consumeAuthReturnTo()).toBeNull();
     });
+
+    it('consumes Google callback errors from the hash', () => {
+      global.window.location.hash = '#error=account_exists_requires_link';
+
+      expect(auth.consumeOAuthCallbackError()).toContain('already exists');
+      expect(global.window.history.replaceState).toHaveBeenCalledWith(null, '', '/');
+    });
+
+    it('throws when the authorization code exchange fails', async () => {
+      localStorage.setItem('wl_pkce_verifier', 'verifier123');
+      global.window.location.hash = '#code=code123';
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ message: 'Invalid, expired, or already used authorization code' }),
+      });
+
+      await expect(auth.handleOAuthCallback()).rejects.toThrow('Invalid, expired, or already used authorization code');
+      expect(localStorage.getItem('wl_session')).toBeNull();
+    });
   });
 
   describe('signOut', () => {

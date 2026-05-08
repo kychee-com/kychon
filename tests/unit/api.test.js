@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 global.window = { __KYCHON_API: 'https://api.test', __KYCHON_ANON_KEY: 'test_key' };
+global.atob = (value) => Buffer.from(value, 'base64').toString('binary');
 global.localStorage = {
   _data: {},
   getItem(k) {
@@ -27,6 +28,11 @@ const {
   updateEventRegistrationOption,
   updateEventTimezone,
 } = await import('../../src/lib/api.ts');
+
+function tokenWithClaims(claims) {
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode(claims)}.sig`;
+}
 
 describe('api.js', () => {
   beforeEach(() => {
@@ -94,6 +100,41 @@ describe('api.js', () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
     // Refresh endpoint
     expect(mockFetch.mock.calls[1][0]).toContain('/auth/v1/token?grant_type=refresh_token');
+  });
+
+  it('refreshes once on 403 when a stored session has a refresh token', async () => {
+    localStorage.setItem('wl_session', JSON.stringify({
+      access_token: tokenWithClaims({ role: 'project_admin' }),
+      refresh_token: 'ref123',
+    }));
+
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 403 });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ access_token: 'new_tok', refresh_token: 'new_ref' }),
+    });
+    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":1}]') });
+
+    await patch('sections?id=eq.1', { title: 'Fresh' });
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch.mock.calls[1][0]).toContain('/auth/v1/token?grant_type=refresh_token');
+    expect(mockFetch.mock.calls[2][1].headers.Authorization).toBe('Bearer new_tok');
+  });
+
+  it('does not refresh 403 responses without a refresh token', async () => {
+    localStorage.setItem('wl_session', JSON.stringify({
+      access_token: tokenWithClaims({ role: 'authenticated' }),
+    }));
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ message: 'Forbidden' }),
+    });
+
+    await expect(patch('sections?id=eq.1', { title: 'Fresh' })).rejects.toThrow('API PATCH sections?id=eq.1: 403');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('throws on non-401 error', async () => {

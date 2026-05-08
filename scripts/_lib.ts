@@ -17,6 +17,11 @@ import type { ApplyOptions, FileSet, FunctionSpec, ReleaseSpec } from "@run402/s
 
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
+import {
+  buildEngineReleaseManifest,
+  writeEngineReleaseManifest,
+  type EngineReleaseManifest,
+} from "./release-manifest.ts";
 
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
@@ -287,6 +292,9 @@ export interface RunDeployOptions {
 export interface RunDeployResult {
   /** True for both real and dry-run successes. */
   ok: true;
+  releaseManifest: EngineReleaseManifest;
+  schemaMigrationId: string;
+  schemaChecksum: string;
   /** Present on real deploys; absent on dry-run. */
   releaseId?: string;
   operationId?: string;
@@ -315,6 +323,13 @@ export async function runDeploy(
 
   const sql = readMigrations(ROOT, opts.seedFile);
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
+  const releaseManifestOptions: Parameters<typeof buildEngineReleaseManifest>[0] = {
+    migrationId,
+    schemaSql: sql,
+  };
+  if (opts.seedFile !== undefined) releaseManifestOptions.seedFile = opts.seedFile;
+  const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
+  writeEngineReleaseManifest(distDir, releaseManifest);
 
   const fileSet = await fileSetFromDir(distDir);
   const fileCount = Object.keys(fileSet).length;
@@ -360,13 +375,20 @@ export async function runDeploy(
           ),
           migrationsBytes: sql.length,
           migrationId,
+          schemaChecksum: releaseManifest.schemaChecksum,
+          releaseManifest,
           exposeTables: EXPOSE_TABLES.length,
         },
         null,
         2,
       ),
     );
-    return { ok: true };
+    return {
+      ok: true,
+      releaseManifest,
+      schemaMigrationId: migrationId,
+      schemaChecksum: releaseManifest.schemaChecksum,
+    };
   }
 
   const applyOptions: ApplyOptions = {
@@ -400,6 +422,9 @@ export async function runDeploy(
 
   return {
     ok: true,
+    releaseManifest,
+    schemaMigrationId: migrationId,
+    schemaChecksum: releaseManifest.schemaChecksum,
     releaseId: result.release_id,
     operationId: result.operation_id,
     urls: result.urls,

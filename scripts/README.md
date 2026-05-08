@@ -79,6 +79,28 @@ The deploy goes through `r.deploy.apply(spec)` — the v2 unified deploy primiti
 
 We migrated off `apps.bundleDeploy()` in 1.50.1 (kychee-com/run402#154) because its compat shim was emitting an `expose.tables` shape the v2 deploy validator briefly rejected. The gateway validator was relaxed in 2026-04-30 to delegate to the same `validateManifest()` the imperative `/expose` route uses, so both bare strings and the rich `{name, expose, policy}` shape now work. We send the rich shape (matches the published schema, type-checks cleanly, and pins the policy explicitly).
 
+## Engine release metadata
+
+Every deploy writes `dist/kychon-release.json` before collecting the Run402 file set. The manifest is the durable engine release stamp for hosted Kychon portals: SemVer engine version, git SHA, build time, release channel, promotion status, schema migration ID/checksum, seed identity, and exact `@run402/sdk` version.
+
+Release channels and promotion status are explicit:
+
+| Env var | Default | Allowed values |
+|---|---|---|
+| `KYCHON_RELEASE_CHANNEL` | `dev` | `dev`, `canary`, `stable`, `security` |
+| `KYCHON_RELEASE_PROMOTION_STATUS` | `candidate` | `candidate`, `promoted`, `withdrawn`, `deprecated` |
+| `KYCHON_RELEASE_NOTES_URL` | unset | URL or text reference to release notes |
+| `KYCHON_GIT_SHA` | git / `GITHUB_SHA` | exact source SHA override |
+
+SemVer policy:
+
+- `PATCH` releases are bug fixes, visual fixes, function fixes, and safe additive migrations.
+- `MINOR` releases are backwards-compatible features, optional schema, or new portal surfaces.
+- `MAJOR` releases are breaking block/config/schema behavior or manual upgrade work.
+- prereleases such as `1.5.0-rc.1` are candidates/canaries and do not become latest stable.
+
+`main` is not latest stable. A commit becomes a hosted-fleet target only after its release manifest is promoted on a channel by the Kychon release process.
+
 ## Service-key writes
 
 Service-key writes go through `/admin/v1/rest/*`, not the PostgREST-shaped `/rest/v1/*` (which rejects service_role with `"service_role is not permitted on /rest/v1/*"`). The pre-port `bootstrap-demo.sh` was hitting `/rest/v1/*` with service_key and `> /dev/null`'ing the response — silently 403'ing on every demo deploy without anyone noticing. The TS port hits `/admin/v1/rest/*` and asserts response.ok.

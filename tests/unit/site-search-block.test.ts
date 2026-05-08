@@ -49,6 +49,26 @@ describe('site_search block renderer', () => {
     expect(html).toContain('site-search--wide');
   });
 
+  it('emits copied presentation variables for compact source search styling', () => {
+    const html = renderBlock(
+      section({
+        presentation: {
+          max_width: '18rem',
+          form_gap: '0',
+          form_border: '1px solid #d7dce3',
+          submit_bg: '#F38C1C',
+          submit_color: '#172033',
+        },
+      }),
+      ctx,
+    );
+
+    expect(html).toContain('--site-search-max-width:18rem;');
+    expect(html).toContain('--site-search-form-gap:0;');
+    expect(html).toContain('--site-search-form-border:1px solid #d7dce3;');
+    expect(html).toContain('--site-search-submit-bg:#F38C1C;');
+  });
+
   it('escapes copied labels', () => {
     const html = renderBlock(section({ placeholder: '<img>', submit_label: '<b>Go</b>' }), ctx);
     expect(html).toContain('placeholder="&lt;img&gt;"');

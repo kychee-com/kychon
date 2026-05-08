@@ -25,6 +25,9 @@ describe('config logic', () => {
       expect(COPIED_THEME_CSS_VAR_PATHS['interactions.button.hover.background']).toBe('--button-hover-bg');
       expect(COPIED_THEME_CSS_VAR_PATHS['header.logo_max_height']).toBe('--nav-logo-max-height');
       expect(COPIED_THEME_CSS_VAR_PATHS['nav.dropdown_bg']).toBe('--nav-dropdown-bg');
+      expect(COPIED_THEME_CSS_VAR_PATHS['nav.surface_bg']).toBe('--nav-links-bg');
+      expect(COPIED_THEME_CSS_VAR_PATHS['social.bg']).toBe('--social-link-bg');
+      expect(COPIED_THEME_CSS_VAR_PATHS['footer.background']).toBe('--footer-bg');
       expect(COPIED_THEME_CSS_VAR_PATHS['carousel.arrow.hover.background']).toBe('--slideshow-arrow-hover-bg');
     });
 
@@ -35,8 +38,10 @@ describe('config logic', () => {
           button: { hover: { background: '#ffcc00', text: '#111111' } },
           card: { hover: { transform: 'translateY(-4px)', shadow: '0 8px 20px rgba(0,0,0,0.2)' } },
         },
-        header: { padding: '1rem 0', logo_max_height: '4rem' },
-        nav: { dropdown_bg: '#ffffff', mobile_menu_bg: '#f7f7f7' },
+        header: { padding: '1rem 0', logo_max_height: '4rem', background: '#ffffff' },
+        nav: { dropdown_bg: '#ffffff', mobile_menu_bg: '#f7f7f7', surface_bg: '#17324d' },
+        social: { bg: '#17324d', color: '#ffffff' },
+        footer: { background: '#111111', heading_color: '#ffcc00' },
         carousel: { arrow: { hover: { background: 'rgba(0,0,0,0.8)' } } },
       });
       expect(vars['--color-primary']).toBe('#123456');
@@ -45,8 +50,14 @@ describe('config logic', () => {
       expect(vars['--card-hover-transform']).toBe('translateY(-4px)');
       expect(vars['--nav-header-padding']).toBe('1rem 0');
       expect(vars['--nav-logo-max-height']).toBe('4rem');
+      expect(vars['--nav-header-bg']).toBe('#ffffff');
       expect(vars['--nav-dropdown-bg']).toBe('#ffffff');
+      expect(vars['--nav-links-bg']).toBe('#17324d');
       expect(vars['--nav-mobile-menu-bg']).toBe('#f7f7f7');
+      expect(vars['--social-link-bg']).toBe('#17324d');
+      expect(vars['--social-link-color']).toBe('#ffffff');
+      expect(vars['--footer-bg']).toBe('#111111');
+      expect(vars['--footer-heading-color']).toBe('#ffcc00');
       expect(vars['--slideshow-arrow-hover-bg']).toBe('rgba(0,0,0,0.8)');
     });
 

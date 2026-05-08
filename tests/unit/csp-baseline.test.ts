@@ -58,6 +58,13 @@ describe('public/_headers template structure', () => {
     expect(csp).toMatch(/style-src[^;]*'unsafe-inline'/);
   });
 
+  it('CSP allows the Google Fonts stylesheet and font files used by baked themes', () => {
+    const raw = readHeadersTemplate();
+    const csp = extractCsp(raw)!;
+    expect(csp).toMatch(/style-src[^;]*https:\/\/fonts\.googleapis\.com/);
+    expect(csp).toMatch(/font-src[^;]*https:\/\/fonts\.gstatic\.com/);
+  });
+
   it('CSP forbids unsafe-eval and wildcards in critical directives', () => {
     const raw = readHeadersTemplate();
     const csp = extractCsp(raw)!;
