@@ -4,6 +4,8 @@ import type { JsonObject } from './types.js';
 
 export interface CapabilityDiscoveryOptions {
   portalUrl?: string;
+  apiBaseUrl?: string;
+  apiEndpoint?: string;
   engineVersion?: string;
   schemaVersion?: string;
   minimumSdkVersion?: string;
@@ -11,10 +13,21 @@ export interface CapabilityDiscoveryOptions {
   cliVersion?: string;
 }
 
+export const DEFAULT_RUN402_API_BASE_URL = 'https://api.run402.com';
+export const KYCHON_CAPABILITY_FUNCTION_PATH = '/functions/v1/kychon-api';
+
+export function resolveCapabilityApiEndpoint(options: CapabilityDiscoveryOptions = {}): string {
+  if (options.apiEndpoint) return options.apiEndpoint;
+  const envApiBaseUrl = typeof process !== 'undefined' ? process.env.KYCHON_API_BASE_URL : undefined;
+  const apiBaseUrl = (options.apiBaseUrl || envApiBaseUrl || DEFAULT_RUN402_API_BASE_URL).replace(/\/$/, '');
+  return `${apiBaseUrl}${KYCHON_CAPABILITY_FUNCTION_PATH}`;
+}
+
 export function buildWellKnownKychon(options: CapabilityDiscoveryOptions = {}): JsonObject {
   const schemaVersion = options.schemaVersion || KYCHON_API_VERSION;
   const minimumSdkVersion = options.minimumSdkVersion || '0.1.0';
   const recommendedSdkVersion = options.recommendedSdkVersion || '0.1.0';
+  const endpoint = resolveCapabilityApiEndpoint(options);
 
   return {
     product: {
@@ -25,10 +38,16 @@ export function buildWellKnownKychon(options: CapabilityDiscoveryOptions = {}): 
       version: options.engineVersion || '0.1.0',
     },
     api: {
-      endpoint: '/functions/v1/kychon-api',
+      endpoint,
+      transport: 'run402-functions',
       currentVersion: KYCHON_API_VERSION,
       supportedVersions: [...SUPPORTED_API_VERSIONS],
       deprecatedVersions: [],
+      authHeaders: {
+        apiKey: 'apikey',
+        bearerToken: 'Authorization',
+      },
+      publicKeySource: '/js/env.js',
     },
     schema: {
       version: schemaVersion,
@@ -70,11 +89,13 @@ export function buildWellKnownKychon(options: CapabilityDiscoveryOptions = {}): 
 }
 
 export function buildCapabilityManifest(options: CapabilityDiscoveryOptions = {}): JsonObject {
+  const endpoint = resolveCapabilityApiEndpoint(options);
   return {
     product: 'Kychon',
     apiVersion: KYCHON_API_VERSION,
     schemaVersion: options.schemaVersion || KYCHON_API_VERSION,
-    endpoint: '/functions/v1/kychon-api',
+    endpoint,
+    transport: 'run402-functions',
     operations: listOperations().map((operation) => ({
       name: String(operation.name),
       phases: [...operation.phases],
@@ -131,7 +152,8 @@ export function buildPortalVersion(options: CapabilityDiscoveryOptions = {}): Js
 
 export function buildLlmsTxt(options: CapabilityDiscoveryOptions = {}): string {
   const portalUrl = options.portalUrl?.replace(/\/$/, '') || '';
-  const href = (path: string) => `${portalUrl}${path}`;
+  const endpoint = resolveCapabilityApiEndpoint(options);
+  const href = (path: string) => (path.startsWith('http://') || path.startsWith('https://') ? path : `${portalUrl}${path}`);
 
   return [
     '# Kychon',
@@ -141,7 +163,7 @@ export function buildLlmsTxt(options: CapabilityDiscoveryOptions = {}): string {
     '## Capability API',
     `- Discovery: ${href('/.well-known/kychon.json')}`,
     `- Capability manifest: ${href('/kychon-capabilities.json')}`,
-    `- API endpoint: ${href('/functions/v1/kychon-api')}`,
+    `- API endpoint: ${href(endpoint)}`,
     `- Current API version: ${KYCHON_API_VERSION}`,
     '',
     '## Preferred Developer Surface',

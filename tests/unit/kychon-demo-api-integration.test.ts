@@ -129,10 +129,14 @@ describe('official demo portal API integration', () => {
 
       expect(wellKnown).toMatchObject({
         portalUrl: demo.portalUrl,
-        api: { endpoint: '/functions/v1/kychon-api' },
+        api: {
+          endpoint: 'https://api.run402.com/functions/v1/kychon-api',
+          transport: 'run402-functions',
+          publicKeySource: '/js/env.js',
+        },
         sdk: { package: '@kychon/sdk', firstDeliverable: true },
       });
-      expect(llms).toContain(`${demo.portalUrl}/functions/v1/kychon-api`);
+      expect(llms).toContain('https://api.run402.com/functions/v1/kychon-api');
     });
   }
 });
