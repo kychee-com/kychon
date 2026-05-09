@@ -1,5 +1,4 @@
-import { createKychonClient, type KychonClientOptions } from '../sdk/index.js';
-import type { JsonObject, OperationPhase } from '../lib/capability-api/index.js';
+import { createKychonClient, type JsonObject, type KychonClientOptions, type OperationPhase } from '@kychon/sdk';
 
 export interface CliIo {
   stdout: { write(chunk: string): void };

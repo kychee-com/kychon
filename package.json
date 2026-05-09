@@ -3,24 +3,28 @@
   "version": "0.1.0",
   "description": "AI-powered membership/community portal template for Run402",
   "type": "module",
+  "workspaces": [
+    "packages/sdk"
+  ],
   "scripts": {
     "dev": "tsx scripts/generate-seed-sql.ts && astro dev",
-    "build": "tsx scripts/generate-seed-sql.ts && astro build",
+    "build": "npm run build:sdk && tsx scripts/generate-seed-sql.ts && astro build",
+    "build:sdk": "npm run build --workspace @kychon/sdk",
     "preview": "astro preview",
     "generate-seed": "tsx scripts/generate-seed-sql.ts",
-    "test": "vitest run",
+    "test": "npm run build:sdk && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "deploy": "node deploy.js",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "astro check && tsc --noEmit",
+    "typecheck": "npm run build:sdk && astro check && tsc --noEmit",
     "check:seeds": "tsx scripts/smoke-check-seeds.ts",
     "ui:architecture-check": "tsx scripts/ui-architecture-check.ts",
     "ui:bundle-report": "tsx scripts/ui-bundle-report.ts",
     "ui:capture-routes": "tsx scripts/ui-capture-routes.ts",
     "ui:css-collisions": "tsx scripts/ui-css-collision-report.ts",
-    "check": "tsx scripts/smoke-check-seeds.ts && vitest run && biome check . && astro check"
+    "check": "npm run build:sdk && tsx scripts/smoke-check-seeds.ts && vitest run && biome check . && astro check"
   },
   "repository": {
     "type": "git",
@@ -45,6 +49,7 @@
     "vitest": "^3.1.1"
   },
   "dependencies": {
+    "@kychon/sdk": "file:packages/sdk",
     "@astrojs/react": "5.0.4",
     "@radix-ui/react-dialog": "1.1.15",
     "@radix-ui/react-label": "2.1.8",
