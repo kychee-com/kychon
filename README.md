@@ -119,6 +119,19 @@ Kychon is designed to be customized by AI agents. Three tiers:
 
 See [CUSTOMIZING.md](CUSTOMIZING.md) for the agent guide.
 
+## Capability API
+
+Kychon now has a versioned Capability API for agent and integration workflows:
+
+- API endpoint: `POST /functions/v1/kychon-api`
+- Discovery: `/.well-known/kychon.json`, `/kychon-capabilities.json`, and `/llms.txt`
+- SDK-first surface: `@kychon/sdk`
+- CLI-second surface: `kychon`, a thin SDK wrapper
+
+Use domain operations for product workflows such as creating events, approving members, publishing announcements, forum/poll activity, resource uploads, exports, AI jobs, and moderation. Raw PostgREST/SQL remains available for low-level configuration and migrations.
+
+See [docs/kychon-api.md](docs/kychon-api.md), [docs/kychon-sdk.md](docs/kychon-sdk.md), and [docs/kychon-cli.md](docs/kychon-cli.md).
+
 ## Demo Portals
 
 | Portal | Description | URL |
