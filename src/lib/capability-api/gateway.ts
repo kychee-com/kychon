@@ -75,6 +75,15 @@ export async function handleCapabilityApiRequest(
     });
   }
 
+  if (envelope.phase === 'execute' && !envelope.idempotencyKey) {
+    return errorResponse(correlationId, 400, {
+      code: 'request.invalidEnvelope',
+      message: `Executing ${operation.name} requires an idempotencyKey.`,
+      detail: { operation: operation.name, phase: envelope.phase },
+      retryable: false,
+    });
+  }
+
   const actor = await resolveCapabilityActor(req, deps);
   const permission = checkOperationPermission(actor, operation);
   if (!permission.allowed && envelope.phase !== 'validate') {
@@ -90,15 +99,6 @@ export async function handleCapabilityApiRequest(
 
   if (envelope.phase === 'validate') {
     return successResponse(correlationId, createActionPlan(operation, envelope.input, permission.allowed, actor.state));
-  }
-
-  if (!envelope.idempotencyKey) {
-    return errorResponse(correlationId, 400, {
-      code: 'request.invalidEnvelope',
-      message: `Executing ${operation.name} requires an idempotencyKey.`,
-      detail: { operation: operation.name, phase: envelope.phase },
-      retryable: false,
-    });
   }
 
   if (operation.confirmation === 'required' && envelope.confirmed !== true) {
