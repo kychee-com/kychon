@@ -2,6 +2,27 @@
 
 Read `STRUCTURE.md` first for the full project map. This file has step-by-step recipes.
 
+## Capability API vs Raw Data Access
+
+Use the Capability API or SDK for product workflows:
+
+- `events.create`, `events.update`, `events.delete`
+- `members.approve`, `members.changeRole`, `members.suspend`
+- `announcements.publish`, `announcements.pin`, `announcements.delete`
+- `forum.topics.create`, `forum.replies.create`, moderation actions
+- `pollVotes.cast`, `polls.close`, `polls.delete`
+- `resources.upload`, exports, AI translation/newsletter jobs
+
+These operations own permissions, validation, confirmation, side effects, idempotency, activity/audit references, and verification queries.
+
+Use SQL/PostgREST for low-level customization:
+
+- `site_config`, `pages`, and `sections` composition
+- theme tokens, branding, language files, and seed data
+- data migrations, imports, and bulk corrections where the agent understands the consequences
+
+When in doubt, dry-run the domain operation first with `phase: "validate"` or the SDK `.validate()` helper.
+
 ## New Deployment UI Contract
 
 Before adding custom HTML/CSS or a new React component, check the Kychon library first. New demo, Fresh Start, copied-site, and ported deployments should use these paths in order:

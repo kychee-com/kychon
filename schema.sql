@@ -302,6 +302,33 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 
 -- ============================================
+-- SECTION: Capability API Execution Ledger
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS capability_executions (
+  id BIGSERIAL PRIMARY KEY,
+  api_version TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  actor_ref JSONB NOT NULL,
+  actor_state TEXT NOT NULL,
+  input_digest TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'started'
+    CHECK (status IN ('started', 'succeeded', 'failed')),
+  result_digest TEXT,
+  result_payload JSONB,
+  error_payload JSONB,
+  correlation_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(api_version, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_capability_executions_operation_created
+  ON capability_executions (operation, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_capability_executions_actor_created
+  ON capability_executions ((actor_ref->>'type'), (actor_ref->>'id'), created_at DESC);
+
+-- ============================================
 -- SECTION: AI Features
 -- ============================================
 
