@@ -1,8 +1,13 @@
-import { KYCHON_API_VERSION } from './types.js';
-import { DEFAULT_RUN402_API_BASE_URL, KYCHON_CAPABILITY_FUNCTION_PATH } from './discovery.js';
+import {
+  KYCHON_API_VERSION,
+  createKychonClient,
+  isKychonApiError,
+  type CapabilityCallOptions,
+  type JsonObject,
+  type OperationPhase,
+} from '@kychon/sdk';
 import { buildCapabilityManifest, buildWellKnownKychon } from './discovery.js';
 import { listOperations } from './operations.js';
-import type { JsonObject } from './types.js';
 
 export interface ConformanceOptions {
   portalUrl: string;
@@ -46,6 +51,13 @@ export async function runCapabilityConformance(options: ConformanceOptions): Pro
   const headers: Record<string, string> = {};
   if (options.authToken) headers.Authorization = `Bearer ${options.authToken}`;
   const checks: ConformanceCheck[] = [...runLocalCapabilityConformance().checks];
+  const client = createKychonClient({
+    portalUrl,
+    apiEndpoint: options.apiEndpoint,
+    apiKey: options.apiKey,
+    authToken: options.authToken,
+    fetch: fetchImpl,
+  });
 
   const wellKnown = await getJson(fetchImpl, `${portalUrl}/.well-known/kychon.json`, headers);
   checks.push(check('remote.discovery', wellKnown.api != null, 'remote discovery document is reachable'));
@@ -53,31 +65,22 @@ export async function runCapabilityConformance(options: ConformanceOptions): Pro
   const manifest = await getJson(fetchImpl, `${portalUrl}/kychon-capabilities.json`, headers);
   checks.push(check('remote.manifest', Array.isArray(manifest.operations), 'remote capability manifest is reachable'));
 
-  const runtimeEnv = await getRuntimeEnv(fetchImpl, portalUrl);
-  const apiBaseUrl = (runtimeEnv.apiBaseUrl || DEFAULT_RUN402_API_BASE_URL).replace(/\/$/, '');
-  const apiEndpoint = absolutizeApiEndpoint(options.apiEndpoint || readApiEndpoint(wellKnown) || `${apiBaseUrl}${KYCHON_CAPABILITY_FUNCTION_PATH}`, portalUrl, apiBaseUrl);
-  const apiKey = options.apiKey || runtimeEnv.apiKey;
-  const apiHeaders = {
-    ...headers,
-    ...(apiKey ? { apikey: apiKey } : {}),
-  };
-
-  const version = await postEnvelope(fetchImpl, apiEndpoint, apiHeaders, 'portal.version', 'query', {});
+  const version = await sdkEnvelope(client, 'portal.version', 'query', {});
   checks.push(check('remote.version', version.ok === true, 'portal.version succeeds'));
 
-  const capabilities = await postEnvelope(fetchImpl, apiEndpoint, apiHeaders, 'portal.capabilities', 'query', {});
+  const capabilities = await sdkEnvelope(client, 'portal.capabilities', 'query', {});
   checks.push(check('remote.capabilities', capabilities.ok === true, 'portal.capabilities succeeds'));
 
-  const whoami = await postEnvelope(fetchImpl, apiEndpoint, apiHeaders, 'auth.whoami', 'query', {});
+  const whoami = await sdkEnvelope(client, 'auth.whoami', 'query', {});
   checks.push(check('remote.actor', whoami.ok === true, 'auth.whoami returns actor state'));
 
-  const search = await postEnvelope(fetchImpl, apiEndpoint, apiHeaders, 'search.query', 'query', { q: 'test' });
+  const search = await sdkEnvelope(client, 'search.query', 'query', { q: 'test' });
   checks.push(check('remote.searchVisibility', search.ok === true, 'search.query returns a visibility-filtered response'));
 
-  const validate = await postEnvelope(fetchImpl, apiEndpoint, apiHeaders, 'events.create', 'validate', { title: 'Conformance' });
+  const validate = await sdkEnvelope(client, 'events.create', 'validate', { title: 'Conformance' });
   checks.push(check('remote.validate', validate.ok === true, 'representative mutation validate succeeds or returns plan'));
 
-  const executeMissingIdempotency = await postEnvelope(fetchImpl, apiEndpoint, apiHeaders, 'events.create', 'execute', { title: 'Conformance' });
+  const executeMissingIdempotency = await sdkEnvelope(client, 'events.create', 'execute', { title: 'Conformance' });
   checks.push(
     check(
       'remote.idempotency',
@@ -96,58 +99,25 @@ async function getJson(fetchImpl: typeof fetch, url: string, headers: Record<str
   return (await res.json()) as JsonObject;
 }
 
-async function postEnvelope(
-  fetchImpl: typeof fetch,
-  apiEndpoint: string,
-  headers: Record<string, string>,
+async function sdkEnvelope(
+  client: ReturnType<typeof createKychonClient>,
   operation: string,
-  phase: string,
+  phase: OperationPhase,
   input: JsonObject,
+  options: CapabilityCallOptions = {},
 ) {
-  const res = await fetchImpl(apiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify({ apiVersion: KYCHON_API_VERSION, operation, phase, input }),
-  });
-  return (await res.json()) as JsonObject;
-}
-
-async function getRuntimeEnv(fetchImpl: typeof fetch, portalUrl: string): Promise<{ apiBaseUrl?: string; apiKey?: string }> {
   try {
-    const res = await fetchImpl(`${portalUrl}/js/env.js`);
-    if (!res.ok) return {};
-    const source = await res.text();
-    return {
-      ...matchRuntimeAssignment(source, '__KYCHON_API', 'apiBaseUrl'),
-      ...matchRuntimeAssignment(source, '__KYCHON_ANON_KEY', 'apiKey'),
+    return { ok: true, data: await client.request(operation, phase, input, options) } as JsonObject;
+  } catch (error) {
+    if (!isKychonApiError(error)) throw error;
+    const apiError: JsonObject = {
+      code: error.code,
+      message: error.message,
+      retryable: error.retryable,
+      ...(error.detail ? { detail: error.detail } : {}),
     };
-  } catch {
-    return {};
+    return { ok: false, correlationId: error.correlationId, error: apiError } as JsonObject;
   }
-}
-
-function readApiEndpoint(discovery: JsonObject): string | undefined {
-  const api = discovery.api;
-  if (!api || typeof api !== 'object' || Array.isArray(api)) return undefined;
-  const endpoint = (api as JsonObject).endpoint;
-  return typeof endpoint === 'string' ? endpoint : undefined;
-}
-
-function absolutizeApiEndpoint(endpoint: string, portalUrl: string, apiBaseUrl: string): string {
-  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
-  if (endpoint.startsWith(KYCHON_CAPABILITY_FUNCTION_PATH)) return `${apiBaseUrl}${endpoint}`;
-  if (endpoint.startsWith('/')) return `${portalUrl}${endpoint}`;
-  return new URL(endpoint, `${portalUrl}/`).toString();
-}
-
-function matchRuntimeAssignment(
-  source: string,
-  name: string,
-  key: 'apiBaseUrl' | 'apiKey',
-): { apiBaseUrl?: string; apiKey?: string } {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = source.match(new RegExp(`${escaped}\\s*=\\s*['"]([^'"]+)['"]`));
-  return match?.[1] ? { [key]: match[1] } : {};
 }
 
 function check(id: string, ok: boolean, message: string): ConformanceCheck {

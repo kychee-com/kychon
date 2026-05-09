@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import kychonApi from '../../functions/kychon-api.js';
-import { KYCHON_API_VERSION, type JsonObject } from '../../src/lib/capability-api/index.ts';
-import { KYCHON_DEMO_PORTALS } from '../../src/lib/demo-portals.ts';
-import { createKychonClient } from '../../src/sdk/index.ts';
+import {
+  DEMO_PORTAL_FIXTURES as KYCHON_DEMO_PORTALS,
+  KYCHON_API_VERSION,
+  createKychonClient,
+  type JsonObject,
+} from '@kychon/sdk';
 import { GET as wellKnownGet } from '../../src/pages/.well-known/kychon.json.ts';
 import { GET as llmsGet } from '../../src/pages/llms.txt.ts';
 

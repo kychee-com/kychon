@@ -2,12 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   DEMO_PORTAL_FIXTURES,
+  KYCHON_API_VERSION,
   SDK_EXAMPLES,
   createIdempotencyKey,
   createKychonClient,
   isKychonApiError,
-} from '../../src/sdk/index.ts';
-import { KYCHON_API_VERSION, handleCapabilityApiRequest, type JsonObject } from '../../src/lib/capability-api/index.ts';
+  type JsonObject,
+} from '@kychon/sdk';
+import { handleCapabilityApiRequest } from '../../src/lib/capability-api/index.ts';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
