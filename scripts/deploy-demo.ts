@@ -17,6 +17,7 @@ import { join } from "node:path";
 
 import { run402 } from "@run402/sdk/node";
 
+import { findDemoPortalByDeployKey } from "../src/lib/demo-portals.ts";
 import { bootstrapDemoAccounts } from "./bootstrap-demo.ts";
 import { prettyPrintError, ROOT, runDeploy, type Run402Instance } from "./_lib.ts";
 
@@ -131,7 +132,10 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
   //      into `npm run build`) emits the demo's chrome+structural seed;
   //   2) Portal.astro's bake reads the same module via `getActiveProjectSeed()`.
   const previousProject = process.env.KYCHON_PROJECT;
+  const previousPublicUrl = process.env.KYCHON_PUBLIC_URL;
+  const demoPortal = findDemoPortalByDeployKey(key);
   process.env.KYCHON_PROJECT = config.kychonProject;
+  process.env.KYCHON_PUBLIC_URL = demoPortal?.portalUrl || config.liveUrl;
 
   try {
     const keys = await r.projects.keys(projectId);
@@ -177,6 +181,8 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
     cleanupAssets();
     if (previousProject === undefined) delete process.env.KYCHON_PROJECT;
     else process.env.KYCHON_PROJECT = previousProject;
+    if (previousPublicUrl === undefined) delete process.env.KYCHON_PUBLIC_URL;
+    else process.env.KYCHON_PUBLIC_URL = previousPublicUrl;
   }
 }
 
