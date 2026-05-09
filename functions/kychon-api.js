@@ -289,6 +289,15 @@ export default async (req) => {
     });
   }
 
+  if (envelope.phase === 'execute' && !envelope.idempotencyKey) {
+    return errorResponse(correlationId, 400, {
+      code: 'request.invalidEnvelope',
+      message: `Executing ${operation.name} requires an idempotencyKey.`,
+      detail: { operation: operation.name },
+      retryable: false,
+    });
+  }
+
   const actor = await resolveActor(req);
   const permission = checkPermission(actor, operation);
   if (!permission.allowed && envelope.phase !== 'validate') {
@@ -313,15 +322,6 @@ export default async (req) => {
       warnings: [],
       sideEffects: [],
       cost: operation.costClass === 'free' ? null : { class: operation.costClass },
-    });
-  }
-
-  if (!envelope.idempotencyKey) {
-    return errorResponse(correlationId, 400, {
-      code: 'request.invalidEnvelope',
-      message: `Executing ${operation.name} requires an idempotencyKey.`,
-      detail: { operation: operation.name },
-      retryable: false,
     });
   }
 
