@@ -12,8 +12,8 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, copyFileSync, readFileSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 import { run402 } from "@run402/sdk/node";
 
@@ -72,6 +72,45 @@ export const DEMOS: Record<string, DemoConfig> = {
   },
 };
 
+const ASSET_REF_RE = /["'`]\/assets\/([^"'`?#]+)(?:[?#][^"'`]*)?["'`]/g;
+
+export function findMissingDemoStaticAssets(config: DemoConfig): string[] {
+  const assetRoot = join(ROOT, config.assetsDir);
+  const sourceFiles = [
+    join(ROOT, "src/seeds", `${config.kychonProject}.ts`),
+    join(ROOT, dirname(config.assetsDir), "seed.sql"),
+  ].filter((path) => existsSync(path));
+  const refs = new Map<string, Set<string>>();
+
+  for (const sourceFile of sourceFiles) {
+    const source = readFileSync(sourceFile, "utf8");
+    for (const match of source.matchAll(ASSET_REF_RE)) {
+      const assetName = match[1];
+      const sources = refs.get(assetName) || new Set<string>();
+      sources.add(sourceFile.replace(`${ROOT}/`, ""));
+      refs.set(assetName, sources);
+    }
+  }
+
+  return Array.from(refs.entries())
+    .filter(([assetName]) => !existsSync(join(assetRoot, assetName)))
+    .map(
+      ([assetName, sources]) =>
+        `/assets/${assetName} referenced by ${Array.from(sources).join(", ")} is missing from ${config.assetsDir}/${assetName}`,
+    )
+    .sort();
+}
+
+function assertDemoStaticAssets(config: DemoConfig): void {
+  const missing = findMissingDemoStaticAssets(config);
+  if (missing.length === 0) return;
+
+  throw new Error(
+    `Demo static asset references are missing for ${config.displayName}:\n` +
+      missing.map((asset) => `  - ${asset}`).join("\n"),
+  );
+}
+
 /**
  * Copy `<src>/*` (top-level files only, no recursion — matches `cp src/* dst/`)
  * into `<dst>/`. Returns a cleanup function that removes `<dst>` if it was
@@ -122,6 +161,7 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
   console.log(`=== ${config.displayName} Deploy ===`);
   console.log(`Project: ${projectId}`);
 
+  assertDemoStaticAssets(config);
   const cleanupAssets = copyAssets(
     join(ROOT, config.assetsDir),
     join(ROOT, "public/assets"),
