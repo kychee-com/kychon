@@ -208,6 +208,46 @@ const OPERATION_CATALOG = [
 
 const OPERATIONS = new Map(OPERATION_CATALOG.map((entry) => [entry.name, entry]));
 
+const TABLE_QUERIES = {
+  'config.get': { table: 'site_config', mode: 'config' },
+  'pages.list': { table: 'pages', mode: 'list', visible: visiblePage },
+  'pages.get': { table: 'pages', mode: 'one', visible: visiblePage },
+  'sections.list': { table: 'sections', mode: 'list', visible: visibleSection },
+  'sections.get': { table: 'sections', mode: 'one', visible: visibleSection },
+  'members.list': { table: 'members', mode: 'list', map: memberRow },
+  'members.get': { table: 'members', mode: 'one', map: memberRow },
+  'tiers.list': { table: 'membership_tiers', mode: 'list' },
+  'memberFields.list': { table: 'member_custom_fields', mode: 'list', visible: visibleMemberField },
+  'events.list': { table: 'events', mode: 'list', visible: visibleMembersOnly },
+  'events.get': { table: 'events', mode: 'one', visible: visibleMembersOnly },
+  'registrationOptions.list': { table: 'event_registration_options', mode: 'list' },
+  'rsvps.listForEvent': { table: 'event_rsvps', mode: 'list' },
+  'rsvps.listMine': { table: 'event_rsvps', mode: 'listMine' },
+  'announcements.list': { table: 'announcements', mode: 'list' },
+  'announcements.get': { table: 'announcements', mode: 'one' },
+  'resources.list': { table: 'resources', mode: 'list', visible: visibleMembersOnly },
+  'resources.get': { table: 'resources', mode: 'one', visible: visibleMembersOnly },
+  'forum.categories.list': { table: 'forum_categories', mode: 'list' },
+  'forum.categories.get': { table: 'forum_categories', mode: 'one' },
+  'forum.topics.list': { table: 'forum_topics', mode: 'list', visible: visibleForumRow },
+  'forum.topics.get': { table: 'forum_topics', mode: 'one', visible: visibleForumRow },
+  'forum.replies.list': { table: 'forum_replies', mode: 'list', visible: visibleForumRow },
+  'polls.list': { table: 'polls', mode: 'list', visible: visiblePoll },
+  'polls.get': { table: 'polls', mode: 'one', visible: visiblePoll },
+  'polls.getAttached': { table: 'polls', mode: 'attached' },
+  'committees.list': { table: 'committees', mode: 'list' },
+  'committees.get': { table: 'committees', mode: 'one' },
+  'committeeMembers.list': { table: 'committee_members', mode: 'list' },
+  'reactions.list': { table: 'reactions', mode: 'list' },
+  'moderation.queue': { table: 'moderation_log', mode: 'list' },
+  'translations.list': { table: 'content_translations', mode: 'list' },
+  'newsletters.drafts.list': { table: 'newsletter_drafts', mode: 'list' },
+  'newsletters.drafts.get': { table: 'newsletter_drafts', mode: 'one' },
+  'insights.list': { table: 'member_insights', mode: 'list' },
+  'activity.list': { table: 'activity_log', mode: 'list' },
+  'jobs.status': { table: 'capability_executions', mode: 'list' },
+};
+
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store',
@@ -399,6 +439,20 @@ function handleQuery(correlationId, envelope, operation, actor) {
       ...permission,
     });
   }
+  if (operation.name === 'search.query') {
+    return handleSearchQuery(correlationId, envelope.input, actor, false);
+  }
+  if (operation.name === 'search.suggest') {
+    return handleSearchQuery(correlationId, envelope.input, actor, true);
+  }
+  if (operation.name === 'pollResults.get') {
+    return handlePollResultsQuery(correlationId, envelope.input, actor);
+  }
+
+  const tableQuery = TABLE_QUERIES[operation.name];
+  if (tableQuery) {
+    return handleTableQuery(correlationId, envelope.input, actor, tableQuery);
+  }
 
   return errorResponse(correlationId, 501, {
     code: 'internal.error',
@@ -406,6 +460,244 @@ function handleQuery(correlationId, envelope, operation, actor) {
     detail: { operation: operation.name },
     retryable: false,
   });
+}
+
+async function handleTableQuery(correlationId, input, actor, spec) {
+  try {
+    const queryInput = spec.mode === 'listMine' ? { ...input, memberId: actor.member?.id || '__none__' } : input;
+    const rows = await selectRows(spec.table);
+    const visible = spec.visible || (() => true);
+    const map = spec.map || ((row) => row);
+
+    if (spec.mode === 'config') {
+      if (typeof input.key === 'string') {
+        const row = rows.find((item) => item.key === input.key);
+        return successResponse(correlationId, row ? configRow(row) : null);
+      }
+      const mapped = rows.map(configRow);
+      return successResponse(correlationId, { rows: mapped, count: mapped.length });
+    }
+
+    if (spec.mode === 'one') {
+      const row = rows.find((item) => matchesInput(item, queryInput) && visible(item, actor));
+      return successResponse(correlationId, row ? map(row, actor) : null);
+    }
+
+    if (spec.mode === 'attached') {
+      const row = rows.find((item) => matchesAttached(item, queryInput) && visiblePoll(item, actor));
+      return successResponse(correlationId, row || null);
+    }
+
+    const filtered = rows.filter((row) => matchesInput(row, queryInput)).filter((row) => visible(row, actor)).map((row) => map(row, actor));
+    return successResponse(correlationId, { rows: filtered, count: filtered.length });
+  } catch (error) {
+    console.error('kychon-api table query failed:', error);
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: `Query failed for ${spec.table}.`,
+      retryable: true,
+    });
+  }
+}
+
+async function handleSearchQuery(correlationId, input, actor, suggest) {
+  try {
+    const query = normalizeSearchQuery(input.q ?? input.query ?? '');
+    const type = typeof input.type === 'string' ? input.type : 'all';
+    const page = suggest ? 1 : positiveInt(input.page, 1);
+    const pageSize = suggest ? 5 : Math.min(positiveInt(input.pageSize ?? input.page_size, 10), 50);
+    const docs = (await selectRows('search_documents'))
+      .filter((row) => row.published !== false)
+      .filter((row) => visibleMembersOnly(row, actor))
+      .filter((row) => searchTypeMatches(row, type))
+      .filter((row) => !query || textIncludes(row.title, query) || textIncludes(row.body, query));
+    const offset = (page - 1) * pageSize;
+    const pageRows = docs.slice(offset, offset + pageSize);
+    const facets = {
+      all: docs.length,
+      pages: docs.filter((row) => row.source_type === 'page').length,
+      resources: docs.filter((row) => row.source_type === 'resource').length,
+      events: docs.filter((row) => row.source_type === 'event').length,
+    };
+    return successResponse(correlationId, {
+      query,
+      type,
+      page,
+      page_size: pageSize,
+      total: docs.length,
+      has_next: offset + pageRows.length < docs.length,
+      facets,
+      results: pageRows.map((row) => ({
+        id: `${row.source_type}:${row.source_key}`,
+        type: String(row.source_type || ''),
+        object: objectRefJson(searchObjectRef(row)),
+        title: String(row.title || 'Untitled'),
+        url: String(row.url || '/'),
+        snippet: suggest ? '' : String(row.body || '').slice(0, 180),
+      })),
+    });
+  } catch (error) {
+    console.error('kychon-api search failed:', error);
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: 'Search query failed.',
+      retryable: true,
+    });
+  }
+}
+
+async function handlePollResultsQuery(correlationId, input, actor) {
+  try {
+    const polls = await selectRows('polls');
+    const poll = polls.find((row) => matchesInput(row, input) || String(row.id) === String(input.pollId));
+    const votes = await selectRows('poll_votes');
+    if (!poll || !visiblePollResults(poll, actor, votes)) return successResponse(correlationId, null);
+
+    const options = (await selectRows('poll_options')).filter((row) => String(row.poll_id) === String(poll.id));
+    const pollVotes = votes.filter((row) => String(row.poll_id) === String(poll.id));
+    return successResponse(correlationId, {
+      poll: objectRefJson({ type: 'poll', id: String(poll.id) }),
+      totalVotes: pollVotes.length,
+      options: options.map((option) => ({
+        option,
+        voteCount: pollVotes.filter((vote) => String(vote.option_id) === String(option.id)).length,
+      })),
+    });
+  } catch (error) {
+    console.error('kychon-api poll results failed:', error);
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: 'Poll results query failed.',
+      retryable: true,
+    });
+  }
+}
+
+async function selectRows(table) {
+  const rows = await adminDb().from(table).select('*');
+  return Array.isArray(rows) ? rows : rows?.data || rows?.rows || [];
+}
+
+function matchesInput(row, input) {
+  for (const [inputKey, rowKey] of [
+    ['id', 'id'],
+    ['slug', 'slug'],
+    ['eventId', 'event_id'],
+    ['topicId', 'topic_id'],
+    ['pollId', 'poll_id'],
+    ['committeeId', 'committee_id'],
+    ['memberId', 'member_id'],
+    ['contentType', 'content_type'],
+    ['contentId', 'content_id'],
+  ]) {
+    if (input[inputKey] != null && String(row[rowKey]) !== String(input[inputKey])) return false;
+  }
+  return true;
+}
+
+function matchesAttached(row, input) {
+  return String(row.attached_to) === String(input.attachedTo) && String(row.attached_id) === String(input.attachedId);
+}
+
+function configRow(row) {
+  return { key: row.key, value: row.value, category: row.category };
+}
+
+function memberRow(row, actor) {
+  if (isAdminLike(actor)) return row;
+  return {
+    id: row.id,
+    display_name: row.display_name,
+    avatar_url: row.avatar_url,
+    bio: row.bio,
+    tier_id: row.tier_id,
+    role: row.role,
+  };
+}
+
+function visiblePage(row, actor) {
+  if (isAdminLike(actor)) return true;
+  return row.published !== false && (row.requires_auth !== true || canSeeMembersOnly(actor));
+}
+
+function visibleSection(row, actor) {
+  if (isAdminLike(actor)) return true;
+  return row.visible !== false && (row.scope !== 'admin' || isAdminLike(actor));
+}
+
+function visibleMemberField(row, actor) {
+  return isAdminLike(actor) || row.visible_in_directory !== false;
+}
+
+function visibleMembersOnly(row, actor) {
+  return row.is_members_only !== true || canSeeMembersOnly(actor);
+}
+
+function visibleForumRow(row, actor) {
+  return isModeratorLike(actor) || row.hidden !== true;
+}
+
+function visiblePoll(row, actor) {
+  return isAdminLike(actor) || row.hidden !== true;
+}
+
+function visiblePollResults(poll, actor, votes) {
+  if (isAdminLike(actor)) return true;
+  if (poll.results_visible === 'always') return true;
+  if (poll.results_visible === 'after_close') return poll.is_open === false;
+  if (poll.results_visible === 'after_vote' && actor.member) {
+    return votes.some((vote) => String(vote.poll_id) === String(poll.id) && String(vote.member_id) === actor.member.id);
+  }
+  return false;
+}
+
+function canSeeMembersOnly(actor) {
+  return ['active_member', 'moderator', 'admin', 'project_admin'].includes(actor.state);
+}
+
+function isModeratorLike(actor) {
+  return ['moderator', 'admin', 'project_admin'].includes(actor.state);
+}
+
+function isAdminLike(actor) {
+  return ['admin', 'project_admin'].includes(actor.state);
+}
+
+function normalizeSearchQuery(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
+function positiveInt(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function searchTypeMatches(row, type) {
+  if (type === 'all') return true;
+  const sourceType = type === 'pages' ? 'page' : type === 'resources' ? 'resource' : type === 'events' ? 'event' : type;
+  return row.source_type === sourceType;
+}
+
+function textIncludes(value, query) {
+  return String(value || '').toLowerCase().includes(query.toLowerCase());
+}
+
+function searchObjectRef(row) {
+  const sourceType = String(row.source_type || '');
+  const id = String(row.source_key || row.id || '');
+  if (sourceType === 'page') return { type: 'page', id };
+  if (sourceType === 'resource') return { type: 'resource', id };
+  if (sourceType === 'event') return { type: 'event', id };
+  return { type: 'portal', id: sourceType || 'unknown' };
+}
+
+function objectRefJson(ref) {
+  return {
+    type: ref.type,
+    id: ref.id,
+    ...(ref.label ? { label: ref.label } : {}),
+    ...(ref.url ? { url: ref.url } : {}),
+  };
 }
 
 async function resolveActor(req) {
@@ -518,6 +810,7 @@ function minimumActorState(name) {
     return 'anonymous';
   }
   if (
+    ['members.list', 'members.get', 'rsvps.listForEvent', 'rsvps.listMine', 'forum.categories.list', 'forum.categories.get', 'forum.topics.list', 'forum.topics.get', 'forum.replies.list', 'polls.list', 'polls.get', 'polls.getAttached', 'pollResults.get', 'committeeMembers.list', 'reactions.list', 'activity.list'].includes(name) ||
     name.startsWith('forum.topics.create') ||
     name.startsWith('forum.topics.update') ||
     name.startsWith('forum.replies.create') ||
@@ -525,7 +818,7 @@ function minimumActorState(name) {
     name.startsWith('pollVotes.') ||
     name.startsWith('rsvps.') ||
     name.startsWith('reactions.') ||
-    ['members.list', 'members.get', 'members.updateProfile', 'activity.list'].includes(name)
+    ['members.updateProfile'].includes(name)
   ) {
     return 'active_member';
   }

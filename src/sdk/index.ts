@@ -10,6 +10,7 @@ import {
   type JsonValue,
   type OperationPhase,
 } from '../lib/capability-api/index.js';
+import { KYCHON_DEMO_PORTALS } from '../lib/demo-portals.js';
 
 export interface KychonClientOptions {
   portalUrl: string;
@@ -242,8 +243,4 @@ export const SDK_EXAMPLES = {
   exportMembers: { operation: 'exports.membersCsv', phase: 'validate', input: {} },
 } as const;
 
-export const DEMO_PORTAL_FIXTURES = [
-  { key: 'eagles', name: 'Eagles', sdkCompatible: true },
-  { key: 'silver-pines', name: 'Silver Pines', sdkCompatible: true },
-  { key: 'barrio-unido', name: 'Barrio Unido', sdkCompatible: true },
-] as const;
+export const DEMO_PORTAL_FIXTURES = KYCHON_DEMO_PORTALS;
