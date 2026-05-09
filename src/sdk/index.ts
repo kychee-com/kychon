@@ -1,5 +1,7 @@
 import {
   CAPABILITY_API_COMMON_SCHEMAS,
+  DEFAULT_RUN402_API_BASE_URL,
+  KYCHON_CAPABILITY_FUNCTION_PATH,
   KYCHON_API_VERSION,
   type ActionPlan,
   type ActionResult,
@@ -14,6 +16,9 @@ import { KYCHON_DEMO_PORTALS } from '../lib/demo-portals.js';
 
 export interface KychonClientOptions {
   portalUrl: string;
+  apiBaseUrl?: string;
+  apiEndpoint?: string;
+  apiKey?: string | (() => string | Promise<string | null> | null);
   apiVersion?: string;
   authToken?: string | (() => string | Promise<string | null> | null);
   fetch?: typeof fetch;
@@ -52,10 +57,87 @@ export function createKychonClient(options: KychonClientOptions) {
   const apiVersion = options.apiVersion || KYCHON_API_VERSION;
   const fetchImpl = options.fetch || fetch;
   const portalUrl = options.portalUrl.replace(/\/$/, '');
+  let transportPromise: Promise<KychonTransport> | undefined;
+  let discoveryPromise: Promise<JsonObject | undefined> | undefined;
+  let runtimeEnvPromise: Promise<RuntimeEnv> | undefined;
 
-  async function authHeaders(): Promise<Record<string, string>> {
+  async function authTokenHeader(): Promise<Record<string, string>> {
     const token = typeof options.authToken === 'function' ? await options.authToken() : options.authToken;
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function apiKeyHeader(): Promise<Record<string, string>> {
+    const transport = await resolveTransport();
+    return transport.apiKey ? { apikey: transport.apiKey } : {};
+  }
+
+  async function requestHeaders(includeContentType = false): Promise<Record<string, string>> {
+    return {
+      ...(includeContentType ? { 'Content-Type': 'application/json' } : {}),
+      ...(await apiKeyHeader()),
+      ...(await authTokenHeader()),
+    };
+  }
+
+  async function fetchDiscovery(): Promise<JsonObject | undefined> {
+    discoveryPromise ||= (async () => {
+      try {
+        const res = await fetchImpl(`${portalUrl}/.well-known/kychon.json`);
+        if (!res.ok) return undefined;
+        const body = (await res.json()) as JsonObject;
+        return body && typeof body === 'object' ? body : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    return discoveryPromise;
+  }
+
+  async function fetchRuntimeEnv(): Promise<RuntimeEnv> {
+    runtimeEnvPromise ||= (async () => {
+      const fromWindow = readBrowserRuntimeEnv();
+      if (fromWindow.apiBaseUrl || fromWindow.apiKey) return fromWindow;
+
+      try {
+        const res = await fetchImpl(`${portalUrl}/js/env.js`);
+        if (!res.ok) return {};
+        return parseRuntimeEnv(await res.text());
+      } catch {
+        return {};
+      }
+    })();
+    return runtimeEnvPromise;
+  }
+
+  async function resolveTransport(): Promise<KychonTransport> {
+    transportPromise ||= (async () => {
+      const browserEnv = readBrowserRuntimeEnv();
+      const needsDiscovery = !options.apiEndpoint;
+      const needsRuntimeEnv = !options.apiKey || (!options.apiEndpoint && !options.apiBaseUrl && !browserEnv.apiBaseUrl);
+      const [discovery, runtimeEnv] = await Promise.all([
+        needsDiscovery ? fetchDiscovery() : Promise.resolve(undefined),
+        needsRuntimeEnv ? fetchRuntimeEnv() : Promise.resolve(browserEnv),
+      ]);
+      const apiBaseUrl = (
+        options.apiBaseUrl ||
+        runtimeEnv.apiBaseUrl ||
+        browserEnv.apiBaseUrl ||
+        DEFAULT_RUN402_API_BASE_URL
+      ).replace(/\/$/, '');
+      const discoveredEndpoint = readApiEndpoint(discovery);
+      const endpoint = absolutizeApiEndpoint(
+        options.apiEndpoint ||
+          (browserEnv.apiBaseUrl ? `${browserEnv.apiBaseUrl}${KYCHON_CAPABILITY_FUNCTION_PATH}` : undefined) ||
+          discoveredEndpoint ||
+          `${apiBaseUrl}${KYCHON_CAPABILITY_FUNCTION_PATH}`,
+        portalUrl,
+        apiBaseUrl,
+      );
+      const rawApiKey = typeof options.apiKey === 'function' ? await options.apiKey() : options.apiKey;
+      const apiKey = rawApiKey || runtimeEnv.apiKey || browserEnv.apiKey;
+      return { apiBaseUrl, endpoint, apiKey: apiKey || undefined };
+    })();
+    return transportPromise;
   }
 
   async function call<Data = JsonValue>(
@@ -72,13 +154,11 @@ export function createKychonClient(options: KychonClientOptions) {
       ...(callOptions.idempotencyKey ? { idempotencyKey: callOptions.idempotencyKey } : {}),
       ...(callOptions.confirmed != null ? { confirmed: callOptions.confirmed } : {}),
     };
+    const transport = await resolveTransport();
 
-    const res = await fetchImpl(`${portalUrl}/functions/v1/kychon-api`, {
+    const res = await fetchImpl(transport.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(await authHeaders()),
-      },
+      headers: await requestHeaders(true),
       body: JSON.stringify(envelope),
     });
     const body = (await res.json()) as CapabilityResponseEnvelope<Data>;
@@ -113,7 +193,8 @@ export function createKychonClient(options: KychonClientOptions) {
     validate,
     execute,
     discover: async () => {
-      const res = await fetchImpl(`${portalUrl}/.well-known/kychon.json`, { headers: await authHeaders() });
+      const headers = await authTokenHeader();
+      const res = await fetchImpl(`${portalUrl}/.well-known/kychon.json`, { headers });
       if (res.ok) return res.json() as Promise<JsonObject>;
       return query<JsonObject>('portal.discover', { portalUrl });
     },
@@ -193,11 +274,12 @@ export function createKychonClient(options: KychonClientOptions) {
     raw: {
       capability: call,
       postgrest: async (path: string, init: RequestInit = {}) => {
-        const res = await fetchImpl(`${portalUrl}/rest/v1/${path}`, {
+        const transport = await resolveTransport();
+        const res = await fetchImpl(`${transport.apiBaseUrl}/rest/v1/${path}`, {
           ...init,
           headers: {
             ...(init.headers || {}),
-            ...(await authHeaders()),
+            ...(await requestHeaders()),
           },
         });
         return res.headers.get('content-type')?.includes('json') ? res.json() : res.text();
@@ -244,3 +326,51 @@ export const SDK_EXAMPLES = {
 } as const;
 
 export const DEMO_PORTAL_FIXTURES = KYCHON_DEMO_PORTALS;
+
+interface RuntimeEnv {
+  apiBaseUrl?: string;
+  apiKey?: string;
+}
+
+interface KychonTransport {
+  apiBaseUrl: string;
+  endpoint: string;
+  apiKey?: string;
+}
+
+function readApiEndpoint(discovery?: JsonObject): string | undefined {
+  const api = discovery?.api;
+  if (!api || typeof api !== 'object' || Array.isArray(api)) return undefined;
+  const endpoint = (api as JsonObject).endpoint;
+  return typeof endpoint === 'string' ? endpoint : undefined;
+}
+
+function absolutizeApiEndpoint(endpoint: string, portalUrl: string, apiBaseUrl: string): string {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
+  if (endpoint.startsWith(KYCHON_CAPABILITY_FUNCTION_PATH)) return `${apiBaseUrl}${endpoint}`;
+  if (endpoint.startsWith('/')) return `${portalUrl}${endpoint}`;
+  return new URL(endpoint, `${portalUrl}/`).toString();
+}
+
+function readBrowserRuntimeEnv(): RuntimeEnv {
+  const maybeWindow = (globalThis as typeof globalThis & {
+    window?: { __KYCHON_API?: string; __KYCHON_ANON_KEY?: string };
+  }).window;
+  return {
+    ...(typeof maybeWindow?.__KYCHON_API === 'string' ? { apiBaseUrl: maybeWindow.__KYCHON_API } : {}),
+    ...(typeof maybeWindow?.__KYCHON_ANON_KEY === 'string' ? { apiKey: maybeWindow.__KYCHON_ANON_KEY } : {}),
+  };
+}
+
+function parseRuntimeEnv(source: string): RuntimeEnv {
+  return {
+    ...matchRuntimeAssignment(source, '__KYCHON_API', 'apiBaseUrl'),
+    ...matchRuntimeAssignment(source, '__KYCHON_ANON_KEY', 'apiKey'),
+  };
+}
+
+function matchRuntimeAssignment(source: string, name: string, key: keyof RuntimeEnv): RuntimeEnv {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = source.match(new RegExp(`${escaped}\\s*=\\s*['"]([^'"]+)['"]`));
+  return match?.[1] ? { [key]: match[1] } : {};
+}

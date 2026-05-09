@@ -1,6 +1,7 @@
 # Kychon Capability API
 
-Kychon exposes a versioned Capability API at `POST /functions/v1/kychon-api`.
+Kychon exposes a versioned Capability API through the Run402 function transport.
+The current public endpoint is `POST https://api.run402.com/functions/v1/kychon-api`.
 The human UI is a reference renderer over the same product capabilities.
 
 ## Versions
@@ -11,6 +12,9 @@ The initial version is `2026-05-08`.
 Engine version, schema version, SDK version, and CLI version are reported separately through discovery.
 
 ## Envelope
+
+Requests include the portal's public Run402 anon key in the `apikey` header.
+Agents can discover the endpoint from `/.well-known/kychon.json` and the public key from `/js/env.js`; the typed SDK does this automatically from `portalUrl`.
 
 ```json
 {

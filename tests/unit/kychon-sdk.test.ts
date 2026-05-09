@@ -19,15 +19,21 @@ function jsonResponse(body: unknown, status = 200) {
 describe('@kychon/sdk client', () => {
   it('performs product operations over POST /functions/v1/kychon-api', async () => {
     const mockFetch = vi.fn(async () => jsonResponse({ ok: true, correlationId: 'corr', data: { rows: [] } }));
-    const client = createKychonClient({ portalUrl: 'https://portal.test/', authToken: 'tok', fetch: mockFetch as typeof fetch });
+    const client = createKychonClient({
+      portalUrl: 'https://portal.test/',
+      apiEndpoint: 'https://api.run402.com/functions/v1/kychon-api',
+      apiKey: 'anon',
+      authToken: 'tok',
+      fetch: mockFetch as typeof fetch,
+    });
 
     await client.events.list({ limit: 5 });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://portal.test/functions/v1/kychon-api',
+      'https://api.run402.com/functions/v1/kychon-api',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer tok' }),
+        headers: expect.objectContaining({ apikey: 'anon', Authorization: 'Bearer tok' }),
       }),
     );
     expect(JSON.parse(String(mockFetch.mock.calls[0][1]?.body))).toEqual({
@@ -43,7 +49,12 @@ describe('@kychon/sdk client', () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse({ ok: true, correlationId: 'corr-1', data: { accepted: true } }))
       .mockResolvedValueOnce(jsonResponse({ ok: true, correlationId: 'corr-2', data: { result: { id: 1 } } }));
-    const client = createKychonClient({ portalUrl: 'https://portal.test', fetch: mockFetch as typeof fetch });
+    const client = createKychonClient({
+      portalUrl: 'https://portal.test',
+      apiEndpoint: 'https://api.run402.com/functions/v1/kychon-api',
+      apiKey: 'anon',
+      fetch: mockFetch as typeof fetch,
+    });
 
     await client.announcements.publish.validate({ title: 'News' });
     await client.announcements.publish.execute({ title: 'News' }, { confirmed: true });
@@ -98,6 +109,28 @@ describe('@kychon/sdk client', () => {
 
     await expect(client.discover()).resolves.toMatchObject({ product: { name: 'Kychon' } });
     expect(mockFetch).toHaveBeenCalledWith('https://portal.test/.well-known/kychon.json', { headers: {} });
+  });
+
+  it('auto-resolves the Run402 function endpoint and public key from portal discovery', async () => {
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/.well-known/kychon.json')) {
+        return jsonResponse({ api: { endpoint: 'https://api.run402.com/functions/v1/kychon-api' } });
+      }
+      if (url.endsWith('/js/env.js')) {
+        return new Response(
+          "window.__KYCHON_API = 'https://api.run402.com';\nwindow.__KYCHON_ANON_KEY = 'anon';\n",
+          { headers: { 'Content-Type': 'application/javascript' } },
+        );
+      }
+      return jsonResponse({ ok: true, correlationId: 'corr', data: { apiCurrentVersion: KYCHON_API_VERSION } });
+    });
+    const client = createKychonClient({ portalUrl: 'https://portal.test', fetch: mockFetch as typeof fetch });
+
+    await client.portal.version();
+
+    const postCall = mockFetch.mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(postCall?.[0]).toBe('https://api.run402.com/functions/v1/kychon-api');
+    expect(postCall?.[1]?.headers).toMatchObject({ apikey: 'anon' });
   });
 
   it('exposes helpers across the required domain namespaces and keeps raw access separate', () => {

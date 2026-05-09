@@ -18,8 +18,10 @@ describe('Capability API discovery documents', () => {
     expect(doc.product).toMatchObject({ name: 'Kychon' });
     expect(doc.engine).toMatchObject({ version: '1.2.3' });
     expect(doc.api).toMatchObject({
-      endpoint: '/functions/v1/kychon-api',
+      endpoint: 'https://api.run402.com/functions/v1/kychon-api',
+      transport: 'run402-functions',
       currentVersion: KYCHON_API_VERSION,
+      publicKeySource: '/js/env.js',
     });
     expect(doc.schema).toMatchObject({ manifest: '/kychon-capabilities.json' });
     expect(doc.sdk).toMatchObject({ package: '@kychon/sdk', firstDeliverable: true });
@@ -34,7 +36,8 @@ describe('Capability API discovery documents', () => {
     const registryOperations = listOperations().map((operation) => operation.name).sort();
 
     expect(manifest.apiVersion).toBe(KYCHON_API_VERSION);
-    expect(manifest.endpoint).toBe('/functions/v1/kychon-api');
+    expect(manifest.endpoint).toBe('https://api.run402.com/functions/v1/kychon-api');
+    expect(manifest.transport).toBe('run402-functions');
     expect(manifestOperations).toEqual(registryOperations);
     expect(manifest.rawAccess).toMatchObject({ available: true, level: 'low-level' });
     expect(manifest.uiParity).toMatchObject({ referenceRenderer: true });
@@ -55,6 +58,7 @@ describe('Capability API discovery documents', () => {
 
     expect(txt).toContain('https://portal.test/.well-known/kychon.json');
     expect(txt).toContain('https://portal.test/kychon-capabilities.json');
+    expect(txt).toContain('https://api.run402.com/functions/v1/kychon-api');
     expect(txt).toContain('@kychon/sdk');
     expect(txt).toContain('kychon CLI');
     expect(txt).toContain('phase=validate');

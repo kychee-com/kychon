@@ -8,6 +8,8 @@ if (!portalUrl) {
 
 const report = await runCapabilityConformance({
   portalUrl,
+  apiEndpoint: process.env.KYCHON_API_ENDPOINT,
+  apiKey: process.env.KYCHON_API_KEY,
   authToken: process.env.KYCHON_AUTH_TOKEN,
 });
 
