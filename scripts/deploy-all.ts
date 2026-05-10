@@ -17,12 +17,13 @@
 import { run402 } from "@run402/sdk/node";
 
 import { DEMOS, deployOneDemo } from "./deploy-demo.ts";
-import { prettyPrintError } from "./_lib.ts";
+import { isDryRun, prettyPrintError } from "./_lib.ts";
 
 const TARGETS = Object.keys(DEMOS);
 
 async function main(): Promise<void> {
-  const arg = process.argv[2];
+  const dryRun = isDryRun(process.argv);
+  const arg = process.argv.slice(2).find((value) => value !== "--dry-run");
   let targets: string[];
   if (!arg || arg === "all") {
     targets = TARGETS;
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
     console.log(`\n>>> [${i + 1}/${targets.length}] Deploying ${c.displayName} demo...`);
     console.log("--------------------------------------------");
     try {
-      await deployOneDemo(r, t);
+      await deployOneDemo(r, t, { dryRun });
       console.log(`>>> ${c.displayName}: OK`);
     } catch (err) {
       console.error(await prettyPrintError(err));

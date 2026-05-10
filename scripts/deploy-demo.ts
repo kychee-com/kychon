@@ -19,7 +19,7 @@ import { run402 } from "@run402/sdk/node";
 
 import { findDemoPortalByDeployKey } from "../src/lib/demo-portals.ts";
 import { bootstrapDemoAccounts } from "./bootstrap-demo.ts";
-import { prettyPrintError, ROOT, runDeploy, type Run402Instance } from "./_lib.ts";
+import { prettyPrintError, ROOT, runDeploy, type Run402Instance, type RunDeployResult } from "./_lib.ts";
 
 export interface DemoConfig {
   /** Display name for log headers ("Eagles", "Silver Pines", "Barrio Unido"). */
@@ -40,6 +40,13 @@ export interface DemoConfig {
   kychonProject: string;
   /** Path to the demo's reset-demo.js (relative to repo root). */
   resetDemoFile: string;
+}
+
+export interface DeployOneDemoOptions {
+  /** Assemble and validate the deploy without mutating Run402. */
+  dryRun?: boolean;
+  /** Continue past confirmation-required Run402 deploy warnings. */
+  allowWarnings?: boolean;
 }
 
 export const DEMOS: Record<string, DemoConfig> = {
@@ -145,7 +152,11 @@ function copyAssets(src: string, dst: string): () => void {
   };
 }
 
-export async function deployOneDemo(r: Run402Instance, key: string): Promise<void> {
+export async function deployOneDemo(
+  r: Run402Instance,
+  key: string,
+  opts: DeployOneDemoOptions = {},
+): Promise<RunDeployResult> {
   const config = DEMOS[key];
   if (!config) {
     throw new Error(
@@ -201,7 +212,7 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
       { stdio: "inherit", cwd: ROOT },
     );
 
-    await runDeploy(r, {
+    const result = await runDeploy(r, {
       projectId,
       anonKey,
       subdomain: config.subdomain,
@@ -209,14 +220,18 @@ export async function deployOneDemo(r: Run402Instance, key: string): Promise<voi
       // contains the chrome blocks + the demo's `extraSqlFile` content.
       excludeFunctions: ["check-expirations"],
       extraFunction: config.resetDemoFile,
-      allowWarnings: process.env.RUN402_ALLOW_WARNINGS === "true",
+      allowWarnings: opts.allowWarnings ?? process.env.RUN402_ALLOW_WARNINGS === "true",
+      dryRun: opts.dryRun === true,
     });
 
-    console.log("");
-    await bootstrapDemoAccounts(r, projectId);
+    if (opts.dryRun !== true) {
+      console.log("");
+      await bootstrapDemoAccounts(r, projectId);
+    }
 
     console.log(`\n=== ${config.displayName} deploy complete ===`);
     console.log(`Live at: ${config.liveUrl}`);
+    return result;
   } finally {
     cleanupAssets();
     if (previousProject === undefined) delete process.env.KYCHON_PROJECT;

@@ -25,7 +25,7 @@ import {
 
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
-export { fileSetFromDir };
+export { fileSetFromDir, run402 };
 
 /** Repo root, derived from this file's location. */
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
