@@ -714,8 +714,8 @@ export function createKychonClient(options: KychonClientOptions) {
     },
     polls: {
       ...domain('polls', ['list', 'get', 'getAttached'], ['create', 'update', 'attach', 'detach', 'close', 'reopen', 'delete'], query, mutation),
-      options: domain('pollOptions', [], ['add', 'update', 'reorder', 'delete'], query, mutation),
-      votes: domain('pollVotes', [], ['cast', 'clearMine'], query, mutation),
+      options: domain('pollOptions', ['list'], ['add', 'update', 'reorder', 'delete'], query, mutation),
+      votes: domain('pollVotes', ['list'], ['cast', 'clearMine'], query, mutation),
       results: { get: (input: JsonObject) => query<JsonObject>('pollResults.get', input) },
     },
     committees: domain('committees', ['list', 'get'], ['create', 'update', 'delete'], query, mutation),
@@ -734,6 +734,7 @@ export function createKychonClient(options: KychonClientOptions) {
     },
     activity: {
       list: (input: JsonObject = {}) => query<JsonObject>('activity.list', input),
+      create: mutation('activity.create'),
     },
     jobs: {
       checkExpirations: mutation('jobs.checkExpirations'),
@@ -743,17 +744,6 @@ export function createKychonClient(options: KychonClientOptions) {
     },
     raw: {
       capability: call,
-      postgrest: async (path: string, init: RequestInit = {}) => {
-        const transport = await resolveTransport();
-        const res = await fetchImpl(`${transport.apiBaseUrl}/rest/v1/${path}`, {
-          ...init,
-          headers: {
-            ...(init.headers || {}),
-            ...(await requestHeaders()),
-          },
-        });
-        return res.headers.get('content-type')?.includes('json') ? res.json() : res.text();
-      },
     },
   };
 }

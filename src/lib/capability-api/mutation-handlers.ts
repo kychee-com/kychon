@@ -428,6 +428,7 @@ function mutationSpec(operation: string): { table: string; objectType: ObjectTyp
   if (operation.startsWith('translations.')) return spec('content_translations', 'translation', operation);
   if (operation.startsWith('newsletters.drafts.')) return spec('newsletter_drafts', 'newsletterDraft', operation);
   if (operation.startsWith('insights.')) return spec('member_insights', 'insight', operation);
+  if (operation.startsWith('activity.')) return spec('activity_log', 'activityEntry', operation);
   if (operation.startsWith('exports.')) return { table: 'capability_executions', objectType: 'job', action: 'create' };
   return null;
 }

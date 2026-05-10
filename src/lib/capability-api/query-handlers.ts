@@ -42,6 +42,8 @@ const tableQueries: Record<string, QueryHandler> = {
   'polls.list': (input, ctx) => listResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
   'polls.get': (input, ctx) => oneResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
   'polls.getAttached': (input, ctx) => oneResult(ctx, 'polls', input, (row) => matchesAttached(row, input)),
+  'pollOptions.list': (input, ctx) => listResult(ctx, 'poll_options', input),
+  'pollVotes.list': (input, ctx) => listResult(ctx, 'poll_votes', input),
   'pollResults.get': pollResults,
   'committees.list': (input, ctx) => listResult(ctx, 'committees', input),
   'committees.get': (input, ctx) => oneResult(ctx, 'committees', input),
@@ -198,6 +200,11 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
     ['contentId', 'content_id'],
   ] as const) {
     if (input[inputKey] != null && String(row[rowKey]) !== String(input[inputKey])) return false;
+  }
+  for (const [inputKey, value] of Object.entries(input)) {
+    if (value == null || typeof value === 'object') continue;
+    const rowKey = inputKey in row ? inputKey : inputKey.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    if (rowKey in row && String(row[rowKey]) !== String(value)) return false;
   }
   return true;
 }

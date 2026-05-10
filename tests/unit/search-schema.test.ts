@@ -38,10 +38,11 @@ describe('native site search schema', () => {
     expect(schema).toContain('trg_search_events_sync');
   });
 
-  it('does not expose search_documents through PostgREST deploy config', () => {
-    const tableArray = deployLib.slice(deployLib.indexOf('const TABLE_NAMES'), deployLib.indexOf('] as const;'));
-    expect(tableArray).not.toContain('"search_documents"');
-    expect(deployLib).toContain('search_documents` is intentionally not exposed');
+  it('does not expose product tables through the low-level REST deploy config', () => {
+    const exposeDeclaration = deployLib.slice(deployLib.indexOf('export const EXPOSE_TABLES'), deployLib.indexOf('export interface CollectFunctionsOptions'));
+    expect(exposeDeclaration).toContain('[]');
+    expect(exposeDeclaration).not.toContain('"search_documents"');
+    expect(deployLib).toContain('Product data is intentionally not published');
   });
 
   it('runs a reindex pass after generated seed/import SQL', () => {

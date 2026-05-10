@@ -256,9 +256,9 @@ export async function hydrateSiteSearch(
     : 'all';
   typeInputEl.value = defaultType;
 
-  const { getAPI, getAuthHeaders } = await import('./api.js');
+  const { searchSite } = await import('./api.js');
   let timer: number | undefined;
-  let controller: AbortController | null = null;
+  let requestSeq = 0;
   let activeIndex = -1;
 
   function closeSuggestions() {
@@ -306,23 +306,13 @@ export async function hydrateSiteSearch(
   }
 
   async function fetchSuggestions(query: string) {
-    controller?.abort();
-    controller = new AbortController();
-    const params = new URLSearchParams({ q: query, type: typeInputEl.value || defaultType, suggest: '1' });
+    const seq = ++requestSeq;
     try {
-      const res = await fetch(`${getAPI()}/functions/v1/site-search?${params.toString()}`, {
-        headers: getAuthHeaders(),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        closeSuggestions();
-        return;
-      }
-      const data = await res.json();
-      if (inputEl.value.trim() !== query) return;
+      const data = await searchSite({ q: query, type: typeInputEl.value || defaultType, suggest: true });
+      if (seq !== requestSeq || inputEl.value.trim() !== query) return;
       renderSuggestions(data.results || []);
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') closeSuggestions();
+    } catch {
+      closeSuggestions();
     }
   }
 
@@ -330,7 +320,7 @@ export async function hydrateSiteSearch(
     window.clearTimeout(timer);
     const query = inputEl.value.trim();
     if (query.length < minChars) {
-      controller?.abort();
+      requestSeq += 1;
       closeSuggestions();
       return;
     }
@@ -362,7 +352,7 @@ export async function hydrateSiteSearch(
   });
 
   formEl.addEventListener('submit', () => {
-    controller?.abort();
+    requestSeq += 1;
     closeSuggestions();
   });
 

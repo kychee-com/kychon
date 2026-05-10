@@ -37,12 +37,20 @@ function makeWrapper(cfg: Record<string, unknown>): HTMLElement {
   return wrapper;
 }
 
+function capabilityResponse(rows: unknown[]) {
+  return {
+    ok: true,
+    json: () => Promise.resolve({ ok: true, correlationId: 'test', data: { rows, count: rows.length } }),
+  };
+}
+
+function envelope(fetchMock: ReturnType<typeof vi.fn>) {
+  return JSON.parse(fetchMock.mock.calls[0][1].body);
+}
+
 describe('hydrateEventsList', () => {
   it('upcoming filter hits gte.now', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      text: () => Promise.resolve('[]'),
-    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(capabilityResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = makeWrapper({ count: 3, filter: 'upcoming', layout: 'sidebar' });
@@ -53,14 +61,15 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain('events?starts_at=gte.');
-    expect(url).toContain('order=starts_at.asc');
-    expect(url).toContain('limit=3');
+    const body = envelope(fetchMock);
+    expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/kychon-api');
+    expect(body).toMatchObject({ operation: 'events.list', phase: 'query', input: { limit: 3 } });
+    expect(body.input.filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]));
+    expect(body.input.order).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', direction: 'asc' })]));
   });
 
   it('past filter inverts ordering', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[]') });
+    const fetchMock = vi.fn().mockResolvedValueOnce(capabilityResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = makeWrapper({ count: 4, filter: 'past', layout: 'list' });
@@ -71,13 +80,13 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain('starts_at=lt.');
-    expect(url).toContain('order=starts_at.desc');
+    const body = envelope(fetchMock);
+    expect(body.input.filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]));
+    expect(body.input.order).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', direction: 'desc' })]));
   });
 
   it('this_week filter window has both gte and lt bounds', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[]') });
+    const fetchMock = vi.fn().mockResolvedValueOnce(capabilityResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = makeWrapper({ count: 5, filter: 'this_week', layout: 'sidebar' });
@@ -88,15 +97,13 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
-    const url = fetchMock.mock.calls[0][0] as string;
-    // Use and=(...) instead of repeated ?starts_at=… params — PostgREST
-    // concatenates duplicate column filters and 400s on the second value.
-    expect(url).toContain('and=(starts_at.gte.');
-    expect(url).toContain(',starts_at.lt.');
+    const filters = envelope(fetchMock).input.filters;
+    expect(filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]));
+    expect(filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]));
   });
 
   it('empty result shows placeholder', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[]') }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(capabilityResponse([])));
     const wrapper = makeWrapper({ count: 2, filter: 'upcoming', layout: 'sidebar' });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
@@ -124,10 +131,7 @@ describe('hydrateEventsList', () => {
     const future = new Date(Date.now() + 86400000 * 3).toISOString();
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValueOnce({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
-      }),
+      vi.fn().mockResolvedValueOnce(capabilityResponse([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
     );
 
     const wrapper = makeWrapper({

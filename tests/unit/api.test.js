@@ -18,16 +18,32 @@ global.localStorage = {
   },
 };
 
-const {
-  get,
-  post,
-  patch,
-  del,
-  count,
-  createEventRegistrationOption,
-  updateEventRegistrationOption,
-  updateEventTimezone,
-} = await import('../../src/lib/api.ts');
+const { get, post, patch, del, count, createEventRegistrationOption, updateEventRegistrationOption, updateEventTimezone } =
+  await import('../../src/lib/api.ts');
+
+function capabilityOk(data) {
+  return {
+    ok: true,
+    json: () => Promise.resolve({ ok: true, correlationId: 'test-correlation', data }),
+  };
+}
+
+function capabilityError(code, message = 'Denied') {
+  return {
+    ok: false,
+    status: code === 'permission.denied' ? 403 : 500,
+    json: () =>
+      Promise.resolve({
+        ok: false,
+        correlationId: 'test-correlation',
+        error: { code, message, retryable: false },
+      }),
+  };
+}
+
+function callEnvelope(index = 0) {
+  return JSON.parse(mockFetch.mock.calls[index][1].body);
+}
 
 function tokenWithClaims(claims) {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -40,59 +56,70 @@ describe('api.js', () => {
     localStorage._data = {};
   });
 
-  it('GET includes apikey header', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[]') });
+  it('GET calls the Capability API with the anon key', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [], count: 0 }));
     await get('members');
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.test/rest/v1/members',
+      'https://api.test/functions/v1/kychon-api',
       expect.objectContaining({
-        method: 'GET',
+        method: 'POST',
         headers: expect.objectContaining({ apikey: 'test_key' }),
       }),
     );
+    expect(callEnvelope()).toMatchObject({ operation: 'members.list', phase: 'query', input: {} });
   });
 
-  it('POST sends body and Prefer header', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":1}]') });
-    const result = await post('items', { title: 'Test' });
-    const call = mockFetch.mock.calls[0];
-    expect(call[1].method).toBe('POST');
-    expect(call[1].headers.Prefer).toBe('return=representation');
-    expect(JSON.parse(call[1].body)).toEqual({ title: 'Test' });
+  it('POST maps table creation to a named mutation', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 1 }, changed: [], audit: null, verify: null }));
+    const result = await post('events', { title: 'Test', starts_at: '2026-06-01T10:00:00Z' });
+    const envelope = callEnvelope();
+    expect(envelope).toMatchObject({
+      operation: 'events.create',
+      phase: 'execute',
+      confirmed: true,
+      input: { title: 'Test', starts_at: '2026-06-01T10:00:00Z' },
+    });
+    expect(envelope.idempotencyKey).toMatch(/^events-create-/);
     expect(result).toEqual([{ id: 1 }]);
   });
 
-  it('PATCH sends body', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":1,"done":true}]') });
-    await patch('items?id=eq.1', { done: true });
-    expect(mockFetch.mock.calls[0][1].method).toBe('PATCH');
+  it('PATCH maps path ids to named mutations', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 1, title: 'Fresh' }, changed: [], audit: null, verify: null }));
+    await patch('sections?id=eq.1', { title: 'Fresh' });
+    expect(callEnvelope()).toMatchObject({
+      operation: 'sections.updateConfig',
+      phase: 'execute',
+      input: { id: 1, title: 'Fresh' },
+    });
   });
 
-  it('DELETE calls with correct method', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('') });
-    await del('items?id=eq.1');
-    expect(mockFetch.mock.calls[0][1].method).toBe('DELETE');
+  it('DELETE maps path ids to named mutations', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 1 }, changed: [], audit: null, verify: null }));
+    await del('events?id=eq.1');
+    expect(callEnvelope()).toMatchObject({
+      operation: 'events.delete',
+      phase: 'execute',
+      confirmed: true,
+      input: { id: 1 },
+    });
   });
 
   it('includes Authorization header when session exists', async () => {
     localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok123', refresh_token: 'ref123' }));
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[]') });
+    mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [], count: 0 }));
     await get('members');
     expect(mockFetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok123');
   });
 
-  it('attempts token refresh on 401', async () => {
+  it('attempts token refresh when the capability call is denied for a refreshable session', async () => {
     localStorage.setItem('wl_session', JSON.stringify({ access_token: 'expired', refresh_token: 'ref123' }));
 
-    // First call returns 401
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 401 });
-    // Refresh call succeeds
+    mockFetch.mockResolvedValueOnce(capabilityError('permission.denied'));
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ access_token: 'new_tok', refresh_token: 'new_ref' }),
     });
-    // Retry succeeds
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[]') });
+    mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [], count: 0 }));
 
     await get('members');
 
@@ -102,7 +129,7 @@ describe('api.js', () => {
     expect(mockFetch.mock.calls[1][0]).toContain('/auth/v1/token?grant_type=refresh_token');
   });
 
-  it('refreshes once on 403 when a stored session has a refresh token', async () => {
+  it('refreshes once on denied mutations when a stored session has a refresh token', async () => {
     localStorage.setItem(
       'wl_session',
       JSON.stringify({
@@ -111,12 +138,12 @@ describe('api.js', () => {
       }),
     );
 
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 403 });
+    mockFetch.mockResolvedValueOnce(capabilityError('permission.denied'));
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ access_token: 'new_tok', refresh_token: 'new_ref' }),
     });
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":1}]') });
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 1 }, changed: [], audit: null, verify: null }));
 
     await patch('sections?id=eq.1', { title: 'Fresh' });
 
@@ -125,68 +152,59 @@ describe('api.js', () => {
     expect(mockFetch.mock.calls[2][1].headers.Authorization).toBe('Bearer new_tok');
   });
 
-  it('does not refresh 403 responses without a refresh token', async () => {
+  it('does not refresh denied responses without a refresh token', async () => {
     localStorage.setItem(
       'wl_session',
       JSON.stringify({
         access_token: tokenWithClaims({ role: 'authenticated' }),
       }),
     );
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 403,
-      json: () => Promise.resolve({ message: 'Forbidden' }),
-    });
+    mockFetch.mockResolvedValueOnce(capabilityError('permission.denied', 'Forbidden'));
 
-    await expect(patch('sections?id=eq.1', { title: 'Fresh' })).rejects.toThrow('API PATCH sections?id=eq.1: 403');
+    await expect(patch('sections?id=eq.1', { title: 'Fresh' })).rejects.toThrow('Forbidden');
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('throws on non-401 error', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ message: 'Server error' }),
-    });
-    await expect(get('bad')).rejects.toThrow('API GET bad: 500');
+  it('throws on capability errors', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityError('internal.error', 'Server error'));
+    await expect(get('members')).rejects.toThrow('Server error');
   });
 
-  it('count parses Content-Range header', async () => {
-    mockFetch.mockResolvedValueOnce({
-      headers: { get: (h) => (h === 'Content-Range' ? '0-0/42' : null) },
-    });
+  it('count uses capability query row counts', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [{ id: 1 }, { id: 2 }], count: 2 }));
     const c = await count('members?status=eq.active');
-    expect(c).toBe(42);
+    expect(c).toBe(2);
   });
 
-  it('persists new event registration options through the registration table', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":7}]') });
+  it('persists new event registration options through a named mutation', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 7 }, changed: [], audit: null, verify: null }));
     await createEventRegistrationOption({ event_id: 1, label: 'Member', review_state: 'needs_review' });
-    const [url, opts] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.test/rest/v1/event_registration_options');
-    expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body)).toMatchObject({ event_id: 1, label: 'Member' });
+    expect(callEnvelope()).toMatchObject({
+      operation: 'registrationOptions.create',
+      input: { event_id: 1, label: 'Member' },
+    });
   });
 
-  it('persists registration review edits through the registration table', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":7}]') });
+  it('persists registration review edits through a named mutation', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 7 }, changed: [], audit: null, verify: null }));
     await updateEventRegistrationOption(7, { review_state: 'reviewed', is_disabled: true });
-    const [url, opts] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.test/rest/v1/event_registration_options?id=eq.7');
-    expect(opts.method).toBe('PATCH');
-    expect(JSON.parse(opts.body)).toMatchObject({ review_state: 'reviewed', is_disabled: true });
+    expect(callEnvelope()).toMatchObject({
+      operation: 'registrationOptions.update',
+      input: { id: 7, review_state: 'reviewed', is_disabled: true },
+    });
   });
 
-  it('persists event timezone overrides through the events table', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, text: () => Promise.resolve('[{"id":3}]') });
+  it('persists event timezone overrides through a named mutation', async () => {
+    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 3 }, changed: [], audit: null, verify: null }));
     await updateEventTimezone(3, { source_timezone: 'Australia/Sydney', time_display_mode: 'source' });
-    const [url, opts] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.test/rest/v1/events?id=eq.3');
-    expect(opts.method).toBe('PATCH');
-    expect(JSON.parse(opts.body)).toMatchObject({
-      source_timezone: 'Australia/Sydney',
-      time_display_mode: 'source',
+    expect(callEnvelope()).toMatchObject({
+      operation: 'events.update',
+      input: {
+        id: 3,
+        source_timezone: 'Australia/Sydney',
+        time_display_mode: 'source',
+      },
     });
   });
 });
