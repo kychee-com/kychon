@@ -1,6 +1,70 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { KYCHON_API_VERSION, handleCapabilityApiRequest, type MemberRowLike } from '../../src/lib/capability-api/index.ts';
+import {
+  KYCHON_API_VERSION,
+  handleCapabilityApiRequest,
+  type CapabilityExecutionRecord,
+  type CapabilityExecutionStore,
+  type CapabilityMutationDb,
+  type JsonObject,
+  type MemberRowLike,
+} from '../../src/lib/capability-api/index.ts';
+
+class MemoryMutationDb implements CapabilityMutationDb {
+  counters: Record<string, number> = {};
+
+  constructor(public tables: Record<string, JsonObject[]>) {}
+
+  async select(table: string) {
+    return this.tables[table] || [];
+  }
+
+  async insert(table: string, row: JsonObject) {
+    const nextId = (this.counters[table] || this.maxId(table)) + 1;
+    this.counters[table] = nextId;
+    const created = { id: nextId, ...row };
+    this.tables[table] = [...(this.tables[table] || []), created];
+    return created;
+  }
+
+  async update(table: string, id: string | number, patch: JsonObject) {
+    const rows = this.tables[table] || [];
+    const index = rows.findIndex((row) => String(row.id) === String(id) || String(row.key) === String(id));
+    if (index < 0) return null;
+    rows[index] = { ...rows[index], ...patch };
+    return rows[index];
+  }
+
+  async delete(table: string, id: string | number) {
+    const rows = this.tables[table] || [];
+    const index = rows.findIndex((row) => String(row.id) === String(id));
+    if (index < 0) return null;
+    const [deleted] = rows.splice(index, 1);
+    return deleted || null;
+  }
+
+  private maxId(table: string) {
+    return Math.max(0, ...(this.tables[table] || []).map((row) => Number(row.id || 0)));
+  }
+}
+
+class MemoryExecutionStore implements CapabilityExecutionStore {
+  records = new Map<string, CapabilityExecutionRecord>();
+
+  async findExecution(apiVersion: string, idempotencyKey: string) {
+    return this.records.get(`${apiVersion}:${idempotencyKey}`) || null;
+  }
+
+  async createExecution(record: CapabilityExecutionRecord) {
+    this.records.set(`${record.apiVersion}:${record.idempotencyKey}`, record);
+    return record;
+  }
+
+  async updateExecution(record: CapabilityExecutionRecord) {
+    this.records.set(`${record.apiVersion}:${record.idempotencyKey}`, record);
+    return record;
+  }
+}
 
 function request(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request('https://portal.test/functions/v1/kychon-api', {
@@ -16,13 +80,19 @@ function request(body: unknown, headers: Record<string, string> = {}): Request {
 function deps({
   user = null,
   members = [],
+  mutationDb,
+  executionStore,
 }: {
   user?: { id?: string; email?: string; app_metadata?: Record<string, unknown> } | null;
   members?: MemberRowLike[];
+  mutationDb?: CapabilityMutationDb;
+  executionStore?: CapabilityExecutionStore;
 } = {}) {
   return {
     createCorrelationId: () => 'corr-test',
     getUser: vi.fn(async () => user),
+    ...(mutationDb ? { mutationDb } : {}),
+    ...(executionStore ? { executionStore } : {}),
     adminDb: () => ({
       from(table: string) {
         expect(table).toBe('members');
@@ -161,6 +231,41 @@ describe('Capability API gateway', () => {
 
     expect(out.status).toBe(400);
     expect(out.body.error.code).toBe('request.invalidEnvelope');
+  });
+
+  it('records, replays, and conflict-checks execute idempotency keys', async () => {
+    const mutationDb = new MemoryMutationDb({ events: [], activity_log: [] });
+    const executionStore = new MemoryExecutionStore();
+    const baseDeps = deps({
+      user: { id: 'admin-user' },
+      members: [{ id: 1, user_id: 'admin-user', role: 'admin', status: 'active' }],
+      mutationDb,
+      executionStore,
+    });
+    const envelope = {
+      apiVersion: KYCHON_API_VERSION,
+      operation: 'events.create',
+      phase: 'execute',
+      idempotencyKey: 'event-create-1',
+      input: { title: 'Meet', starts_at: '2026-06-01T10:00:00Z' },
+    };
+
+    const first = await json(await handleCapabilityApiRequest(request(envelope), baseDeps));
+    const replay = await json(await handleCapabilityApiRequest(request(envelope), baseDeps));
+    const conflict = await json(
+      await handleCapabilityApiRequest(
+        request({ ...envelope, input: { title: 'Changed', starts_at: '2026-06-01T10:00:00Z' } }),
+        baseDeps,
+      ),
+    );
+
+    expect(first.status).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(first.body.data.result.id).toBe(1);
+    expect(replay.body.data.result.id).toBe(1);
+    expect(mutationDb.tables.events).toHaveLength(1);
+    expect(conflict.status).toBe(409);
+    expect(conflict.body.error.code).toBe('conflict.idempotencyKey');
   });
 
   it('rejects missing confirmation for confirmation-required mutations', async () => {

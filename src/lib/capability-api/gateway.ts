@@ -13,12 +13,20 @@ import {
   type CapabilityMutationDb,
   type CapabilityStorage,
 } from './mutation-handlers.js';
+import {
+  beginCapabilityExecution,
+  completeCapabilityExecution,
+  failCapabilityExecution,
+  type CapabilityExecutionRecord,
+  type CapabilityExecutionStore,
+} from './idempotency.js';
 import type {
   ActionPlan,
   CapabilityError,
   CapabilityRequestEnvelope,
   CostClass,
   JsonObject,
+  JsonValue,
   OperationPhase,
   OperationRegistryEntry,
 } from './types.js';
@@ -29,6 +37,7 @@ export interface CapabilityGatewayDependencies extends ActorResolutionDependenci
   schemaVersion?: string;
   queryDb?: CapabilityQueryDb;
   mutationDb?: CapabilityMutationDb;
+  executionStore?: CapabilityExecutionStore;
   storage?: CapabilityStorage;
   ai?: CapabilityAi;
   jobs?: CapabilityJobs;
@@ -111,18 +120,59 @@ export async function handleCapabilityApiRequest(
   }
 
   if (deps.mutationDb) {
-    try {
-      return successResponse(
+    let executionRecord: CapabilityExecutionRecord | null = null;
+    if (deps.executionStore) {
+      const execution = await beginCapabilityExecution({
+        store: deps.executionStore,
+        apiVersion: envelope.apiVersion,
+        operation: operation.name,
+        idempotencyKey: envelope.idempotencyKey!,
+        actor,
+        input: envelope.input,
         correlationId,
-        await executeCapabilityMutation(operation.name, envelope.input, {
-          actor,
-          db: deps.mutationDb,
-          ...(deps.storage ? { storage: deps.storage } : {}),
-          ...(deps.ai ? { ai: deps.ai } : {}),
-          ...(deps.jobs ? { jobs: deps.jobs } : {}),
-        }),
-      );
+      });
+
+      if (execution.kind === 'replay') return successResponse(correlationId, execution.result);
+      if (execution.kind === 'conflict') {
+        return errorResponse(correlationId, 409, {
+          code: 'conflict.idempotencyKey',
+          message: execution.reason,
+          detail: {
+            operation: operation.name,
+            idempotencyKey: envelope.idempotencyKey!,
+            existingOperation: execution.record.operation,
+          },
+          retryable: false,
+        });
+      }
+      if (execution.kind === 'pending') {
+        return errorResponse(correlationId, 409, {
+          code: 'conflict.idempotencyKey',
+          message: 'A previous execution with this idempotencyKey is still in progress.',
+          detail: { operation: operation.name, idempotencyKey: envelope.idempotencyKey!, status: execution.record.status },
+          retryable: true,
+        });
+      }
+
+      executionRecord = execution.record;
+    }
+
+    try {
+      const data = await executeCapabilityMutation(operation.name, envelope.input, {
+        actor,
+        db: deps.mutationDb,
+        ...(deps.storage ? { storage: deps.storage } : {}),
+        ...(deps.ai ? { ai: deps.ai } : {}),
+        ...(deps.jobs ? { jobs: deps.jobs } : {}),
+      });
+      if (deps.executionStore && executionRecord) {
+        await completeCapabilityExecution(deps.executionStore, executionRecord, data as unknown as JsonValue);
+      }
+      return successResponse(correlationId, data);
     } catch (error) {
+      if (deps.executionStore && executionRecord) {
+        await failCapabilityExecution(deps.executionStore, executionRecord, executionFailurePayload(error));
+      }
       if (error instanceof CapabilityMutationError) {
         return errorResponse(correlationId, mutationStatus(error.code), {
           code: mutationErrorCode(error.code),
@@ -147,6 +197,7 @@ function mutationStatus(code: string): number {
   if (code === 'permission.denied') return 403;
   if (code === 'validation.failed') return 400;
   if (code === 'notFound.object') return 404;
+  if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
   return 501;
 }
@@ -156,11 +207,26 @@ function mutationErrorCode(code: string) {
     code === 'permission.denied' ||
     code === 'validation.failed' ||
     code === 'notFound.object' ||
+    code === 'conflict.idempotencyKey' ||
     code === 'conflict.state'
   ) {
     return code;
   }
   return 'internal.error';
+}
+
+function executionFailurePayload(error: unknown): JsonObject {
+  if (error instanceof CapabilityMutationError) {
+    return {
+      code: mutationErrorCode(error.code),
+      message: error.message,
+      ...(error.detail ? { detail: error.detail } : {}),
+    };
+  }
+  return {
+    code: 'internal.error',
+    message: error instanceof Error ? error.message : 'Execution failed.',
+  };
 }
 
 type ParseResult =

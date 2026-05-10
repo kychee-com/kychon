@@ -579,10 +579,37 @@ async function handlePollResultsQuery(correlationId, input, actor) {
 }
 
 async function handleExecute(correlationId, envelope, operation, actor) {
+  let executionRecord = null;
   try {
+    const execution = await beginExecution(envelope, operation, actor, correlationId);
+    if (execution.kind === 'replay') return successResponse(correlationId, execution.record.result_payload);
+    if (execution.kind === 'conflict') {
+      return errorResponse(correlationId, 409, {
+        code: 'conflict.idempotencyKey',
+        message: execution.reason,
+        detail: {
+          operation: operation.name,
+          idempotencyKey: envelope.idempotencyKey,
+          existingOperation: execution.record.operation,
+        },
+        retryable: false,
+      });
+    }
+    if (execution.kind === 'pending') {
+      return errorResponse(correlationId, 409, {
+        code: 'conflict.idempotencyKey',
+        message: 'A previous execution with this idempotencyKey is still in progress.',
+        detail: { operation: operation.name, idempotencyKey: envelope.idempotencyKey, status: execution.record.status },
+        retryable: true,
+      });
+    }
+
+    executionRecord = execution.record;
     const data = await executeMutation(operation.name, envelope.input, actor);
+    await completeExecution(executionRecord, data);
     return successResponse(correlationId, data);
   } catch (error) {
+    if (executionRecord) await failExecution(executionRecord, executionFailurePayload(error));
     if (error?.capabilityCode) {
       return errorResponse(correlationId, mutationStatus(error.capabilityCode), {
         code: mutationErrorCode(error.capabilityCode),
@@ -598,6 +625,126 @@ async function handleExecute(correlationId, envelope, operation, actor) {
       retryable: true,
     });
   }
+}
+
+async function beginExecution(envelope, operation, actor, correlationId) {
+  const inputDigest = await digestJson(envelope.input);
+  const existing = await findExecution(envelope.apiVersion, envelope.idempotencyKey);
+  if (existing) {
+    if (existing.operation !== operation.name) {
+      return { kind: 'conflict', record: existing, reason: 'Idempotency key was used with another operation.' };
+    }
+    if (existing.input_digest !== inputDigest) {
+      return { kind: 'conflict', record: existing, reason: 'Idempotency key was used with different input.' };
+    }
+    if (existing.status === 'succeeded') return { kind: 'replay', record: existing };
+    if (isStaleExecution(existing)) return { kind: 'resume', record: existing };
+    return { kind: 'pending', record: existing };
+  }
+
+  const now = new Date().toISOString();
+  try {
+    const record = await insertRow('capability_executions', {
+      api_version: envelope.apiVersion,
+      operation: operation.name,
+      idempotency_key: envelope.idempotencyKey,
+      actor_ref: actorReference(actor),
+      actor_state: actor.state,
+      input_digest: inputDigest,
+      status: 'started',
+      result_digest: null,
+      result_payload: null,
+      error_payload: null,
+      correlation_id: correlationId,
+      created_at: now,
+      updated_at: now,
+    });
+    return { kind: 'started', record };
+  } catch (error) {
+    const raced = await findExecution(envelope.apiVersion, envelope.idempotencyKey);
+    if (raced) return beginExecution(envelope, operation, actor, correlationId);
+    throw error;
+  }
+}
+
+async function findExecution(apiVersion, idempotencyKey) {
+  const rows = await adminDb()
+    .from('capability_executions')
+    .select('*')
+    .eq('api_version', apiVersion)
+    .eq('idempotency_key', idempotencyKey)
+    .limit(1);
+  return normalizeDbRows(rows)[0] || null;
+}
+
+async function completeExecution(record, result) {
+  return updateRow('capability_executions', record.id, {
+    status: 'succeeded',
+    result_digest: await digestJson(result),
+    result_payload: result,
+    error_payload: null,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function failExecution(record, errorPayload) {
+  return updateRow('capability_executions', record.id, {
+    status: 'failed',
+    result_digest: null,
+    result_payload: null,
+    error_payload: errorPayload,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+function isStaleExecution(record) {
+  if (!record.updated_at) return false;
+  return Date.now() - new Date(record.updated_at).getTime() > 5 * 60 * 1000;
+}
+
+function executionFailurePayload(error) {
+  if (error?.capabilityCode) {
+    return {
+      code: mutationErrorCode(error.capabilityCode),
+      message: error.message,
+      ...(error.detail ? { detail: error.detail } : {}),
+    };
+  }
+  return { code: 'internal.error', message: error instanceof Error ? error.message : 'Execution failed.' };
+}
+
+function actorReference(actor) {
+  if (actor.member) {
+    return {
+      type: 'member',
+      id: actor.member.id,
+      ...(actor.member.email ? { email: actor.member.email } : {}),
+    };
+  }
+  if (actor.user) {
+    return {
+      type: 'user',
+      id: actor.user.id,
+      ...(actor.user.email ? { email: actor.user.email } : {}),
+    };
+  }
+  return { type: 'anonymous' };
+}
+
+async function digestJson(value) {
+  const bytes = new TextEncoder().encode(stableJsonStringify(value));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function stableJsonStringify(value) {
+  if (value === undefined) return 'null';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableJsonStringify(item)).join(',')}]`;
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`)
+    .join(',')}}`;
 }
 
 async function executeMutation(name, input, actor) {
@@ -631,7 +778,7 @@ async function genericMutation(operation, input, actor) {
   } else if (spec.action === 'upsertConfig') {
     row = await upsertConfig(input);
   } else {
-    row = await updateRow(spec.table, requiredId(input, operation), rowForUpdate(operation, input, actor));
+    row = await updateRow(spec.table, idForUpdate(operation, input, actor), rowForUpdate(operation, input, actor));
   }
 
   const object = changedObject(spec.objectType, row?.id ?? input.id ?? input.key ?? 'unknown');
@@ -874,6 +1021,7 @@ function rowForCreate(operation, input, actor) {
 }
 
 function rowForUpdate(operation, input, actor) {
+  if (operation === 'members.updateProfile') return memberProfilePatch(input);
   if (operation === 'members.approve') return { status: 'active' };
   if (operation === 'members.reject') return { status: 'rejected' };
   if (operation === 'members.suspend') return { status: 'suspended' };
@@ -1019,6 +1167,26 @@ function requiredId(input, operation) {
   return requiredAny(input.id, `${operation} requires id.`);
 }
 
+function idForUpdate(operation, input, actor) {
+  if (operation !== 'members.updateProfile') return requiredId(input, operation);
+  const actorMemberId = memberId(actor);
+  if (!actorMemberId) throw capabilityError('permission.denied', 'members.updateProfile requires an active member.');
+  if (input.id != null && String(input.id) !== String(actorMemberId)) {
+    throw capabilityError('permission.denied', 'members.updateProfile can only update the active member profile.', {
+      object: changedObject('member', String(input.id)),
+    });
+  }
+  return actorMemberId;
+}
+
+function memberProfilePatch(input) {
+  const patch = {};
+  for (const field of ['display_name', 'avatar_url', 'bio', 'custom_fields']) {
+    if (input[field] !== undefined) patch[field] = input[field];
+  }
+  return patch;
+}
+
 function requiredAny(value, message) {
   if (typeof value === 'string' || typeof value === 'number') return value;
   throw capabilityError('validation.failed', message);
@@ -1044,12 +1212,13 @@ function mutationStatus(code) {
   if (code === 'permission.denied') return 403;
   if (code === 'validation.failed') return 400;
   if (code === 'notFound.object') return 404;
+  if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
   return 501;
 }
 
 function mutationErrorCode(code) {
-  if (['permission.denied', 'validation.failed', 'notFound.object', 'conflict.state'].includes(code)) return code;
+  if (['permission.denied', 'validation.failed', 'notFound.object', 'conflict.idempotencyKey', 'conflict.state'].includes(code)) return code;
   return 'internal.error';
 }
 
