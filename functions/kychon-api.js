@@ -255,6 +255,8 @@ const TABLE_QUERIES = {
   'jobs.status': { table: 'capability_executions', mode: 'list' },
 };
 
+const SQL_WRITE_TABLES = new Set(['events', 'resources']);
+
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store',
@@ -1090,13 +1092,17 @@ function spec(table, objectType, operation) {
 }
 
 async function insertRow(table, row) {
-  const result = await adminDb().from(table).insert(cleanRow(row));
-  return normalizeDbRows(result)[0] || cleanRow(row);
+  const cleaned = cleanRow(row);
+  if (SQL_WRITE_TABLES.has(table)) return insertRowSql(table, cleaned);
+  const result = await adminDb().from(table).insert(cleaned);
+  return normalizeDbRows(result)[0] || cleaned;
 }
 
 async function updateRow(table, id, patch) {
-  const result = await adminDb().from(table).update(cleanRow(patch)).eq('id', id);
-  return normalizeDbRows(result)[0] || { id, ...cleanRow(patch) };
+  const cleaned = cleanRow(patch);
+  if (SQL_WRITE_TABLES.has(table)) return updateRowSql(table, 'id', id, cleaned);
+  const result = await adminDb().from(table).update(cleaned).eq('id', id);
+  return normalizeDbRows(result)[0] || { id, ...cleaned };
 }
 
 async function updateConfigRow(key, patch) {
@@ -1105,9 +1111,51 @@ async function updateConfigRow(key, patch) {
 }
 
 async function deleteRow(table, id) {
+  if (SQL_WRITE_TABLES.has(table)) return deleteRowSql(table, 'id', id);
   const existing = (await selectRows(table)).find((row) => String(row.id) === String(id)) || { id };
   await adminDb().from(table).delete().eq('id', id);
   return existing;
+}
+
+async function insertRowSql(table, row) {
+  const entries = Object.entries(row);
+  if (!entries.length) {
+    const result = await adminDb().sql(`INSERT INTO ${quoteIdent(table)} DEFAULT VALUES RETURNING *`);
+    return normalizeDbRows(result)[0] || {};
+  }
+  const columns = entries.map(([key]) => quoteIdent(key)).join(', ');
+  const placeholders = entries.map((_, index) => `$${index + 1}`).join(', ');
+  const values = entries.map(([, value]) => value);
+  const result = await adminDb().sql(`INSERT INTO ${quoteIdent(table)} (${columns}) VALUES (${placeholders}) RETURNING *`, values);
+  return normalizeDbRows(result)[0] || row;
+}
+
+async function updateRowSql(table, keyColumn, keyValue, patch) {
+  const entries = Object.entries(patch);
+  if (!entries.length) return (await selectOneRowSql(table, keyColumn, keyValue)) || { [keyColumn]: keyValue };
+  const assignments = entries.map(([key], index) => `${quoteIdent(key)} = $${index + 1}`).join(', ');
+  const values = [...entries.map(([, value]) => value), keyValue];
+  const result = await adminDb().sql(
+    `UPDATE ${quoteIdent(table)} SET ${assignments} WHERE ${quoteIdent(keyColumn)} = $${values.length} RETURNING *`,
+    values,
+  );
+  return normalizeDbRows(result)[0] || { [keyColumn]: keyValue, ...patch };
+}
+
+async function deleteRowSql(table, keyColumn, keyValue) {
+  const result = await adminDb().sql(
+    `DELETE FROM ${quoteIdent(table)} WHERE ${quoteIdent(keyColumn)} = $1 RETURNING *`,
+    [keyValue],
+  );
+  return normalizeDbRows(result)[0] || { [keyColumn]: keyValue };
+}
+
+async function selectOneRowSql(table, keyColumn, keyValue) {
+  const result = await adminDb().sql(
+    `SELECT * FROM ${quoteIdent(table)} WHERE ${quoteIdent(keyColumn)} = $1 LIMIT 1`,
+    [keyValue],
+  );
+  return normalizeDbRows(result)[0] || null;
 }
 
 function normalizeDbRows(result) {
@@ -1119,6 +1167,13 @@ function normalizeDbRows(result) {
 
 function cleanRow(row) {
   return Object.fromEntries(Object.entries(row || {}).filter(([, value]) => value !== undefined));
+}
+
+function quoteIdent(name) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(name))) {
+    throw capabilityError('validation.failed', `Unsafe SQL identifier: ${name}`);
+  }
+  return `"${String(name).replace(/"/g, '""')}"`;
 }
 
 async function writeActivity(actor, action, metadata) {
