@@ -64,8 +64,12 @@ describe('hydrateEventsList', () => {
     const body = envelope(fetchMock);
     expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/kychon-api');
     expect(body).toMatchObject({ operation: 'events.list', phase: 'query', input: { limit: 3 } });
-    expect(body.input.filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]));
-    expect(body.input.order).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', direction: 'asc' })]));
+    expect(body.input.filters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]),
+    );
+    expect(body.input.order).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'starts_at', direction: 'asc' })]),
+    );
   });
 
   it('past filter inverts ordering', async () => {
@@ -81,8 +85,12 @@ describe('hydrateEventsList', () => {
     );
 
     const body = envelope(fetchMock);
-    expect(body.input.filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]));
-    expect(body.input.order).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', direction: 'desc' })]));
+    expect(body.input.filters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]),
+    );
+    expect(body.input.order).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'starts_at', direction: 'desc' })]),
+    );
   });
 
   it('this_week filter window has both gte and lt bounds', async () => {
@@ -131,7 +139,9 @@ describe('hydrateEventsList', () => {
     const future = new Date(Date.now() + 86400000 * 3).toISOString();
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValueOnce(capabilityResponse([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
+      vi
+        .fn()
+        .mockResolvedValueOnce(capabilityResponse([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
     );
 
     const wrapper = makeWrapper({

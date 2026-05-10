@@ -18,8 +18,16 @@ global.localStorage = {
   },
 };
 
-const { get, post, patch, del, count, createEventRegistrationOption, updateEventRegistrationOption, updateEventTimezone } =
-  await import('../../src/lib/api.ts');
+const {
+  get,
+  post,
+  patch,
+  del,
+  count,
+  createEventRegistrationOption,
+  updateEventRegistrationOption,
+  updateEventTimezone,
+} = await import('../../src/lib/api.ts');
 
 function capabilityOk(data) {
   return {
@@ -84,7 +92,9 @@ describe('api.js', () => {
   });
 
   it('PATCH maps path ids to named mutations', async () => {
-    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 1, title: 'Fresh' }, changed: [], audit: null, verify: null }));
+    mockFetch.mockResolvedValueOnce(
+      capabilityOk({ result: { id: 1, title: 'Fresh' }, changed: [], audit: null, verify: null }),
+    );
     await patch('sections?id=eq.1', { title: 'Fresh' });
     expect(callEnvelope()).toMatchObject({
       operation: 'sections.updateConfig',

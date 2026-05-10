@@ -3,18 +3,18 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
-  KYCHON_API_VERSION,
   actionResult,
   auditReference,
   beginCapabilityExecution,
+  type CapabilityActor,
+  type CapabilityExecutionRecord,
+  type CapabilityExecutionStore,
   changedObject,
   completeCapabilityExecution,
   digestJson,
   getOperation,
+  KYCHON_API_VERSION,
   verificationQuery,
-  type CapabilityActor,
-  type CapabilityExecutionRecord,
-  type CapabilityExecutionStore,
 } from '../../src/lib/capability-api/index.ts';
 
 class MemoryExecutionStore implements CapabilityExecutionStore {

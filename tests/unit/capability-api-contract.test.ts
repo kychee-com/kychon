@@ -4,15 +4,15 @@ import {
   CAPABILITY_API_COMMON_SCHEMAS,
   ERROR_CODE_PATTERN,
   ERROR_CODES,
+  getOperation,
+  hasRegisteredOperation,
+  isOperationName,
   KYCHON_API_VERSION,
   OBJECT_TYPE_PATTERN,
   OBJECT_TYPES,
   OPERATION_NAME_PATTERN,
   SUPPORTED_API_VERSIONS,
   V1_OPERATION_CATALOG,
-  getOperation,
-  hasRegisteredOperation,
-  isOperationName,
 } from '../../src/lib/capability-api/index.ts';
 
 const expectedOperationNames = [

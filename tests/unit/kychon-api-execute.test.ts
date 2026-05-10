@@ -1,25 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import kychonApi from '../../functions/kychon-api.js';
-import { KYCHON_API_VERSION, type JsonObject } from '../../src/lib/capability-api/index.ts';
+import { type JsonObject, KYCHON_API_VERSION } from '../../src/lib/capability-api/index.ts';
+
+type MockDbChain = Promise<JsonObject[]> & {
+  eq(column: string, value: unknown): MockDbChain;
+  limit(count: number): Promise<JsonObject[]>;
+};
 
 const mockState = vi.hoisted(() => ({
   user: null as null | { id: string; email?: string },
   tables: {} as Record<string, JsonObject[]>,
   counters: {} as Record<string, number>,
   postgrestWriteRlsTables: new Set<string>(),
-  chain(rows: JsonObject[]) {
-    return {
-      then(resolve: (rows: JsonObject[]) => unknown, reject?: (error: unknown) => unknown) {
-        return Promise.resolve(rows).then(resolve, reject);
-      },
-      eq(column: string, value: unknown) {
-        return mockState.chain(rows.filter((row) => String(row[column]) === String(value)));
-      },
-      limit(count: number) {
-        return Promise.resolve(rows.slice(0, count));
-      },
-    };
+  chain(rows: JsonObject[]): MockDbChain {
+    const query = Promise.resolve(rows) as MockDbChain;
+    query.eq = (column: string, value: unknown) =>
+      mockState.chain(rows.filter((row) => String(row[column]) === String(value)));
+    query.limit = (count: number) => Promise.resolve(rows.slice(0, count));
+    return query;
   },
   insert(table: string, row: JsonObject) {
     if (mockState.postgrestWriteRlsTables.has(table)) {
@@ -155,7 +154,9 @@ function mockSql(query: string, params: unknown[]) {
   const select = normalized.match(/^SELECT \* FROM "([^"]+)" WHERE "([^"]+)" = \$1 LIMIT 1$/);
   if (select) {
     const [, table, column] = select;
-    return Promise.resolve((mockState.tables[table] || []).filter((row) => String(row[column]) === String(params[0])).slice(0, 1));
+    return Promise.resolve(
+      (mockState.tables[table] || []).filter((row) => String(row[column]) === String(params[0])).slice(0, 1),
+    );
   }
 
   const del = normalized.match(/^DELETE FROM "([^"]+)" WHERE "([^"]+)" = \$1 RETURNING \*$/);
@@ -201,7 +202,14 @@ describe('deployable kychon-api execute mutations', () => {
     mockState.user = { id: 'admin-user', email: 'admin@example.com' };
     mockState.postgrestWriteRlsTables = new Set(['events']);
     mockState.tables.members = [
-      { id: 1, user_id: 'admin-user', email: 'admin@example.com', display_name: 'Admin', role: 'admin', status: 'active' },
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
     ];
     const envelope = {
       apiVersion: KYCHON_API_VERSION,
@@ -230,7 +238,14 @@ describe('deployable kychon-api execute mutations', () => {
     mockState.user = { id: 'admin-user', email: 'admin@example.com' };
     mockState.postgrestWriteRlsTables = new Set(['resources']);
     mockState.tables.members = [
-      { id: 1, user_id: 'admin-user', email: 'admin@example.com', display_name: 'Admin', role: 'admin', status: 'active' },
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
     ];
 
     const created = await json(

@@ -3,11 +3,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
-  KYCHON_API_VERSION,
   buildCapabilityManifest,
   buildLlmsTxt,
   buildPortalVersion,
   buildWellKnownKychon,
+  KYCHON_API_VERSION,
   listOperations,
 } from '../../src/lib/capability-api/index.ts';
 
@@ -32,8 +32,12 @@ describe('Capability API discovery documents', () => {
 
   it('builds a capability manifest that matches the operation registry', () => {
     const manifest = buildCapabilityManifest();
-    const manifestOperations = (manifest.operations as Array<{ name: string }>).map((operation) => operation.name).sort();
-    const registryOperations = listOperations().map((operation) => operation.name).sort();
+    const manifestOperations = (manifest.operations as Array<{ name: string }>)
+      .map((operation) => operation.name)
+      .sort();
+    const registryOperations = listOperations()
+      .map((operation) => operation.name)
+      .sort();
 
     expect(manifest.apiVersion).toBe(KYCHON_API_VERSION);
     expect(manifest.endpoint).toBe('https://api.run402.com/functions/v1/kychon-api');

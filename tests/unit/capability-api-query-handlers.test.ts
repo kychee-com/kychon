@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  KYCHON_API_VERSION,
-  handleCapabilityApiRequest,
-  runCapabilityQuery,
   type CapabilityActor,
+  handleCapabilityApiRequest,
   type JsonObject,
+  KYCHON_API_VERSION,
+  runCapabilityQuery,
 } from '../../src/lib/capability-api/index.ts';
 
 class MemoryQueryDb {
@@ -159,66 +159,119 @@ describe('Capability API query handlers', () => {
     const anon = await runCapabilityQuery('search.query', { q: 'handbook' }, { actor: anonymousActor, db: sampleDb() });
     expect((anon as JsonObject).total).toBe(0);
 
-    const member = await runCapabilityQuery('search.suggest', { q: 'handbook' }, { actor: memberActor, db: sampleDb() });
+    const member = await runCapabilityQuery(
+      'search.suggest',
+      { q: 'handbook' },
+      { actor: memberActor, db: sampleDb() },
+    );
     expect((member as JsonObject).total).toBe(1);
     expect(((member as JsonObject).results as JsonObject[])[0].object).toEqual({ type: 'resource', id: '2' });
   });
 
   it('implements config, page, and section query visibility', async () => {
-    await expect(runCapabilityQuery('config.get', { key: 'site_name' }, { actor: anonymousActor, db: sampleDb() })).resolves.toMatchObject({
+    await expect(
+      runCapabilityQuery('config.get', { key: 'site_name' }, { actor: anonymousActor, db: sampleDb() }),
+    ).resolves.toMatchObject({
       key: 'site_name',
       value: 'Kychon Club',
     });
 
-    const anonPages = (await runCapabilityQuery('pages.list', {}, { actor: anonymousActor, db: sampleDb() })) as JsonObject;
+    const anonPages = (await runCapabilityQuery(
+      'pages.list',
+      {},
+      { actor: anonymousActor, db: sampleDb() },
+    )) as JsonObject;
     expect((anonPages.rows as JsonObject[]).map((row) => row.slug)).toEqual(['public']);
 
-    const adminPages = (await runCapabilityQuery('pages.list', {}, { actor: adminActor, db: sampleDb() })) as JsonObject;
+    const adminPages = (await runCapabilityQuery(
+      'pages.list',
+      {},
+      { actor: adminActor, db: sampleDb() },
+    )) as JsonObject;
     expect((adminPages.rows as JsonObject[]).map((row) => row.slug)).toEqual(['public', 'private', 'draft']);
   });
 
   it('implements member, tier, and member-field reads with permission-appropriate fields', async () => {
-    const memberList = (await runCapabilityQuery('members.list', {}, { actor: memberActor, db: sampleDb() })) as JsonObject;
+    const memberList = (await runCapabilityQuery(
+      'members.list',
+      {},
+      { actor: memberActor, db: sampleDb() },
+    )) as JsonObject;
     expect((memberList.rows as JsonObject[])[0].email).toBeUndefined();
     expect((memberList.rows as JsonObject[])[0].custom_fields).toBeUndefined();
 
-    const adminList = (await runCapabilityQuery('members.list', {}, { actor: adminActor, db: sampleDb() })) as JsonObject;
+    const adminList = (await runCapabilityQuery(
+      'members.list',
+      {},
+      { actor: adminActor, db: sampleDb() },
+    )) as JsonObject;
     expect((adminList.rows as JsonObject[])[0].email).toBe('member@example.com');
 
-    const fields = (await runCapabilityQuery('memberFields.list', {}, { actor: memberActor, db: sampleDb() })) as JsonObject;
+    const fields = (await runCapabilityQuery(
+      'memberFields.list',
+      {},
+      { actor: memberActor, db: sampleDb() },
+    )) as JsonObject;
     expect((fields.rows as JsonObject[]).map((row) => row.field_name)).toEqual(['public']);
   });
 
   it('implements events, registration options, RSVPs, announcements, and resources', async () => {
-    const anonEvents = (await runCapabilityQuery('events.list', {}, { actor: anonymousActor, db: sampleDb() })) as JsonObject;
+    const anonEvents = (await runCapabilityQuery(
+      'events.list',
+      {},
+      { actor: anonymousActor, db: sampleDb() },
+    )) as JsonObject;
     expect((anonEvents.rows as JsonObject[]).map((row) => row.title)).toEqual(['Public Event']);
 
-    const memberResources = (await runCapabilityQuery('resources.list', {}, { actor: memberActor, db: sampleDb() })) as JsonObject;
-    expect((memberResources.rows as JsonObject[]).map((row) => row.title)).toEqual(['Public Resource', 'Member Resource']);
+    const memberResources = (await runCapabilityQuery(
+      'resources.list',
+      {},
+      { actor: memberActor, db: sampleDb() },
+    )) as JsonObject;
+    expect((memberResources.rows as JsonObject[]).map((row) => row.title)).toEqual([
+      'Public Resource',
+      'Member Resource',
+    ]);
 
     const mine = (await runCapabilityQuery('rsvps.listMine', {}, { actor: memberActor, db: sampleDb() })) as JsonObject;
-    expect((mine.rows as JsonObject[])).toHaveLength(1);
+    expect(mine.rows as JsonObject[]).toHaveLength(1);
 
-    await expect(runCapabilityQuery('announcements.get', { id: 1 }, { actor: anonymousActor, db: sampleDb() })).resolves.toMatchObject({
+    await expect(
+      runCapabilityQuery('announcements.get', { id: 1 }, { actor: anonymousActor, db: sampleDb() }),
+    ).resolves.toMatchObject({
       id: 1,
       title: 'News',
     });
   });
 
   it('implements forum, poll, committee, reaction, moderation, AI, activity, and job reads', async () => {
-    const memberTopics = (await runCapabilityQuery('forum.topics.list', {}, { actor: memberActor, db: sampleDb() })) as JsonObject;
+    const memberTopics = (await runCapabilityQuery(
+      'forum.topics.list',
+      {},
+      { actor: memberActor, db: sampleDb() },
+    )) as JsonObject;
     expect((memberTopics.rows as JsonObject[]).map((row) => row.title)).toEqual(['Visible']);
 
-    const modTopics = (await runCapabilityQuery('forum.topics.list', {}, { actor: moderatorActor, db: sampleDb() })) as JsonObject;
+    const modTopics = (await runCapabilityQuery(
+      'forum.topics.list',
+      {},
+      { actor: moderatorActor, db: sampleDb() },
+    )) as JsonObject;
     expect((modTopics.rows as JsonObject[]).map((row) => row.title)).toEqual(['Visible', 'Hidden']);
 
-    const results = (await runCapabilityQuery('pollResults.get', { id: 1 }, { actor: memberActor, db: sampleDb() })) as JsonObject;
+    const results = (await runCapabilityQuery(
+      'pollResults.get',
+      { id: 1 },
+      { actor: memberActor, db: sampleDb() },
+    )) as JsonObject;
     expect(results.totalVotes).toBe(3);
 
     await expect(
       runCapabilityQuery('moderation.queue', {}, { actor: moderatorActor, db: sampleDb() }),
     ).resolves.toMatchObject({ count: 1 });
-    await expect(runCapabilityQuery('newsletters.drafts.list', {}, { actor: adminActor, db: sampleDb() })).resolves.toMatchObject({
+    await expect(
+      runCapabilityQuery('newsletters.drafts.list', {}, { actor: adminActor, db: sampleDb() }),
+    ).resolves.toMatchObject({
       count: 1,
     });
     await expect(runCapabilityQuery('jobs.status', {}, { actor: adminActor, db: sampleDb() })).resolves.toMatchObject({
@@ -244,7 +297,9 @@ describe('Capability API query handlers', () => {
           from: () => ({
             select: () => ({
               eq: () => ({
-                limit: () => [{ id: 10, user_id: 'user-1', email: 'member@example.com', role: 'member', status: 'active' }],
+                limit: () => [
+                  { id: 10, user_id: 'user-1', email: 'member@example.com', role: 'member', status: 'active' },
+                ],
               }),
             }),
           }),

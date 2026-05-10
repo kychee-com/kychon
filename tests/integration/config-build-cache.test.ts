@@ -74,7 +74,8 @@ describe('site_config cache build awareness', () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === 'https://api.test/functions/v1/kychon-api') {
         const envelope = envelopeFrom(init);
-        if (envelope.operation === 'config.get') return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'config.get')
+          return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
       }
       return capabilityResponse({});
     });
@@ -118,7 +119,8 @@ describe('site_config cache build awareness', () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === 'https://api.test/functions/v1/kychon-api') {
         const envelope = envelopeFrom(init);
-        if (envelope.operation === 'config.get') return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'config.get')
+          return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
         if (envelope.operation === 'members.list' && envelope.input.user_id === 'google-user-id') {
           return capabilityResponse({ rows: [], count: 0 });
         }
@@ -179,7 +181,8 @@ describe('site_config cache build awareness', () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === 'https://api.test/functions/v1/kychon-api') {
         const envelope = envelopeFrom(init);
-        if (envelope.operation === 'config.get') return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'config.get')
+          return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
         if (envelope.operation === 'members.list' && envelope.input.user_id === 'google-user-id') {
           return capabilityResponse({ rows: [], count: 0 });
         }

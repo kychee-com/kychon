@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  CapabilityMutationError,
-  executeCapabilityMutation,
-  validateCapabilityMutation,
   type CapabilityActor,
   type CapabilityMutationDb,
+  CapabilityMutationError,
+  executeCapabilityMutation,
   type JsonObject,
+  validateCapabilityMutation,
 } from '../../src/lib/capability-api/index.ts';
 
 class MemoryMutationDb implements CapabilityMutationDb {
@@ -121,7 +121,11 @@ function makeDb() {
 
 describe('Capability API mutation handlers', () => {
   it('validates mutation permissions, confirmation, side effects, and cost metadata', async () => {
-    const denied = await validateCapabilityMutation('events.create', { title: 'Meetup' }, { actor: anonymousActor, db: makeDb() });
+    const denied = await validateCapabilityMutation(
+      'events.create',
+      { title: 'Meetup' },
+      { actor: anonymousActor, db: makeDb() },
+    );
     expect(denied.accepted).toBe(false);
     expect(denied.permission.requiredState).toBe('admin');
 
@@ -175,7 +179,11 @@ describe('Capability API mutation handlers', () => {
     ];
 
     await expect(
-      executeCapabilityMutation('members.updateProfile', { id: 2, display_name: 'Hijacked' }, { actor: memberActor, db }),
+      executeCapabilityMutation(
+        'members.updateProfile',
+        { id: 2, display_name: 'Hijacked' },
+        { actor: memberActor, db },
+      ),
     ).rejects.toMatchObject({ code: 'permission.denied' });
 
     await executeCapabilityMutation(
@@ -210,7 +218,9 @@ describe('Capability API mutation handlers', () => {
 
   it('executes event, registration option, RSVP, announcement, resource, asset, and export mutations', async () => {
     const db = makeDb();
-    const storage = { upload: vi.fn(async (_kind: string, file: JsonObject) => ({ url: `/storage/${file.name || 'file'}` })) };
+    const storage = {
+      upload: vi.fn(async (_kind: string, file: JsonObject) => ({ url: `/storage/${file.name || 'file'}` })),
+    };
     const ctx = { actor: adminActor, db, storage };
 
     await executeCapabilityMutation('events.create', { title: 'New Event', starts_at: '2026-07-01T10:00:00Z' }, ctx);
@@ -221,7 +231,11 @@ describe('Capability API mutation handlers', () => {
       { title: 'News', body: 'Hello', poll: { question: 'Attend?', options: ['Yes', 'No'] }, pin: true },
       ctx,
     );
-    await executeCapabilityMutation('resources.upload', { file: { name: 'guide.pdf' }, metadata: { title: 'Guide' } }, ctx);
+    await executeCapabilityMutation(
+      'resources.upload',
+      { file: { name: 'guide.pdf' }, metadata: { title: 'Guide' } },
+      ctx,
+    );
     await executeCapabilityMutation('assets.upload', { file: { name: 'logo.png' }, path: 'logo.png' }, ctx);
     await executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx);
 
@@ -249,7 +263,11 @@ describe('Capability API mutation handlers', () => {
       executeCapabilityMutation('forum.replies.create', { topicId: 2, body: 'Nope' }, { actor: memberActor, db }),
     ).rejects.toBeInstanceOf(CapabilityMutationError);
 
-    await executeCapabilityMutation('forum.replies.create', { topicId: 1, body: 'Reply' }, { actor: memberActor, db, now: adminCtx.now });
+    await executeCapabilityMutation(
+      'forum.replies.create',
+      { topicId: 1, body: 'Reply' },
+      { actor: memberActor, db, now: adminCtx.now },
+    );
     expect(db.tables.forum_topics.find((row) => row.id === 1)?.reply_count).toBe(1);
 
     await executeCapabilityMutation('pollVotes.cast', { pollId: 1, optionId: 2 }, { actor: memberActor, db });
@@ -258,8 +276,16 @@ describe('Capability API mutation handlers', () => {
 
     await executeCapabilityMutation('committees.create', { name: 'Events' }, adminCtx);
     await executeCapabilityMutation('committeeMembers.add', { committee_id: 1, member_id: 2, role: 'chair' }, adminCtx);
-    await executeCapabilityMutation('reactions.toggle', { contentType: 'announcement', contentId: 1, emoji: 'heart' }, { actor: memberActor, db });
-    await executeCapabilityMutation('moderation.approve', { id: 1 }, { actor: { ...memberActor, state: 'moderator' }, db });
+    await executeCapabilityMutation(
+      'reactions.toggle',
+      { contentType: 'announcement', contentId: 1, emoji: 'heart' },
+      { actor: memberActor, db },
+    );
+    await executeCapabilityMutation(
+      'moderation.approve',
+      { id: 1 },
+      { actor: { ...memberActor, state: 'moderator' }, db },
+    );
 
     expect(db.tables.committees.some((row) => row.name === 'Events')).toBe(true);
     expect(db.tables.committee_members).toHaveLength(1);
@@ -278,7 +304,11 @@ describe('Capability API mutation handlers', () => {
     const ctx = { actor: adminActor, db, ai, jobs };
 
     await executeCapabilityMutation('translations.translateText', { text: 'Hello', language: 'es' }, ctx);
-    await executeCapabilityMutation('translations.translateContent', { contentType: 'page', contentId: 1, language: 'es' }, ctx);
+    await executeCapabilityMutation(
+      'translations.translateContent',
+      { contentType: 'page', contentId: 1, language: 'es' },
+      ctx,
+    );
     await executeCapabilityMutation('newsletters.drafts.generate', { periodStart: '2026-05-01' }, ctx);
     await executeCapabilityMutation('insights.dismiss', { id: 1 }, ctx);
     await executeCapabilityMutation('jobs.sendEventReminders', {}, ctx);
