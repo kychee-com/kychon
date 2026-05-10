@@ -109,7 +109,7 @@ export async function collectFunctionsMap(
   if (existsSync(dir)) {
     const entries = await readdir(dir);
     for (const f of entries.filter((e) => e.endsWith(".js"))) {
-      const code = await readFile(join(dir, f), "utf-8");
+      const code = injectFunctionBuildConstants(await readFile(join(dir, f), "utf-8"));
       out[f.replace(/\.js$/, "")] = makeFunctionSpec(code);
     }
   }
@@ -119,7 +119,7 @@ export async function collectFunctionsMap(
   }
 
   if (opts.extraFunction) {
-    const code = await readFile(opts.extraFunction, "utf-8");
+    const code = injectFunctionBuildConstants(await readFile(opts.extraFunction, "utf-8"));
     const name = (opts.extraFunction.split("/").pop() ?? opts.extraFunction).replace(/\.js$/, "");
     // Demo reset-demo takes ~8s in practice (DELETE+seed against ~14 sections
     // and ~150 demo rows). The 10s default leaves no headroom. Also acts as
@@ -132,6 +132,15 @@ export async function collectFunctionsMap(
   }
 
   return out;
+}
+
+function injectFunctionBuildConstants(code: string): string {
+  return code.replaceAll("__KYCHON_ENGINE_VERSION__", resolveKychonEngineVersion());
+}
+
+function resolveKychonEngineVersion(): string {
+  const packageJson = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
+  return process.env.KYCHON_ENGINE_VERSION || String(packageJson.version);
 }
 
 function makeFunctionSpec(

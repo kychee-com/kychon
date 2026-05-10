@@ -69,6 +69,9 @@ describe('Capability API discovery documents', () => {
     expect(readFileSync(join(import.meta.dirname, '../../src/pages/.well-known/kychon.json.ts'), 'utf8')).toContain(
       'buildWellKnownKychon',
     );
+    expect(readFileSync(join(import.meta.dirname, '../../src/pages/.well-known/kychon.json.ts'), 'utf8')).toContain(
+      'packageJson.version',
+    );
     expect(readFileSync(join(import.meta.dirname, '../../src/pages/kychon-capabilities.json.ts'), 'utf8')).toContain(
       'buildCapabilityManifest',
     );
