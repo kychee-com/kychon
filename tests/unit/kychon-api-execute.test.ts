@@ -7,6 +7,7 @@ const mockState = vi.hoisted(() => ({
   user: null as null | { id: string; email?: string },
   tables: {} as Record<string, JsonObject[]>,
   counters: {} as Record<string, number>,
+  postgrestWriteRlsTables: new Set<string>(),
   chain(rows: JsonObject[]) {
     return {
       then(resolve: (rows: JsonObject[]) => unknown, reject?: (error: unknown) => unknown) {
@@ -21,6 +22,9 @@ const mockState = vi.hoisted(() => ({
     };
   },
   insert(table: string, row: JsonObject) {
+    if (mockState.postgrestWriteRlsTables.has(table)) {
+      throw new Error(`PostgREST RLS blocked insert on ${table}`);
+    }
     const nextId = (mockState.counters[table] || maxId(mockState.tables[table] || [])) + 1;
     mockState.counters[table] = nextId;
     const created = { id: nextId, ...row };
@@ -28,6 +32,9 @@ const mockState = vi.hoisted(() => ({
     return Promise.resolve(created);
   },
   update(table: string, column: string, value: unknown, patch: JsonObject) {
+    if (mockState.postgrestWriteRlsTables.has(table)) {
+      throw new Error(`PostgREST RLS blocked update on ${table}`);
+    }
     const rows = mockState.tables[table] || [];
     const updated: JsonObject[] = [];
     mockState.tables[table] = rows.map((row) => {
@@ -39,6 +46,38 @@ const mockState = vi.hoisted(() => ({
     return Promise.resolve(updated);
   },
   delete(table: string, column: string, value: unknown) {
+    if (mockState.postgrestWriteRlsTables.has(table)) {
+      throw new Error(`PostgREST RLS blocked delete on ${table}`);
+    }
+    const rows = mockState.tables[table] || [];
+    const kept: JsonObject[] = [];
+    const deleted: JsonObject[] = [];
+    for (const row of rows) {
+      if (String(row[column]) === String(value)) deleted.push(row);
+      else kept.push(row);
+    }
+    mockState.tables[table] = kept;
+    return Promise.resolve(deleted);
+  },
+  insertSql(table: string, row: JsonObject) {
+    const nextId = (mockState.counters[table] || maxId(mockState.tables[table] || [])) + 1;
+    mockState.counters[table] = nextId;
+    const created = { id: nextId, ...row };
+    mockState.tables[table] = [...(mockState.tables[table] || []), created];
+    return Promise.resolve([created]);
+  },
+  updateSql(table: string, column: string, value: unknown, patch: JsonObject) {
+    const rows = mockState.tables[table] || [];
+    const updated: JsonObject[] = [];
+    mockState.tables[table] = rows.map((row) => {
+      if (String(row[column]) !== String(value)) return row;
+      const next = { ...row, ...patch };
+      updated.push(next);
+      return next;
+    });
+    return Promise.resolve(updated);
+  },
+  deleteSql(table: string, column: string, value: unknown) {
     const rows = mockState.tables[table] || [];
     const kept: JsonObject[] = [];
     const deleted: JsonObject[] = [];
@@ -56,6 +95,9 @@ vi.mock(
   () => ({
     getUser: vi.fn(async () => mockState.user),
     adminDb: () => ({
+      sql(query: string, params: unknown[] = []) {
+        return mockSql(query, params);
+      },
       from(table: string) {
         return {
           select() {
@@ -89,6 +131,42 @@ function maxId(rows: JsonObject[]) {
   return Math.max(0, ...rows.map((row) => Number(row.id || 0)));
 }
 
+function mockSql(query: string, params: unknown[]) {
+  const normalized = query.replace(/\s+/g, ' ').trim();
+  const insert = normalized.match(/^INSERT INTO "([^"]+)" \(([^)]+)\) VALUES \(([^)]+)\) RETURNING \*$/);
+  if (insert) {
+    const [, table, columns] = insert;
+    const row = Object.fromEntries(columns.split(', ').map((column, index) => [column.slice(1, -1), params[index]]));
+    return mockState.insertSql(table, row);
+  }
+
+  const update = normalized.match(/^UPDATE "([^"]+)" SET (.+) WHERE "([^"]+)" = \$([0-9]+) RETURNING \*$/);
+  if (update) {
+    const [, table, assignments, column, idParam] = update;
+    const patch = Object.fromEntries(
+      assignments.split(', ').map((assignment) => {
+        const [, rawColumn, rawParam] = assignment.match(/^"([^"]+)" = \$([0-9]+)$/) || [];
+        return [rawColumn, params[Number(rawParam) - 1]];
+      }),
+    );
+    return mockState.updateSql(table, column, params[Number(idParam) - 1], patch);
+  }
+
+  const select = normalized.match(/^SELECT \* FROM "([^"]+)" WHERE "([^"]+)" = \$1 LIMIT 1$/);
+  if (select) {
+    const [, table, column] = select;
+    return Promise.resolve((mockState.tables[table] || []).filter((row) => String(row[column]) === String(params[0])).slice(0, 1));
+  }
+
+  const del = normalized.match(/^DELETE FROM "([^"]+)" WHERE "([^"]+)" = \$1 RETURNING \*$/);
+  if (del) {
+    const [, table, column] = del;
+    return mockState.deleteSql(table, column, params[0]);
+  }
+
+  throw new Error(`Unexpected SQL: ${normalized}`);
+}
+
 function apiRequest(body: JsonObject) {
   return kychonApi(
     new Request('https://portal.test/functions/v1/kychon-api', {
@@ -109,6 +187,7 @@ async function json(res: Response) {
 beforeEach(() => {
   mockState.user = null;
   mockState.counters = {};
+  mockState.postgrestWriteRlsTables = new Set<string>();
   mockState.tables = {
     members: [],
     events: [],
@@ -120,6 +199,7 @@ beforeEach(() => {
 describe('deployable kychon-api execute mutations', () => {
   it('replays identical idempotency keys and rejects same-key input conflicts', async () => {
     mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.postgrestWriteRlsTables = new Set(['events']);
     mockState.tables.members = [
       { id: 1, user_id: 'admin-user', email: 'admin@example.com', display_name: 'Admin', role: 'admin', status: 'active' },
     ];
@@ -144,6 +224,28 @@ describe('deployable kychon-api execute mutations', () => {
     expect(mockState.tables.events).toHaveLength(1);
     expect(conflict.status).toBe(409);
     expect(conflict.body.error.code).toBe('conflict.idempotencyKey');
+  });
+
+  it('uses SQL-backed writes for resources when PostgREST table writes are RLS-blocked', async () => {
+    mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.postgrestWriteRlsTables = new Set(['resources']);
+    mockState.tables.members = [
+      { id: 1, user_id: 'admin-user', email: 'admin@example.com', display_name: 'Admin', role: 'admin', status: 'active' },
+    ];
+
+    const created = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'resources.upload',
+        phase: 'execute',
+        idempotencyKey: 'resource-upload-1',
+        input: { file: { name: 'guide.pdf' }, metadata: { title: 'Guide' } },
+      }),
+    );
+
+    expect(created.status).toBe(200);
+    expect(created.body.data.result).toMatchObject({ id: 1, title: 'Guide', uploaded_by: '1' });
+    expect(mockState.tables.resources).toHaveLength(1);
   });
 
   it('self-scopes members.updateProfile and drops admin-only fields', async () => {
