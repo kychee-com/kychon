@@ -72,25 +72,23 @@ export default async (req) => {
   const defaultTier = await adminDb().from('membership_tiers').select('id').eq('is_default', true).limit(1);
   const tierId = defaultTier.length > 0 ? defaultTier[0].id : null;
 
-  // Create member record
-  const created = await db
-    .from('members')
-    .insert({
-      user_id: userId,
-      email: memberEmail,
-      display_name: displayName,
-      avatar_url: avatarUrl,
-      tier_id: tierId,
-      role,
-      status: memberStatus,
-    })
-    .select('id,role,status');
+  // Create member record. adminDb().from(t).insert(row) returns the inserted
+  // row(s); the platform doesn't support a `.select(...)` chain on insert, so
+  // we read the first element directly.
+  const created = await adminDb().from('members').insert({
+    user_id: userId,
+    email: memberEmail,
+    display_name: displayName,
+    avatar_url: avatarUrl,
+    tier_id: tierId,
+    role,
+    status: memberStatus,
+  });
 
-  if (created.length === 0) {
+  const member = Array.isArray(created) ? created[0] : created;
+  if (!member?.id) {
     return new Response(JSON.stringify({ error: 'Failed to create member' }), { status: 500 });
   }
-
-  const member = created[0];
 
   // Log activity
   await adminDb()

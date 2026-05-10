@@ -1,10 +1,25 @@
 // schedule: none (triggered by client on resource upload)
 import { adminDb, getUser } from '@run402/functions';
 
+// File names that flow into the storage path must be limited to safe ASCII
+// segments — `..`, `/`, NUL, and other surprises would let a caller place
+// files outside `resources/`. (#25)
+const SAFE_FILE_NAME = /^[A-Za-z0-9._-]+$/;
+const MAX_BASE64_LEN = 50 * 1024 * 1024; // ~37 MB raw — Run402's per-blob upload limit.
+
 export default async (req) => {
   const user = await getUser(req);
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
+  // Admin-only — mirror the role check in upload-asset.js. The legacy "any
+  // authenticated user can upload" surface let arbitrary signed-in Run402
+  // users write to the project's resources bucket. (#25)
+  const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
+  const role = memberResult?.rows?.[0]?.role;
+  if (role !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
   }
 
   try {
@@ -13,6 +28,16 @@ export default async (req) => {
 
     if (!file?.data || !file.name) {
       return new Response(JSON.stringify({ error: 'No file provided' }), { status: 400 });
+    }
+
+    if (!SAFE_FILE_NAME.test(file.name)) {
+      return new Response(JSON.stringify({ error: 'Invalid file name', detail: 'expected [A-Za-z0-9._-]+' }), {
+        status: 400,
+      });
+    }
+
+    if (typeof file.data !== 'string' || file.data.length > MAX_BASE64_LEN) {
+      return new Response(JSON.stringify({ error: 'File too large' }), { status: 413 });
     }
 
     // Decode base64 file data
@@ -39,7 +64,10 @@ export default async (req) => {
     const uploadResult = await uploadRes.json();
     const fileUrl = uploadResult.url || `/storage/${path}`;
 
-    // Insert resource row
+    // Insert resource row. uploaded_by is bound to the authenticated admin —
+    // never honored from input. (#24/#25)
+    const memberRow = await adminDb().sql('SELECT id FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
+    const uploadedBy = memberRow?.rows?.[0]?.id ?? null;
     const created = await adminDb()
       .from('resources')
       .insert({
@@ -49,10 +77,11 @@ export default async (req) => {
         file_url: fileUrl,
         file_type: metadata.file_type || 'pdf',
         is_members_only: metadata.is_members_only !== false,
-        uploaded_by: metadata.uploaded_by || null,
+        uploaded_by: uploadedBy,
       });
 
-    return new Response(JSON.stringify({ status: 'ok', resource: created[0] }));
+    const row = Array.isArray(created) ? created[0] : created;
+    return new Response(JSON.stringify({ status: 'ok', resource: row }));
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }

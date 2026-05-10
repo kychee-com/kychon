@@ -61,19 +61,19 @@ async function handleNewsletter() {
 async function gatherWeeklyActivity(since) {
   const [newMembers, upcomingEvents, announcements, topForumPosts, newResources] = await Promise.all([
     adminDb().from('members').select('display_name').gte('joined_at', since).eq('status', 'active'),
-    db
+    adminDb()
       .from('events')
       .select('title,starts_at,location')
       .gte('starts_at', new Date().toISOString())
       .order('starts_at', { ascending: true })
       .limit(5),
-    db
+    adminDb()
       .from('announcements')
       .select('title,body')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(5),
-    db
+    adminDb()
       .from('forum_topics')
       .select('title,reply_count')
       .gte('created_at', since)

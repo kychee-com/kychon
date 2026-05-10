@@ -3,14 +3,17 @@
 // (Astro frontmatter runs in Node and shouldn't pull in localStorage/auth).
 
 import type { Section, BlockRenderContext } from './blocks.js';
+import { escAttr, escHtml } from './blocks.js';
 import { siteConfig } from './config.js';
 import { formatEventDateTime } from './event-display.js';
+import { sanitizeRichHtml } from './sanitize-html.js';
 
-function esc(s: any): string {
-  const d = document.createElement('div');
-  d.textContent = String(s ?? '');
-  return d.innerHTML;
-}
+// `esc()` is intentionally an alias for escAttr — every call site in this
+// module interpolates into a double-quoted attribute or HTML text, both of
+// which require the quote-escaping that escAttr provides. The previous
+// `textContent → innerHTML` helper left " and ' alone, which let attacker
+// content break out of attribute context (#23).
+const esc = escAttr;
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -93,8 +96,8 @@ export async function hydrateAnnouncementsFeed(
             : '';
           return `
         <div class="announcement card mb-1 ${a.is_pinned ? 'pinned' : ''}" data-id="${a.id}">
-          <div class="announcement-title" data-editable="announcements.${a.id}.title">${esc(a.title)}</div>
-          <div class="announcement-body" data-editable-rich="announcements.${a.id}.body">${a.body}</div>
+          <div class="announcement-title" data-editable="announcements.${a.id}.title">${escHtml(a.title)}</div>
+          <div class="announcement-body" data-editable-rich="announcements.${a.id}.body">${sanitizeRichHtml(a.body)}</div>
           ${pollHtml}
           <div class="announcement-meta">${a.is_pinned ? '<span class="badge badge-primary">Pinned</span> ' : ''}<span>${formatDate(a.created_at)}</span></div>
           ${ctx.role === 'admin' ? `<div class="mt-1 flex gap-1"><button class="btn btn-sm btn-secondary ann-pin" data-id="${a.id}" data-pinned="${a.is_pinned}">${a.is_pinned ? 'Unpin' : 'Pin'}</button><button class="btn btn-sm btn-danger ann-delete" data-id="${a.id}">Delete</button></div>` : ''}

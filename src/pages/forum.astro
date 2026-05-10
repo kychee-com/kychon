@@ -172,14 +172,14 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { del, get, patch, post } from '../lib/api';
   import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
+  import { escAttr } from '../lib/blocks';
   import { addTranslateButton, translateItems, isFeatureEnabled, getConfig } from '../lib/config';
   import { renderPoll, bindPollVoteListeners, createPollForm, submitPoll, fetchAttachedPoll } from '../lib/poll-ui';
 
-  function esc(s: string): string {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-  }
+  // Every esc(...) call below interpolates into a double-quoted attribute or
+  // HTML text. escAttr escapes both <>&" and ', closing the quote-breakout
+  // XSS in the previous textContent → innerHTML helper (#23).
+  const esc = escAttr;
 
   function timeAgo(dateStr: string): string {
     if (!dateStr) return '';
