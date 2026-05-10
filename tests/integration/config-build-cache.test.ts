@@ -29,6 +29,18 @@ function installLocalStorage(): Record<string, string> {
   return store;
 }
 
+function capabilityResponse(data: unknown) {
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ ok: true, correlationId: 'test', data }),
+  };
+}
+
+function envelopeFrom(init?: RequestInit) {
+  return JSON.parse(String(init?.body || '{}'));
+}
+
 describe('site_config cache build awareness', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -59,20 +71,12 @@ describe('site_config cache build awareness', () => {
     });
     store.wl_cache_i18n_en = JSON.stringify({ data: {}, ts: Date.now() });
 
-    const fetchMock = vi.fn(async (url: string) => {
-      if (url === 'https://api.test/rest/v1/site_config') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify(freshConfig)),
-        };
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === 'https://api.test/functions/v1/kychon-api') {
+        const envelope = envelopeFrom(init);
+        if (envelope.operation === 'config.get') return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
       }
-      return {
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-        text: () => Promise.resolve('{}'),
-      };
+      return capabilityResponse({});
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -81,8 +85,11 @@ describe('site_config cache build awareness', () => {
     await init();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.test/rest/v1/site_config',
-      expect.objectContaining({ method: 'GET' }),
+      'https://api.test/functions/v1/kychon-api',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"operation":"config.get"'),
+      }),
     );
     expect(siteConfig.brand_text).toBe('AAGE');
     expect(JSON.parse(store.wl_cache_site_config).buildId).toBe('new-build');
@@ -109,40 +116,25 @@ describe('site_config cache build awareness', () => {
     };
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/rest/v1/site_config') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify(freshConfig)),
-        };
+      if (url === 'https://api.test/functions/v1/kychon-api') {
+        const envelope = envelopeFrom(init);
+        if (envelope.operation === 'config.get') return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'members.list' && envelope.input.user_id === 'google-user-id') {
+          return capabilityResponse({ rows: [], count: 0 });
+        }
+        if (envelope.operation === 'members.list' && envelope.input.email === 'major.tal@gmail.com') {
+          return capabilityResponse({ rows: [member], count: 1 });
+        }
+        if (envelope.operation === 'members.linkUser') {
+          return capabilityResponse({
+            result: { ...member, user_id: 'google-user-id' },
+            changed: [],
+            audit: null,
+            verify: null,
+          });
+        }
       }
-      if (url === 'https://api.test/rest/v1/members?user_id=eq.google-user-id&limit=1') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify([])),
-        };
-      }
-      if (url === 'https://api.test/rest/v1/members?email=eq.major.tal%40gmail.com&limit=1') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify([member])),
-        };
-      }
-      if (url === 'https://api.test/rest/v1/members?id=eq.2' && init?.method === 'PATCH') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify([{ ...member, user_id: 'google-user-id' }])),
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-        text: () => Promise.resolve('{}'),
-      };
+      return capabilityResponse({});
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -154,8 +146,11 @@ describe('site_config cache build awareness', () => {
     expect(session.user.member).toMatchObject({ id: 2, role: 'admin', email: 'major.tal@gmail.com' });
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://api.test/rest/v1/members?id=eq.2',
-        expect.objectContaining({ method: 'PATCH' }),
+        'https://api.test/functions/v1/kychon-api',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"operation":"members.linkUser"'),
+        }),
       );
     });
   });
@@ -182,51 +177,31 @@ describe('site_config cache build awareness', () => {
     });
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/rest/v1/site_config') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify(freshConfig)),
-        };
+      if (url === 'https://api.test/functions/v1/kychon-api') {
+        const envelope = envelopeFrom(init);
+        if (envelope.operation === 'config.get') return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'members.list' && envelope.input.user_id === 'google-user-id') {
+          return capabilityResponse({ rows: [], count: 0 });
+        }
+        if (envelope.operation === 'members.list' && envelope.input.email === 'major.tal@gmail.com') {
+          return capabilityResponse({
+            rows: [
+              {
+                id: 2,
+                user_id: 'invited-user-id',
+                email: 'major.tal@gmail.com',
+                role: 'admin',
+                status: 'active',
+              },
+            ],
+            count: 1,
+          });
+        }
+        if (envelope.operation === 'members.linkUser') {
+          return capabilityResponse({ result: {}, changed: [], audit: null, verify: null });
+        }
       }
-      if (url === 'https://api.test/rest/v1/members?user_id=eq.google-user-id&limit=1') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify([])),
-        };
-      }
-      if (url === 'https://api.test/rest/v1/members?email=eq.major.tal%40gmail.com&limit=1') {
-        return {
-          ok: true,
-          status: 200,
-          text: () =>
-            Promise.resolve(
-              JSON.stringify([
-                {
-                  id: 2,
-                  user_id: 'invited-user-id',
-                  email: 'major.tal@gmail.com',
-                  role: 'admin',
-                  status: 'active',
-                },
-              ]),
-            ),
-        };
-      }
-      if (url === 'https://api.test/rest/v1/members?id=eq.2' && init?.method === 'PATCH') {
-        return {
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(JSON.stringify([])),
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({}),
-        text: () => Promise.resolve('{}'),
-      };
+      return capabilityResponse({});
     });
     vi.stubGlobal('fetch', fetchMock);
 

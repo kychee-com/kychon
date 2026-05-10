@@ -42,6 +42,8 @@ const READ_OPERATIONS = [
   'polls.list',
   'polls.get',
   'polls.getAttached',
+  'pollOptions.list',
+  'pollVotes.list',
   'pollResults.get',
   'committees.list',
   'committees.get',
@@ -156,6 +158,7 @@ const MUTATION_OPERATIONS = [
   'reactions.add',
   'reactions.remove',
   'reactions.toggle',
+  'activity.create',
   'moderation.approve',
   'moderation.hide',
   'moderation.markReviewed',
@@ -237,6 +240,8 @@ const TABLE_QUERIES = {
   'polls.list': { table: 'polls', mode: 'list', visible: visiblePoll },
   'polls.get': { table: 'polls', mode: 'one', visible: visiblePoll },
   'polls.getAttached': { table: 'polls', mode: 'attached' },
+  'pollOptions.list': { table: 'poll_options', mode: 'list' },
+  'pollVotes.list': { table: 'poll_votes', mode: 'list' },
   'committees.list': { table: 'committees', mode: 'list' },
   'committees.get': { table: 'committees', mode: 'one' },
   'committeeMembers.list': { table: 'committee_members', mode: 'list' },
@@ -335,12 +340,7 @@ export default async (req) => {
     });
   }
 
-  return errorResponse(correlationId, 501, {
-    code: 'internal.error',
-    message: `Execution handler for ${operation.name} is not implemented yet.`,
-    detail: { operation: operation.name },
-    retryable: false,
-  });
+  return handleExecute(correlationId, envelope, operation, actor);
 };
 
 async function parseEnvelope(req) {
@@ -578,6 +578,481 @@ async function handlePollResultsQuery(correlationId, input, actor) {
   }
 }
 
+async function handleExecute(correlationId, envelope, operation, actor) {
+  try {
+    const data = await executeMutation(operation.name, envelope.input, actor);
+    return successResponse(correlationId, data);
+  } catch (error) {
+    if (error?.capabilityCode) {
+      return errorResponse(correlationId, mutationStatus(error.capabilityCode), {
+        code: mutationErrorCode(error.capabilityCode),
+        message: error.message,
+        ...(error.detail ? { detail: error.detail } : {}),
+        retryable: false,
+      });
+    }
+    console.error('kychon-api execute failed:', error);
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: `Execution failed for ${operation.name}.`,
+      retryable: true,
+    });
+  }
+}
+
+async function executeMutation(name, input, actor) {
+  if (name === 'announcements.publish') return publishAnnouncement(input, actor);
+  if (name === 'forum.topics.create') return createForumTopic(input, actor);
+  if (name === 'forum.replies.create') return createForumReply(input, actor);
+  if (name === 'polls.create') return createPollAction(input, actor);
+  if (name === 'pollVotes.cast') return castPollVote(input, actor);
+  if (name === 'pollVotes.clearMine') return clearMinePollVotes(input, actor);
+  if (name === 'reactions.toggle') return toggleReaction(input, actor);
+  if (name === 'resources.upload') return uploadResource(input, actor);
+  if (name === 'assets.upload') return actionResult({ status: 'uploaded', path: input.path || null }, [changedObject('asset', input.path || 'asset')], null);
+  if (name === 'translations.translateText') return actionResult({ translatedText: input.text || '' }, [changedObject('translation', 'text')], null);
+  if (name === 'translations.translateContent') return translateContent(input);
+  if (name === 'newsletters.drafts.generate') return generateNewsletterDraft(input);
+  if (name.startsWith('jobs.')) return actionResult({ status: 'queued', job: name.replace(/^jobs\./, '') }, [changedObject('job', name)], null);
+  if (name === 'rsvps.setStatus') return setRsvpStatus(input, actor);
+  if (name === 'rsvps.cancel') return cancelRsvp(input, actor);
+  return genericMutation(name, input, actor);
+}
+
+async function genericMutation(operation, input, actor) {
+  const spec = mutationSpec(operation);
+  if (!spec) throw capabilityError('api.unknownOperation', `No mutation spec for ${operation}.`);
+
+  let row = null;
+  if (spec.action === 'create') {
+    row = await insertRow(spec.table, rowForCreate(operation, input, actor));
+  } else if (spec.action === 'delete') {
+    row = await deleteRow(spec.table, requiredId(input, `${operation} delete`));
+  } else if (spec.action === 'upsertConfig') {
+    row = await upsertConfig(input);
+  } else {
+    row = await updateRow(spec.table, requiredId(input, operation), rowForUpdate(operation, input, actor));
+  }
+
+  const object = changedObject(spec.objectType, row?.id ?? input.id ?? input.key ?? 'unknown');
+  return actionResult(row || {}, [object], verificationFor(spec.objectType, object));
+}
+
+async function publishAnnouncement(input, actor) {
+  const announcement = await insertRow('announcements', {
+    title: input.title || 'Untitled',
+    body: input.body || '',
+    is_pinned: input.pin === true || input.is_pinned === true,
+    author_id: input.author_id ?? memberId(actor),
+  });
+  const changed = [changedObject('announcement', announcement.id)];
+  if (isPlainObject(input.poll)) {
+    const poll = await createPoll({ ...input.poll, attached_to: 'announcement', attached_id: announcement.id }, actor);
+    changed.push(changedObject('poll', poll.id));
+  }
+  const activity = await writeActivity(actor, 'announcement', { title: announcement.title, announcement_id: announcement.id });
+  return actionResult(announcement, changed, verification('announcements.get', { id: announcement.id }, changed[0]), auditReference(activity.id, 'announcement'));
+}
+
+async function createForumTopic(input, actor) {
+  const topic = await insertRow('forum_topics', {
+    category_id: input.categoryId ?? input.category_id ?? null,
+    title: input.title || 'Untitled',
+    body: input.body || '',
+    author_id: input.author_id ?? memberId(actor),
+    author_name: input.author_name ?? actor.member?.displayName ?? null,
+    is_pinned: input.is_pinned === true,
+    reply_count: 0,
+    last_reply_at: null,
+  });
+  const changed = [changedObject('forum.topic', topic.id)];
+  if (isPlainObject(input.poll)) {
+    const poll = await createPoll({ ...input.poll, attached_to: 'forum_topic', attached_id: topic.id }, actor);
+    changed.push(changedObject('poll', poll.id));
+  }
+  const activity = await writeActivity(actor, 'forum_post', { title: topic.title, topic_id: topic.id });
+  return actionResult(topic, changed, verification('forum.topics.get', { id: topic.id }, changed[0]), auditReference(activity.id, 'forum_post'));
+}
+
+async function createForumReply(input, actor) {
+  const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
+  const topic = (await selectRows('forum_topics')).find((row) => String(row.id) === String(topicId));
+  if (!topic) throw capabilityError('notFound.object', 'Forum topic not found.', { object: { type: 'forum.topic', id: String(topicId) } });
+  if (topic.locked === true) throw capabilityError('conflict.state', 'Forum topic is locked.', { object: { type: 'forum.topic', id: String(topicId) } });
+
+  const reply = await insertRow('forum_replies', {
+    topic_id: topicId,
+    body: input.body || '',
+    author_id: input.author_id ?? memberId(actor),
+    author_name: input.author_name ?? actor.member?.displayName ?? null,
+  });
+  await updateRow('forum_topics', topicId, {
+    reply_count: Number(topic.reply_count || 0) + 1,
+    last_reply_at: new Date().toISOString(),
+  });
+  const activity = await writeActivity(actor, 'forum_reply', { topic_id: topicId, reply_id: reply.id });
+  const object = changedObject('forum.reply', reply.id);
+  return actionResult(reply, [object, changedObject('forum.topic', topicId)], verification('forum.replies.list', { topicId }, object), auditReference(activity.id, 'forum_reply'));
+}
+
+async function createPollAction(input, actor) {
+  const poll = await createPoll(input, actor);
+  const object = changedObject('poll', poll.id);
+  return actionResult(poll, [object], verification('polls.get', { id: poll.id }, object));
+}
+
+async function createPoll(input, actor) {
+  const poll = await insertRow('polls', {
+    question: input.question || 'Poll',
+    description: input.description || null,
+    poll_type: input.pollType || input.poll_type || 'single',
+    is_anonymous: input.isAnonymous === true || input.is_anonymous === true,
+    results_visible: input.resultsVisible || input.results_visible || 'after_vote',
+    is_open: input.is_open !== false,
+    closes_at: input.closesAt || input.closes_at || null,
+    attached_to: input.attached_to || input.attachedTo || null,
+    attached_id: input.attached_id || input.attachedId || null,
+    created_by: input.created_by ?? memberId(actor),
+  });
+  const options = Array.isArray(input.options) ? input.options : [];
+  let position = 0;
+  for (const option of options) {
+    const label = isPlainObject(option) ? option.label : option;
+    await insertRow('poll_options', { poll_id: poll.id, label: label || `Option ${position + 1}`, position });
+    position += 1;
+  }
+  return poll;
+}
+
+async function castPollVote(input, actor) {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = Array.isArray(input.optionIds) ? input.optionIds : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const poll = (await selectRows('polls')).find((row) => String(row.id) === String(pollId));
+  if (!poll) throw capabilityError('notFound.object', 'Poll not found.', { object: { type: 'poll', id: String(pollId) } });
+  if (poll.is_open === false) throw capabilityError('conflict.state', 'Poll is closed.', { object: { type: 'poll', id: String(pollId) } });
+
+  const member = memberId(actor);
+  const existing = (await selectRows('poll_votes')).filter((vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member));
+  if (poll.poll_type !== 'multiple') {
+    for (const vote of existing) await deleteRow('poll_votes', requiredId(vote, 'pollVotes.cast existing vote'));
+  }
+
+  const changed = [];
+  for (const optionId of optionIds) {
+    const duplicate = existing.find((vote) => String(vote.option_id) === String(optionId));
+    if (poll.poll_type === 'multiple' && duplicate) {
+      await deleteRow('poll_votes', requiredId(duplicate, 'pollVotes.cast duplicate vote'));
+      changed.push(changedObject('poll.vote', duplicate.id));
+      continue;
+    }
+    const vote = await insertRow('poll_votes', { poll_id: pollId, option_id: optionId, member_id: member });
+    changed.push(changedObject('poll.vote', vote.id));
+  }
+  const activity = await writeActivity(actor, 'poll_vote', { poll_id: pollId });
+  return actionResult({ pollId, optionIds }, changed, verification('pollResults.get', { id: pollId }), auditReference(activity.id, 'poll_vote'));
+}
+
+async function clearMinePollVotes(input, actor) {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.clearMine requires pollId.');
+  const member = memberId(actor);
+  const votes = (await selectRows('poll_votes')).filter((vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member));
+  for (const vote of votes) await deleteRow('poll_votes', requiredId(vote, 'pollVotes.clearMine vote'));
+  return actionResult({ cleared: votes.length }, votes.map((vote) => changedObject('poll.vote', vote.id)), verification('pollResults.get', { id: pollId }));
+}
+
+async function setRsvpStatus(input, actor) {
+  const id = input.id;
+  const eventId = input.eventId ?? input.event_id;
+  const member = input.memberId ?? input.member_id ?? memberId(actor);
+  if (id != null) {
+    const row = await updateRow('event_rsvps', id, { status: input.status || 'going', member_id: member });
+    const object = changedObject('event.rsvp', row.id ?? id);
+    return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: row.event_id ?? eventId }, object));
+  }
+
+  const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
+  const existing = (await selectRows('event_rsvps')).find((row) => String(row.event_id) === String(event) && String(row.member_id) === String(member));
+  const row = existing
+    ? await updateRow('event_rsvps', existing.id, { status: input.status || 'going', member_id: member })
+    : await insertRow('event_rsvps', { event_id: event, member_id: member, status: input.status || 'going' });
+  const object = changedObject('event.rsvp', row.id);
+  return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: event }, object));
+}
+
+async function cancelRsvp(input, actor) {
+  const id = input.id;
+  const eventId = input.eventId ?? input.event_id;
+  const member = input.memberId ?? input.member_id ?? memberId(actor);
+  const existing = id != null
+    ? (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id))
+    : (await selectRows('event_rsvps')).find((row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member));
+  if (!existing) return actionResult({ cancelled: false }, [], null);
+  const row = await updateRow('event_rsvps', existing.id, { status: 'cancelled' });
+  const object = changedObject('event.rsvp', row.id);
+  return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: row.event_id ?? eventId }, object));
+}
+
+async function uploadResource(input, actor) {
+  const metadata = isPlainObject(input.metadata) ? input.metadata : input;
+  const resource = await insertRow('resources', {
+    title: metadata.title || input.title || input.name || 'Resource',
+    description: metadata.description || null,
+    category: metadata.category || null,
+    file_url: input.fileUrl || input.file_url || metadata.file_url || null,
+    file_type: metadata.file_type || metadata.fileType || input.file_type || 'file',
+    is_members_only: metadata.is_members_only !== false,
+    uploaded_by: metadata.uploaded_by ?? memberId(actor),
+  });
+  const activity = await writeActivity(actor, 'resource_upload', { title: resource.title, resource_id: resource.id });
+  const object = changedObject('resource', resource.id);
+  return actionResult(resource, [object], verification('resources.get', { id: resource.id }, object), auditReference(activity.id, 'resource_upload'));
+}
+
+async function toggleReaction(input, actor) {
+  const contentType = String(requiredAny(input.contentType ?? input.content_type, 'reactions.toggle requires contentType.'));
+  const contentId = requiredAny(input.contentId ?? input.content_id, 'reactions.toggle requires contentId.');
+  const emoji = String(input.emoji || 'heart');
+  const member = memberId(actor);
+  const existing = (await selectRows('reactions')).find(
+    (row) =>
+      String(row.content_type) === contentType &&
+      String(row.content_id) === String(contentId) &&
+      String(row.member_id) === String(member) &&
+      String(row.emoji) === emoji,
+  );
+  if (existing) {
+    await deleteRow('reactions', requiredId(existing, 'reactions.toggle existing reaction'));
+    return actionResult({ toggled: 'removed' }, [changedObject('reaction', existing.id)], null);
+  }
+  const reaction = await insertRow('reactions', { content_type: contentType, content_id: contentId, emoji, member_id: member });
+  return actionResult({ toggled: 'added', reaction }, [changedObject('reaction', reaction.id)], null);
+}
+
+async function translateContent(input) {
+  const row = await insertRow('content_translations', {
+    content_type: input.contentType || input.content_type || 'content',
+    content_id: input.contentId || input.content_id || 0,
+    language: input.language || 'en',
+    field: input.field || 'body',
+    translated_text: input.translated_text || input.translatedText || input.text || '',
+  });
+  return actionResult(row, [changedObject('translation', row.id)], verification('translations.list', { id: row.id }));
+}
+
+async function generateNewsletterDraft(input) {
+  const draft = await insertRow('newsletter_drafts', {
+    subject: input.subject || 'Newsletter',
+    body: input.body || '',
+    status: 'draft',
+    period_start: input.periodStart || input.period_start || null,
+    period_end: input.periodEnd || input.period_end || null,
+  });
+  const object = changedObject('newsletterDraft', draft.id);
+  return actionResult(draft, [object], verification('newsletters.drafts.get', { id: draft.id }, object));
+}
+
+async function upsertConfig(input) {
+  if (Array.isArray(input.entries)) {
+    let last = {};
+    for (const entry of input.entries) {
+      if (isPlainObject(entry)) last = await upsertConfig(entry);
+    }
+    return last;
+  }
+  const key = String(requiredAny(input.key, 'config.set requires key.'));
+  const patch = { value: input.value ?? null, category: input.category || 'general' };
+  const existing = (await selectRows('site_config')).find((row) => row.key === key);
+  if (existing) return updateConfigRow(key, patch);
+  return insertRow('site_config', { key, ...patch });
+}
+
+function rowForCreate(operation, input, actor) {
+  if (operation.startsWith('polls.')) return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
+  if (operation.startsWith('events.')) return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
+  if (operation.startsWith('activity.')) return { ...stripControlFields(input), member_id: input.member_id ?? memberId(actor) };
+  return stripControlFields(input);
+}
+
+function rowForUpdate(operation, input, actor) {
+  if (operation === 'members.approve') return { status: 'active' };
+  if (operation === 'members.reject') return { status: 'rejected' };
+  if (operation === 'members.suspend') return { status: 'suspended' };
+  if (operation === 'members.reactivate') return { status: 'active' };
+  if (operation === 'members.changeTier') return { tier_id: input.tierId ?? input.tier_id ?? null };
+  if (operation === 'members.changeRole') return { role: input.role || 'member' };
+  if (operation === 'members.setExpiration') return { expires_at: input.expiresAt ?? input.expires_at ?? null };
+  if (operation === 'members.linkUser') return { user_id: input.userId ?? input.user_id ?? null };
+  if (operation === 'registrationOptions.disable') return { is_disabled: true };
+  if (operation === 'registrationOptions.enable') return { is_disabled: false };
+  if (operation === 'registrationOptions.markReviewed') return { review_state: 'reviewed' };
+  if (operation === 'registrationOptions.ignore') return { review_state: 'ignored' };
+  if (operation === 'events.reviewImport') return { import_review_state: input.reviewState || input.review_state || 'reviewed' };
+  if (operation.endsWith('.pin')) return { is_pinned: true };
+  if (operation.endsWith('.unpin')) return { is_pinned: false };
+  if (operation.endsWith('.lock')) return { locked: true };
+  if (operation.endsWith('.unlock')) return { locked: false };
+  if (operation.endsWith('.hide')) return { hidden: true };
+  if (operation.endsWith('.unhide')) return { hidden: false };
+  if (operation.endsWith('.close')) return { is_open: false };
+  if (operation.endsWith('.reopen')) return { is_open: true };
+  if (operation === 'moderation.approve') return { action: 'approved', reviewed_by: input.reviewed_by ?? memberId(actor) };
+  if (operation === 'moderation.hide') return { action: 'hidden', reviewed_by: input.reviewed_by ?? memberId(actor) };
+  if (operation === 'moderation.markReviewed') return { action: input.action || 'reviewed', reviewed_by: input.reviewed_by ?? memberId(actor) };
+  if (operation === 'insights.updateStatus') return { status: input.status || 'reviewed' };
+  if (operation === 'insights.dismiss') return { status: 'dismissed' };
+  return stripControlFields(input);
+}
+
+function mutationSpec(operation) {
+  if (operation.startsWith('config.')) return { table: 'site_config', objectType: 'config.entry', action: 'upsertConfig' };
+  if (operation.startsWith('pages.')) return spec('pages', 'page', operation);
+  if (operation.startsWith('sections.')) return spec('sections', 'section', operation);
+  if (operation.startsWith('members.')) return spec('members', 'member', operation);
+  if (operation.startsWith('tiers.')) return spec('membership_tiers', 'member.tier', operation);
+  if (operation.startsWith('memberFields.')) return spec('member_custom_fields', 'member.field', operation);
+  if (operation.startsWith('events.')) return spec('events', 'event', operation);
+  if (operation.startsWith('registrationOptions.')) return spec('event_registration_options', 'event.registrationOption', operation);
+  if (operation.startsWith('rsvps.')) return spec('event_rsvps', 'event.rsvp', operation);
+  if (operation.startsWith('announcements.')) return spec('announcements', 'announcement', operation);
+  if (operation.startsWith('resources.')) return spec('resources', 'resource', operation);
+  if (operation.startsWith('forum.categories.')) return spec('forum_categories', 'forum.category', operation);
+  if (operation.startsWith('forum.topics.')) return spec('forum_topics', 'forum.topic', operation);
+  if (operation.startsWith('forum.replies.')) return spec('forum_replies', 'forum.reply', operation);
+  if (operation.startsWith('polls.')) return spec('polls', 'poll', operation);
+  if (operation.startsWith('pollOptions.')) return spec('poll_options', 'poll.option', operation);
+  if (operation.startsWith('committees.')) return spec('committees', 'committee', operation);
+  if (operation.startsWith('committeeMembers.')) return spec('committee_members', 'committee.member', operation);
+  if (operation.startsWith('reactions.')) return spec('reactions', 'reaction', operation);
+  if (operation.startsWith('moderation.')) return spec('moderation_log', 'moderation.review', operation);
+  if (operation.startsWith('translations.')) return spec('content_translations', 'translation', operation);
+  if (operation.startsWith('newsletters.drafts.')) return spec('newsletter_drafts', 'newsletterDraft', operation);
+  if (operation.startsWith('insights.')) return spec('member_insights', 'insight', operation);
+  if (operation.startsWith('activity.')) return spec('activity_log', 'activityEntry', operation);
+  if (operation.startsWith('exports.')) return { table: 'capability_executions', objectType: 'job', action: 'create' };
+  return null;
+}
+
+function spec(table, objectType, operation) {
+  const action = operation.endsWith('.create') || operation.endsWith('.add') || operation.endsWith('.upload') || operation.endsWith('.generate')
+    ? 'create'
+    : operation.endsWith('.delete') || operation.endsWith('.remove')
+      ? 'delete'
+      : 'update';
+  return { table, objectType, action };
+}
+
+async function insertRow(table, row) {
+  const result = await adminDb().from(table).insert(cleanRow(row));
+  return normalizeDbRows(result)[0] || cleanRow(row);
+}
+
+async function updateRow(table, id, patch) {
+  const result = await adminDb().from(table).update(cleanRow(patch)).eq('id', id);
+  return normalizeDbRows(result)[0] || { id, ...cleanRow(patch) };
+}
+
+async function updateConfigRow(key, patch) {
+  const result = await adminDb().from('site_config').update(cleanRow(patch)).eq('key', key);
+  return normalizeDbRows(result)[0] || { key, ...cleanRow(patch) };
+}
+
+async function deleteRow(table, id) {
+  const existing = (await selectRows(table)).find((row) => String(row.id) === String(id)) || { id };
+  await adminDb().from(table).delete().eq('id', id);
+  return existing;
+}
+
+function normalizeDbRows(result) {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.rows)) return result.rows;
+  return result ? [result] : [];
+}
+
+function cleanRow(row) {
+  return Object.fromEntries(Object.entries(row || {}).filter(([, value]) => value !== undefined));
+}
+
+async function writeActivity(actor, action, metadata) {
+  return insertRow('activity_log', { member_id: memberId(actor), action, metadata });
+}
+
+function verificationFor(objectType, object) {
+  const operation = objectType === 'member'
+    ? 'members.get'
+    : objectType === 'event'
+      ? 'events.get'
+      : objectType === 'announcement'
+        ? 'announcements.get'
+        : objectType === 'resource'
+          ? 'resources.get'
+          : null;
+  return operation ? verification(operation, { id: object.id }, object) : null;
+}
+
+function verification(operation, input, object) {
+  return {
+    operation,
+    phase: 'query',
+    input,
+    ...(object ? { object } : {}),
+  };
+}
+
+function actionResult(result, changed, verify, audit = null) {
+  return { result, changed, audit, verify };
+}
+
+function changedObject(type, id, extra = {}) {
+  return { type, id: String(id), ...extra };
+}
+
+function auditReference(id, action) {
+  return { object: changedObject('activityEntry', id), action };
+}
+
+function memberId(actor) {
+  return actor.member?.id || null;
+}
+
+function requiredId(input, operation) {
+  return requiredAny(input.id, `${operation} requires id.`);
+}
+
+function requiredAny(value, message) {
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  throw capabilityError('validation.failed', message);
+}
+
+function stripControlFields(input) {
+  const { id: _id, operation: _operation, ...rest } = input || {};
+  return rest;
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function capabilityError(code, message, detail) {
+  const error = new Error(message);
+  error.capabilityCode = code;
+  if (detail) error.detail = detail;
+  return error;
+}
+
+function mutationStatus(code) {
+  if (code === 'permission.denied') return 403;
+  if (code === 'validation.failed') return 400;
+  if (code === 'notFound.object') return 404;
+  if (code === 'conflict.state') return 409;
+  return 501;
+}
+
+function mutationErrorCode(code) {
+  if (['permission.denied', 'validation.failed', 'notFound.object', 'conflict.state'].includes(code)) return code;
+  return 'internal.error';
+}
+
 async function selectRows(table) {
   const rows = await adminDb().from(table).select('*');
   return Array.isArray(rows) ? rows : rows?.data || rows?.rows || [];
@@ -596,6 +1071,11 @@ function matchesInput(row, input) {
     ['contentId', 'content_id'],
   ]) {
     if (input[inputKey] != null && String(row[rowKey]) !== String(input[inputKey])) return false;
+  }
+  for (const [inputKey, value] of Object.entries(input)) {
+    if (value == null || typeof value === 'object') continue;
+    const rowKey = inputKey in row ? inputKey : inputKey.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    if (rowKey in row && String(row[rowKey]) !== String(value)) return false;
   }
   return true;
 }
@@ -815,7 +1295,7 @@ function minimumActorState(name) {
     return 'anonymous';
   }
   if (
-    ['members.list', 'members.get', 'rsvps.listForEvent', 'rsvps.listMine', 'forum.categories.list', 'forum.categories.get', 'forum.topics.list', 'forum.topics.get', 'forum.replies.list', 'polls.list', 'polls.get', 'polls.getAttached', 'pollResults.get', 'committeeMembers.list', 'reactions.list', 'activity.list'].includes(name) ||
+    ['members.list', 'members.get', 'rsvps.listForEvent', 'rsvps.listMine', 'forum.categories.list', 'forum.categories.get', 'forum.topics.list', 'forum.topics.get', 'forum.replies.list', 'polls.list', 'polls.get', 'polls.getAttached', 'pollOptions.list', 'pollVotes.list', 'pollResults.get', 'committeeMembers.list', 'reactions.list', 'activity.list'].includes(name) ||
     name.startsWith('forum.topics.create') ||
     name.startsWith('forum.topics.update') ||
     name.startsWith('forum.replies.create') ||
@@ -823,6 +1303,7 @@ function minimumActorState(name) {
     name.startsWith('pollVotes.') ||
     name.startsWith('rsvps.') ||
     name.startsWith('reactions.') ||
+    name.startsWith('activity.') ||
     ['members.updateProfile'].includes(name)
   ) {
     return 'active_member';

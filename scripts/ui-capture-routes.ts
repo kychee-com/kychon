@@ -396,6 +396,54 @@ function rowsForTable(table: string, params: URLSearchParams): unknown[] {
   }
 }
 
+function paramsFromCapabilityInput(input: Record<string, unknown> = {}): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(input)) {
+    if (value == null || typeof value === 'object') continue;
+    params.set(key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`), `eq.${String(value)}`);
+  }
+  return params;
+}
+
+function rowsForOperation(operation: string, input: Record<string, unknown>): unknown[] {
+  const params = paramsFromCapabilityInput(input);
+  switch (operation) {
+    case 'config.get':
+      return rowsForTable('site_config', params);
+    case 'sections.list':
+      return rowsForTable('sections', params);
+    case 'pages.list':
+    case 'pages.get':
+      return rowsForTable('pages', params);
+    case 'events.list':
+    case 'events.get':
+      return rowsForTable('events', params);
+    case 'resources.list':
+    case 'resources.get':
+      return rowsForTable('resources', params);
+    case 'forum.categories.list':
+    case 'forum.categories.get':
+      return rowsForTable('forum_categories', params);
+    case 'forum.topics.list':
+    case 'forum.topics.get':
+      return rowsForTable('forum_topics', params);
+    case 'members.list':
+    case 'members.get':
+      return rowsForTable('members', params);
+    case 'tiers.list':
+      return rowsForTable('membership_tiers', params);
+    case 'memberFields.list':
+      return rowsForTable('member_custom_fields', params);
+    case 'announcements.list':
+    case 'announcements.get':
+      return rowsForTable('announcements', params);
+    case 'activity.list':
+      return rowsForTable('activity_log', params);
+    default:
+      return [];
+  }
+}
+
 function assetContentType(path: string): string {
   switch (extname(path).toLowerCase()) {
     case '.jpg':
@@ -434,7 +482,7 @@ async function installDemoAssetRoutes(context: any, project: string | null): Pro
 }
 
 async function installMockApi(context: any): Promise<void> {
-  await context.route('**/rest/v1/**', async (route: any) => {
+  await context.route('**/functions/v1/kychon-api', async (route: any) => {
     const request = route.request();
     const method = request.method();
     if (method === 'OPTIONS') {
@@ -445,17 +493,27 @@ async function installMockApi(context: any): Promise<void> {
       return;
     }
 
-    const url = new URL(request.url());
-    const table = url.pathname.split('/rest/v1/')[1]?.split('/')[0] || '';
-    const rows = rowsForTable(table, url.searchParams);
+    let body: Record<string, unknown> = {};
+    if (method === 'POST') {
+      try {
+        body = request.postDataJSON();
+      } catch {
+        body = {};
+      }
+    }
+    const operation = String(body.operation || '');
+    const input = body.input && typeof body.input === 'object' ? body.input : {};
+    const rows = rowsForOperation(operation, input);
+    const data = operation.startsWith('search.')
+      ? { query: input.q || '', type: input.type || 'all', page: 1, page_size: 5, total: 0, has_next: false, facets: {}, results: [] }
+      : { rows, count: rows.length };
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       headers: {
         ...corsHeaders(),
-        'Content-Range': rows.length ? `0-${rows.length - 1}/${rows.length}` : '*/0',
       },
-      body: JSON.stringify(rows),
+      body: JSON.stringify({ ok: true, correlationId: 'ui-capture', data }),
     });
   });
 

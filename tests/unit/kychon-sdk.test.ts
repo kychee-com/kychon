@@ -135,7 +135,7 @@ describe('@kychon/sdk client', () => {
     expect(postCall?.[1]?.headers).toMatchObject({ apikey: 'anon' });
   });
 
-  it('exposes helpers across the required domain namespaces and keeps raw access separate', () => {
+  it('exposes helpers across the required domain namespaces and keeps raw capability access separate', () => {
     const client = createKychonClient({ portalUrl: 'https://portal.test', fetch: vi.fn() as typeof fetch });
 
     expect(client.auth.whoami).toBeTypeOf('function');
@@ -146,8 +146,11 @@ describe('@kychon/sdk client', () => {
     expect(client.committeeMembers.add.execute).toBeTypeOf('function');
     expect(client.translations.translateText.validate).toBeTypeOf('function');
     expect(client.newsletters.drafts.generate.execute).toBeTypeOf('function');
+    expect(client.polls.options.list).toBeTypeOf('function');
+    expect(client.polls.votes.list).toBeTypeOf('function');
+    expect(client.activity.create.execute).toBeTypeOf('function');
     expect(client.raw.capability).toBeTypeOf('function');
-    expect(client.raw.postgrest).toBeTypeOf('function');
+    expect('postgrest' in client.raw).toBe(false);
   });
 
   it('ships SDK examples and demo compatibility fixtures', () => {

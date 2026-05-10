@@ -1,4 +1,19 @@
-// api.ts — Thin REST wrapper around Run402 PostgREST API
+// api.ts - Browser compatibility facade over the Kychon Capability API.
+//
+// The public app used to call Run402's PostgREST-shaped `/rest/v1/*` table
+// surface directly. Keep the small get/post/patch/delete helpers so the UI can
+// migrate incrementally, but make every product read/write go through
+// @kychon/sdk and POST /functions/v1/kychon-api.
+
+import {
+  KYCHON_CAPABILITY_FUNCTION_PATH,
+  createIdempotencyKey,
+  createKychonClient,
+  isKychonApiError,
+  type ActionResult,
+  type JsonObject,
+  type JsonValue,
+} from '@kychon/sdk';
 
 declare global {
   interface Window {
@@ -22,14 +37,6 @@ function getStoredSession(): any {
     localStorage.removeItem('wl_session');
     return null;
   }
-}
-
-function shouldRefresh(status: number, session: any): boolean {
-  if (status === 401) return true;
-  // PostgREST 403 can be caused by a stale/mismatched caller JWT as well as
-  // real RLS denial. Refresh once when the browser has a refresh token; if the
-  // fresh caller is still forbidden, the original API error path handles it.
-  return status === 403 && !!session?.refresh_token;
 }
 
 function getAuthHeaders(session = getStoredSession()): Record<string, string> {
@@ -60,98 +67,539 @@ async function refreshToken(): Promise<any> {
   return newSession;
 }
 
-interface RequestOpts {
-  body?: any;
-  headers?: Record<string, string>;
-  retry?: boolean;
+type FilterOp = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'is';
+
+interface QueryFilter {
+  field: string;
+  op: FilterOp;
+  value: JsonValue | JsonValue[];
 }
 
-async function request(method: string, path: string, opts: RequestOpts = {}): Promise<any> {
-  const { body, headers: extra, retry = true } = opts;
-  const url = `${getAPI()}/rest/v1/${path}`;
+interface QueryOrder {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+interface ParsedPath {
+  table: string;
+  params: URLSearchParams;
+  filters: QueryFilter[];
+  order: QueryOrder[];
+  limit: number | null;
+  select: string;
+}
+
+const READ_OPERATION_BY_TABLE: Record<string, string> = {
+  site_config: 'config.get',
+  pages: 'pages.list',
+  sections: 'sections.list',
+  members: 'members.list',
+  membership_tiers: 'tiers.list',
+  member_custom_fields: 'memberFields.list',
+  events: 'events.list',
+  event_registration_options: 'registrationOptions.list',
+  event_rsvps: 'rsvps.listForEvent',
+  announcements: 'announcements.list',
+  resources: 'resources.list',
+  forum_categories: 'forum.categories.list',
+  forum_topics: 'forum.topics.list',
+  forum_replies: 'forum.replies.list',
+  polls: 'polls.list',
+  poll_options: 'pollOptions.list',
+  poll_votes: 'pollVotes.list',
+  committees: 'committees.list',
+  committee_members: 'committeeMembers.list',
+  reactions: 'reactions.list',
+  moderation_log: 'moderation.queue',
+  content_translations: 'translations.list',
+  newsletter_drafts: 'newsletters.drafts.list',
+  member_insights: 'insights.list',
+  activity_log: 'activity.list',
+};
+
+const CREATE_OPERATION_BY_TABLE: Record<string, string> = {
+  pages: 'pages.create',
+  sections: 'sections.create',
+  members: 'members.updateProfile',
+  membership_tiers: 'tiers.create',
+  member_custom_fields: 'memberFields.create',
+  events: 'events.create',
+  event_registration_options: 'registrationOptions.create',
+  event_rsvps: 'rsvps.setStatus',
+  announcements: 'announcements.publish',
+  resources: 'resources.upload',
+  forum_categories: 'forum.categories.create',
+  forum_topics: 'forum.topics.create',
+  forum_replies: 'forum.replies.create',
+  polls: 'polls.create',
+  poll_options: 'pollOptions.add',
+  poll_votes: 'pollVotes.cast',
+  committees: 'committees.create',
+  committee_members: 'committeeMembers.add',
+  reactions: 'reactions.add',
+  activity_log: 'activity.create',
+};
+
+const UPDATE_OPERATION_BY_TABLE: Record<string, string> = {
+  pages: 'pages.update',
+  sections: 'sections.updateConfig',
+  members: 'members.updateProfile',
+  membership_tiers: 'tiers.update',
+  member_custom_fields: 'memberFields.update',
+  events: 'events.update',
+  event_registration_options: 'registrationOptions.update',
+  event_rsvps: 'rsvps.setStatus',
+  announcements: 'announcements.update',
+  resources: 'resources.update',
+  forum_categories: 'forum.categories.update',
+  forum_topics: 'forum.topics.update',
+  forum_replies: 'forum.replies.update',
+  polls: 'polls.update',
+  poll_options: 'pollOptions.update',
+  committees: 'committees.update',
+  committee_members: 'committeeMembers.changeRole',
+  reactions: 'reactions.toggle',
+  moderation_log: 'moderation.markReviewed',
+  content_translations: 'translations.translateContent',
+  newsletter_drafts: 'newsletters.drafts.update',
+  member_insights: 'insights.updateStatus',
+};
+
+const DELETE_OPERATION_BY_TABLE: Record<string, string> = {
+  pages: 'pages.delete',
+  sections: 'sections.delete',
+  membership_tiers: 'tiers.delete',
+  member_custom_fields: 'memberFields.delete',
+  events: 'events.delete',
+  announcements: 'announcements.delete',
+  resources: 'resources.delete',
+  forum_categories: 'forum.categories.delete',
+  forum_topics: 'forum.topics.delete',
+  forum_replies: 'forum.replies.delete',
+  polls: 'polls.delete',
+  poll_options: 'pollOptions.delete',
+  committees: 'committees.delete',
+  committee_members: 'committeeMembers.remove',
+  reactions: 'reactions.remove',
+  content_translations: 'translations.delete',
+  newsletter_drafts: 'newsletters.drafts.delete',
+};
+
+function capabilityClient() {
+  return createKychonClient({
+    portalUrl: window.location?.origin || 'https://kychon.com',
+    apiBaseUrl: getAPI(),
+    apiEndpoint: `${getAPI()}${KYCHON_CAPABILITY_FUNCTION_PATH}`,
+    apiKey: () => getAnonKey(),
+    authToken: () => getStoredSession()?.access_token || null,
+  });
+}
+
+function shouldRefreshCapability(error: unknown, session: any): boolean {
+  if (!session?.refresh_token || !isKychonApiError(error)) return false;
+  return error.code === 'permission.denied' || error.code.startsWith('auth.');
+}
+
+async function callCapability<T>(fn: () => Promise<T>, retry = true): Promise<T> {
   const session = getStoredSession();
-  const headers = { ...getAuthHeaders(session), ...extra };
-  const fetchOpts: RequestInit = { method, headers };
-  if (body !== undefined) fetchOpts.body = JSON.stringify(body);
-
-  let res = await fetch(url, fetchOpts);
-
-  if (shouldRefresh(res.status, session) && retry) {
+  try {
+    return await fn();
+  } catch (error) {
+    if (!retry || !shouldRefreshCapability(error, session)) throw error;
     const refreshed = await refreshToken();
-    if (refreshed) {
-      (headers as Record<string, string>).Authorization = `Bearer ${refreshed.access_token}`;
-      fetchOpts.headers = headers;
-      res = await fetch(url, fetchOpts);
-    }
+    if (!refreshed) throw error;
+    return fn();
   }
-
-  if (!res.ok) {
-    const err: any = new Error(`API ${method} ${path}: ${res.status}`);
-    err.status = res.status;
-    try {
-      err.body = await res.json();
-    } catch {}
-    throw err;
-  }
-
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
-async function functionRequest(name: string, query: URLSearchParams, retry = true): Promise<any> {
-  const url = `${getAPI()}/functions/v1/${name}?${query.toString()}`;
-  const headers = getAuthHeaders();
-  let res = await fetch(url, { headers });
+function parsePath(path: string): ParsedPath {
+  const [rawTable, rawQuery = ''] = path.split('?');
+  const table = decodeURIComponent(rawTable.replace(/^\/+/, '').trim());
+  const params = new URLSearchParams(rawQuery);
+  const filters: QueryFilter[] = [];
 
-  if (res.status === 401 && retry) {
-    const refreshed = await refreshToken();
-    if (refreshed) {
-      headers.Authorization = `Bearer ${refreshed.access_token}`;
-      res = await fetch(url, { headers });
+  for (const [key, value] of params.entries()) {
+    if (['select', 'order', 'limit', 'offset'].includes(key)) continue;
+    if (key === 'and') {
+      filters.push(...parseAndFilters(value));
+      continue;
+    }
+    const filter = parseFilter(key, value);
+    if (filter) filters.push(filter);
+  }
+
+  return {
+    table,
+    params,
+    filters,
+    order: parseOrder(params),
+    limit: parseLimit(params.get('limit')),
+    select: params.get('select') || '',
+  };
+}
+
+function parseAndFilters(value: string): QueryFilter[] {
+  const inner = value.startsWith('(') && value.endsWith(')') ? value.slice(1, -1) : value;
+  return inner
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const first = part.indexOf('.');
+      const second = part.indexOf('.', first + 1);
+      if (first < 0 || second < 0) return null;
+      return parseFilter(part.slice(0, first), `${part.slice(first + 1, second)}.${part.slice(second + 1)}`);
+    })
+    .filter((filter): filter is QueryFilter => !!filter);
+}
+
+function parseFilter(field: string, value: string): QueryFilter | null {
+  for (const op of ['not.is', 'neq', 'gte', 'lte', 'gt', 'lt', 'eq', 'in', 'is'] as const) {
+    const prefix = `${op}.`;
+    if (!value.startsWith(prefix)) continue;
+    const normalizedOp = op === 'not.is' ? 'neq' : op;
+    const raw = value.slice(prefix.length);
+    return {
+      field,
+      op: normalizedOp as FilterOp,
+      value: normalizedOp === 'in' ? parseInValues(raw) : parseFilterValue(raw),
+    };
+  }
+  return null;
+}
+
+function parseInValues(raw: string): JsonValue[] {
+  const inner = raw.startsWith('(') && raw.endsWith(')') ? raw.slice(1, -1) : raw;
+  if (!inner) return [];
+  return inner.split(',').map((part) => parseFilterValue(part.trim()));
+}
+
+function parseFilterValue(raw: string): JsonValue {
+  if (raw === 'null') return null;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (raw === 'now()') return new Date().toISOString();
+  if (/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+  return raw;
+}
+
+function parseOrder(params: URLSearchParams): QueryOrder[] {
+  const out: QueryOrder[] = [];
+  for (const value of params.getAll('order')) {
+    for (const part of value.split(',')) {
+      const [field, direction = 'asc'] = part.split('.');
+      if (!field) continue;
+      out.push({ field, direction: direction === 'desc' ? 'desc' : 'asc' });
     }
   }
+  return out;
+}
 
-  if (!res.ok) {
-    const err: any = new Error(`Function ${name}: ${res.status}`);
-    err.status = res.status;
-    try {
-      err.body = await res.json();
-    } catch {}
-    throw err;
+function parseLimit(raw: string | null): number | null {
+  if (!raw) return null;
+  const limit = Number(raw);
+  return Number.isFinite(limit) && limit >= 0 ? Math.floor(limit) : null;
+}
+
+function readInputFor(parsed: ParsedPath): JsonObject {
+  const input: JsonObject = {};
+  if (parsed.filters.length) input.filters = parsed.filters as unknown as JsonValue;
+  if (parsed.order.length) input.order = parsed.order as unknown as JsonValue;
+  if (parsed.limit != null) input.limit = parsed.limit;
+  for (const filter of parsed.filters) {
+    if (filter.op !== 'eq') continue;
+    input[filter.field] = filter.value as JsonValue;
+    const camel = camelInputKey(filter.field);
+    if (camel !== filter.field) input[camel] = filter.value as JsonValue;
   }
+  return input;
+}
 
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+function camelInputKey(field: string): string {
+  return field.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+function rowsFromQueryResult(result: JsonValue): any[] {
+  if (Array.isArray(result)) return result;
+  if (isRecord(result) && Array.isArray(result.rows)) return result.rows;
+  return result == null ? [] : [result];
+}
+
+function rowFromActionResult(result: unknown): any {
+  if (isRecord(result) && 'result' in result) return (result as unknown as ActionResult<JsonValue>).result;
+  return result;
+}
+
+function representation(result: unknown): any[] {
+  const row = rowFromActionResult(result);
+  if (Array.isArray(row)) return row;
+  return row == null ? [] : [row];
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function asJsonObject(value: any): JsonObject {
+  return isRecord(value) ? (value as JsonObject) : {};
+}
+
+function firstEqFilter(parsed: ParsedPath, field: string): JsonValue | null {
+  const filter = parsed.filters.find((item) => item.field === field && item.op === 'eq');
+  return filter ? (filter.value as JsonValue) : null;
+}
+
+function inputWithPathId(parsed: ParsedPath, body: any): JsonObject {
+  const input = { ...asJsonObject(body) };
+  const id = firstEqFilter(parsed, 'id');
+  if (id != null) input.id = id;
+  const key = firstEqFilter(parsed, 'key');
+  if (key != null) input.key = key;
+  return input;
+}
+
+function filterRows(rows: any[], filters: QueryFilter[]): any[] {
+  if (!filters.length) return rows;
+  return rows.filter((row) => filters.every((filter) => rowMatchesFilter(row, filter)));
+}
+
+function rowMatchesFilter(row: any, filter: QueryFilter): boolean {
+  if (!row || !(filter.field in row)) return true;
+  const actual = row?.[filter.field];
+  if (filter.op === 'in') {
+    return Array.isArray(filter.value) && filter.value.some((expected) => valuesEqual(actual, expected));
+  }
+  if (filter.op === 'is') return valuesEqual(actual, filter.value);
+  if (filter.op === 'eq') return valuesEqual(actual, filter.value);
+  if (filter.op === 'neq') return !valuesEqual(actual, filter.value);
+
+  const left = comparableValue(actual);
+  const right = comparableValue(filter.value as JsonValue);
+  if (left == null || right == null) return false;
+  if (filter.op === 'gt') return left > right;
+  if (filter.op === 'gte') return left >= right;
+  if (filter.op === 'lt') return left < right;
+  if (filter.op === 'lte') return left <= right;
+  return true;
+}
+
+function valuesEqual(actual: unknown, expected: JsonValue): boolean {
+  if (actual == null || expected == null) return actual == null && expected == null;
+  return String(actual) === String(expected);
+}
+
+function comparableValue(value: unknown): number | string | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && String(value).trim() !== '') return numeric;
+  const date = Date.parse(String(value));
+  return Number.isFinite(date) ? date : String(value);
+}
+
+function sortRows(rows: any[], order: QueryOrder[]): any[] {
+  if (!order.length) return rows;
+  return [...rows].sort((a, b) => {
+    for (const item of order) {
+      const left = comparableValue(a?.[item.field]);
+      const right = comparableValue(b?.[item.field]);
+      if (left === right) continue;
+      if (left == null) return 1;
+      if (right == null) return -1;
+      const direction = item.direction === 'desc' ? -1 : 1;
+      return left > right ? direction : -direction;
+    }
+    return 0;
+  });
+}
+
+function maybeLimit(rows: any[], limit: number | null): any[] {
+  return limit == null ? rows : rows.slice(0, limit);
+}
+
+async function hydrateSelectedRelations(rows: any[], select: string): Promise<any[]> {
+  if (!select.includes('members(') || rows.length === 0) return rows;
+  const ids = Array.from(new Set(rows.map((row) => row.member_id).filter((id) => id != null)));
+  if (!ids.length) return rows;
+  const members = await get(`members?id=in.(${ids.join(',')})`);
+  const byId = new Map(members.map((member: any) => [String(member.id), member]));
+  return rows.map((row) => ({
+    ...row,
+    members: row.member_id == null ? null : byId.get(String(row.member_id)) || null,
+  }));
+}
+
+async function queryPath(path: string): Promise<any[]> {
+  const parsed = parsePath(path);
+  const operation = READ_OPERATION_BY_TABLE[parsed.table];
+  if (!operation) throw new Error(`Unsupported Kychon API read path: ${path}`);
+
+  const result = await callCapability(() =>
+    capabilityClient().request<JsonValue>(operation, 'query', readInputFor(parsed)),
+  );
+  const normalized = normalizeRowsForTable(parsed.table, rowsFromQueryResult(result));
+  const rows = maybeLimit(sortRows(filterRows(normalized, parsed.filters), parsed.order), parsed.limit);
+  return hydrateSelectedRelations(rows, parsed.select);
+}
+
+function normalizeRowsForTable(table: string, rows: any[]): any[] {
+  if (table !== 'members') return rows;
+  return rows.map((row) => ({
+    user_id: null,
+    email: '',
+    custom_fields: {},
+    joined_at: row.joined_at || row.created_at || '',
+    expires_at: null,
+    created_at: row.created_at || row.joined_at || '',
+    updated_at: row.updated_at || row.created_at || row.joined_at || '',
+    status: 'active',
+    ...row,
+  }));
+}
+
+function createInputFor(parsed: ParsedPath, body: any): JsonObject {
+  const input = asJsonObject(body);
+  if (parsed.table === 'site_config') {
+    return {
+      key: input.key ?? firstEqFilter(parsed, 'key'),
+      value: input.value ?? null,
+      category: input.category ?? 'general',
+    };
+  }
+  if (parsed.table === 'resources') {
+    return {
+      ...input,
+      metadata: { ...input },
+      fileUrl: input.fileUrl ?? input.file_url ?? null,
+    };
+  }
+  if (parsed.table === 'poll_votes') {
+    return {
+      ...input,
+      pollId: input.pollId ?? input.poll_id,
+      optionId: input.optionId ?? input.option_id,
+    };
+  }
+  if (parsed.table === 'event_rsvps') {
+    return {
+      ...input,
+      eventId: input.eventId ?? input.event_id ?? firstEqFilter(parsed, 'event_id'),
+      memberId: input.memberId ?? input.member_id ?? firstEqFilter(parsed, 'member_id'),
+    };
+  }
+  return input;
+}
+
+function updateOperationFor(parsed: ParsedPath, body: any): string {
+  const input = asJsonObject(body);
+  if (parsed.table === 'site_config') return 'config.set';
+  if (parsed.table === 'members') {
+    if (input.status === 'active') return 'members.approve';
+    if (input.status === 'rejected') return 'members.reject';
+    if (input.status === 'suspended') return 'members.suspend';
+    if ('tier_id' in input) return 'members.changeTier';
+    if ('role' in input) return 'members.changeRole';
+    if ('expires_at' in input) return 'members.setExpiration';
+    if ('user_id' in input) return 'members.linkUser';
+  }
+  if (parsed.table === 'moderation_log') {
+    if (input.action === 'approved') return 'moderation.approve';
+    if (input.action === 'hidden') return 'moderation.hide';
+  }
+  return UPDATE_OPERATION_BY_TABLE[parsed.table] || '';
+}
+
+function updateInputFor(parsed: ParsedPath, body: any): JsonObject {
+  const input = inputWithPathId(parsed, body);
+  if (parsed.table === 'site_config') {
+    return {
+      key: input.key,
+      value: input.value ?? null,
+      category: input.category ?? 'general',
+    };
+  }
+  if (parsed.table === 'members') {
+    if ('tier_id' in input) input.tierId = input.tier_id;
+    if ('expires_at' in input) input.expiresAt = input.expires_at;
+    if ('user_id' in input) input.userId = input.user_id;
+  }
+  if (parsed.table === 'event_rsvps') {
+    input.eventId = input.eventId ?? input.event_id ?? firstEqFilter(parsed, 'event_id');
+    input.memberId = input.memberId ?? input.member_id ?? firstEqFilter(parsed, 'member_id');
+  }
+  return input;
+}
+
+async function executeOperation(operation: string, input: JsonObject): Promise<any[]> {
+  if (!operation) throw new Error('Unsupported Kychon API mutation.');
+  const result = await callCapability(() =>
+    capabilityClient().execute<ActionResult<JsonValue>>(operation, input, {
+      confirmed: true,
+      idempotencyKey: createIdempotencyKey(operation.replace(/\./g, '-')),
+    }),
+  );
+  return representation(result);
 }
 
 export function get(path: string): Promise<any> {
-  return request('GET', path);
+  return queryPath(path);
 }
 
-export function post(path: string, body: any): Promise<any> {
-  return request('POST', path, { body, headers: { Prefer: 'return=representation' } });
+export async function post(path: string, body: any): Promise<any> {
+  const parsed = parsePath(path);
+  const operation = parsed.table === 'site_config' ? 'config.set' : CREATE_OPERATION_BY_TABLE[parsed.table];
+  return executeOperation(operation, createInputFor(parsed, body));
 }
 
-export function patch(path: string, body: any): Promise<any> {
-  return request('PATCH', path, { body, headers: { Prefer: 'return=representation' } });
+export async function patch(path: string, body: any): Promise<any> {
+  const parsed = parsePath(path);
+  return executeOperation(updateOperationFor(parsed, body), updateInputFor(parsed, body));
 }
 
-export function del(path: string): Promise<any> {
-  return request('DELETE', path);
+export async function del(path: string): Promise<any> {
+  const parsed = parsePath(path);
+
+  if (parsed.table === 'event_rsvps') {
+    const input: JsonObject = {};
+    const id = firstEqFilter(parsed, 'id');
+    const eventId = firstEqFilter(parsed, 'event_id');
+    const memberId = firstEqFilter(parsed, 'member_id');
+    if (id != null) input.id = id;
+    if (eventId != null) input.eventId = eventId;
+    if (memberId != null) input.memberId = memberId;
+    await executeOperation('rsvps.cancel', input);
+    return null;
+  }
+
+  if (parsed.table === 'poll_votes') {
+    const id = firstEqFilter(parsed, 'id');
+    if (id != null) {
+      const [vote] = await queryPath(path);
+      if (vote?.poll_id) {
+        const [poll] = await queryPath(`polls?id=eq.${vote.poll_id}`);
+        const opInput: JsonObject = { pollId: vote.poll_id };
+        if (poll?.poll_type === 'multiple') opInput.optionId = vote.option_id;
+        await executeOperation(poll?.poll_type === 'multiple' ? 'pollVotes.cast' : 'pollVotes.clearMine', opInput);
+      }
+      return null;
+    }
+    const pollId = firstEqFilter(parsed, 'poll_id');
+    await executeOperation('pollVotes.clearMine', pollId == null ? {} : { pollId });
+    return null;
+  }
+
+  const operation = DELETE_OPERATION_BY_TABLE[parsed.table];
+  if (!operation) throw new Error(`Unsupported Kychon API delete path: ${path}`);
+  const id = firstEqFilter(parsed, 'id');
+  const rows = id == null ? await queryPath(path) : [{ id }];
+  await Promise.all(rows.map((row) => executeOperation(operation, { id: row.id })));
+  return null;
 }
 
 export async function count(path: string): Promise<number> {
-  const url = `${getAPI()}/rest/v1/${path}`;
-  const res = await fetch(url, {
-    headers: { ...getAuthHeaders(), Prefer: 'count=exact' },
-  });
-  const range = res.headers.get('Content-Range');
-  if (range) {
-    const total = range.split('/')[1];
-    if (!total) return 0;
-    return total === '*' ? 0 : parseInt(total, 10);
-  }
-  return 0;
+  return (await get(path)).length;
 }
 
 export interface SiteSearchParams {
@@ -163,13 +611,15 @@ export interface SiteSearchParams {
 }
 
 export async function searchSite(params: SiteSearchParams): Promise<import('./search.js').SearchResponse> {
-  const query = new URLSearchParams();
-  if (params.q != null) query.set('q', params.q);
-  if (params.type) query.set('type', params.type);
-  if (params.page != null) query.set('page', String(params.page));
-  if (params.page_size != null) query.set('page_size', String(params.page_size));
-  if (params.suggest) query.set('suggest', '1');
-  return functionRequest('site-search', query);
+  const input: JsonObject = {};
+  if (params.q != null) input.q = params.q;
+  if (params.type) input.type = params.type;
+  if (params.page != null) input.page = params.page;
+  if (params.page_size != null) input.page_size = params.page_size;
+  const operation = params.suggest ? 'search.suggest' : 'search.query';
+  return callCapability(() =>
+    capabilityClient().request<import('./search.js').SearchResponse>(operation, 'query', input),
+  );
 }
 
 // --- Typed wrappers (Zod-validated) ---

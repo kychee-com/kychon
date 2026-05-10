@@ -31,63 +31,11 @@ export { fileSetFromDir };
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
- * Tables reachable via `/rest/v1/*`, sent as `database.expose.tables` in the
- * v2 release spec. Rich-object shape per the published manifest schema at
- * https://run402.com/schemas/manifest.v1.json.
- *
- * The previous workaround (sending bare strings + structural cast) is no
- * longer needed: the gateway's v2 validator was relaxed to delegate to the
- * same `validateManifest()` the imperative `/expose` route uses (kychee-com/run402#154).
- * Setting `policy` explicitly here also pins the RLS template — strings
- * implicitly default to `public_read_authenticated_write` server-side, which
- * is what we want, but explicit beats implicit.
+ * Product data is intentionally not published through Run402's low-level
+ * `/rest/v1/*` table API. Demo sites and agents talk to the Kychon Capability
+ * API (`POST /functions/v1/kychon-api`) through @kychon/sdk instead.
  */
-const TABLE_NAMES = [
-  "site_config",
-  "pages",
-  "sections",
-  "membership_tiers",
-  "member_custom_fields",
-  "announcements",
-  "activity_log",
-  "members",
-  "events",
-  "event_registration_options",
-  "event_rsvps",
-  "resources",
-  "forum_categories",
-  "forum_topics",
-  "forum_replies",
-  "committees",
-  "committee_members",
-  "content_translations",
-  "moderation_log",
-  "member_insights",
-  "newsletter_drafts",
-  "reactions",
-] as const;
-
-// `search_documents` is intentionally not exposed through PostgREST. The
-// public search surface is the Run402 function, which enforces member
-// visibility and private cache headers before returning snippets/titles.
-function publicReadAuthenticatedWriteSql(tableName: string): string {
-  const writerRoleCheck = "auth.role() IN ('authenticated', 'project_admin')";
-  return [
-    `CREATE POLICY "Anyone can read" ON ${tableName} FOR SELECT USING (true)`,
-    `CREATE POLICY "Authenticated users can insert" ON ${tableName} FOR INSERT WITH CHECK (${writerRoleCheck})`,
-    `CREATE POLICY "Authenticated users can update" ON ${tableName} FOR UPDATE USING (${writerRoleCheck})`,
-    `CREATE POLICY "Authenticated users can delete" ON ${tableName} FOR DELETE USING (${writerRoleCheck})`,
-  ].join(";\n");
-}
-
-export const EXPOSE_TABLES: ReadonlyArray<Record<string, unknown>> = TABLE_NAMES.map(
-  (name) => ({
-    name,
-    expose: true,
-    policy: "custom",
-    custom_sql: publicReadAuthenticatedWriteSql(name),
-  }),
-);
+export const EXPOSE_TABLES: ReadonlyArray<Record<string, unknown>> = [];
 
 export interface CollectFunctionsOptions {
   /** Function names to skip (e.g. `["check-expirations"]` for demos). */
@@ -365,12 +313,14 @@ export async function runDeploy(
   const fnNames = Object.keys(functionsMap);
   const scheduledFns = fnNames.filter((n) => functionsMap[n]?.schedule);
 
+  const database: ReleaseSpec["database"] = {
+    migrations: [{ id: migrationId, sql }],
+    expose: { version: "1", tables: [...EXPOSE_TABLES] },
+  };
+
   const spec: ReleaseSpec = {
     project: opts.projectId,
-    database: {
-      migrations: [{ id: migrationId, sql }],
-      expose: { version: "1", tables: [...EXPOSE_TABLES] },
-    },
+    database,
     site: { replace: fileSet },
     subdomains: { set: [opts.subdomain] },
   };

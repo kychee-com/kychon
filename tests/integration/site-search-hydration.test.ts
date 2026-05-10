@@ -63,7 +63,11 @@ describe('site_search hydration', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: () =>
-        Promise.resolve({ results: [{ type: 'page', title: 'Membership', url: '/page.html?slug=membership' }] }),
+        Promise.resolve({
+          ok: true,
+          correlationId: 'test',
+          data: { results: [{ type: 'page', title: 'Membership', url: '/page.html?slug=membership' }] },
+        }),
     });
     const host = mount();
     await hydrateSiteSearch(host, section, ctx);
@@ -73,8 +77,13 @@ describe('site_search hydration', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(220);
 
-    expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/site-search?');
-    expect(fetchMock.mock.calls[0][0]).toContain('suggest=1');
+    expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/kychon-api');
+    const envelope = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(envelope).toMatchObject({
+      operation: 'search.suggest',
+      phase: 'query',
+      input: { q: 'mem', type: 'pages' },
+    });
     const list = host.querySelector('[role="listbox"]') as HTMLElement;
     expect(list.hidden).toBe(false);
     expect(list.textContent).toContain('Membership');

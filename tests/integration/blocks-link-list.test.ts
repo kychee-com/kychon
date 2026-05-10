@@ -35,19 +35,24 @@ describe('hydrateLinkListResources', () => {
   it('replaces skeleton with fetched items and tags hydrated', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
-      text: () =>
-        Promise.resolve(
-          JSON.stringify([
-            { id: 1, title: 'A doc', file_url: '/r/a.pdf', file_type: 'pdf', created_at: '2026-04-01T00:00:00Z' },
-            {
-              id: 2,
-              title: 'External',
-              file_url: 'https://www.example.com/blog',
-              file_type: 'link',
-              created_at: '2026-03-01T00:00:00Z',
-            },
-          ]),
-        ),
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          correlationId: 'test',
+          data: {
+            rows: [
+              { id: 1, title: 'A doc', file_url: '/r/a.pdf', file_type: 'pdf', created_at: '2026-04-01T00:00:00Z' },
+              {
+                id: 2,
+                title: 'External',
+                file_url: 'https://www.example.com/blog',
+                file_type: 'link',
+                created_at: '2026-03-01T00:00:00Z',
+              },
+            ],
+            count: 2,
+          },
+        }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -79,11 +84,14 @@ describe('hydrateLinkListResources', () => {
     );
 
     expect(fetchMock).toHaveBeenCalled();
-    const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('/rest/v1/resources');
-    expect(calledUrl).toContain('category=eq.newsletters');
-    expect(calledUrl).toContain('order=created_at.desc');
-    expect(calledUrl).toContain('limit=3');
+    const [calledUrl, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(calledUrl).toContain('/functions/v1/kychon-api');
+    const envelope = JSON.parse(String(calledInit.body));
+    expect(envelope).toMatchObject({
+      operation: 'resources.list',
+      phase: 'query',
+      input: { category: 'newsletters' },
+    });
 
     const root = wrapper.querySelector('[data-block-hydrate="link_list"]') as HTMLElement;
     expect(root.dataset.hydrated).toBe('true');
@@ -102,7 +110,7 @@ describe('hydrateLinkListResources', () => {
       'fetch',
       vi.fn().mockResolvedValueOnce({
         ok: true,
-        text: () => Promise.resolve('[]'),
+        json: () => Promise.resolve({ ok: true, correlationId: 'test', data: { rows: [], count: 0 } }),
       }),
     );
 
