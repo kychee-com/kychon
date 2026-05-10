@@ -22,7 +22,7 @@ jobs:
         run: npx tsx scripts/smoke-check-seeds.ts
 
       - name: Tests
-        run: npx vitest run
+        run: npm test
 
       - name: Lint
         run: npx biome check .
