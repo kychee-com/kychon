@@ -1,14 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import {
-  DEMO_PORTAL_FIXTURES,
-  KYCHON_API_VERSION,
-  SDK_EXAMPLES,
   createIdempotencyKey,
   createKychonClient,
+  DEMO_PORTAL_FIXTURES,
   isKychonApiError,
   type JsonObject,
+  KYCHON_API_VERSION,
+  SDK_EXAMPLES,
 } from '@kychon/sdk';
+import { describe, expect, it, vi } from 'vitest';
 import { handleCapabilityApiRequest } from '../../src/lib/capability-api/index.ts';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -119,10 +118,9 @@ describe('@kychon/sdk client', () => {
         return jsonResponse({ api: { endpoint: 'https://api.run402.com/functions/v1/kychon-api' } });
       }
       if (url.endsWith('/js/env.js')) {
-        return new Response(
-          "window.__KYCHON_API = 'https://api.run402.com';\nwindow.__KYCHON_ANON_KEY = 'anon';\n",
-          { headers: { 'Content-Type': 'application/javascript' } },
-        );
+        return new Response("window.__KYCHON_API = 'https://api.run402.com';\nwindow.__KYCHON_ANON_KEY = 'anon';\n", {
+          headers: { 'Content-Type': 'application/javascript' },
+        });
       }
       return jsonResponse({ ok: true, correlationId: 'corr', data: { apiCurrentVersion: KYCHON_API_VERSION } });
     });

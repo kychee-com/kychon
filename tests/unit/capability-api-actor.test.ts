@@ -6,9 +6,9 @@ import {
   authPermissions,
   authWhoami,
   checkOperationPermission,
-  resolveCapabilityActor,
   type MemberRowLike,
   type Run402UserLike,
+  resolveCapabilityActor,
 } from '../../src/lib/capability-api/index.ts';
 
 function makeRequest(body?: unknown): Request {
@@ -35,7 +35,9 @@ function makeDeps(user: Run402UserLike | null, members: MemberRowLike[]) {
                     return members
                       .filter((member) => {
                         const candidate = member[column as keyof MemberRowLike];
-                        return typeof candidate === 'string' ? candidate.toLowerCase() === normalized : candidate === value;
+                        return typeof candidate === 'string'
+                          ? candidate.toLowerCase() === normalized
+                          : candidate === value;
                       })
                       .slice(0, count);
                   },

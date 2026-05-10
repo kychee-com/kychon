@@ -39,7 +39,10 @@ describe('native site search schema', () => {
   });
 
   it('does not expose product tables through the low-level REST deploy config', () => {
-    const exposeDeclaration = deployLib.slice(deployLib.indexOf('export const EXPOSE_TABLES'), deployLib.indexOf('export interface CollectFunctionsOptions'));
+    const exposeDeclaration = deployLib.slice(
+      deployLib.indexOf('export const EXPOSE_TABLES'),
+      deployLib.indexOf('export interface CollectFunctionsOptions'),
+    );
     expect(exposeDeclaration).toContain('[]');
     expect(exposeDeclaration).not.toContain('"search_documents"');
     expect(deployLib).toContain('Product data is intentionally not published');

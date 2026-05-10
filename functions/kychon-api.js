@@ -376,7 +376,8 @@ async function parseEnvelope(req) {
       apiVersion: body.apiVersion,
       operation: body.operation,
       phase: body.phase,
-      input: body.input && typeof body.input === 'object' && !Array.isArray(body.input) ? body.input : { value: body.input },
+      input:
+        body.input && typeof body.input === 'object' && !Array.isArray(body.input) ? body.input : { value: body.input },
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
       confirmed: typeof body.confirmed === 'boolean' ? body.confirmed : undefined,
     },
@@ -440,7 +441,9 @@ function handleQuery(correlationId, envelope, operation, actor) {
   }
   if (operation.name === 'auth.explainDenied') {
     const target = OPERATIONS.get(String(envelope.input.operation || ''));
-    const permission = target ? checkPermission(actor, target) : { allowed: false, actorState: actor.state, reason: 'Unknown operation.' };
+    const permission = target
+      ? checkPermission(actor, target)
+      : { allowed: false, actorState: actor.state, reason: 'Unknown operation.' };
     return successResponse(correlationId, {
       operation: envelope.input.operation || '',
       ...permission,
@@ -495,7 +498,10 @@ async function handleTableQuery(correlationId, input, actor, spec) {
       return successResponse(correlationId, row || null);
     }
 
-    const filtered = rows.filter((row) => matchesInput(row, queryInput)).filter((row) => visible(row, actor)).map((row) => map(row, actor));
+    const filtered = rows
+      .filter((row) => matchesInput(row, queryInput))
+      .filter((row) => visible(row, actor))
+      .map((row) => map(row, actor));
     return successResponse(correlationId, { rows: filtered, count: filtered.length });
   } catch (error) {
     console.error('kychon-api table query failed:', error);
@@ -758,11 +764,18 @@ async function executeMutation(name, input, actor) {
   if (name === 'pollVotes.clearMine') return clearMinePollVotes(input, actor);
   if (name === 'reactions.toggle') return toggleReaction(input, actor);
   if (name === 'resources.upload') return uploadResource(input, actor);
-  if (name === 'assets.upload') return actionResult({ status: 'uploaded', path: input.path || null }, [changedObject('asset', input.path || 'asset')], null);
-  if (name === 'translations.translateText') return actionResult({ translatedText: input.text || '' }, [changedObject('translation', 'text')], null);
+  if (name === 'assets.upload')
+    return actionResult(
+      { status: 'uploaded', path: input.path || null },
+      [changedObject('asset', input.path || 'asset')],
+      null,
+    );
+  if (name === 'translations.translateText')
+    return actionResult({ translatedText: input.text || '' }, [changedObject('translation', 'text')], null);
   if (name === 'translations.translateContent') return translateContent(input);
   if (name === 'newsletters.drafts.generate') return generateNewsletterDraft(input);
-  if (name.startsWith('jobs.')) return actionResult({ status: 'queued', job: name.replace(/^jobs\./, '') }, [changedObject('job', name)], null);
+  if (name.startsWith('jobs.'))
+    return actionResult({ status: 'queued', job: name.replace(/^jobs\./, '') }, [changedObject('job', name)], null);
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, actor);
   if (name === 'rsvps.cancel') return cancelRsvp(input, actor);
   return genericMutation(name, input, actor);
@@ -799,8 +812,16 @@ async function publishAnnouncement(input, actor) {
     const poll = await createPoll({ ...input.poll, attached_to: 'announcement', attached_id: announcement.id }, actor);
     changed.push(changedObject('poll', poll.id));
   }
-  const activity = await writeActivity(actor, 'announcement', { title: announcement.title, announcement_id: announcement.id });
-  return actionResult(announcement, changed, verification('announcements.get', { id: announcement.id }, changed[0]), auditReference(activity.id, 'announcement'));
+  const activity = await writeActivity(actor, 'announcement', {
+    title: announcement.title,
+    announcement_id: announcement.id,
+  });
+  return actionResult(
+    announcement,
+    changed,
+    verification('announcements.get', { id: announcement.id }, changed[0]),
+    auditReference(activity.id, 'announcement'),
+  );
 }
 
 async function createForumTopic(input, actor) {
@@ -820,14 +841,25 @@ async function createForumTopic(input, actor) {
     changed.push(changedObject('poll', poll.id));
   }
   const activity = await writeActivity(actor, 'forum_post', { title: topic.title, topic_id: topic.id });
-  return actionResult(topic, changed, verification('forum.topics.get', { id: topic.id }, changed[0]), auditReference(activity.id, 'forum_post'));
+  return actionResult(
+    topic,
+    changed,
+    verification('forum.topics.get', { id: topic.id }, changed[0]),
+    auditReference(activity.id, 'forum_post'),
+  );
 }
 
 async function createForumReply(input, actor) {
   const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
   const topic = (await selectRows('forum_topics')).find((row) => String(row.id) === String(topicId));
-  if (!topic) throw capabilityError('notFound.object', 'Forum topic not found.', { object: { type: 'forum.topic', id: String(topicId) } });
-  if (topic.locked === true) throw capabilityError('conflict.state', 'Forum topic is locked.', { object: { type: 'forum.topic', id: String(topicId) } });
+  if (!topic)
+    throw capabilityError('notFound.object', 'Forum topic not found.', {
+      object: { type: 'forum.topic', id: String(topicId) },
+    });
+  if (topic.locked === true)
+    throw capabilityError('conflict.state', 'Forum topic is locked.', {
+      object: { type: 'forum.topic', id: String(topicId) },
+    });
 
   const reply = await insertRow('forum_replies', {
     topic_id: topicId,
@@ -841,7 +873,12 @@ async function createForumReply(input, actor) {
   });
   const activity = await writeActivity(actor, 'forum_reply', { topic_id: topicId, reply_id: reply.id });
   const object = changedObject('forum.reply', reply.id);
-  return actionResult(reply, [object, changedObject('forum.topic', topicId)], verification('forum.replies.list', { topicId }, object), auditReference(activity.id, 'forum_reply'));
+  return actionResult(
+    reply,
+    [object, changedObject('forum.topic', topicId)],
+    verification('forum.replies.list', { topicId }, object),
+    auditReference(activity.id, 'forum_reply'),
+  );
 }
 
 async function createPollAction(input, actor) {
@@ -875,13 +912,19 @@ async function createPoll(input, actor) {
 
 async function castPollVote(input, actor) {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds) ? input.optionIds : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const optionIds = Array.isArray(input.optionIds)
+    ? input.optionIds
+    : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
   const poll = (await selectRows('polls')).find((row) => String(row.id) === String(pollId));
-  if (!poll) throw capabilityError('notFound.object', 'Poll not found.', { object: { type: 'poll', id: String(pollId) } });
-  if (poll.is_open === false) throw capabilityError('conflict.state', 'Poll is closed.', { object: { type: 'poll', id: String(pollId) } });
+  if (!poll)
+    throw capabilityError('notFound.object', 'Poll not found.', { object: { type: 'poll', id: String(pollId) } });
+  if (poll.is_open === false)
+    throw capabilityError('conflict.state', 'Poll is closed.', { object: { type: 'poll', id: String(pollId) } });
 
   const member = memberId(actor);
-  const existing = (await selectRows('poll_votes')).filter((vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member));
+  const existing = (await selectRows('poll_votes')).filter(
+    (vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member),
+  );
   if (poll.poll_type !== 'multiple') {
     for (const vote of existing) await deleteRow('poll_votes', requiredId(vote, 'pollVotes.cast existing vote'));
   }
@@ -898,15 +941,26 @@ async function castPollVote(input, actor) {
     changed.push(changedObject('poll.vote', vote.id));
   }
   const activity = await writeActivity(actor, 'poll_vote', { poll_id: pollId });
-  return actionResult({ pollId, optionIds }, changed, verification('pollResults.get', { id: pollId }), auditReference(activity.id, 'poll_vote'));
+  return actionResult(
+    { pollId, optionIds },
+    changed,
+    verification('pollResults.get', { id: pollId }),
+    auditReference(activity.id, 'poll_vote'),
+  );
 }
 
 async function clearMinePollVotes(input, actor) {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.clearMine requires pollId.');
   const member = memberId(actor);
-  const votes = (await selectRows('poll_votes')).filter((vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member));
+  const votes = (await selectRows('poll_votes')).filter(
+    (vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member),
+  );
   for (const vote of votes) await deleteRow('poll_votes', requiredId(vote, 'pollVotes.clearMine vote'));
-  return actionResult({ cleared: votes.length }, votes.map((vote) => changedObject('poll.vote', vote.id)), verification('pollResults.get', { id: pollId }));
+  return actionResult(
+    { cleared: votes.length },
+    votes.map((vote) => changedObject('poll.vote', vote.id)),
+    verification('pollResults.get', { id: pollId }),
+  );
 }
 
 async function setRsvpStatus(input, actor) {
@@ -916,11 +970,17 @@ async function setRsvpStatus(input, actor) {
   if (id != null) {
     const row = await updateRow('event_rsvps', id, { status: input.status || 'going', member_id: member });
     const object = changedObject('event.rsvp', row.id ?? id);
-    return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: row.event_id ?? eventId }, object));
+    return actionResult(
+      row,
+      [object],
+      verification('rsvps.listForEvent', { eventId: row.event_id ?? eventId }, object),
+    );
   }
 
   const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
-  const existing = (await selectRows('event_rsvps')).find((row) => String(row.event_id) === String(event) && String(row.member_id) === String(member));
+  const existing = (await selectRows('event_rsvps')).find(
+    (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
+  );
   const row = existing
     ? await updateRow('event_rsvps', existing.id, { status: input.status || 'going', member_id: member })
     : await insertRow('event_rsvps', { event_id: event, member_id: member, status: input.status || 'going' });
@@ -932,9 +992,12 @@ async function cancelRsvp(input, actor) {
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
   const member = input.memberId ?? input.member_id ?? memberId(actor);
-  const existing = id != null
-    ? (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id))
-    : (await selectRows('event_rsvps')).find((row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member));
+  const existing =
+    id != null
+      ? (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id))
+      : (await selectRows('event_rsvps')).find(
+          (row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member),
+        );
   if (!existing) return actionResult({ cancelled: false }, [], null);
   const row = await updateRow('event_rsvps', existing.id, { status: 'cancelled' });
   const object = changedObject('event.rsvp', row.id);
@@ -954,11 +1017,18 @@ async function uploadResource(input, actor) {
   });
   const activity = await writeActivity(actor, 'resource_upload', { title: resource.title, resource_id: resource.id });
   const object = changedObject('resource', resource.id);
-  return actionResult(resource, [object], verification('resources.get', { id: resource.id }, object), auditReference(activity.id, 'resource_upload'));
+  return actionResult(
+    resource,
+    [object],
+    verification('resources.get', { id: resource.id }, object),
+    auditReference(activity.id, 'resource_upload'),
+  );
 }
 
 async function toggleReaction(input, actor) {
-  const contentType = String(requiredAny(input.contentType ?? input.content_type, 'reactions.toggle requires contentType.'));
+  const contentType = String(
+    requiredAny(input.contentType ?? input.content_type, 'reactions.toggle requires contentType.'),
+  );
   const contentId = requiredAny(input.contentId ?? input.content_id, 'reactions.toggle requires contentId.');
   const emoji = String(input.emoji || 'heart');
   const member = memberId(actor);
@@ -973,7 +1043,12 @@ async function toggleReaction(input, actor) {
     await deleteRow('reactions', requiredId(existing, 'reactions.toggle existing reaction'));
     return actionResult({ toggled: 'removed' }, [changedObject('reaction', existing.id)], null);
   }
-  const reaction = await insertRow('reactions', { content_type: contentType, content_id: contentId, emoji, member_id: member });
+  const reaction = await insertRow('reactions', {
+    content_type: contentType,
+    content_id: contentId,
+    emoji,
+    member_id: member,
+  });
   return actionResult({ toggled: 'added', reaction }, [changedObject('reaction', reaction.id)], null);
 }
 
@@ -1016,9 +1091,12 @@ async function upsertConfig(input) {
 }
 
 function rowForCreate(operation, input, actor) {
-  if (operation.startsWith('polls.')) return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
-  if (operation.startsWith('events.')) return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
-  if (operation.startsWith('activity.')) return { ...stripControlFields(input), member_id: input.member_id ?? memberId(actor) };
+  if (operation.startsWith('polls.'))
+    return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
+  if (operation.startsWith('events.'))
+    return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
+  if (operation.startsWith('activity.'))
+    return { ...stripControlFields(input), member_id: input.member_id ?? memberId(actor) };
   return stripControlFields(input);
 }
 
@@ -1036,7 +1114,8 @@ function rowForUpdate(operation, input, actor) {
   if (operation === 'registrationOptions.enable') return { is_disabled: false };
   if (operation === 'registrationOptions.markReviewed') return { review_state: 'reviewed' };
   if (operation === 'registrationOptions.ignore') return { review_state: 'ignored' };
-  if (operation === 'events.reviewImport') return { import_review_state: input.reviewState || input.review_state || 'reviewed' };
+  if (operation === 'events.reviewImport')
+    return { import_review_state: input.reviewState || input.review_state || 'reviewed' };
   if (operation.endsWith('.pin')) return { is_pinned: true };
   if (operation.endsWith('.unpin')) return { is_pinned: false };
   if (operation.endsWith('.lock')) return { locked: true };
@@ -1045,23 +1124,27 @@ function rowForUpdate(operation, input, actor) {
   if (operation.endsWith('.unhide')) return { hidden: false };
   if (operation.endsWith('.close')) return { is_open: false };
   if (operation.endsWith('.reopen')) return { is_open: true };
-  if (operation === 'moderation.approve') return { action: 'approved', reviewed_by: input.reviewed_by ?? memberId(actor) };
+  if (operation === 'moderation.approve')
+    return { action: 'approved', reviewed_by: input.reviewed_by ?? memberId(actor) };
   if (operation === 'moderation.hide') return { action: 'hidden', reviewed_by: input.reviewed_by ?? memberId(actor) };
-  if (operation === 'moderation.markReviewed') return { action: input.action || 'reviewed', reviewed_by: input.reviewed_by ?? memberId(actor) };
+  if (operation === 'moderation.markReviewed')
+    return { action: input.action || 'reviewed', reviewed_by: input.reviewed_by ?? memberId(actor) };
   if (operation === 'insights.updateStatus') return { status: input.status || 'reviewed' };
   if (operation === 'insights.dismiss') return { status: 'dismissed' };
   return stripControlFields(input);
 }
 
 function mutationSpec(operation) {
-  if (operation.startsWith('config.')) return { table: 'site_config', objectType: 'config.entry', action: 'upsertConfig' };
+  if (operation.startsWith('config.'))
+    return { table: 'site_config', objectType: 'config.entry', action: 'upsertConfig' };
   if (operation.startsWith('pages.')) return spec('pages', 'page', operation);
   if (operation.startsWith('sections.')) return spec('sections', 'section', operation);
   if (operation.startsWith('members.')) return spec('members', 'member', operation);
   if (operation.startsWith('tiers.')) return spec('membership_tiers', 'member.tier', operation);
   if (operation.startsWith('memberFields.')) return spec('member_custom_fields', 'member.field', operation);
   if (operation.startsWith('events.')) return spec('events', 'event', operation);
-  if (operation.startsWith('registrationOptions.')) return spec('event_registration_options', 'event.registrationOption', operation);
+  if (operation.startsWith('registrationOptions.'))
+    return spec('event_registration_options', 'event.registrationOption', operation);
   if (operation.startsWith('rsvps.')) return spec('event_rsvps', 'event.rsvp', operation);
   if (operation.startsWith('announcements.')) return spec('announcements', 'announcement', operation);
   if (operation.startsWith('resources.')) return spec('resources', 'resource', operation);
@@ -1083,11 +1166,15 @@ function mutationSpec(operation) {
 }
 
 function spec(table, objectType, operation) {
-  const action = operation.endsWith('.create') || operation.endsWith('.add') || operation.endsWith('.upload') || operation.endsWith('.generate')
-    ? 'create'
-    : operation.endsWith('.delete') || operation.endsWith('.remove')
-      ? 'delete'
-      : 'update';
+  const action =
+    operation.endsWith('.create') ||
+    operation.endsWith('.add') ||
+    operation.endsWith('.upload') ||
+    operation.endsWith('.generate')
+      ? 'create'
+      : operation.endsWith('.delete') || operation.endsWith('.remove')
+        ? 'delete'
+        : 'update';
   return { table, objectType, action };
 }
 
@@ -1126,7 +1213,10 @@ async function insertRowSql(table, row) {
   const columns = entries.map(([key]) => quoteIdent(key)).join(', ');
   const placeholders = entries.map((_, index) => `$${index + 1}`).join(', ');
   const values = entries.map(([, value]) => value);
-  const result = await adminDb().sql(`INSERT INTO ${quoteIdent(table)} (${columns}) VALUES (${placeholders}) RETURNING *`, values);
+  const result = await adminDb().sql(
+    `INSERT INTO ${quoteIdent(table)} (${columns}) VALUES (${placeholders}) RETURNING *`,
+    values,
+  );
   return normalizeDbRows(result)[0] || row;
 }
 
@@ -1151,10 +1241,9 @@ async function deleteRowSql(table, keyColumn, keyValue) {
 }
 
 async function selectOneRowSql(table, keyColumn, keyValue) {
-  const result = await adminDb().sql(
-    `SELECT * FROM ${quoteIdent(table)} WHERE ${quoteIdent(keyColumn)} = $1 LIMIT 1`,
-    [keyValue],
-  );
+  const result = await adminDb().sql(`SELECT * FROM ${quoteIdent(table)} WHERE ${quoteIdent(keyColumn)} = $1 LIMIT 1`, [
+    keyValue,
+  ]);
   return normalizeDbRows(result)[0] || null;
 }
 
@@ -1181,15 +1270,16 @@ async function writeActivity(actor, action, metadata) {
 }
 
 function verificationFor(objectType, object) {
-  const operation = objectType === 'member'
-    ? 'members.get'
-    : objectType === 'event'
-      ? 'events.get'
-      : objectType === 'announcement'
-        ? 'announcements.get'
-        : objectType === 'resource'
-          ? 'resources.get'
-          : null;
+  const operation =
+    objectType === 'member'
+      ? 'members.get'
+      : objectType === 'event'
+        ? 'events.get'
+        : objectType === 'announcement'
+          ? 'announcements.get'
+          : objectType === 'resource'
+            ? 'resources.get'
+            : null;
   return operation ? verification(operation, { id: object.id }, object) : null;
 }
 
@@ -1273,7 +1363,12 @@ function mutationStatus(code) {
 }
 
 function mutationErrorCode(code) {
-  if (['permission.denied', 'validation.failed', 'notFound.object', 'conflict.idempotencyKey', 'conflict.state'].includes(code)) return code;
+  if (
+    ['permission.denied', 'validation.failed', 'notFound.object', 'conflict.idempotencyKey', 'conflict.state'].includes(
+      code,
+    )
+  )
+    return code;
   return 'internal.error';
 }
 
@@ -1373,7 +1468,10 @@ function isAdminLike(actor) {
 }
 
 function normalizeSearchQuery(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
 }
 
 function positiveInt(value, fallback) {
@@ -1388,7 +1486,9 @@ function searchTypeMatches(row, type) {
 }
 
 function textIncludes(value, query) {
-  return String(value || '').toLowerCase().includes(query.toLowerCase());
+  return String(value || '')
+    .toLowerCase()
+    .includes(query.toLowerCase());
 }
 
 function searchObjectRef(row) {
@@ -1435,12 +1535,20 @@ async function resolveActor(req) {
 
 async function findMember(user) {
   const db = adminDb();
-  const byUserId = await db.from('members').select('id,user_id,email,display_name,role,status').eq('user_id', user.id).limit(1);
+  const byUserId = await db
+    .from('members')
+    .select('id,user_id,email,display_name,role,status')
+    .eq('user_id', user.id)
+    .limit(1);
   if (byUserId?.[0]) return normalizeMember(byUserId[0], 'user_id');
 
   const email = normalizeEmail(user.email);
   if (email) {
-    const byEmail = await db.from('members').select('id,user_id,email,display_name,role,status').eq('email', email).limit(1);
+    const byEmail = await db
+      .from('members')
+      .select('id,user_id,email,display_name,role,status')
+      .eq('email', email)
+      .limit(1);
     if (byEmail?.[0]) return normalizeMember(byEmail[0], 'email');
   }
   return null;
@@ -1481,7 +1589,8 @@ function isProjectAdmin(user) {
 }
 
 function checkPermission(actor, operation) {
-  const allowed = actorRank(actor.state) >= actorRank(operation.auth.minimumActorState) || actor.state === 'project_admin';
+  const allowed =
+    actorRank(actor.state) >= actorRank(operation.auth.minimumActorState) || actor.state === 'project_admin';
   return {
     allowed,
     actorState: actor.state,
@@ -1502,7 +1611,11 @@ function operationEntry(name, phases) {
       allowAnonymous: minimumActorState(name) === 'anonymous',
     },
     confirmation: CONFIRMATION_REQUIRED.has(name) ? 'required' : 'never',
-    costClass: name.startsWith('exports.') ? 'privateData' : name.startsWith('translations.') || name.includes('newsletters.drafts.generate') ? 'metered' : 'free',
+    costClass: name.startsWith('exports.')
+      ? 'privateData'
+      : name.startsWith('translations.') || name.includes('newsletters.drafts.generate')
+        ? 'metered'
+        : 'free',
     inputSchema: `kychon.capabilityApi.v1.operations.${name}.input`,
     outputSchema: `kychon.capabilityApi.v1.operations.${name}.output`,
     deprecation: { deprecated: false },
@@ -1514,12 +1627,48 @@ function minimumActorState(name) {
     name.startsWith('portal.') ||
     name.startsWith('auth.') ||
     name.startsWith('search.') ||
-    ['config.get', 'pages.list', 'pages.get', 'sections.list', 'sections.get', 'tiers.list', 'memberFields.list', 'events.list', 'events.get', 'registrationOptions.list', 'announcements.list', 'announcements.get', 'resources.list', 'resources.get', 'committees.list', 'committees.get'].includes(name)
+    [
+      'config.get',
+      'pages.list',
+      'pages.get',
+      'sections.list',
+      'sections.get',
+      'tiers.list',
+      'memberFields.list',
+      'events.list',
+      'events.get',
+      'registrationOptions.list',
+      'announcements.list',
+      'announcements.get',
+      'resources.list',
+      'resources.get',
+      'committees.list',
+      'committees.get',
+    ].includes(name)
   ) {
     return 'anonymous';
   }
   if (
-    ['members.list', 'members.get', 'rsvps.listForEvent', 'rsvps.listMine', 'forum.categories.list', 'forum.categories.get', 'forum.topics.list', 'forum.topics.get', 'forum.replies.list', 'polls.list', 'polls.get', 'polls.getAttached', 'pollOptions.list', 'pollVotes.list', 'pollResults.get', 'committeeMembers.list', 'reactions.list', 'activity.list'].includes(name) ||
+    [
+      'members.list',
+      'members.get',
+      'rsvps.listForEvent',
+      'rsvps.listMine',
+      'forum.categories.list',
+      'forum.categories.get',
+      'forum.topics.list',
+      'forum.topics.get',
+      'forum.replies.list',
+      'polls.list',
+      'polls.get',
+      'polls.getAttached',
+      'pollOptions.list',
+      'pollVotes.list',
+      'pollResults.get',
+      'committeeMembers.list',
+      'reactions.list',
+      'activity.list',
+    ].includes(name) ||
     name.startsWith('forum.topics.create') ||
     name.startsWith('forum.topics.update') ||
     name.startsWith('forum.replies.create') ||
@@ -1537,15 +1686,17 @@ function minimumActorState(name) {
 }
 
 function actorRank(state) {
-  return {
-    anonymous: 0,
-    authenticated_non_member: 1,
-    pending_member: 2,
-    active_member: 3,
-    moderator: 4,
-    admin: 5,
-    project_admin: 6,
-  }[state] ?? 0;
+  return (
+    {
+      anonymous: 0,
+      authenticated_non_member: 1,
+      pending_member: 2,
+      active_member: 3,
+      moderator: 4,
+      admin: 5,
+      project_admin: 6,
+    }[state] ?? 0
+  );
 }
 
 function successResponse(correlationId, data, status = 200) {

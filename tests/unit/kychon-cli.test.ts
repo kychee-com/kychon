@@ -69,8 +69,16 @@ describe('kychon CLI thin SDK wrapper', () => {
 
     await runKychonCli(['event', 'create', '--dry-run', '--json', '{"title":"Meet"}'], io(), () => client as any);
     await runKychonCli(['member', 'approve', '--dry-run', '--json', '{"id":7}'], io(), () => client as any);
-    await runKychonCli(['announcement', 'publish', '--dry-run', '--json', '{"title":"News"}'], io(), () => client as any);
-    await runKychonCli(['forum', 'topic', 'create', '--dry-run', '--json', '{"title":"Topic"}'], io(), () => client as any);
+    await runKychonCli(
+      ['announcement', 'publish', '--dry-run', '--json', '{"title":"News"}'],
+      io(),
+      () => client as any,
+    );
+    await runKychonCli(
+      ['forum', 'topic', 'create', '--dry-run', '--json', '{"title":"Topic"}'],
+      io(),
+      () => client as any,
+    );
     await runKychonCli(['poll', 'vote', '--dry-run', '--json', '{"pollId":1,"optionId":2}'], io(), () => client as any);
     await runKychonCli(['exports', 'membersCsv', '--dry-run'], io(), () => client as any);
 

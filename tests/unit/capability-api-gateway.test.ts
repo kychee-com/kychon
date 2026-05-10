@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  KYCHON_API_VERSION,
-  handleCapabilityApiRequest,
   type CapabilityExecutionRecord,
   type CapabilityExecutionStore,
   type CapabilityMutationDb,
+  handleCapabilityApiRequest,
   type JsonObject,
+  KYCHON_API_VERSION,
   type MemberRowLike,
 } from '../../src/lib/capability-api/index.ts';
 
@@ -182,9 +182,9 @@ describe('Capability API gateway', () => {
     expect(out.status).toBe(200);
     expect(out.body.ok).toBe(true);
     expect(out.body.correlationId).toBe('from-header');
-    expect(out.body.data.operations.some((operation: { name: string }) => operation.name === 'forum.topics.create')).toBe(
-      true,
-    );
+    expect(
+      out.body.data.operations.some((operation: { name: string }) => operation.name === 'forum.topics.create'),
+    ).toBe(true);
   });
 
   it('returns auth context from server-derived actor state', async () => {
@@ -203,7 +203,12 @@ describe('Capability API gateway', () => {
 
   it('returns validation plans without requiring idempotency keys', async () => {
     const res = await handleCapabilityApiRequest(
-      request({ apiVersion: KYCHON_API_VERSION, operation: 'events.create', phase: 'validate', input: { title: 'Meet' } }),
+      request({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'events.create',
+        phase: 'validate',
+        input: { title: 'Meet' },
+      }),
       deps({
         user: { id: 'admin-user' },
         members: [{ id: 1, user_id: 'admin-user', role: 'admin', status: 'active' }],
@@ -221,7 +226,12 @@ describe('Capability API gateway', () => {
 
   it('requires idempotency keys for execute-phase mutations', async () => {
     const res = await handleCapabilityApiRequest(
-      request({ apiVersion: KYCHON_API_VERSION, operation: 'events.create', phase: 'execute', input: { title: 'Meet' } }),
+      request({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'events.create',
+        phase: 'execute',
+        input: { title: 'Meet' },
+      }),
       deps({
         user: { id: 'admin-user' },
         members: [{ id: 1, user_id: 'admin-user', role: 'admin', status: 'active' }],

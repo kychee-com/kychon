@@ -1,30 +1,27 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import kychonApi from '../../functions/kychon-api.js';
 import {
-  DEMO_PORTAL_FIXTURES as KYCHON_DEMO_PORTALS,
-  KYCHON_API_VERSION,
   createKychonClient,
   type JsonObject,
+  KYCHON_API_VERSION,
+  DEMO_PORTAL_FIXTURES as KYCHON_DEMO_PORTALS,
 } from '@kychon/sdk';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import kychonApi from '../../functions/kychon-api.js';
 import { GET as wellKnownGet } from '../../src/pages/.well-known/kychon.json.ts';
 import { GET as llmsGet } from '../../src/pages/llms.txt.ts';
+
+type MockDbChain = Promise<JsonObject[]> & {
+  eq(column: string, value: unknown): MockDbChain;
+  limit(count: number): Promise<JsonObject[]>;
+};
 
 const mockState = vi.hoisted(() => ({
   user: null as null | { id: string; email?: string },
   tables: {} as Record<string, JsonObject[]>,
-  chain(rows: JsonObject[]) {
-    return {
-      then(resolve: (rows: JsonObject[]) => unknown, reject?: (error: unknown) => unknown) {
-        return Promise.resolve(rows).then(resolve, reject);
-      },
-      eq(column: string, value: unknown) {
-        return mockState.chain(rows.filter((row) => row[column] === value));
-      },
-      limit(count: number) {
-        return Promise.resolve(rows.slice(0, count));
-      },
-    };
+  chain(rows: JsonObject[]): MockDbChain {
+    const query = Promise.resolve(rows) as MockDbChain;
+    query.eq = (column: string, value: unknown) => mockState.chain(rows.filter((row) => row[column] === value));
+    query.limit = (count: number) => Promise.resolve(rows.slice(0, count));
+    return query;
   },
 }));
 

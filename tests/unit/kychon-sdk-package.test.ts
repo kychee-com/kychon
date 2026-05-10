@@ -1,15 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-
 import {
   CAPABILITY_API_COMMON_SCHEMAS,
-  DEMO_PORTAL_FIXTURES,
-  KYCHON_API_VERSION,
-  createKychonClient,
   createIdempotencyKey,
+  createKychonClient,
+  DEMO_PORTAL_FIXTURES,
   isKychonApiError,
+  KYCHON_API_VERSION,
 } from '@kychon/sdk';
+import { describe, expect, it } from 'vitest';
 
 const root = join(import.meta.dirname, '../..');
 

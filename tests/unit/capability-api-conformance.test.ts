@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  KYCHON_API_VERSION,
   buildCapabilityManifest,
   buildWellKnownKychon,
+  KYCHON_API_VERSION,
   runCapabilityConformance,
   runLocalCapabilityConformance,
 } from '../../src/lib/capability-api/index.ts';
@@ -45,9 +45,14 @@ describe('Capability API conformance runner', () => {
       return response({ ok: true, correlationId: 'conf', data: { apiVersion: KYCHON_API_VERSION } });
     };
 
-    const report = await runCapabilityConformance({ portalUrl: 'https://portal.test', fetch: fakeFetch as typeof fetch });
+    const report = await runCapabilityConformance({
+      portalUrl: 'https://portal.test',
+      fetch: fakeFetch as typeof fetch,
+    });
 
     expect(report.ok).toBe(true);
-    expect(report.checks.map((check) => check.id)).toEqual(expect.arrayContaining(['remote.discovery', 'remote.idempotency']));
+    expect(report.checks.map((check) => check.id)).toEqual(
+      expect.arrayContaining(['remote.discovery', 'remote.idempotency']),
+    );
   });
 });
