@@ -28,6 +28,17 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function canReadMemberOnlyCapabilities(session: any, role: string | null | undefined): boolean {
+  const member = session?.user?.member;
+  return (
+    role === 'admin' ||
+    role === 'member' ||
+    member?.status === 'active' ||
+    (!member?.status && !!member?.id) ||
+    !!session?.access_token
+  );
+}
+
 export async function hydrateAnnouncementsFeed(
   el: HTMLElement,
   section: Section,
@@ -61,9 +72,10 @@ export async function hydrateAnnouncementsFeed(
       const session = getSession();
       const memberId = session?.user?.member?.id ?? null;
       const pollsEnabled = isFeatureEnabled('feature_polls');
+      const canReadPolls = canReadMemberOnlyCapabilities(session, ctx.role);
 
       const attachedPolls: Record<number, any> = {};
-      if (pollsEnabled) {
+      if (pollsEnabled && canReadPolls) {
         for (const a of items) {
           try {
             const result = await fetchAttachedPoll('announcement', a.id, session);
@@ -190,16 +202,22 @@ export async function hydrateAnnouncementsFeed(
 export async function hydrateActivityFeed(
   el: HTMLElement,
   section: Section,
-  _ctx: BlockRenderContext,
+  ctx: BlockRenderContext,
 ): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="activity_feed"]') as HTMLElement | null;
   if (!root) return;
   const feed = root.querySelector('#activity-feed') as HTMLElement | null;
   if (!feed) return;
 
-  const { get } = await import('./api.js');
+  const [{ get }, { getSession }] = await Promise.all([import('./api.js'), import('./auth.js')]);
   const cfg = section.config || {};
   const limit = cfg.limit || 15;
+  const session = getSession();
+
+  if (!canReadMemberOnlyCapabilities(session, ctx.role)) {
+    feed.innerHTML = '<p class="ky-text-muted">Sign in as a member to see recent activity.</p>';
+    return;
+  }
 
   try {
     const entries = await get(`activity_log?order=created_at.desc&limit=${limit}`);
