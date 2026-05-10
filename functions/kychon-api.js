@@ -4,6 +4,7 @@ import { adminDb, getUser } from '@run402/functions';
 const API_VERSION = '2026-05-08';
 const SUPPORTED_API_VERSIONS = [API_VERSION];
 const API_ENDPOINT = 'https://api.run402.com/functions/v1/kychon-api';
+const ENGINE_VERSION = '__KYCHON_ENGINE_VERSION__';
 
 const READ_OPERATIONS = [
   'portal.discover',
@@ -392,7 +393,7 @@ function handleQuery(correlationId, envelope, operation, actor) {
   if (operation.name === 'portal.discover') {
     return successResponse(correlationId, {
       product: 'Kychon',
-      engineVersion: '0.1.0',
+      engineVersion: ENGINE_VERSION,
       api: {
         endpoint: API_ENDPOINT,
         transport: 'run402-functions',
@@ -417,7 +418,7 @@ function handleQuery(correlationId, envelope, operation, actor) {
   }
   if (operation.name === 'portal.version') {
     return successResponse(correlationId, {
-      engineVersion: '0.1.0',
+      engineVersion: ENGINE_VERSION,
       apiCurrentVersion: API_VERSION,
       apiSupportedVersions: SUPPORTED_API_VERSIONS,
       apiDeprecatedVersions: [],
