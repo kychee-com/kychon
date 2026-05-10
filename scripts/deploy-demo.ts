@@ -93,6 +93,7 @@ export function findMissingDemoStaticAssets(config: DemoConfig): string[] {
     const source = readFileSync(sourceFile, "utf8");
     for (const match of source.matchAll(ASSET_REF_RE)) {
       const assetName = match[1];
+      if (!assetName) continue;
       const sources = refs.get(assetName) || new Set<string>();
       sources.add(sourceFile.replace(`${ROOT}/`, ""));
       refs.set(assetName, sources);

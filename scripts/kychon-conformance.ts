@@ -6,12 +6,14 @@ if (!portalUrl) {
   process.exit(1);
 }
 
-const report = await runCapabilityConformance({
+const options = {
   portalUrl,
-  apiEndpoint: process.env.KYCHON_API_ENDPOINT,
-  apiKey: process.env.KYCHON_API_KEY,
-  authToken: process.env.KYCHON_AUTH_TOKEN,
-});
+  ...(process.env.KYCHON_API_ENDPOINT ? { apiEndpoint: process.env.KYCHON_API_ENDPOINT } : {}),
+  ...(process.env.KYCHON_API_KEY ? { apiKey: process.env.KYCHON_API_KEY } : {}),
+  ...(process.env.KYCHON_AUTH_TOKEN ? { authToken: process.env.KYCHON_AUTH_TOKEN } : {}),
+};
+
+const report = await runCapabilityConformance(options);
 
 console.log(JSON.stringify(report, null, 2));
 process.exit(report.ok ? 0 : 1);

@@ -213,7 +213,7 @@ async function callCapability<T>(fn: () => Promise<T>, retry = true): Promise<T>
 }
 
 function parsePath(path: string): ParsedPath {
-  const [rawTable, rawQuery = ''] = path.split('?');
+  const [rawTable = '', rawQuery = ''] = path.split('?');
   const table = decodeURIComponent(rawTable.replace(/^\/+/, '').trim());
   const params = new URLSearchParams(rawQuery);
   const filters: QueryFilter[] = [];
@@ -476,10 +476,12 @@ function createInputFor(parsed: ParsedPath, body: any): JsonObject {
     };
   }
   if (parsed.table === 'poll_votes') {
+    const pollId = input.pollId ?? input.poll_id;
+    const optionId = input.optionId ?? input.option_id;
     return {
       ...input,
-      pollId: input.pollId ?? input.poll_id,
-      optionId: input.optionId ?? input.option_id,
+      ...(pollId !== undefined ? { pollId } : {}),
+      ...(optionId !== undefined ? { optionId } : {}),
     };
   }
   if (parsed.table === 'event_rsvps') {
@@ -515,7 +517,7 @@ function updateInputFor(parsed: ParsedPath, body: any): JsonObject {
   const input = inputWithPathId(parsed, body);
   if (parsed.table === 'site_config') {
     return {
-      key: input.key,
+      key: input.key ?? firstEqFilter(parsed, 'key') ?? null,
       value: input.value ?? null,
       category: input.category ?? 'general',
     };
@@ -549,7 +551,7 @@ export function get(path: string): Promise<any> {
 
 export async function post(path: string, body: any): Promise<any> {
   const parsed = parsePath(path);
-  const operation = parsed.table === 'site_config' ? 'config.set' : CREATE_OPERATION_BY_TABLE[parsed.table];
+  const operation = parsed.table === 'site_config' ? 'config.set' : CREATE_OPERATION_BY_TABLE[parsed.table] || '';
   return executeOperation(operation, createInputFor(parsed, body));
 }
 

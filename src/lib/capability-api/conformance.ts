@@ -53,10 +53,10 @@ export async function runCapabilityConformance(options: ConformanceOptions): Pro
   const checks: ConformanceCheck[] = [...runLocalCapabilityConformance().checks];
   const client = createKychonClient({
     portalUrl,
-    apiEndpoint: options.apiEndpoint,
-    apiKey: options.apiKey,
-    authToken: options.authToken,
     fetch: fetchImpl,
+    ...(options.apiEndpoint ? { apiEndpoint: options.apiEndpoint } : {}),
+    ...(options.apiKey ? { apiKey: options.apiKey } : {}),
+    ...(options.authToken ? { authToken: options.authToken } : {}),
   });
 
   const wellKnown = await getJson(fetchImpl, `${portalUrl}/.well-known/kychon.json`, headers);

@@ -318,7 +318,9 @@ function inFilter(params: URLSearchParams, key: string): string[] {
   const value = params.get(key);
   const match = value?.match(/^in\.\((.*)\)$/);
   if (!match) return [];
-  return match[1].split(',').map((item) => item.trim()).filter(Boolean);
+  const rawItems = match[1];
+  if (!rawItems) return [];
+  return rawItems.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
 function rowsForTable(table: string, params: URLSearchParams): unknown[] {
@@ -502,7 +504,9 @@ async function installMockApi(context: any): Promise<void> {
       }
     }
     const operation = String(body.operation || '');
-    const input = body.input && typeof body.input === 'object' ? body.input : {};
+    const input = body.input && typeof body.input === 'object' && !Array.isArray(body.input)
+      ? body.input as Record<string, unknown>
+      : {};
     const rows = rowsForOperation(operation, input);
     const data = operation.startsWith('search.')
       ? { query: input.q || '', type: input.type || 'all', page: 1, page_size: 5, total: 0, has_next: false, facets: {}, results: [] }
