@@ -223,13 +223,13 @@ const TABLE_QUERIES = {
   'members.get': { table: 'members', mode: 'one', map: memberRow },
   'tiers.list': { table: 'membership_tiers', mode: 'list' },
   'memberFields.list': { table: 'member_custom_fields', mode: 'list', visible: visibleMemberField },
-  'events.list': { table: 'events', mode: 'list', visible: visibleMembersOnly },
-  'events.get': { table: 'events', mode: 'one', visible: visibleMembersOnly },
+  'events.list': { table: 'events', mode: 'list', visible: visibleMembersOnly, map: eventRow },
+  'events.get': { table: 'events', mode: 'one', visible: visibleMembersOnly, map: eventRow },
   'registrationOptions.list': { table: 'event_registration_options', mode: 'list' },
   'rsvps.listForEvent': { table: 'event_rsvps', mode: 'list' },
   'rsvps.listMine': { table: 'event_rsvps', mode: 'listMine' },
-  'announcements.list': { table: 'announcements', mode: 'list' },
-  'announcements.get': { table: 'announcements', mode: 'one' },
+  'announcements.list': { table: 'announcements', mode: 'list', map: announcementRow },
+  'announcements.get': { table: 'announcements', mode: 'one', map: announcementRow },
   'resources.list': { table: 'resources', mode: 'list', visible: visibleMembersOnly },
   'resources.get': { table: 'resources', mode: 'one', visible: visibleMembersOnly },
   'forum.categories.list': { table: 'forum_categories', mode: 'list' },
@@ -256,6 +256,11 @@ const TABLE_QUERIES = {
 };
 
 const SQL_WRITE_TABLES = new Set(['events', 'resources']);
+
+// Site-config categories that are intentionally readable by anonymous
+// callers. Anything else (future webhook URLs, integration tokens, etc.)
+// requires admin. (#27 item 4)
+const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -308,7 +313,12 @@ export default async (req) => {
 
   const actor = await resolveActor(req);
   const permission = checkPermission(actor, operation);
-  if (!permission.allowed && envelope.phase !== 'validate') {
+  if (!permission.allowed) {
+    // Validate-phase used to run even when the actor lacked permission so
+    // the SDK could echo back required-state hints. That makes the whole
+    // mutation surface a free enumeration oracle for anonymous callers
+    // (and reflects their input back unmodified, which is its own probe).
+    // Gate validate on the same minimum actor state as execute. (#27 item 3)
     return errorResponse(correlationId, 403, {
       code: 'permission.denied',
       message: `Permission denied for ${operation.name}.`,
@@ -370,14 +380,21 @@ async function parseEnvelope(req) {
     return invalidEnvelope('Request envelope requires apiVersion, operation, phase, and input.');
   }
 
+  // Reject non-object input up front rather than silently coercing
+  // null/arrays into `{ value: ... }` — the schema documents `input` as a
+  // plain object and silent coercion lets callers smuggle filter-bypass
+  // shapes through. (#27 item 1)
+  if (!body.input || typeof body.input !== 'object' || Array.isArray(body.input)) {
+    return invalidEnvelope('Request envelope `input` must be a plain object.');
+  }
+
   return {
     ok: true,
     envelope: {
       apiVersion: body.apiVersion,
       operation: body.operation,
       phase: body.phase,
-      input:
-        body.input && typeof body.input === 'object' && !Array.isArray(body.input) ? body.input : { value: body.input },
+      input: body.input,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
       confirmed: typeof body.confirmed === 'boolean' ? body.confirmed : undefined,
     },
@@ -480,11 +497,15 @@ async function handleTableQuery(correlationId, input, actor, spec) {
     const map = spec.map || ((row) => row);
 
     if (spec.mode === 'config') {
+      // Non-admin callers see only the categories that are explicitly safe to
+      // publish — branding, features, theme, demo. Any other category (a
+      // future webhook URL, integration token, etc.) requires admin. (#27 item 4)
+      const visibleConfig = (row) => isAdminLike(actor) || PUBLIC_CONFIG_CATEGORIES.has(row.category);
       if (typeof input.key === 'string') {
-        const row = rows.find((item) => item.key === input.key);
+        const row = rows.find((item) => item.key === input.key && visibleConfig(item));
         return successResponse(correlationId, row ? configRow(row) : null);
       }
-      const mapped = rows.map(configRow);
+      const mapped = rows.filter(visibleConfig).map(configRow);
       return successResponse(correlationId, { rows: mapped, count: mapped.length });
     }
 
@@ -592,13 +613,16 @@ async function handleExecute(correlationId, envelope, operation, actor) {
     const execution = await beginExecution(envelope, operation, actor, correlationId);
     if (execution.kind === 'replay') return successResponse(correlationId, execution.record.result_payload);
     if (execution.kind === 'conflict') {
+      // Don't echo the prior operation name back to the caller — it's an
+      // info leak about other clients' traffic and a free oracle for
+      // idempotency-key enumeration. The internal correlation log still
+      // captures the conflict for ops debugging. (#27 item 2)
       return errorResponse(correlationId, 409, {
         code: 'conflict.idempotencyKey',
         message: execution.reason,
         detail: {
           operation: operation.name,
           idempotencyKey: envelope.idempotencyKey,
-          existingOperation: execution.record.operation,
         },
         retryable: false,
       });
@@ -801,11 +825,14 @@ async function genericMutation(operation, input, actor) {
 }
 
 async function publishAnnouncement(input, actor) {
+  // author_id is bound to the acting admin — never honored from input. The
+  // dedicated `announcements.update` operation is the path for any later
+  // attribution change. (#24)
   const announcement = await insertRow('announcements', {
     title: input.title || 'Untitled',
     body: input.body || '',
     is_pinned: input.pin === true || input.is_pinned === true,
-    author_id: input.author_id ?? memberId(actor),
+    author_id: memberId(actor),
   });
   const changed = [changedObject('announcement', announcement.id)];
   if (isPlainObject(input.poll)) {
@@ -825,13 +852,16 @@ async function publishAnnouncement(input, actor) {
 }
 
 async function createForumTopic(input, actor) {
+  // author_id / author_name come from the actor only — caller-supplied values
+  // would let any active member impersonate another member or admin. Pinning a
+  // topic at create time is reserved for moderators via `forum.topics.pin`. (#24)
   const topic = await insertRow('forum_topics', {
     category_id: input.categoryId ?? input.category_id ?? null,
     title: input.title || 'Untitled',
     body: input.body || '',
-    author_id: input.author_id ?? memberId(actor),
-    author_name: input.author_name ?? actor.member?.displayName ?? null,
-    is_pinned: input.is_pinned === true,
+    author_id: memberId(actor),
+    author_name: actor.member?.displayName ?? null,
+    is_pinned: false,
     reply_count: 0,
     last_reply_at: null,
   });
@@ -861,11 +891,12 @@ async function createForumReply(input, actor) {
       object: { type: 'forum.topic', id: String(topicId) },
     });
 
+  // author_id / author_name come from the actor only. (#24)
   const reply = await insertRow('forum_replies', {
     topic_id: topicId,
     body: input.body || '',
-    author_id: input.author_id ?? memberId(actor),
-    author_name: input.author_name ?? actor.member?.displayName ?? null,
+    author_id: memberId(actor),
+    author_name: actor.member?.displayName ?? null,
   });
   await updateRow('forum_topics', topicId, {
     reply_count: Number(topic.reply_count || 0) + 1,
@@ -888,6 +919,7 @@ async function createPollAction(input, actor) {
 }
 
 async function createPoll(input, actor) {
+  // created_by is bound to the actor — never honored from input. (#24)
   const poll = await insertRow('polls', {
     question: input.question || 'Poll',
     description: input.description || null,
@@ -898,7 +930,7 @@ async function createPoll(input, actor) {
     closes_at: input.closesAt || input.closes_at || null,
     attached_to: input.attached_to || input.attachedTo || null,
     attached_id: input.attached_id || input.attachedId || null,
-    created_by: input.created_by ?? memberId(actor),
+    created_by: memberId(actor),
   });
   const options = Array.isArray(input.options) ? input.options : [];
   let position = 0;
@@ -920,6 +952,23 @@ async function castPollVote(input, actor) {
     throw capabilityError('notFound.object', 'Poll not found.', { object: { type: 'poll', id: String(pollId) } });
   if (poll.is_open === false)
     throw capabilityError('conflict.state', 'Poll is closed.', { object: { type: 'poll', id: String(pollId) } });
+
+  // Each option must belong to this poll. Without this check a member can
+  // vote on poll N with an option from poll M and corrupt totals. (#24)
+  const validOptionIds = new Set(
+    (await selectRows('poll_options'))
+      .filter((option) => String(option.poll_id) === String(pollId))
+      .map((option) => String(option.id)),
+  );
+  for (const optionId of optionIds) {
+    if (!validOptionIds.has(String(optionId))) {
+      throw capabilityError(
+        'validation.failed',
+        `pollVotes.cast optionId ${optionId} does not belong to poll ${pollId}.`,
+        { object: { type: 'poll.option', id: String(optionId) } },
+      );
+    }
+  }
 
   const member = memberId(actor);
   const existing = (await selectRows('poll_votes')).filter(
@@ -964,11 +1013,23 @@ async function clearMinePollVotes(input, actor) {
 }
 
 async function setRsvpStatus(input, actor) {
+  // member_id is bound to the actor (admins act-as via dedicated admin paths,
+  // not this capability) and an `id` from input must belong to that member —
+  // otherwise an active member could update arbitrary RSVP rows. (#24)
+  const member = memberId(actor);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
-  const member = input.memberId ?? input.member_id ?? memberId(actor);
+
   if (id != null) {
-    const row = await updateRow('event_rsvps', id, { status: input.status || 'going', member_id: member });
+    const target = (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id));
+    if (!target)
+      throw capabilityError('notFound.object', 'RSVP not found.', { object: { type: 'event.rsvp', id: String(id) } });
+    if (String(target.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
+      throw capabilityError('permission.denied', 'rsvps.setStatus can only update the active member RSVP.', {
+        object: { type: 'event.rsvp', id: String(id) },
+      });
+    }
+    const row = await updateRow('event_rsvps', id, { status: input.status || 'going', member_id: target.member_id });
     const object = changedObject('event.rsvp', row.id ?? id);
     return actionResult(
       row,
@@ -989,9 +1050,10 @@ async function setRsvpStatus(input, actor) {
 }
 
 async function cancelRsvp(input, actor) {
+  // Same ownership rule as setRsvpStatus. (#24)
+  const member = memberId(actor);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
-  const member = input.memberId ?? input.member_id ?? memberId(actor);
   const existing =
     id != null
       ? (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id))
@@ -999,12 +1061,18 @@ async function cancelRsvp(input, actor) {
           (row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member),
         );
   if (!existing) return actionResult({ cancelled: false }, [], null);
+  if (String(existing.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
+    throw capabilityError('permission.denied', 'rsvps.cancel can only cancel the active member RSVP.', {
+      object: { type: 'event.rsvp', id: String(existing.id) },
+    });
+  }
   const row = await updateRow('event_rsvps', existing.id, { status: 'cancelled' });
   const object = changedObject('event.rsvp', row.id);
   return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: row.event_id ?? eventId }, object));
 }
 
 async function uploadResource(input, actor) {
+  // uploaded_by is bound to the actor — never honored from input. (#24)
   const metadata = isPlainObject(input.metadata) ? input.metadata : input;
   const resource = await insertRow('resources', {
     title: metadata.title || input.title || input.name || 'Resource',
@@ -1013,7 +1081,7 @@ async function uploadResource(input, actor) {
     file_url: input.fileUrl || input.file_url || metadata.file_url || null,
     file_type: metadata.file_type || metadata.fileType || input.file_type || 'file',
     is_members_only: metadata.is_members_only !== false,
-    uploaded_by: metadata.uploaded_by ?? memberId(actor),
+    uploaded_by: memberId(actor),
   });
   const activity = await writeActivity(actor, 'resource_upload', { title: resource.title, resource_id: resource.id });
   const object = changedObject('resource', resource.id);
@@ -1091,12 +1159,13 @@ async function upsertConfig(input) {
 }
 
 function rowForCreate(operation, input, actor) {
-  if (operation.startsWith('polls.'))
-    return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
-  if (operation.startsWith('events.'))
-    return { ...stripControlFields(input), created_by: input.created_by ?? memberId(actor) };
-  if (operation.startsWith('activity.'))
-    return { ...stripControlFields(input), member_id: input.member_id ?? memberId(actor) };
+  // Author/owner fields are always bound to the actor — never accepted from
+  // input. Letting input override them lets an active member spoof identity
+  // on every generic create handler. (#24)
+  if (operation.startsWith('polls.')) return { ...stripControlFields(input), created_by: memberId(actor) };
+  if (operation.startsWith('events.')) return { ...stripControlFields(input), created_by: memberId(actor) };
+  if (operation.startsWith('activity.')) return { ...stripControlFields(input), member_id: memberId(actor) };
+  if (operation.startsWith('reactions.')) return { ...stripControlFields(input), member_id: memberId(actor) };
   return stripControlFields(input);
 }
 
@@ -1333,13 +1402,53 @@ function memberProfilePatch(input) {
 }
 
 function requiredAny(value, message) {
-  if (typeof value === 'string' || typeof value === 'number') return value;
+  // Reject "" / "   " / 0 / NaN — they parse as a "value" but never match a
+  // real row, producing a silent no-op instead of a clear validation error.
+  // (#27 item 6)
+  if (typeof value === 'string') {
+    if (value.trim() === '') throw capabilityError('validation.failed', message);
+    return value;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value === 0) throw capabilityError('validation.failed', message);
+    return value;
+  }
   throw capabilityError('validation.failed', message);
 }
 
+// Privileged fields the active actor must never override on a create/update
+// path — any change to these flows through dedicated capability operations
+// (members.changeRole, *.pin, *.lock, etc.) that have their own role gate. (#24)
+const PRIVILEGED_INPUT_FIELDS = new Set([
+  'id',
+  'operation',
+  'author_id',
+  'member_id',
+  'memberId',
+  'created_by',
+  'createdBy',
+  'reviewed_by',
+  'uploaded_by',
+  'user_id',
+  'userId',
+  'role',
+  'is_pinned',
+  'isPinned',
+  'pin',
+  'locked',
+  'hidden',
+  'tier_id',
+  'tierId',
+]);
+
 function stripControlFields(input) {
-  const { id: _id, operation: _operation, ...rest } = input || {};
-  return rest;
+  if (!input) return {};
+  const out = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (PRIVILEGED_INPUT_FIELDS.has(key)) continue;
+    out[key] = value;
+  }
+  return out;
 }
 
 function isPlainObject(value) {
@@ -1417,6 +1526,21 @@ function memberRow(row, actor) {
     tier_id: row.tier_id,
     role: row.role,
   };
+}
+
+// Strip server-attribution columns from anonymous projections of events and
+// announcements — anon clients have no business knowing which member created
+// what, and those ids are useful pivots for the IDOR shapes in #24. (#27 item 5)
+function eventRow(row, actor) {
+  if (isAdminLike(actor) || isModeratorLike(actor)) return row;
+  const { created_by: _createdBy, ...rest } = row;
+  return rest;
+}
+
+function announcementRow(row, actor) {
+  if (isAdminLike(actor) || isModeratorLike(actor)) return row;
+  const { author_id: _authorId, ...rest } = row;
+  return rest;
 }
 
 function visiblePage(row, actor) {
