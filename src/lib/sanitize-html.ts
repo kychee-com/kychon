@@ -76,10 +76,12 @@ function isSafeUrl(value: string, allowDataImage = false): boolean {
   return false;
 }
 
+const EMPTY_ATTR_SET: ReadonlySet<string> = new Set();
+
 function sanitizeAttributes(el: Element): void {
   const tag = el.tagName.toLowerCase();
-  const allowed = ALLOWED_ATTRS_BY_TAG[tag] ?? new Set<string>();
-  const allowedGlobal = ALLOWED_ATTRS_BY_TAG['*'];
+  const allowed = ALLOWED_ATTRS_BY_TAG[tag] ?? EMPTY_ATTR_SET;
+  const allowedGlobal = ALLOWED_ATTRS_BY_TAG['*'] ?? EMPTY_ATTR_SET;
   const toRemove: string[] = [];
   for (const attr of Array.from(el.attributes)) {
     const name = attr.name.toLowerCase();
