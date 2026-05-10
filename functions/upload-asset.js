@@ -60,14 +60,31 @@ function readImageDimensions(bytes, mime) {
 // so the admin UI can offer a one-click reroute to brand_wordmark_url.
 const WORDMARK_ASPECT_THRESHOLD = 1.5;
 
+// Asset paths are passed by the admin UI; the storage call runs with the
+// project service key, so an unvalidated `body.path` is a privileged delete
+// primitive across the entire storage API. Constrain the shape strictly:
+// safe ASCII characters only, no traversal, no leading slash, no double
+// slashes, no NUL. (#25)
+const SAFE_ASSET_PATH = /^[A-Za-z0-9_.\-/]+$/;
+function isSafeAssetPath(value) {
+  if (typeof value !== 'string' || !value) return false;
+  if (!SAFE_ASSET_PATH.test(value)) return false;
+  if (value.startsWith('/')) return false;
+  if (value.includes('//')) return false;
+  if (value.split('/').some((seg) => seg === '..' || seg === '.')) return false;
+  return true;
+}
+
 export default async (req) => {
   const user = await getUser(req);
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // Check admin role
-  const memberResult = await adminDb().sql(`SELECT role FROM members WHERE user_id = '${user.id}' LIMIT 1`);
+  // Check admin role using a parameterized query — concatenating user.id is
+  // safe today because Run402 issues UUIDs, but a future auth path that
+  // produces a different `sub` shape could turn this into SQL injection. (#25)
+  const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
   if (!memberResult.rows?.length || memberResult.rows[0].role !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
   }
@@ -77,6 +94,12 @@ export default async (req) => {
 
     // Delete action
     if (body.action === 'delete' && body.path) {
+      if (!isSafeAssetPath(body.path)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid path', detail: 'Asset path must be a relative ASCII segment chain.' }),
+          { status: 400 },
+        );
+      }
       const delRes = await fetch(`https://api.run402.com/storage/v1/delete/assets/${body.path}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}` },
