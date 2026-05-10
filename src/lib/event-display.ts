@@ -3,9 +3,9 @@ export type EventTimeDisplayMode = 'visitor' | 'source';
 export interface EventTimeSource {
   starts_at?: string | null;
   ends_at?: string | null;
-  source_timezone?: string | null;
-  source_timezone_label?: string | null;
-  time_display_mode?: string | null;
+  source_timezone?: string | null | undefined;
+  source_timezone_label?: string | null | undefined;
+  time_display_mode?: string | null | undefined;
 }
 
 export interface EventDisplayConfig {
@@ -20,7 +20,7 @@ export interface EventDateTimeLabels {
   timezoneLabel: string;
   timeRangeLabel: string;
   dateTimeLabel: string;
-  timezone?: string;
+  timezone?: string | undefined;
   mode: EventTimeDisplayMode;
 }
 
