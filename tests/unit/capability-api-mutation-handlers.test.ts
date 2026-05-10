@@ -149,6 +149,65 @@ describe('Capability API mutation handlers', () => {
     expect(db.tables.member_custom_fields[0].position).toBe(2);
   });
 
+  it('scopes members.updateProfile to the active member and strips admin-only fields', async () => {
+    const db = makeDb();
+    db.tables.members = [
+      {
+        id: 1,
+        display_name: 'Self',
+        avatar_url: null,
+        bio: null,
+        custom_fields: {},
+        role: 'member',
+        status: 'active',
+        tier_id: 1,
+        user_id: 'member-user',
+        expires_at: null,
+      },
+      {
+        id: 2,
+        display_name: 'Other',
+        role: 'member',
+        status: 'active',
+        tier_id: 1,
+        user_id: 'other-user',
+      },
+    ];
+
+    await expect(
+      executeCapabilityMutation('members.updateProfile', { id: 2, display_name: 'Hijacked' }, { actor: memberActor, db }),
+    ).rejects.toMatchObject({ code: 'permission.denied' });
+
+    await executeCapabilityMutation(
+      'members.updateProfile',
+      {
+        display_name: 'Updated Self',
+        avatar_url: '/avatars/self.png',
+        bio: 'Hello',
+        custom_fields: { phone: '555-0100' },
+        role: 'admin',
+        status: 'suspended',
+        tier_id: 99,
+        user_id: 'attacker-user',
+        expires_at: '2099-01-01T00:00:00Z',
+      },
+      { actor: memberActor, db },
+    );
+
+    expect(db.tables.members[0]).toMatchObject({
+      display_name: 'Updated Self',
+      avatar_url: '/avatars/self.png',
+      bio: 'Hello',
+      custom_fields: { phone: '555-0100' },
+      role: 'member',
+      status: 'active',
+      tier_id: 1,
+      user_id: 'member-user',
+      expires_at: null,
+    });
+    expect(db.tables.members[1].display_name).toBe('Other');
+  });
+
   it('executes event, registration option, RSVP, announcement, resource, asset, and export mutations', async () => {
     const db = makeDb();
     const storage = { upload: vi.fn(async (_kind: string, file: JsonObject) => ({ url: `/storage/${file.name || 'file'}` })) };

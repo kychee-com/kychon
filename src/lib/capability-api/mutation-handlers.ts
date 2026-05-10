@@ -139,7 +139,7 @@ async function genericMutation(operation: string, input: JsonObject, ctx: Capabi
   } else if (spec.action === 'upsertConfig') {
     row = await upsertConfig(input, ctx);
   } else {
-    row = await ctx.db.update(spec.table, requiredId(input, operation), rowForUpdate(operation, input, ctx));
+    row = await ctx.db.update(spec.table, idForUpdate(operation, input, ctx), rowForUpdate(operation, input, ctx));
   }
 
   const object = changedObject(spec.objectType, String(row?.id ?? input.id ?? input.key ?? 'unknown'));
@@ -373,6 +373,7 @@ function rowForCreate(operation: string, input: JsonObject, ctx: CapabilityMutat
 }
 
 function rowForUpdate(operation: string, input: JsonObject, ctx: CapabilityMutationContext): JsonObject {
+  if (operation === 'members.updateProfile') return memberProfilePatch(input);
   if (operation === 'members.approve') return { status: 'active' };
   if (operation === 'members.reject') return { status: 'rejected' };
   if (operation === 'members.suspend') return { status: 'suspended' };
@@ -501,6 +502,30 @@ function nowIso(ctx: CapabilityMutationContext): string {
 
 function requiredId(input: JsonObject, operation: string): string | number {
   return requiredAny(input.id, `${operation} requires id.`);
+}
+
+function idForUpdate(operation: string, input: JsonObject, ctx: CapabilityMutationContext): string | number {
+  if (operation !== 'members.updateProfile') return requiredId(input, operation);
+
+  const actorMemberId = memberId(ctx);
+  if (!actorMemberId) {
+    throw new CapabilityMutationError('permission.denied', 'members.updateProfile requires an active member.');
+  }
+  if (input.id != null && String(input.id) !== String(actorMemberId)) {
+    throw new CapabilityMutationError('permission.denied', 'members.updateProfile can only update the active member profile.', {
+      object: { type: 'member', id: String(input.id) },
+    });
+  }
+  return actorMemberId;
+}
+
+function memberProfilePatch(input: JsonObject): JsonObject {
+  const patch: JsonObject = {};
+  for (const field of ['display_name', 'avatar_url', 'bio', 'custom_fields']) {
+    const value = input[field];
+    if (value !== undefined) patch[field] = value;
+  }
+  return patch;
 }
 
 function requiredAny(value: JsonValue | undefined, message: string): string | number {
