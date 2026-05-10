@@ -622,16 +622,8 @@ export async function searchSite(params: SiteSearchParams): Promise<import('./se
   );
 }
 
-// --- Typed wrappers (Zod-validated) ---
+// --- Typed wrappers ---
 
-import { z } from 'astro/zod';
-import { EventRegistrationOptionSchema, EventSchema, EventRSVPSchema } from '../schemas/event.js';
-import { MemberSchema, MemberTierSchema } from '../schemas/member.js';
-import { SiteConfigRowSchema } from '../schemas/config.js';
-import { AnnouncementSchema, ResourceSchema, SectionSchema, PageSchema, ReactionSchema } from '../schemas/content.js';
-import { ForumCategorySchema, ForumTopicSchema, ForumReplySchema } from '../schemas/forum.js';
-import { CommitteeSchema, CommitteeMemberSchema } from '../schemas/committee.js';
-import { PollSchema, PollOptionSchema, PollVoteSchema } from '../schemas/poll.js';
 import type { Event, EventRegistrationOption, EventRSVP } from '../schemas/event.js';
 import type { Member, MemberTier } from '../schemas/member.js';
 import type { SiteConfigRow } from '../schemas/config.js';
@@ -642,29 +634,29 @@ import type { Poll, PollOption, PollVote } from '../schemas/poll.js';
 
 export async function getConfig(): Promise<SiteConfigRow[]> {
   const data = await get('site_config');
-  return z.array(SiteConfigRowSchema).parse(data);
+  return data as SiteConfigRow[];
 }
 
 export async function getEvents(query = ''): Promise<Event[]> {
   const data = await get(`events${query ? `?${query}` : '?order=starts_at.asc'}`);
-  return z.array(EventSchema).parse(data);
+  return data as Event[];
 }
 
 export async function getEventRSVPs(eventId: number): Promise<EventRSVP[]> {
   const data = await get(`event_rsvps?event_id=eq.${eventId}`);
-  return z.array(EventRSVPSchema).parse(data);
+  return data as EventRSVP[];
 }
 
 export async function getEventRegistrationOptions(eventId: number): Promise<EventRegistrationOption[]> {
   const data = await get(`event_registration_options?event_id=eq.${eventId}&order=position.asc,id.asc`);
-  return z.array(EventRegistrationOptionSchema).parse(data);
+  return data as EventRegistrationOption[];
 }
 
 export async function getRegistrationOptionsForEvents(eventIds: number[]): Promise<EventRegistrationOption[]> {
   if (!eventIds.length) return [];
   const ids = eventIds.join(',');
   const data = await get(`event_registration_options?event_id=in.(${ids})&order=event_id.asc,position.asc,id.asc`);
-  return z.array(EventRegistrationOptionSchema).parse(data);
+  return data as EventRegistrationOption[];
 }
 
 export function createEventRegistrationOption(body: Record<string, unknown>): Promise<EventRegistrationOption[]> {
@@ -689,7 +681,7 @@ export async function getEventWindow(startIso: string, endIso: string): Promise<
   const data = await get(
     `events?and=(starts_at.gte.${encodeURIComponent(startIso)},starts_at.lt.${encodeURIComponent(endIso)})&order=starts_at.asc`,
   );
-  return z.array(EventSchema).parse(data);
+  return data as Event[];
 }
 
 export interface RsvpAvatar {
@@ -709,78 +701,78 @@ export async function getRsvpsForEvents(eventIds: number[]): Promise<RsvpAvatar[
 
 export async function getMembers(query = ''): Promise<Member[]> {
   const data = await get(`members${query ? `?${query}` : ''}`);
-  return z.array(MemberSchema).parse(data);
+  return data as Member[];
 }
 
 export async function getMemberTiers(): Promise<MemberTier[]> {
   const data = await get('membership_tiers?order=position.asc');
-  return z.array(MemberTierSchema).parse(data);
+  return data as MemberTier[];
 }
 
 export async function getAnnouncements(query = ''): Promise<Announcement[]> {
   const data = await get(`announcements${query ? `?${query}` : '?order=is_pinned.desc,created_at.desc'}`);
-  return z.array(AnnouncementSchema).parse(data);
+  return data as Announcement[];
 }
 
 export async function getResources(query = ''): Promise<Resource[]> {
   const data = await get(`resources${query ? `?${query}` : '?order=created_at.desc'}`);
-  return z.array(ResourceSchema).parse(data);
+  return data as Resource[];
 }
 
 export async function getSections(pageSlug = 'index'): Promise<Section[]> {
   const data = await get(`sections?page_slug=eq.${pageSlug}&visible=eq.true&order=position.asc`);
-  return z.array(SectionSchema).parse(data);
+  return data as Section[];
 }
 
 export async function getPage(slug: string): Promise<Page | null> {
   const data = await get(`pages?slug=eq.${slug}&published=eq.true&limit=1`);
-  const pages = z.array(PageSchema).parse(data);
+  const pages = data as Page[];
   return pages[0] || null;
 }
 
 export async function getForumCategories(): Promise<ForumCategory[]> {
   const data = await get('forum_categories?order=position.asc');
-  return z.array(ForumCategorySchema).parse(data);
+  return data as ForumCategory[];
 }
 
 export async function getForumTopics(query = ''): Promise<ForumTopic[]> {
   const data = await get(`forum_topics${query ? `?${query}` : '?order=is_pinned.desc,created_at.desc'}`);
-  return z.array(ForumTopicSchema).parse(data);
+  return data as ForumTopic[];
 }
 
 export async function getForumReplies(topicId: number): Promise<ForumReply[]> {
   const data = await get(`forum_replies?topic_id=eq.${topicId}&order=created_at.asc`);
-  return z.array(ForumReplySchema).parse(data);
+  return data as ForumReply[];
 }
 
 export async function getReactions(contentType: string, contentId: number): Promise<Reaction[]> {
   const data = await get(`reactions?content_type=eq.${contentType}&content_id=eq.${contentId}`);
-  return z.array(ReactionSchema).parse(data);
+  return data as Reaction[];
 }
 
 export async function getCommittees(): Promise<Committee[]> {
   const data = await get('committees?order=name.asc');
-  return z.array(CommitteeSchema).parse(data);
+  return data as Committee[];
 }
 
 export async function getCommitteeMembers(committeeId: number): Promise<CommitteeMember[]> {
   const data = await get(`committee_members?committee_id=eq.${committeeId}`);
-  return z.array(CommitteeMemberSchema).parse(data);
+  return data as CommitteeMember[];
 }
 
 export async function getPolls(query = ''): Promise<Poll[]> {
   const data = await get(`polls${query ? `?${query}` : '?order=created_at.desc'}`);
-  return z.array(PollSchema).parse(data);
+  return data as Poll[];
 }
 
 export async function getPollOptions(pollId: number): Promise<PollOption[]> {
   const data = await get(`poll_options?poll_id=eq.${pollId}&order=position.asc`);
-  return z.array(PollOptionSchema).parse(data);
+  return data as PollOption[];
 }
 
 export async function getPollVotes(pollId: number): Promise<PollVote[]> {
   const data = await get(`poll_votes?poll_id=eq.${pollId}`);
-  return z.array(PollVoteSchema).parse(data);
+  return data as PollVote[];
 }
 
 export { getAPI, getAnonKey, getAuthHeaders };
