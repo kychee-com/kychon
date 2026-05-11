@@ -14,6 +14,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { del, get } from '../lib/api';
   import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
+  import { openAuthModal } from '../lib/auth-modal-events';
   import { isFeatureEnabled, getConfig } from '../lib/config';
   import {
     renderPoll,
@@ -24,6 +25,20 @@ import Portal from '../layouts/Portal.astro';
   } from '../lib/poll-ui';
 
   let pollFormRef: ReturnType<typeof createPollForm> | null = null;
+
+  function isPermissionDenied(error: unknown): boolean {
+    return (error as any)?.code === 'permission.denied';
+  }
+
+  function renderMemberRequired(el: HTMLElement): void {
+    const signedIn = isAuthenticated();
+    el.innerHTML = signedIn
+      ? '<p class="ky-text-muted">Active member access is required to view polls.</p>'
+      : '<div class="text-center ky-text-muted"><p class="mb-1">Sign in as a member to view polls.</p><button class="btn btn-primary" id="polls-signin-btn">Sign in</button></div>';
+    document.getElementById('polls-signin-btn')?.addEventListener('click', (event) => {
+      openAuthModal({ trigger: event.currentTarget as HTMLElement });
+    });
+  }
 
   async function renderPollsList() {
     const listEl = document.getElementById('polls-list');
@@ -92,7 +107,11 @@ import Portal from '../layouts/Portal.astro';
       });
     } catch (e) {
       console.error('Failed to load polls:', e);
-      listEl.innerHTML = '<p class="ky-text-muted">Could not load polls.</p>';
+      if (isPermissionDenied(e)) {
+        renderMemberRequired(listEl);
+      } else {
+        listEl.innerHTML = '<p class="ky-text-muted">Could not load polls.</p>';
+      }
     }
   }
 
