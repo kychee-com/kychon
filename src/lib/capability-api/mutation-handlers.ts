@@ -113,6 +113,9 @@ export async function executeCapabilityMutation(
   if (name === 'translations.translateContent') return translateContent(input, ctx);
   if (name === 'newsletters.drafts.generate') return generateNewsletterDraft(input, ctx);
   if (name.startsWith('jobs.')) return runJob(name, input, ctx);
+  if (name === 'rsvps.setStatus') return setRsvpStatus(input, ctx);
+  if (name === 'rsvps.cancel') return cancelRsvp(input, ctx);
+  if (name === 'members.changeRole') return changeMemberRole(input, ctx);
 
   return genericMutation(name, input, ctx);
 }
@@ -147,9 +150,12 @@ async function genericMutation(operation: string, input: JsonObject, ctx: Capabi
 }
 
 async function publishAnnouncement(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  // Body is sanitized on write so every downstream reader (newsletter
+  // generator, translation cache, CSV/RSS export) inherits the safety
+  // guarantee the read-side hydrator already provides. (#29)
   const announcement = await ctx.db.insert('announcements', {
     title: input.title || 'Untitled',
-    body: input.body || '',
+    body: sanitizeRichHtmlServer(input.body || ''),
     is_pinned: input.pin === true || input.is_pinned === true,
     author_id: memberId(ctx),
   });
@@ -291,6 +297,175 @@ async function uploadAsset(input: JsonObject, ctx: CapabilityMutationContext): P
   return actionResult(upload || { status: 'uploaded', path: input.path || null }, [object], null);
 }
 
+const VALID_MEMBER_ROLES: ReadonlySet<string> = new Set(['member', 'moderator', 'admin']);
+
+async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  // member_id is bound to the actor (admins act-as via dedicated admin paths,
+  // not this capability) and an `id` from input must belong to that member —
+  // otherwise an active member could update arbitrary RSVP rows. (#24)
+  const member = memberId(ctx);
+  const id = input.id;
+  const eventId = input.eventId ?? input.event_id;
+
+  if (id != null) {
+    const target = (await ctx.db.select('event_rsvps')).find((row) => String(row.id) === String(id));
+    if (!target) {
+      throw new CapabilityMutationError('notFound.object', 'RSVP not found.', {
+        object: { type: 'event.rsvp', id: String(id) },
+      });
+    }
+    if (String(target.member_id) !== String(member) && !isAdminLike(ctx) && !isModeratorLike(ctx)) {
+      throw new CapabilityMutationError('permission.denied', 'rsvps.setStatus can only update the active member RSVP.', {
+        object: { type: 'event.rsvp', id: String(id) },
+      });
+    }
+    const row =
+      (await ctx.db.update('event_rsvps', String(id), {
+        status: input.status || 'going',
+        member_id: target.member_id,
+      })) || target;
+    const object = changedObject('event.rsvp', String(row.id ?? id));
+    return actionResult(
+      row,
+      [object],
+      verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: row.event_id ?? eventId }, object),
+    );
+  }
+
+  const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
+  // Pre-validate the event so a missing FK surfaces as `notFound.object`,
+  // not a generic insert failure when the DB-side FK rejects the row. (#29)
+  const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(event));
+  if (!eventRow) {
+    throw new CapabilityMutationError('notFound.object', 'Event not found.', {
+      object: { type: 'event', id: String(event) },
+    });
+  }
+  const existing = (await ctx.db.select('event_rsvps')).find(
+    (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
+  );
+  const row = existing
+    ? (await ctx.db.update('event_rsvps', String(existing.id), {
+        status: input.status || 'going',
+        member_id: member,
+      })) || existing
+    : await ctx.db.insert('event_rsvps', {
+        event_id: event,
+        member_id: member,
+        status: input.status || 'going',
+      });
+  const object = changedObject('event.rsvp', String(row.id));
+  return actionResult(
+    row,
+    [object],
+    verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: event }, object),
+  );
+}
+
+async function cancelRsvp(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  const member = memberId(ctx);
+  const id = input.id;
+  const eventId = input.eventId ?? input.event_id;
+  // When the caller addresses by eventId, validate the event before scanning
+  // rsvps — otherwise a typo collapses to a silent `cancelled: false`. (#29)
+  if (id == null && eventId != null) {
+    const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(eventId));
+    if (!eventRow) {
+      throw new CapabilityMutationError('notFound.object', 'Event not found.', {
+        object: { type: 'event', id: String(eventId) },
+      });
+    }
+  }
+  const existing =
+    id != null
+      ? (await ctx.db.select('event_rsvps')).find((row) => String(row.id) === String(id))
+      : (await ctx.db.select('event_rsvps')).find(
+          (row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member),
+        );
+  if (!existing) return actionResult({ cancelled: false }, [], null);
+  if (String(existing.member_id) !== String(member) && !isAdminLike(ctx) && !isModeratorLike(ctx)) {
+    throw new CapabilityMutationError('permission.denied', 'rsvps.cancel can only cancel the active member RSVP.', {
+      object: { type: 'event.rsvp', id: String(existing.id) },
+    });
+  }
+  const row = (await ctx.db.update('event_rsvps', String(existing.id), { status: 'cancelled' })) || existing;
+  const object = changedObject('event.rsvp', String(row.id));
+  return actionResult(
+    row,
+    [object],
+    verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: row.event_id ?? eventId }, object),
+  );
+}
+
+async function changeMemberRole(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  // Reject anything that isn't a known role. The old fall-through path
+  // (`input.role || 'member'`) silently demoted on typos and let `'admin'`,
+  // `'moderator'`, or arbitrary strings reach the DB unfiltered. (#29)
+  const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
+  if (!VALID_MEMBER_ROLES.has(role)) {
+    throw new CapabilityMutationError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
+      role: String(input.role ?? ''),
+    });
+  }
+
+  const targetId = requiredId(input, 'members.changeRole');
+  const members = await ctx.db.select('members');
+  const target = members.find((row) => String(row.id) === String(targetId));
+  if (!target) {
+    throw new CapabilityMutationError('notFound.object', 'Member not found.', {
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+
+  // Last-admin guard: refuse to demote the actor's own admin role if doing
+  // so leaves zero remaining admins. Otherwise the portal locks itself out
+  // of admin features until someone goes around the API. (#29)
+  const actorMemberId = ctx.actor.member?.id ?? null;
+  if (
+    role !== 'admin' &&
+    actorMemberId != null &&
+    String(actorMemberId) === String(targetId) &&
+    String(target.role).toLowerCase() === 'admin'
+  ) {
+    const otherAdmins = members.filter(
+      (row) => String(row.id) !== String(targetId) && String(row.role).toLowerCase() === 'admin' && String(row.status).toLowerCase() === 'active',
+    );
+    if (otherAdmins.length === 0) {
+      throw new CapabilityMutationError('conflict.state', 'Cannot demote the last active admin.', {
+        object: { type: 'member', id: String(targetId) },
+      });
+    }
+  }
+
+  const row = (await ctx.db.update('members', String(targetId), { role })) || { ...target, role };
+  const object = changedObject('member', String(row.id ?? targetId));
+  return actionResult(row, [object], verificationQuery(getOperation('members.get')!.name, { id: row.id ?? targetId }, object));
+}
+
+function isAdminLike(ctx: CapabilityMutationContext): boolean {
+  return ctx.actor.state === 'admin' || ctx.actor.state === 'project_admin';
+}
+
+function isModeratorLike(ctx: CapabilityMutationContext): boolean {
+  return ctx.actor.state === 'moderator' || isAdminLike(ctx);
+}
+
+// Server-side rich-HTML sanitizer mirroring the read-side allowlist in
+// `src/lib/sanitize-html.ts`. We strip the obvious attack vectors with regex
+// as belt-and-braces for the read-side sanitizer so any other consumer
+// (newsletter generator, translation cache, CSV/RSS export) inherits the
+// guarantee. (#29)
+export function sanitizeRichHtmlServer(input: unknown): string {
+  if (input == null) return '';
+  let html = String(input);
+  html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+  html = html.replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, '');
+  html = html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
+  html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
+  return html;
+}
+
 async function translateText(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const result = (await ctx.ai?.translateText(input)) || { translatedText: input.text || '' };
   return actionResult(result, [changedObject('translation', String(result.id || 'text'))], null);
@@ -402,6 +577,11 @@ function rowForUpdate(operation: string, input: JsonObject, ctx: CapabilityMutat
   if (operation === 'moderation.markReviewed') return { action: 'reviewed', reviewed_by: memberId(ctx) };
   if (operation === 'insights.updateStatus') return { status: input.status || 'reviewed' };
   if (operation === 'insights.dismiss') return { status: 'dismissed' };
+  if (operation === 'announcements.update') {
+    const patch = stripControlFields(input);
+    if (patch.body != null) patch.body = sanitizeRichHtmlServer(patch.body);
+    return patch;
+  }
   return stripControlFields(input);
 }
 
