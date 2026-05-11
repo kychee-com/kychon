@@ -1759,9 +1759,7 @@ function searchResultUrl(row) {
   if (sourceType === 'event') return `/event?id=${encodeURIComponent(sourceKey)}`;
   if (sourceType === 'page') {
     if (sourceKey === 'index') return '/';
-    return safeCustomPageSlug(sourceKey)
-      ? `/${sourceKey}`
-      : `/page.html?slug=${encodeURIComponent(sourceKey)}`;
+    return safeCustomPageSlug(sourceKey) ? `/${sourceKey}` : `/page.html?slug=${encodeURIComponent(sourceKey)}`;
   }
   const raw = String(row.url || '/');
   return raw.startsWith('/') ? raw : '/';

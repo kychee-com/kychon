@@ -200,8 +200,8 @@ describe('bug #25 — upload-asset.js parameterized SQL', () => {
 
     const roleQuery = mockState.sqlCalls.find((c) => /role from members/i.test(c.query));
     expect(roleQuery, 'expected a SELECT role FROM members SQL call').toBeDefined();
-    expect(roleQuery!.query).toMatch(/\$1/);
-    expect(roleQuery!.query).not.toMatch(/'admin-user'/);
-    expect(roleQuery!.params).toEqual(['admin-user']);
+    expect(roleQuery?.query).toMatch(/\$1/);
+    expect(roleQuery?.query).not.toMatch(/'admin-user'/);
+    expect(roleQuery?.params).toEqual(['admin-user']);
   });
 });
