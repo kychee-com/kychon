@@ -58,6 +58,19 @@ function signInBarSection(config: Record<string, unknown>): Section {
   };
 }
 
+function pageBannerSection(config: Record<string, unknown>): Section {
+  return {
+    id: 90,
+    page_slug: 'index',
+    zone: 'header',
+    scope: 'page',
+    section_type: 'page_banner',
+    config,
+    position: 2,
+    visible: true,
+  };
+}
+
 async function hydrateFromCachedSections(sections: Section[]): Promise<void> {
   const store = installLocalStorage();
   writeCache(store, 'wl_cache_site_config', configRows);
@@ -129,5 +142,23 @@ describe('sign_in_bar hydration', () => {
       expect(events).toHaveLength(1);
     });
     expect(events[0]?.detail.trigger).toBe(login);
+  });
+
+  it('renders full-bleed header banners outside the sticky nav shell', async () => {
+    await hydrateFromCachedSections([
+      signInBarSection({ show_lang_toggle: false, show_theme_toggle: false }),
+      pageBannerSection({
+        image_url: '/assets/about-hero.jpg',
+        image_alt: 'About',
+        height: 'medium',
+      }),
+    ]);
+
+    const host = document.querySelector('[data-fullbleed-host]') as HTMLElement | null;
+    expect(host).toBeTruthy();
+    expect(host?.previousElementSibling).toBe(document.getElementById('zone-header'));
+    expect(host?.getAttribute('data-zone-fullbleed')).toBe('header');
+    expect(document.querySelector('.nav [data-fullbleed-host]')).toBeNull();
+    expect(host?.querySelector('.block-page-banner')).toBeTruthy();
   });
 });

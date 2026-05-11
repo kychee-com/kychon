@@ -123,9 +123,8 @@ function renderZoneInto(
 
   // Header / footer zones split into "chrome" blocks (rendered inside the
   // existing .ky-container — brand_header, nav, sign_in_bar, footer_address,
-  // etc.) and "full-bleed" blocks (page_banner today; rendered as siblings
-  // of .ky-container so they span the viewport without forcing the chrome row
-  // to absorb their height).
+  // etc.) and "full-bleed" blocks (page_banner today; rendered outside the
+  // constrained chrome container so they span the viewport).
   const chromeBlocks: Section[] = [];
   const fullBleedBlocks: Section[] = [];
   for (const s of filtered) {
@@ -138,16 +137,28 @@ function renderZoneInto(
     container.innerHTML = chromeHtml;
   }
 
-  // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container
-  // adjacent to `.ky-container` inside the same zone wrapper. Created lazily on
-  // first need; idempotent across re-renders.
+  // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container.
+  // Header full-bleed blocks are inserted after the sticky `.nav`, not inside it;
+  // otherwise a page banner would stay stuck to the viewport while scrolling.
+  // Footer full-bleed blocks can remain inside the footer wrapper.
   if (containerWrapper) {
-    let bleedHost = containerWrapper.querySelector<HTMLElement>('[data-fullbleed-host]');
+    const headerBleedSelector = '[data-fullbleed-host][data-zone-fullbleed="header"]';
+    let bleedHost =
+      zone === 'header'
+        ? (document.querySelector(headerBleedSelector) as HTMLElement | null)
+        : containerWrapper.querySelector<HTMLElement>('[data-fullbleed-host]');
     if (fullBleedBlocks.length > 0) {
       if (!bleedHost) {
         bleedHost = document.createElement('div');
         bleedHost.setAttribute('data-fullbleed-host', '');
+        if (zone === 'header') {
+          bleedHost.setAttribute('data-zone-fullbleed', 'header');
+        }
         bleedHost.style.width = '100%';
+      }
+      if (zone === 'header' && bleedHost.previousElementSibling !== containerWrapper) {
+        containerWrapper.insertAdjacentElement('afterend', bleedHost);
+      } else if (zone !== 'header' && bleedHost.parentElement !== containerWrapper) {
         containerWrapper.appendChild(bleedHost);
       }
       const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
