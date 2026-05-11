@@ -16,6 +16,7 @@ import Portal from '../layouts/Portal.astro';
   import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
   import { openAuthModal } from '../lib/auth-modal-events';
   import { isFeatureEnabled, getConfig } from '../lib/config';
+  import { showToast } from '../lib/toast-events';
   import {
     renderPoll,
     bindPollVoteListeners,
@@ -143,26 +144,33 @@ import Portal from '../layouts/Portal.astro';
           if (!pollFormRef) return;
           const data = pollFormRef.getPollData();
           if (!data) {
-            alert('Please fill in the question and at least 2 options.');
+            showToast('Please fill in the question and at least 2 options.', 'warning');
             return;
           }
           const session = getSession();
-          const memberId = session?.user?.member?.id;
-          if (!memberId) return;
+          if (!session) {
+            showToast('Sign in as a member to create polls.', 'warning');
+            openAuthModal({ trigger: submitBtn });
+            return;
+          }
 
           submitBtn.disabled = true;
           submitBtn.textContent = 'Creating...';
           try {
-            await submitPoll(data, memberId);
+            await submitPoll(data);
             pollFormRef.remove();
             pollFormRef = null;
             formContainer.classList.add('hidden');
             formContainer.innerHTML = '';
             toggleBtn.classList.remove('hidden');
+            showToast('Poll created', 'success');
             renderPollsList();
           } catch (e) {
             console.error('Failed to create poll:', e);
-            alert('Failed to create poll. Please try again.');
+            showToast(
+              isPermissionDenied(e) ? 'Active member access is required to create polls.' : 'Failed to create poll. Please try again.',
+              'error',
+            );
             submitBtn.disabled = false;
             submitBtn.textContent = 'Create Poll';
           }

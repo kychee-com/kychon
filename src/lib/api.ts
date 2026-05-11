@@ -1,8 +1,8 @@
 // api.ts - Browser compatibility facade over the Kychon Capability API.
 //
-// The public app used to call Run402's PostgREST-shaped `/rest/v1/*` table
-// surface directly. Keep the small get/post/patch/delete helpers so the UI can
-// migrate incrementally, but make every product read/write go through
+// The public app used to call Run402's PostgREST-shaped table surface directly.
+// Keep the small get/post/patch/delete helpers so the UI can migrate
+// incrementally, but make every product read/write go through
 // @kychon/sdk and POST /functions/v1/kychon-api.
 
 import {

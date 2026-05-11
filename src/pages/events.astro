@@ -40,9 +40,10 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { get, post } from '../lib/api';
-  import { getSession, isAdmin } from '../lib/auth';
+  import { isAdmin } from '../lib/auth';
   import { ready, siteConfig, translateItems } from '../lib/config';
   import { formatEventDateTime } from '../lib/event-display';
+  import { showToast } from '../lib/toast-events';
 
   let allEvents: any[] = [];
 
@@ -125,8 +126,6 @@ import Portal from '../layouts/Portal.astro';
 
     document.getElementById('event-form')?.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      const session = getSession();
-      const memberId = session?.user?.member?.id;
       const data = {
         title: (document.getElementById('ef-title') as HTMLInputElement).value,
         description: (document.getElementById('ef-description') as HTMLTextAreaElement).value,
@@ -135,12 +134,17 @@ import Portal from '../layouts/Portal.astro';
         ends_at: (document.getElementById('ef-ends') as HTMLInputElement).value || null,
         capacity: parseInt((document.getElementById('ef-capacity') as HTMLInputElement).value, 10) || null,
         is_members_only: (document.getElementById('ef-members-only') as HTMLInputElement).checked,
-        created_by: memberId,
       };
-      await post('events', data);
-      document.getElementById('event-form-modal')?.classList.add('hidden');
-      (document.getElementById('event-form') as HTMLFormElement)?.reset();
-      await loadEvents();
+      try {
+        await post('events', data);
+        document.getElementById('event-form-modal')?.classList.add('hidden');
+        (document.getElementById('event-form') as HTMLFormElement)?.reset();
+        showToast('Event created', 'success');
+        await loadEvents();
+      } catch (error) {
+        console.error('Failed to create event:', error);
+        showToast('Failed to create event. Please try again.', 'error');
+      }
     });
   }
 
