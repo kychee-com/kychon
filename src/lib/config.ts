@@ -424,7 +424,7 @@ async function findMemberForSession(session: any): Promise<any | null> {
 
   const members = await get(`members?email=eq.${encodeURIComponent(email)}&limit=1`);
   const member = members?.[0] || null;
-  if (member && userId && member.user_id !== userId) {
+  if (member && userId && member.user_id !== userId && member.role === 'admin') {
     patchMemberUserId(member.id, userId).catch(() => {});
   }
   return member;
