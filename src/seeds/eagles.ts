@@ -2,17 +2,17 @@ import type { ProjectSeed } from './types.js';
 
 const EAGLES_NAV = [
   { label: 'Home', href: '/', icon: 'home', public: true },
-  { label: 'About', href: '/page.html?slug=about', icon: 'info', public: true },
-  { label: 'Volunteer', href: '/page.html?slug=volunteer', icon: 'heart', public: true },
-  { label: 'Members', href: '/directory.html', icon: 'users', auth: true, feature: 'feature_directory' },
-  { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
-  { label: 'Resources', href: '/resources.html', icon: 'book-open', feature: 'feature_resources' },
-  { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
-  { label: 'Polls', href: '/polls.html', icon: 'bar-chart', feature: 'feature_polls' },
-  { label: 'Committees', href: '/committees.html', icon: 'briefcase', feature: 'feature_committees' },
-  { label: 'Dashboard', href: '/admin.html', icon: 'bar-chart-2', admin: true },
-  { label: 'Members', href: '/admin-members.html', icon: 'users', admin: true },
-  { label: 'Settings', href: '/admin-settings.html', icon: 'settings', admin: true },
+  { label: 'About', href: '/about', icon: 'info', public: true },
+  { label: 'Volunteer', href: '/volunteer', icon: 'heart', public: true },
+  { label: 'Members', href: '/directory', icon: 'users', auth: true, feature: 'feature_directory' },
+  { label: 'Events', href: '/events', icon: 'calendar', feature: 'feature_events' },
+  { label: 'Resources', href: '/resources', icon: 'book-open', feature: 'feature_resources' },
+  { label: 'Forum', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
+  { label: 'Polls', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
+  { label: 'Committees', href: '/committees', icon: 'briefcase', feature: 'feature_committees' },
+  { label: 'Dashboard', href: '/admin', icon: 'bar-chart-2', admin: true },
+  { label: 'Members', href: '/admin-members', icon: 'users', admin: true },
+  { label: 'Settings', href: '/admin-settings', icon: 'settings', admin: true },
 ];
 
 const ABOUT_HTML = `
@@ -290,7 +290,7 @@ export const seed: ProjectSeed = {
       config: {
         placeholder: 'Search The Eagles',
         submit_label: 'Search',
-        destination: '/search.html',
+        destination: '/search',
         compact: true,
         default_type: 'all',
       },
@@ -308,7 +308,7 @@ export const seed: ProjectSeed = {
         subheading:
           'The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.',
         cta_text: 'Join The Eagles',
-        cta_href: '/join.html',
+        cta_href: '/join',
         image_url: '/assets/hero.jpg',
         image_alt: 'Eagles volunteers gathered at a community service event',
         image_aspect: '21/9',
@@ -381,7 +381,7 @@ export const seed: ProjectSeed = {
             title: 'Food Security',
             title_position: 'top',
             cta_text: 'Pack the next drive',
-            cta_href: '/events.html',
+            cta_href: '/events',
           },
           {
             image_url: '/assets/event-habitat-build.jpg',
@@ -389,7 +389,7 @@ export const seed: ProjectSeed = {
             title: 'Habitat Builds',
             title_position: 'top',
             cta_text: 'Join a build day',
-            cta_href: '/events.html',
+            cta_href: '/events',
           },
           {
             image_url: '/assets/event-garden.jpg',
@@ -397,7 +397,7 @@ export const seed: ProjectSeed = {
             title: 'Community Garden',
             title_position: 'top',
             cta_text: 'Grow with us',
-            cta_href: '/page.html?slug=volunteer',
+            cta_href: '/volunteer',
           },
         ],
       },
@@ -454,7 +454,7 @@ export const seed: ProjectSeed = {
         heading: 'Ready to make a difference?',
         text: 'Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.',
         cta_text: 'Get Started',
-        cta_href: '/join.html',
+        cta_href: '/join',
       },
       position: 5,
     },

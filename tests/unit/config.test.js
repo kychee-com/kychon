@@ -157,8 +157,9 @@ describe('config logic', () => {
 
   describe('route matching', () => {
     it('normalizes route keys including sorted query params', () => {
-      expect(getRouteKey('/page.html?b=2&a=1')).toBe('/page.html?a=1&b=2');
+      expect(getRouteKey('/search.html?b=2&a=1')).toBe('/search?a=1&b=2');
       expect(getRouteKey('/events.html/')).toBe('/events.html');
+      expect(getRouteKey('/events.html')).toBe('/events');
     });
 
     it('treats query-based nav items as exact matches', () => {
@@ -166,6 +167,8 @@ describe('config logic', () => {
       expect(isNavItemActive('/page.html?slug=about', 'https://eagles.kychon.com/page.html?slug=volunteer')).toBe(
         false,
       );
+      expect(isNavItemActive('/page.html?slug=about', 'https://eagles.kychon.com/about')).toBe(true);
+      expect(isNavItemActive('/about', 'https://eagles.kychon.com/page.html?slug=about')).toBe(true);
     });
 
     it('keeps parent nav items active for related detail pages', () => {

@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { canonicalizeKychonOwnedHrefFields } from '../src/lib/clean-routes.ts';
 import { describeSeedSource, resolveActiveProjectSeed } from '../src/seeds/index.ts';
 import type {
   MemberCustomFieldSeed,
@@ -199,7 +200,7 @@ function emitSections(sections: SeedSection[]): string {
       `INSERT INTO sections (page_slug, zone, scope, section_type, config, position, visible, column_span)`,
     );
     out.push(
-      `SELECT '${escSql(s.page_slug)}', '${escSql(s.zone)}', '${escSql(s.scope)}', '${escSql(s.section_type)}', ${jsonbLiteral(s.config)}, ${s.position}, ${visible}, '${escSql(span)}'`,
+      `SELECT '${escSql(s.page_slug)}', '${escSql(s.zone)}', '${escSql(s.scope)}', '${escSql(s.section_type)}', ${jsonbLiteral(canonicalizeKychonOwnedHrefFields(s.config))}, ${s.position}, ${visible}, '${escSql(span)}'`,
     );
     out.push(
       `WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = '${escSql(s.page_slug)}' AND zone = '${escSql(s.zone)}' AND scope = '${escSql(s.scope)}' AND section_type = '${escSql(s.section_type)}' AND position = ${s.position});`,

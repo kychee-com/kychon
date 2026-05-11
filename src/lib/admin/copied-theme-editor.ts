@@ -141,7 +141,7 @@ function renderImageAccordionEditor(cfg: Record<string, any>): string {
         <div class="admin-copied-grid">
           ${fieldHtml(cfg, `${path}.title`, 'Title')}
           ${fieldHtml(cfg, `${path}.cta_label`, 'CTA label')}
-          ${fieldHtml(cfg, `${path}.href`, 'Link href', { placeholder: '/page.html' })}
+          ${fieldHtml(cfg, `${path}.href`, 'Link href', { placeholder: '/about' })}
           ${fieldHtml(cfg, `${path}.image_url`, 'Image URL')}
           ${fieldHtml(cfg, `${path}.image_alt`, 'Image alt')}
           ${fieldHtml(cfg, `${path}.object_position`, 'Object position', { placeholder: '50% 50%' })}

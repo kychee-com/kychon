@@ -69,7 +69,7 @@ export function buildSiteSearchSectionFromWildApricot(
     config: {
       placeholder: cfg.placeholder,
       submit_label: cfg.submit_label,
-      destination: '/search.html',
+      destination: '/search',
       compact: cfg.compact,
       default_type: cfg.default_type,
     },
@@ -81,7 +81,7 @@ export function buildSiteSearchSectionFromWildApricot(
 
 export function rewriteWildApricotSearchHtml(html: string): string {
   return html
-    .replace(SYS_SEARCH_RE, '/search.html')
+    .replace(SYS_SEARCH_RE, '/search')
     .replace(/\s+target\s*=\s*["']_blank["']/gi, '')
     .replace(/<input\b[^>]*\bname\s*=\s*["']types["'][^>]*>/gi, '')
     .replace(/\s+method\s*=\s*["']post["']/gi, ' method="get"');

@@ -2,15 +2,15 @@ import type { ProjectSeed } from './types.js';
 
 const DEFAULT_NAV_ITEMS = [
   { label: 'Home', href: '/', icon: 'home', public: true },
-  { label: 'Members', href: '/directory.html', icon: 'users', auth: true, feature: 'feature_directory' },
-  { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
-  { label: 'Resources', href: '/resources.html', icon: 'book-open', feature: 'feature_resources' },
-  { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
-  { label: 'Committees', href: '/committees.html', icon: 'briefcase', feature: 'feature_committees' },
-  { label: 'Polls', href: '/polls.html', icon: 'bar-chart', feature: 'feature_polls' },
-  { label: 'Dashboard', href: '/admin.html', icon: 'bar-chart-2', admin: true },
-  { label: 'Members', href: '/admin-members.html', icon: 'users', admin: true },
-  { label: 'Settings', href: '/admin-settings.html', icon: 'settings', admin: true },
+  { label: 'Members', href: '/directory', icon: 'users', auth: true, feature: 'feature_directory' },
+  { label: 'Events', href: '/events', icon: 'calendar', feature: 'feature_events' },
+  { label: 'Resources', href: '/resources', icon: 'book-open', feature: 'feature_resources' },
+  { label: 'Forum', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
+  { label: 'Committees', href: '/committees', icon: 'briefcase', feature: 'feature_committees' },
+  { label: 'Polls', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
+  { label: 'Dashboard', href: '/admin', icon: 'bar-chart-2', admin: true },
+  { label: 'Members', href: '/admin-members', icon: 'users', admin: true },
+  { label: 'Settings', href: '/admin-settings', icon: 'settings', admin: true },
 ];
 
 export const seed: ProjectSeed = {

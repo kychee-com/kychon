@@ -38,9 +38,10 @@ describe('search helpers', () => {
 
   it('builds stable native result URLs', () => {
     expect(buildPageResultUrl('index')).toBe('/');
+    expect(buildPageResultUrl('about')).toBe('/about');
     expect(buildPageResultUrl('about us')).toBe('/page.html?slug=about%20us');
-    expect(buildResourceResultUrl(42)).toBe('/resources.html#resource-42');
-    expect(buildEventResultUrl(7)).toBe('/event.html?id=7');
+    expect(buildResourceResultUrl(42)).toBe('/resources#resource-42');
+    expect(buildEventResultUrl(7)).toBe('/event?id=7');
   });
 
   it('normalizes type and page size inputs', () => {

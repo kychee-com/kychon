@@ -59,6 +59,8 @@ describe('isPageActive — hash-aware active link detection', () => {
   it('respects search param mismatches', () => {
     expect(isPageActive('/page.html?slug=foo', '/page.html?slug=foo')).toBe(true);
     expect(isPageActive('/page.html?slug=foo', '/page.html?slug=bar')).toBe(false);
+    expect(isPageActive('/page.html?slug=foo', '/foo')).toBe(true);
+    expect(isPageActive('/foo', '/page.html?slug=foo')).toBe(true);
   });
 });
 
@@ -66,11 +68,12 @@ describe('nav block — flat behavior preserved', () => {
   it('renders flat items as plain anchors', () => {
     const section = makeSection([
       { label: 'Home', href: '/', public: true },
-      { label: 'About', href: '/about', public: true },
+      { label: 'About', href: '/page.html?slug=about', public: true },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     expect(html).toContain('<a class="nav-link"');
     expect(html).toContain('href="/"');
+    expect(html).toContain('href="/about"');
     expect(html).toContain('>Home<');
     expect(html).toContain('>About<');
     expect(html).not.toContain('nav-chevron-toggle');

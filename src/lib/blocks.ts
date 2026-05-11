@@ -3,6 +3,8 @@
 // strings. Dynamic blocks emit a skeleton at bake time and a per-type
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
+import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
+
 /** column-span-rows: legal fractions of a 6-col zone grid. */
 export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
 
@@ -203,6 +205,11 @@ export function escAttr(s: any): string {
   return escHtml(s);
 }
 
+function cleanHref(value: any, fallback = ''): string {
+  const href = String(value ?? '').trim() || fallback;
+  return canonicalizeKychonHref(href);
+}
+
 const SAFE_CSS_VALUE_RE = /^[#%(),./"'`\-\w\s]+$/;
 const SAFE_SVG_PATH_RE = /^[MmZzLlHhVvCcSsQqTtAa0-9,.\-\s+]+$/;
 
@@ -311,8 +318,13 @@ export function isPageActive(href: string, current?: string): boolean {
   try {
     const a = new URL(href, 'https://kychon.local');
     const b = new URL(current, 'https://kychon.local');
-    if (a.pathname !== b.pathname) return false;
-    if (a.search && a.search !== b.search) return false;
+    if (a.origin !== b.origin) return false;
+    const aKey = canonicalRouteKey(`${a.pathname}${a.search}`);
+    const bKey = canonicalRouteKey(`${b.pathname}${b.search}`);
+    const [aPath, aSearch = ''] = aKey.split('?');
+    const [bPath] = bKey.split('?');
+    if (aPath !== bPath) return false;
+    if (aSearch && aKey !== bKey) return false;
     // Hash-aware: an item linking to "/#x" is active only when the current
     // URL has the same hash. Items without a hash ignore the current hash.
     if (a.hash && a.hash !== b.hash) return false;
@@ -502,7 +514,7 @@ function sanitizeHref(href: string): string {
   if (trimmed.startsWith('//')) return '';
   // Relative paths and anchors are allowed.
   if (trimmed.startsWith('/') || trimmed.startsWith('#') || trimmed.startsWith('?')) {
-    return trimmed;
+    return canonicalizeKychonHref(trimmed);
   }
   // Allow http(s) and mailto schemes only.
   const lower = trimmed.toLowerCase();
@@ -519,7 +531,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const heading = `<h1${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h1>`;
   const sub = `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`;
   const cta = cfg.cta_text
-    ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+    ? `<a href="${escAttr(cleanHref(cfg.cta_href, '#'))}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
     : '';
   const inner = `<div class="ky-container">${heading}${sub}${cta}</div>`;
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -580,7 +592,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`
     : '';
   const cta = cfg.cta_text
-    ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+    ? `<a href="${escAttr(cleanHref(cfg.cta_href, '#'))}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
     : '';
   const headingGroup = heading || sub || cta
     ? `<div class="hero-text"><div class="ky-container">${heading}${sub}${cta}</div></div>`
@@ -640,7 +652,7 @@ const FEATURES: BlockType = {
             ? `<div class="feature-icon">${escHtml(featureIcon(item.icon))}</div>`
             : '';
           const cta = item.cta_text && item.cta_href
-            ? `<a class="btn btn-primary" href="${escAttr(item.cta_href)}"${editableAttr(section, `items.${i}.cta_text`, ctx)}>${escHtml(item.cta_text)}</a>`
+            ? `<a class="btn btn-primary" href="${escAttr(cleanHref(item.cta_href))}"${editableAttr(section, `items.${i}.cta_text`, ctx)}>${escHtml(item.cta_text)}</a>`
             : '';
           return `<div class="feature-card">${icon}<h3${editableAttr(section, `items.${i}.title`, ctx)}>${escHtml(item.title)}</h3><p${editableAttr(section, `items.${i}.desc`, ctx)}>${escHtml(item.desc)}</p>${cta}</div>`;
         },
@@ -665,12 +677,12 @@ const CTA: BlockType = {
     heading: 'Ready to join?',
     text: 'Get started today.',
     cta_text: 'Join Now',
-    cta_href: '/join.html',
+    cta_href: '/join',
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const cta = cfg.cta_text
-      ? `<a href="${escAttr(cfg.cta_href || '#')}" class="btn btn-primary btn-lg mt-2"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+  const cta = cfg.cta_text
+      ? `<a href="${escAttr(cleanHref(cfg.cta_href, '#'))}" class="btn btn-primary btn-lg mt-2"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
       : '';
     return adminWrap(
       section,
@@ -700,7 +712,7 @@ const STATS: BlockType = {
       .map((s: any, i: number) => {
         const inner = `<div class="stat-value"${editableAttr(section, `items.${i}.value`, ctx)}>${escHtml(s.value)}</div><div class="stat-label"${editableAttr(section, `items.${i}.label`, ctx)}>${escHtml(s.label)}</div>`;
         return s.href
-          ? `<a href="${escAttr(s.href)}" class="stat-card" style="text-decoration:none;color:inherit">${inner}</a>`
+          ? `<a href="${escAttr(cleanHref(s.href))}" class="stat-card" style="text-decoration:none;color:inherit">${inner}</a>`
           : `<div class="stat-card">${inner}</div>`;
       })
       .join('');
@@ -993,7 +1005,7 @@ function renderNavChildren(children: NavItem[], ctx: BlockRenderContext, parentP
 function renderNavChild(item: NavItem, ctx: BlockRenderContext, path: string, depth: number): string {
   const hasKids = Array.isArray(item.children) && item.children.length > 0
     && item.children.some((c) => navItemVisible(c, ctx));
-  const href = item.href || '#';
+  const href = cleanHref(item.href, '#');
   const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
   if (!hasKids) {
     return `<li role="none"><a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a></li>`;
@@ -1009,7 +1021,7 @@ function renderNavChild(item: NavItem, ctx: BlockRenderContext, path: string, de
 function renderNavTopItem(item: NavItem, ctx: BlockRenderContext, idx: number): string {
   const hasKids = Array.isArray(item.children) && item.children.length > 0
     && item.children.some((c) => navItemVisible(c, ctx));
-  const href = item.href || '';
+  const href = cleanHref(item.href, '');
   const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
   if (!hasKids) {
     return `<a class="nav-link${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`;
@@ -1121,7 +1133,7 @@ const BRAND_HEADER: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const href = cfg.href || '/';
+    const href = cleanHref(cfg.href, '/');
     const brandText = ctx.brandText || ctx.siteName || 'Kychon';
     const brandTextShort = ctx.brandTextShort || '';
     const iconUrl = ctx.brandIconUrl || '';
@@ -1185,14 +1197,14 @@ const SITE_SEARCH: BlockType = {
   defaultConfig: {
     placeholder: 'Search this site',
     submit_label: 'Search',
-    destination: '/search.html',
+    destination: '/search',
     compact: true,
     default_type: 'all',
   },
   render(section, ctx) {
     const cfg = section.config || {};
     const p = cfg.presentation || {};
-    const destination = cfg.destination || '/search.html';
+    const destination = cleanHref(cfg.destination, '/search');
     const placeholder = cfg.placeholder || 'Search this site';
     const submitLabel = cfg.submit_label || 'Search';
     const defaultType = ['all', 'pages', 'resources', 'events'].includes(cfg.default_type)
@@ -1288,7 +1300,7 @@ const FOOTER_LINKS: BlockType = {
   supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
     columns: [
-      { heading: 'About', items: [{ label: 'About Us', href: '/page.html?slug=about' }] },
+      { heading: 'About', items: [{ label: 'About Us', href: '/about' }] },
     ],
   },
   render(section, ctx) {
@@ -1299,7 +1311,7 @@ const FOOTER_LINKS: BlockType = {
           const items = (col.items || [])
             .map(
               (it: any, ii: number) =>
-                `<li><a href="${escAttr(it.href)}"${editableAttr(section, `columns.${ci}.items.${ii}.label`, ctx)}>${escHtml(it.label)}</a></li>`,
+                `<li><a href="${escAttr(cleanHref(it.href))}"${editableAttr(section, `columns.${ci}.items.${ii}.label`, ctx)}>${escHtml(it.label)}</a></li>`,
             )
             .join('');
           return `<div class="footer-links-col"><h4${editableAttr(section, `columns.${ci}.heading`, ctx)}>${escHtml(col.heading)}</h4><ul>${items}</ul></div>`;
@@ -1334,7 +1346,7 @@ const FOOTER_COPYRIGHT: BlockType = {
       ? `<span${editableAttr(section, 'org_name', ctx)}>${escHtml(cfg.org_name)}</span>`
       : '';
     const adminContact = cfg.admin_contact_label && cfg.admin_contact_href
-      ? ` &middot; <a href="${escAttr(cfg.admin_contact_href)}"${editableAttr(section, 'admin_contact_label', ctx)}>${escHtml(cfg.admin_contact_label)}</a>`
+      ? ` &middot; <a href="${escAttr(cleanHref(cfg.admin_contact_href))}"${editableAttr(section, 'admin_contact_label', ctx)}>${escHtml(cfg.admin_contact_label)}</a>`
       : '';
     const sid = section.id;
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -1478,7 +1490,7 @@ const PAGE_BANNER: BlockType = {
 // link_list — both modes share the renderer. Manual mode emits all items.
 // Resources mode emits a hydration skeleton; runtime fetches & re-renders.
 function renderLinkListItem(item: any, layout: string): string {
-  const href = item.href || '#';
+  const href = cleanHref(item.href, '#');
   const externalAttrs = item.external
     ? ` target="_blank" rel="noopener noreferrer"`
     : '';
@@ -1556,7 +1568,7 @@ const PROMO_CARDS: BlockType = {
       : '';
     const cards = items
       .map((item, i) => {
-        const href = item.cta_href || '#';
+        const href = cleanHref(item.cta_href, '#');
         const titlePos = item.title_position === 'bottom' ? 'bottom' : 'top';
         const ariaLabel = `${item.title || ''}${item.cta_text ? `, ${item.cta_text}` : ''}`.trim();
         const safeOverlay = item.overlay_color ? safeCssValue(item.overlay_color) : '';
@@ -1616,7 +1628,7 @@ function renderImageAccordionPanel(
   const body = `${img}${content}`;
   const common = `class="image-accordion__panel" data-accordion-panel="${index}"${panelStyle}`;
   if (panel.href) {
-    return `<a ${common} href="${escAttr(panel.href)}">${body}</a>`;
+    return `<a ${common} href="${escAttr(cleanHref(panel.href))}">${body}</a>`;
   }
   return `<div ${common} tabindex="0" role="group" aria-label="${escAttr(panel.title || `Panel ${index + 1}`)}">${body}</div>`;
 }
@@ -1881,7 +1893,7 @@ const SLIDESHOW: BlockType = {
         ].join('');
         const imgInner = sources ? `<picture>${sources}${img}</picture>` : img;
         const linked = it.href
-          ? `<a href="${escAttr(it.href)}" class="block-slideshow__link">${imgInner}</a>`
+          ? `<a href="${escAttr(cleanHref(it.href))}" class="block-slideshow__link">${imgInner}</a>`
           : imgInner;
         return `<figure class="block-slideshow__slide${visible}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${items.length}" data-slide-index="${i}">${linked}${figcaption}</figure>`;
       })

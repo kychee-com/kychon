@@ -25,7 +25,7 @@ function mount() {
   document.body.innerHTML = `
     <section>
       <div class="site-search" data-block-hydrate="site_search" data-config='{"default_type":"pages","min_chars":2}'>
-        <form action="/search.html" method="get">
+        <form action="/search" method="get">
           <input id="site-search-1" name="q" type="search" aria-expanded="false" aria-controls="site-search-list-1">
           <input name="type" type="hidden" value="all">
           <button type="submit">Search</button>

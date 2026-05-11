@@ -217,7 +217,7 @@ import Portal from '../layouts/Portal.astro';
       await translateItems('resource', allResources, ['title', 'description']);
       renderResources(allResources);
       // Honor `?category=X` from the URL (e.g. nav dropdown children pre-filter
-      // via `/resources.html?category=Health`). renderResources populates the
+      // via `/resources?category=Health`). renderResources populates the
       // <select> options first; we set its value after, then re-apply.
       const cat = new URLSearchParams(window.location.search).get('category');
       if (cat) {

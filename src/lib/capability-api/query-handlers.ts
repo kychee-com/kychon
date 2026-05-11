@@ -1,5 +1,6 @@
 import { getOperation } from './operations.js';
 import { checkOperationPermission } from './permissions.js';
+import { buildEventResultUrl, buildPageResultUrl, buildResourceResultUrl } from '../search.js';
 import type { CapabilityActor } from './actor.js';
 import type { JsonObject, JsonValue, ObjectRef, OperationName } from './types.js';
 
@@ -165,7 +166,7 @@ async function search(input: JsonObject, ctx: CapabilityQueryContext, suggest: b
       type: String(row.source_type || ''),
       object: objectRefJson(searchObjectRef(row)),
       title: String(row.title || 'Untitled'),
-      url: String(row.url || '/'),
+      url: searchResultUrl(row),
       snippet: suggest ? '' : String(row.body || '').slice(0, 180),
     })),
   };
@@ -307,6 +308,16 @@ function searchObjectRef(row: JsonObject): ObjectRef {
   if (sourceType === 'resource') return { type: 'resource', id };
   if (sourceType === 'event') return { type: 'event', id };
   return { type: 'portal', id: sourceType || 'unknown' };
+}
+
+function searchResultUrl(row: JsonObject): string {
+  const sourceType = String(row.source_type || '');
+  const sourceKey = String(row.source_key || '');
+  if (sourceType === 'resource') return buildResourceResultUrl(sourceKey);
+  if (sourceType === 'event') return buildEventResultUrl(sourceKey);
+  if (sourceType === 'page') return buildPageResultUrl(sourceKey);
+  const raw = String(row.url || '/');
+  return raw.startsWith('/') ? raw : '/';
 }
 
 function objectRefJson(ref: ObjectRef): JsonObject {

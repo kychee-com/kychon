@@ -7,10 +7,10 @@ const ROOT = join(import.meta.dirname, '..');
 
 const BASE_ROUTES = [
   { id: 'home', path: '/' },
-  { id: 'events', path: '/events.html' },
-  { id: 'resources', path: '/resources.html' },
-  { id: 'forum', path: '/forum.html' },
-  { id: 'admin-settings', path: '/admin-settings.html' },
+  { id: 'events', path: '/events' },
+  { id: 'resources', path: '/resources' },
+  { id: 'forum', path: '/forum' },
+  { id: 'admin-settings', path: '/admin-settings' },
 ] as const;
 
 type RouteId = (typeof BASE_ROUTES)[number]['id'] | 'baked-chrome-page';
@@ -71,7 +71,7 @@ function captureRoutesForSeed(seed: ProjectSeed): CaptureRoute[] {
     seed.pages?.find((candidate) => candidate.slug === 'showcase' && candidate.published !== false) ??
     seed.pages?.find((candidate) => candidate.published !== false);
   const pageRoute = page
-    ? [{ id: 'baked-chrome-page' as const, path: `/page.html?slug=${encodeURIComponent(page.slug)}`, expectedTitle: page.title }]
+    ? [{ id: 'baked-chrome-page' as const, path: `/${encodeURIComponent(page.slug)}`, expectedTitle: page.title }]
     : [];
   return [...BASE_ROUTES, ...pageRoute];
 }

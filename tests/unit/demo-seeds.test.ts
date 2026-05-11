@@ -74,7 +74,7 @@ describe('demo seed feature coverage', () => {
         expect(items).toContainEqual(
           expect.objectContaining({
             label: demo.pollLabel,
-            href: '/polls.html',
+            href: '/polls',
             feature: 'feature_polls',
           }),
         );
@@ -88,7 +88,7 @@ describe('demo seed feature coverage', () => {
             config: expect.objectContaining({
               placeholder: demo.searchPlaceholder,
               submit_label: demo.searchSubmit,
-              destination: '/search.html',
+              destination: '/search',
               compact: true,
               default_type: 'all',
             }),

@@ -2,33 +2,33 @@ import type { ProjectSeed } from './types.js';
 
 const SILVER_PINES_NAV = [
   { label: 'Home', href: '/', icon: 'home', public: true },
-  { label: 'Daily Schedule', href: '/page.html?slug=daily-schedule', icon: 'calendar', public: true },
-  { label: 'Getting Here', href: '/page.html?slug=getting-here', icon: 'map', public: true },
-  { label: 'Block Showcase', href: '/page.html?slug=showcase', icon: 'star', public: true },
-  { label: 'Our Members', href: '/directory.html', icon: 'users', public: true },
-  { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
+  { label: 'Daily Schedule', href: '/daily-schedule', icon: 'calendar', public: true },
+  { label: 'Getting Here', href: '/getting-here', icon: 'map', public: true },
+  { label: 'Block Showcase', href: '/showcase', icon: 'star', public: true },
+  { label: 'Our Members', href: '/directory', icon: 'users', public: true },
+  { label: 'Events', href: '/events', icon: 'calendar', feature: 'feature_events' },
   {
     label: 'Resources',
-    href: '/resources.html',
+    href: '/resources',
     icon: 'book-open',
     feature: 'feature_resources',
     children: [
-      { label: 'Transportation', href: '/resources.html?category=Transportation', public: true },
-      { label: 'Health', href: '/resources.html?category=Health', public: true },
-      { label: 'Meals', href: '/resources.html?category=Meals', public: true },
-      { label: 'Technology', href: '/resources.html?category=Technology', public: true },
+      { label: 'Transportation', href: '/resources?category=Transportation', public: true },
+      { label: 'Health', href: '/resources?category=Health', public: true },
+      { label: 'Meals', href: '/resources?category=Meals', public: true },
+      { label: 'Technology', href: '/resources?category=Technology', public: true },
     ],
   },
-  { label: 'Forum', href: '/forum.html', icon: 'message-circle', feature: 'feature_forum' },
-  { label: 'Polls', href: '/polls.html', icon: 'bar-chart', feature: 'feature_polls' },
-  { label: 'Committees', href: '/committees.html', icon: 'briefcase', feature: 'feature_committees' },
+  { label: 'Forum', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
+  { label: 'Polls', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
+  { label: 'Committees', href: '/committees', icon: 'briefcase', feature: 'feature_committees' },
   { label: 'Announcements', href: '/#announcements-section', icon: 'bell', public: true },
-  { label: 'Dashboard', href: '/admin.html', icon: 'bar-chart-2', admin: true },
-  { label: 'Members', href: '/admin-members.html', icon: 'users', admin: true },
-  { label: 'Settings', href: '/admin-settings.html', icon: 'settings', admin: true },
+  { label: 'Dashboard', href: '/admin', icon: 'bar-chart-2', admin: true },
+  { label: 'Members', href: '/admin-members', icon: 'users', admin: true },
+  { label: 'Settings', href: '/admin-settings', icon: 'settings', admin: true },
 ];
 
-const GETTING_HERE_HTML = `<div style="max-width:52rem"><p style="font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class="mb-2" style="border-radius:var(--radius,8px);overflow:hidden"><iframe src="https://maps.google.com/maps?q=142+Pine+Street,+Asheville,+NC+28801&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="300" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style="margin:1rem 0 1rem 1.5rem"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href='/resources.html'>download the full schedule</a>.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class="card mb-2" style="padding:2rem;border-left:4px solid var(--color-primary)"><h3 style="margin-bottom:1rem">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style="margin:1rem 0 0 1.5rem"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>`;
+const GETTING_HERE_HTML = `<div style="max-width:52rem"><p style="font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class="mb-2" style="border-radius:var(--radius,8px);overflow:hidden"><iframe src="https://maps.google.com/maps?q=142+Pine+Street,+Asheville,+NC+28801&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="300" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style="margin:1rem 0 1rem 1.5rem"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href='/resources'>download the full schedule</a>.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class="card mb-2" style="padding:2rem;border-left:4px solid var(--color-primary)"><h3 style="margin-bottom:1rem">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style="margin:1rem 0 0 1.5rem"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>`;
 
 const DAILY_SCHEDULE_HTML = `<div style="max-width:60rem"><p style="font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem">Drop in anytime! All classes and activities are free for members unless noted.</p><div class="table-wrap"><table><thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead><tbody><tr><td><strong>9:00-10:00</strong></td><td>Chair Yoga</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Tai Chi (George)</td><td>Chair Yoga</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Tai Chi (George)</td><td>Gentle Stretch</td></tr><tr><td><strong>10:00-12:00</strong></td><td>Open Craft Room</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Tech Help Desk</td><td>Open Craft Room</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Tech Help Desk</td><td>Open Craft Room</td></tr><tr><td><strong>11:30-12:30</strong></td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td><td>—</td><td>Lunch ($3)</td></tr><tr><td><strong>1:00-2:00</strong></td><td>Bridge &amp; Cards</td><td>Piano Basics (Mary)</td><td>Bridge &amp; Cards</td><td>Cooking Class (Nancy)</td><td>Bridge &amp; Cards</td></tr><tr><td><strong>2:00-4:00</strong></td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Garden Hours</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Garden Hours</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Watercolor (Margaret)</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Garden Hours</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Garden Hours</td></tr><tr><td><strong>3:00-4:30</strong></td><td>—</td><td>—</td><td>—</td><td>Book Club (Evelyn)</td><td>—</td></tr><tr style="border-top:2px solid var(--color-border)"><td><strong>6:30 PM</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style="background:color-mix(in srgb, var(--color-primary) 8%, transparent)">Movie Night (2nd &amp; 4th Fri)</td></tr></tbody></table></div><div class="card mt-2" style="padding:1.5rem;border-left:4px solid var(--color-primary)"><p style="margin:0"><strong>Center hours:</strong> Mon-Fri 8am-5pm (6:30pm on Movie Fridays) &bull; <strong>Meal program:</strong> Mon/Wed/Fri 11:30am-12:30pm, $3 suggested donation &bull; <strong>Questions?</strong> Call 828-555-0100</p></div></div>`;
 
@@ -204,7 +204,7 @@ export const seed: ProjectSeed = {
       config: {
         placeholder: 'Search Silver Pines',
         submit_label: 'Search',
-        destination: '/search.html',
+        destination: '/search',
         compact: true,
         default_type: 'all',
       },
@@ -273,7 +273,7 @@ export const seed: ProjectSeed = {
             title: 'Wellness',
             title_position: 'top',
             cta_text: 'See the schedule',
-            cta_href: '/page.html?slug=daily-schedule',
+            cta_href: '/daily-schedule',
           },
           {
             image_url: '/assets/event-craft-fair.jpg',
@@ -281,7 +281,7 @@ export const seed: ProjectSeed = {
             title: 'Events',
             title_position: 'top',
             cta_text: 'View calendar',
-            cta_href: '/events.html',
+            cta_href: '/events',
           },
           {
             image_url: '/assets/committee-garden.jpg',
@@ -289,7 +289,7 @@ export const seed: ProjectSeed = {
             title: 'Volunteer',
             title_position: 'top',
             cta_text: 'Join a committee',
-            cta_href: '/committees.html',
+            cta_href: '/committees',
           },
         ],
       },
@@ -365,8 +365,8 @@ export const seed: ProjectSeed = {
         source: 'manual',
         layout: 'rows',
         items: [
-          { label: 'Volunteer driver sign-up', href: '/resources.html', date: '2026-04-22', badge: 'NEW' },
-          { label: 'Spring potluck menu', href: '/resources.html', date: '2026-04-18' },
+          { label: 'Volunteer driver sign-up', href: '/resources', date: '2026-04-22', badge: 'NEW' },
+          { label: 'Spring potluck menu', href: '/resources', date: '2026-04-18' },
           { label: 'Medicare Basics (PDF)', href: '/assets/medicare-guide.pdf', date: '2026-04-10', badge: 'PDF' },
           { label: 'About this site', href: 'https://kychon.com', date: '2026-04-01', external: true },
         ],
@@ -413,7 +413,7 @@ export const seed: ProjectSeed = {
         heading: 'Welcome to Silver Pines',
         subheading: "Asheville's community center for active adults. Classes, events, friends, and a warm cup of coffee — every day.",
         cta_text: "See What's Happening",
-        cta_href: '/events.html',
+        cta_href: '/events',
         image_url: '/assets/hero.jpg',
         image_alt: 'Silver Pines members gathered in the main hall',
         image_aspect: '21/9',
@@ -433,8 +433,8 @@ export const seed: ProjectSeed = {
       section_type: 'stats',
       config: {
         items: [
-          { value: '22+', label: 'Active Members', href: '/directory.html' },
-          { value: '12+', label: 'Events This Month', href: '/events.html' },
+          { value: '22+', label: 'Active Members', href: '/directory' },
+          { value: '12+', label: 'Events This Month', href: '/events' },
           { value: '5', label: 'Committees' },
           { value: '8', label: 'Years Serving Asheville' },
         ],
@@ -520,7 +520,7 @@ export const seed: ProjectSeed = {
             title: 'Classes & Wellness',
             title_position: 'top',
             cta_text: 'See the schedule',
-            cta_href: '/page.html?slug=daily-schedule',
+            cta_href: '/daily-schedule',
           },
           {
             image_url: '/assets/event-craft-fair.jpg',
@@ -528,7 +528,7 @@ export const seed: ProjectSeed = {
             title: 'Events & Activities',
             title_position: 'top',
             cta_text: 'View upcoming events',
-            cta_href: '/events.html',
+            cta_href: '/events',
           },
           {
             image_url: '/assets/event-volunteer.jpg',
@@ -536,7 +536,7 @@ export const seed: ProjectSeed = {
             title: 'Volunteer & Lead',
             title_position: 'top',
             cta_text: 'Join a committee',
-            cta_href: '/committees.html',
+            cta_href: '/committees',
           },
         ],
       },
@@ -587,7 +587,7 @@ export const seed: ProjectSeed = {
         heading: 'Come Visit Us',
         text: 'Silver Pines is open Monday-Friday, 8am-5pm (6:30pm on Movie Fridays). Drop by for a tour, a cup of coffee, and meet your new neighbors.',
         cta_text: 'How to Get Here',
-        cta_href: '/page.html?slug=getting-here',
+        cta_href: '/getting-here',
       },
       position: 11,
     },

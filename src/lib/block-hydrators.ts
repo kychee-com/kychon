@@ -552,7 +552,7 @@ function renderEventCard(
   const dateLabel = dateTime.dateLabel;
   const timeLabel = opts.showTime ? dateTime.timeRangeLabel : '';
   const location = opts.showLocation && evt.location ? esc(evt.location) : '';
-  const href = evt.id ? `/event.html?id=${encodeURIComponent(evt.id)}` : '/events.html';
+  const href = evt.id ? `/event?id=${encodeURIComponent(evt.id)}` : '/events';
   const imageUrl = evt.image_url || evt.cover_image_url || '';
   const safeImageUrl = imageUrl ? safeCssUrl(imageUrl) : '';
   const imageHtml =
@@ -616,7 +616,7 @@ export async function hydrateSignInBar(
     const avatar = user.avatar_url
       ? `<img class="nav-avatar" src="${esc(user.avatar_url)}" alt="" width="32" height="32">`
       : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
-    root.innerHTML = `${langBtn}${themeBtn}<a href="/profile.html" class="nav-link">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
+    root.innerHTML = `${langBtn}${themeBtn}<a href="/profile" class="nav-link">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
   }
   document.getElementById('login-btn')?.addEventListener('click', (event) => {
     const trigger = event.currentTarget as HTMLElement;

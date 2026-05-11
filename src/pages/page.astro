@@ -12,6 +12,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { get } from '../lib/api';
   import { isAdmin, isAuthenticated } from '../lib/auth';
+  import { resolveCustomPageSlugFromLocation } from '../lib/clean-routes';
   import { translateItems } from '../lib/config';
 
   async function initPage() {
@@ -24,14 +25,14 @@ import Portal from '../layouts/Portal.astro';
     contentEl.innerHTML = '';
     sectionsContainer.innerHTML = '';
 
-    const slug = new URLSearchParams(window.location.search).get('slug');
+    const slug = resolveCustomPageSlugFromLocation(window.location.pathname, window.location.search);
     if (!slug) {
       titleEl.textContent = 'Page not found';
       return;
     }
 
     try {
-      const pages = await get(`pages?slug=eq.${slug}&published=eq.true&limit=1`);
+      const pages = await get(`pages?slug=eq.${encodeURIComponent(slug)}&published=eq.true&limit=1`);
       if (pages.length === 0) {
         titleEl.textContent = 'Page not found';
         return;

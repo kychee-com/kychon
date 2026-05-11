@@ -68,6 +68,6 @@ describe('nav rendering', () => {
     const homeLink = links.find((a) => a.textContent === 'Home');
     expect(homeLink.href).toContain('/');
     const dashLink = links.find((a) => a.textContent === 'Dashboard');
-    expect(dashLink.href).toContain('/admin.html');
+    expect(dashLink.href).toContain('/admin');
   });
 });

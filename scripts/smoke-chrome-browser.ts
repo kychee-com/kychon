@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   });
 
   try {
-    await page.goto(`${opts.base}/calendar.html`, { waitUntil: 'networkidle' });
+    await page.goto(`${opts.base}/calendar`, { waitUntil: 'networkidle' });
     const html = await page.content();
     if (!html.includes(opts.brand)) throw new Error(`hydrated page missing ${opts.brand}`);
     if (opts.forbid && html.includes(opts.forbid)) throw new Error(`hydrated page contains ${opts.forbid}`);

@@ -7,7 +7,7 @@
 
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,7 +15,13 @@ import { fileURLToPath } from "node:url";
 import { fileSetFromDir, run402 } from "@run402/sdk/node";
 import type { ApplyOptions, FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
 
+import {
+  buildCleanStaticRouteSpecs,
+  customPageStaticFile,
+  safeCustomPageSlugs,
+} from "../src/lib/clean-routes.ts";
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
+import { resolveActiveProjectSeed } from "../src/seeds/index.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
 import {
   buildEngineReleaseManifest,
@@ -146,6 +152,54 @@ export function buildAstro(opts: BuildAstroOptions = {}): void {
   });
   console.log("Building Astro project...");
   execSync("npx astro build", { stdio: "inherit", cwd: ROOT, env });
+}
+
+function parseProjectSeedSnapshot(path: string): ProjectSeed {
+  const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Chrome snapshot ${path} must be a JSON object`);
+  }
+  return parsed as ProjectSeed;
+}
+
+async function resolveDeployOutputSeed(
+  chromeSnapshot: string | ProjectSeed | undefined,
+): Promise<ProjectSeed> {
+  if (chromeSnapshot && typeof chromeSnapshot !== "string") return chromeSnapshot;
+  if (typeof chromeSnapshot === "string") {
+    const path = chromeSnapshot.startsWith("/") ? chromeSnapshot : join(ROOT, chromeSnapshot);
+    return parseProjectSeedSnapshot(path);
+  }
+  return (await resolveActiveProjectSeed()).seed;
+}
+
+export interface MaterializedCustomPageFile {
+  slug: string;
+  file: `${string}.html`;
+}
+
+export function materializeCustomPageStaticFiles(
+  distDir: string,
+  seed: ProjectSeed,
+): MaterializedCustomPageFile[] {
+  const slugs = safeCustomPageSlugs(seed.pages);
+  if (slugs.length === 0) return [];
+
+  const pageShell = join(distDir, "page.html");
+  if (!existsSync(pageShell)) {
+    throw new Error(
+      `Cannot materialize clean custom page files because ${pageShell} does not exist.`,
+    );
+  }
+
+  const materialized: MaterializedCustomPageFile[] = [];
+  for (const slug of slugs) {
+    const file = customPageStaticFile(slug);
+    if (!file) continue;
+    copyFileSync(pageShell, join(distDir, file));
+    materialized.push({ slug, file });
+  }
+  return materialized;
 }
 
 /**
@@ -292,6 +346,8 @@ export async function runDeploy(
   const distDir = join(ROOT, "dist");
   injectEnvJs(distDir, opts.anonKey);
   generateAndValidateHeaders(distDir);
+  const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
+  const materializedCustomPages = materializeCustomPageStaticFiles(distDir, deploySeed);
 
   const sql = readMigrations(ROOT, opts.seedFile);
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
@@ -305,6 +361,10 @@ export async function runDeploy(
 
   const fileSet = await fileSetFromDir(distDir);
   const fileCount = Object.keys(fileSet).length;
+  const cleanStaticRoutes = buildCleanStaticRouteSpecs({
+    files: Object.keys(fileSet),
+    pageSlugs: materializedCustomPages.map((page) => page.slug),
+  });
 
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
@@ -323,17 +383,30 @@ export async function runDeploy(
     database,
     site: { replace: fileSet },
     subdomains: { set: [opts.subdomain] },
+    routes: { replace: cleanStaticRoutes },
   };
   if (fnNames.length > 0) {
     spec.functions = { replace: functionsMap };
   }
 
   console.log(
-    `Deploying to ${opts.projectId} (subdomain: ${opts.subdomain})\n` +
+      `Deploying to ${opts.projectId} (subdomain: ${opts.subdomain})\n` +
       `  ${fileCount} site files (lazy-streamed from ${distDir})\n` +
+      `  ${cleanStaticRoutes.length} clean static routes\n` +
       `  ${fnNames.length} functions (${scheduledFns.length} scheduled)\n` +
       `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
+  if (cleanStaticRoutes.length > 0) {
+    const preview = cleanStaticRoutes
+      .slice(0, 8)
+      .map((route) => `${route.pattern}->${route.target.file}`)
+      .join(", ");
+    const suffix = cleanStaticRoutes.length > 8 ? ", ..." : "";
+    console.log(`  Clean aliases: ${preview}${suffix}`);
+    console.log(
+      `  Diagnose after deploy: run402 deploy diagnose --project ${opts.projectId} https://${opts.subdomain}.kychon.com/search?q=hello&type=all --method GET`,
+    );
+  }
 
   if (opts.dryRun) {
     console.log("\n[dry-run] Would call deploy.apply with:");
@@ -347,6 +420,9 @@ export async function runDeploy(
           functionsWithSchedule: scheduledFns.map(
             (n) => `${n}=${functionsMap[n]?.schedule}`,
           ),
+          routesCount: cleanStaticRoutes.length,
+          cleanStaticRoutes,
+          materializedCustomPages,
           migrationsBytes: sql.length,
           migrationId,
           schemaChecksum: releaseManifest.schemaChecksum,
@@ -393,6 +469,11 @@ export async function runDeploy(
   for (const [k, v] of Object.entries(result.urls)) {
     console.log(`  ${k}: ${v}`);
   }
+  const firstPublicUrl = Object.values(result.urls)[0]?.replace(/\/+$/, "");
+  const diagnoseBase = firstPublicUrl || `https://${opts.subdomain}.kychon.com`;
+  console.log(
+    `  Diagnose clean route: run402 deploy diagnose --project ${opts.projectId} ${diagnoseBase}/search?q=hello&type=all --method GET`,
+  );
 
   return {
     ok: true,

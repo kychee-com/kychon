@@ -41,7 +41,7 @@ const ctx: BlockRenderContext = {
   authenticated: false,
   role: null,
   isFeatureEnabled: () => true,
-  currentPath: '/page.html?slug=showcase',
+  currentPath: '/showcase',
   siteName: 'Silver Pines Senior Center',
 };
 

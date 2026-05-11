@@ -234,7 +234,7 @@ function eventToIcs(evt: Event, host: string): string {
     `SUMMARY:${escIcs(evt.title || '')}`,
     evt.location ? `LOCATION:${escIcs(evt.location)}` : null,
     evt.description ? `DESCRIPTION:${escIcs(evt.description)}` : null,
-    `URL:https://${host}/event.html?id=${evt.id}`,
+    `URL:https://${host}/event?id=${evt.id}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ].filter(Boolean) as string[];
@@ -392,7 +392,7 @@ function renderEventChip(
   const timeHtml = density === 'glance' ? '' : `<span class="block-events-calendar__chip-time">${escHtml(time)}</span>`;
   return `
     <a class="block-events-calendar__chip block-events-calendar__chip--${density}${live ? ' is-live' : ''}"
-       href="/event.html?id=${evt.id}"
+       href="/event?id=${evt.id}"
        data-event-id="${evt.id}"
        data-day="${escAttr(eventDayKey(evt, siteConfig, locale))}"
        draggable="true">
@@ -691,7 +691,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   }
 
   function bindCells(): void {
-    // Click chip → no special handling (anchor href to /event.html); drag handlers TODO.
+    // Click chip → no special handling (anchor href to /event); drag handlers TODO.
     // Click overflow "+N more" → open day peek.
     root.querySelectorAll<HTMLElement>('[data-day-peek]').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
@@ -760,7 +760,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       const avatars = rsvpAvatarStack(e.id, state.rsvps);
       return `
         <li class="block-events-calendar__peek-item">
-          <a class="block-events-calendar__peek-link" href="/event.html?id=${e.id}">
+          <a class="block-events-calendar__peek-link" href="/event?id=${e.id}">
             ${live}
             <span class="block-events-calendar__peek-time">${escHtml(time)}</span>
             <span class="block-events-calendar__peek-title">${escHtml(e.title || '')}</span>

@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "tsx scripts/generate-seed-sql.ts && astro dev",
-    "build": "npm run build:sdk && tsx scripts/generate-seed-sql.ts && astro build",
+    "build": "npm run build:sdk && tsx scripts/generate-seed-sql.ts && astro build && tsx scripts/generate-static-page-aliases.ts",
     "build:sdk": "npm run build --workspace @kychon/sdk",
     "preview": "astro preview",
     "generate-seed": "tsx scripts/generate-seed-sql.ts",
