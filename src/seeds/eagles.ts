@@ -478,21 +478,6 @@ export const seed: ProjectSeed = {
       position: 7,
       column_span: '1/3',
     },
-    // --- About page banner (page-scoped header chrome) ---
-    {
-      page_slug: 'about',
-      zone: 'header',
-      scope: 'page',
-      section_type: 'page_banner',
-      config: {
-        image_url: '/assets/about-hero.jpg',
-        image_alt: 'Eagles volunteers serving the Wichita community',
-        caption_html: 'About <strong>The Eagles</strong> — lifting Wichita since 2014',
-        height: 'medium',
-        overlay_color: 'rgba(0, 0, 0, 0.35)',
-      },
-      position: 10,
-    },
     // --- Footer chrome (global) ---
     // column-span-rows: address + copyright share a row at half width;
     // attribution sits below at full width.
