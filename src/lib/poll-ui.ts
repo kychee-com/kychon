@@ -139,14 +139,12 @@ export function renderPoll(
 export async function handleSingleVote(
   pollId: number,
   optionId: number,
-  memberId: number,
 ): Promise<void> {
   // Delete any existing votes for this member on this poll
-  await del(`poll_votes?poll_id=eq.${pollId}&member_id=eq.${memberId}`);
+  await del(`poll_votes?poll_id=eq.${pollId}`);
   // Insert new vote
-  await post('poll_votes', { poll_id: pollId, option_id: optionId, member_id: memberId });
+  await post('poll_votes', { poll_id: pollId, option_id: optionId });
   await post('activity_log', {
-    member_id: memberId,
     action: 'poll_vote',
     metadata: { poll_id: pollId },
   });
@@ -164,10 +162,9 @@ export async function handleMultiVote(
   if (existing) {
     await del(`poll_votes?id=eq.${existing.id}`);
   } else {
-    await post('poll_votes', { poll_id: pollId, option_id: optionId, member_id: memberId });
+    await post('poll_votes', { poll_id: pollId, option_id: optionId });
   }
   await post('activity_log', {
-    member_id: memberId,
     action: 'poll_vote',
     metadata: { poll_id: pollId },
   });
@@ -192,7 +189,7 @@ export function bindPollVoteListeners(
         if (poll.poll_type === 'multiple') {
           await handleMultiVote(poll.id, optionId, memberId, votes);
         } else {
-          await handleSingleVote(poll.id, optionId, memberId);
+          await handleSingleVote(poll.id, optionId);
         }
         onVote();
       } catch (e) {
@@ -346,7 +343,7 @@ export function createPollForm(
 // --- Submit poll to API ---
 export async function submitPoll(
   data: { question: string; options: string[]; poll_type: string; is_anonymous: boolean; results_visible: string; closes_at: string | null },
-  memberId: number,
+  memberId?: number | null,
   attachConfig?: AttachConfig | null,
 ): Promise<number> {
   const pollBody: Record<string, any> = {
@@ -355,8 +352,8 @@ export async function submitPoll(
     is_anonymous: data.is_anonymous,
     results_visible: data.results_visible,
     closes_at: data.closes_at,
-    created_by: memberId,
   };
+  if (memberId != null) pollBody.created_by = memberId;
   if (attachConfig?.type && attachConfig.id) {
     pollBody.attached_to = attachConfig.type;
     pollBody.attached_id = attachConfig.id;
@@ -369,7 +366,6 @@ export async function submitPoll(
   ));
 
   await post('activity_log', {
-    member_id: memberId,
     action: 'poll_create',
     metadata: { poll_id: pollId, question: data.question },
   });

@@ -46,10 +46,11 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { del, get, post } from '../lib/api';
-  import { isAdmin, isAuthenticated } from '../lib/auth';
+  import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
   import { openAuthModal } from '../lib/auth-modal-events';
   import { refreshMemberRecord, translateItems } from '../lib/config';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
+  import { showToast } from '../lib/toast-events';
 
   let allResources: any[] = [];
 
@@ -65,7 +66,10 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function uploadResourceFile(file: File): Promise<string> {
-    const { url } = await uploadFileContentAddressed(file, { keyPrefix: 'resources' });
+    const { url } = await uploadFileContentAddressed(file, {
+      keyPrefix: 'resources',
+      authToken: getSession()?.access_token,
+    });
     return url;
   }
 
@@ -159,7 +163,6 @@ import Portal from '../layouts/Portal.astro';
     form.dataset.bound = 'true';
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
       const submit = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       const originalLabel = submit?.textContent || 'Upload';
       if (submit) {
@@ -175,7 +178,6 @@ import Portal from '../layouts/Portal.astro';
           category: (document.getElementById('rf-category') as HTMLInputElement).value,
           file_type: fileType,
           is_members_only: (document.getElementById('rf-members-only') as HTMLInputElement).checked,
-          uploaded_by: session.user?.member?.id,
         };
 
         if (fileType === 'link') {
@@ -189,19 +191,14 @@ import Portal from '../layouts/Portal.astro';
 
         await post('resources', data);
 
-        // Log activity
-        const uploaderId = session.user?.member?.id;
-        if (uploaderId) {
-          await post('activity_log', { member_id: uploaderId, action: 'resource_upload', metadata: { title: data.title } });
-        }
-
         document.getElementById('res-form-modal')?.classList.add('hidden');
         form.reset();
         allResources = await get('resources?order=created_at.desc');
         renderResources(allResources);
+        showToast('Resource uploaded', 'success');
       } catch (err) {
         console.error('Upload failed:', err);
-        alert(err instanceof Error ? err.message : 'Upload failed');
+        showToast(err instanceof Error ? err.message : 'Upload failed', 'error');
       } finally {
         if (submit) {
           submit.disabled = false;

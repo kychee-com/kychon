@@ -53,7 +53,7 @@ export async function hydrateAnnouncementsFeed(
     import('./config.js'),
     import('./poll-ui.js'),
   ]);
-  const { fetchAttachedPoll, bindPollVoteListeners, createPollForm, submitPoll } = pollUI;
+  const { fetchAttachedPoll, bindPollVoteListeners, createPollForm } = pollUI;
 
   const root = el.querySelector('[data-block-hydrate="announcements_feed"]') as HTMLElement | null;
   if (!root) return;
@@ -176,21 +176,9 @@ export async function hydrateAnnouncementsFeed(
         const title = (document.getElementById('ann-title') as HTMLInputElement).value.trim();
         const body = (document.getElementById('ann-body') as HTMLTextAreaElement).value.trim();
         if (!title || !body) return;
-        const session = getSession();
-        const memberId = session?.user?.member?.id;
-        if (!memberId) return;
-        const [created] = await post('announcements', { title, body, author_id: memberId });
-        if (annPollFormRef) {
-          const pollData = annPollFormRef.getPollData();
-          if (pollData) {
-            try {
-              await submitPoll(pollData, memberId, { type: 'announcement', id: created.id });
-            } catch (e) {
-              console.error('Failed to create attached poll:', e);
-            }
-          }
-          annPollFormRef = null;
-        }
+        const pollData = annPollFormRef?.getPollData() || null;
+        await post('announcements', { title, body, ...(pollData ? { poll: pollData } : {}) });
+        annPollFormRef = null;
         (document.getElementById('ann-title') as HTMLInputElement).value = '';
         (document.getElementById('ann-body') as HTMLTextAreaElement).value = '';
         const formContainer = document.getElementById('ann-poll-form-container');

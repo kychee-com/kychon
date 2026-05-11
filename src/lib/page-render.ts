@@ -3,7 +3,7 @@
 // Flow on every page load (and astro:after-swap):
 //   1. Read cached sections for this slug (instant if present).
 //   2. Render header / main / footer zones from cache.
-//   3. Fetch fresh from PostgREST.
+//   3. Fetch fresh through the capability API facade.
 //   4. If response differs from cache, re-render and update cache.
 //   5. Hydrate dynamic blocks (announcements_feed, activity_feed, polls, etc.).
 //   6. Bind admin editing handlers.

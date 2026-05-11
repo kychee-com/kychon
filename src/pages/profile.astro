@@ -32,6 +32,7 @@ import Portal from '../layouts/Portal.astro';
   import { showAuthGate } from '../lib/auth-gate';
   import { ready } from '../lib/config';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
+  import { showToast } from '../lib/toast-events';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -146,9 +147,10 @@ import Portal from '../layouts/Portal.astro';
         (document.getElementById('profile-avatar-img') as HTMLImageElement).src = avatarUrl;
         member.avatar_url = avatarUrl;
         localStorage.setItem('wl_session', JSON.stringify(session));
+        showToast('Avatar updated', 'success');
       } catch (err) {
         console.error('Avatar upload failed:', err);
-        alert(err instanceof Error ? err.message : 'Avatar upload failed');
+        showToast(err instanceof Error ? err.message : 'Avatar upload failed', 'error');
       }
     });
   }
