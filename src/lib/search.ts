@@ -1,3 +1,5 @@
+import { canonicalizeKychonHref, customPageCleanPath } from './clean-routes.js';
+
 export const SEARCH_TYPES = ['all', 'pages', 'resources', 'events'] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 export type SearchSourceType = 'page' | 'resource' | 'event';
@@ -149,15 +151,16 @@ export function extractSearchableTextFromBlockConfig(
 }
 
 export function buildPageResultUrl(slug: string): string {
-  return slug === 'index' ? '/' : `/page.html?slug=${encodeURIComponent(slug)}`;
+  if (slug === 'index') return '/';
+  return customPageCleanPath(slug) ?? `/page.html?slug=${encodeURIComponent(slug)}`;
 }
 
 export function buildResourceResultUrl(id: string | number): string {
-  return `/resources.html#resource-${encodeURIComponent(String(id))}`;
+  return canonicalizeKychonHref(`/resources.html#resource-${encodeURIComponent(String(id))}`);
 }
 
 export function buildEventResultUrl(id: string | number): string {
-  return `/event.html?id=${encodeURIComponent(String(id))}`;
+  return canonicalizeKychonHref(`/event.html?id=${encodeURIComponent(String(id))}`);
 }
 
 function queryTerms(query: string): string[] {

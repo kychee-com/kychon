@@ -196,19 +196,63 @@ function sqlString(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
 
+const RESERVED_CLEAN_PAGE_SLUGS = new Set([
+  '',
+  'index',
+  'page',
+  'admin',
+  'admin-members',
+  'admin-settings',
+  'calendar',
+  'committees',
+  'directory',
+  'event',
+  'events',
+  'forum',
+  'join',
+  'polls',
+  'profile',
+  'resources',
+  'search',
+  'ui-tokens',
+]);
+
+function safeCustomPageSlug(slug) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && !RESERVED_CLEAN_PAGE_SLUGS.has(slug);
+}
+
+function canonicalInternalUrl(url) {
+  try {
+    const parsed = new URL(String(url || ''), 'https://kychon.local');
+    if (parsed.pathname === '/page.html') {
+      const slug = parsed.searchParams.get('slug') || '';
+      if (!safeCustomPageSlug(slug)) return url;
+      parsed.searchParams.delete('slug');
+      const rest = parsed.searchParams.toString();
+      return `/${slug}${rest ? `?${rest}` : ''}${parsed.hash}`;
+    }
+    if (parsed.pathname === '/resources.html') return `/resources${parsed.search}${parsed.hash}`;
+    if (parsed.pathname === '/event.html') return `/event${parsed.search}${parsed.hash}`;
+    if (parsed.pathname === '/search.html') return `/search${parsed.search}${parsed.hash}`;
+  } catch {}
+  return url;
+}
+
 function safeResultUrl(url, sourceType, sourceKey) {
   const fallback =
     sourceType === 'resource'
-      ? `/resources.html#resource-${encodeURIComponent(sourceKey)}`
+      ? `/resources#resource-${encodeURIComponent(sourceKey)}`
       : sourceType === 'event'
-        ? `/event.html?id=${encodeURIComponent(sourceKey)}`
+        ? `/event?id=${encodeURIComponent(sourceKey)}`
         : sourceKey === 'index'
           ? '/'
-          : `/page.html?slug=${encodeURIComponent(sourceKey)}`;
+          : safeCustomPageSlug(sourceKey)
+            ? `/${sourceKey}`
+            : `/page.html?slug=${encodeURIComponent(sourceKey)}`;
   const raw = String(url || fallback);
   if (/^https?:\/\//i.test(raw)) return fallback;
   if (!raw.startsWith('/')) return fallback;
-  return raw;
+  return canonicalInternalUrl(raw);
 }
 
 function decodeSearchEntities(input) {

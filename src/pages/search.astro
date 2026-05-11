@@ -4,7 +4,7 @@ import Portal from '../layouts/Portal.astro';
 <Portal title="Search" robots="noindex,follow">
   <section class="section section-search-page section-visible">
     <div class="ky-container search-page">
-      <form class="search-page__form" id="search-page-form" action="/search.html" method="get" role="search">
+      <form class="search-page__form" id="search-page-form" action="/search" method="get" role="search">
         <label class="form-label" for="search-page-q">Search</label>
         <div class="search-page__bar">
           <input
@@ -62,7 +62,7 @@ import Portal from '../layouts/Portal.astro';
     if (next.q) params.set('q', next.q);
     params.set('type', next.type || 'all');
     if (next.page && next.page > 1) params.set('page', String(next.page));
-    return `/search.html?${params.toString()}`;
+    return `/search?${params.toString()}`;
   }
 
   function renderFilters(currentType: string, q: string, facets: Record<string, number>) {

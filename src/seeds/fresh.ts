@@ -3,12 +3,12 @@ import { DEFAULT_FRESH_START_CHECKLIST_STATE, FRESH_START_CHECKLIST_KEY } from '
 
 const DEFAULT_NAV_ITEMS = [
   { label: 'Home', href: '/', icon: 'home', public: true },
-  { label: 'Members', href: '/directory.html', icon: 'users', auth: true, feature: 'feature_directory' },
-  { label: 'Events', href: '/events.html', icon: 'calendar', feature: 'feature_events' },
-  { label: 'Resources', href: '/resources.html', icon: 'book-open', feature: 'feature_resources' },
-  { label: 'Dashboard', href: '/admin.html', icon: 'bar-chart-2', admin: true },
-  { label: 'Members', href: '/admin-members.html', icon: 'users', admin: true },
-  { label: 'Settings', href: '/admin-settings.html', icon: 'settings', admin: true },
+  { label: 'Members', href: '/directory', icon: 'users', auth: true, feature: 'feature_directory' },
+  { label: 'Events', href: '/events', icon: 'calendar', feature: 'feature_events' },
+  { label: 'Resources', href: '/resources', icon: 'book-open', feature: 'feature_resources' },
+  { label: 'Dashboard', href: '/admin', icon: 'bar-chart-2', admin: true },
+  { label: 'Members', href: '/admin-members', icon: 'users', admin: true },
+  { label: 'Settings', href: '/admin-settings', icon: 'settings', admin: true },
 ];
 
 export interface FreshSeedInput {
@@ -152,7 +152,7 @@ export function buildFreshSeed(input: FreshSeedInput = {}): ProjectSeed {
           subheading:
             'This clean portal is ready for your logo, colors, homepage intro, members, events, and resources.',
           cta_text: 'Finish setup',
-          cta_href: '/admin.html',
+          cta_href: '/admin',
         },
         position: 1,
       },

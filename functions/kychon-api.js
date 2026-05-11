@@ -566,7 +566,7 @@ async function handleSearchQuery(correlationId, input, actor, suggest) {
         type: String(row.source_type || ''),
         object: objectRefJson(searchObjectRef(row)),
         title: String(row.title || 'Untitled'),
-        url: String(row.url || '/'),
+        url: searchResultUrl(row),
         snippet: suggest ? '' : String(row.body || '').slice(0, 180),
       })),
     });
@@ -1725,6 +1725,46 @@ function searchObjectRef(row) {
   if (sourceType === 'resource') return { type: 'resource', id };
   if (sourceType === 'event') return { type: 'event', id };
   return { type: 'portal', id: sourceType || 'unknown' };
+}
+
+const RESERVED_CLEAN_PAGE_SLUGS = new Set([
+  '',
+  'index',
+  'page',
+  'admin',
+  'admin-members',
+  'admin-settings',
+  'calendar',
+  'committees',
+  'directory',
+  'event',
+  'events',
+  'forum',
+  'join',
+  'polls',
+  'profile',
+  'resources',
+  'search',
+  'ui-tokens',
+]);
+
+function safeCustomPageSlug(slug) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && !RESERVED_CLEAN_PAGE_SLUGS.has(slug);
+}
+
+function searchResultUrl(row) {
+  const sourceType = String(row.source_type || '');
+  const sourceKey = String(row.source_key || '');
+  if (sourceType === 'resource') return `/resources#resource-${encodeURIComponent(sourceKey)}`;
+  if (sourceType === 'event') return `/event?id=${encodeURIComponent(sourceKey)}`;
+  if (sourceType === 'page') {
+    if (sourceKey === 'index') return '/';
+    return safeCustomPageSlug(sourceKey)
+      ? `/${sourceKey}`
+      : `/page.html?slug=${encodeURIComponent(sourceKey)}`;
+  }
+  const raw = String(row.url || '/');
+  return raw.startsWith('/') ? raw : '/';
 }
 
 function objectRefJson(ref) {

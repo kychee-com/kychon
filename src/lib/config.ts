@@ -5,6 +5,7 @@
 
 import { get } from './api.js';
 import { getSession, getSessionEmail } from './auth.js';
+import { canonicalRouteKey } from './clean-routes.js';
 import { loadLocale, setAvailableLocales, t } from './i18n.js';
 
 // --- Cache layer (stale-while-revalidate) ---
@@ -120,7 +121,7 @@ export function cacheHeroImage(input: string | HeroSectionLike): void {
 // --- Config state ---
 const siteConfig: Record<string, any> = {};
 const features: Record<string, boolean> = {};
-const ADMIN_PATHS = ['/admin.html', '/admin-members.html', '/admin-settings.html'];
+const ADMIN_PATHS = ['/admin', '/admin.html', '/admin-members', '/admin-members.html', '/admin-settings', '/admin-settings.html'];
 
 let resolveReady: () => void;
 export const ready: Promise<void> = new Promise((r) => {
@@ -136,35 +137,23 @@ export function isFeatureEnabled(flag: string): boolean {
   return features[flag] === true;
 }
 
-function normalizePathname(pathname: string): string {
-  if (!pathname || pathname === '/') return '/';
-  return pathname.replace(/\/+$/, '') || '/';
-}
-
-function normalizeSearch(search: string): string {
-  const raw = search.startsWith('?') ? search.slice(1) : search;
-  if (!raw) return '';
-
-  const params = new URLSearchParams(raw);
-  const entries = [...params.entries()].sort(([aKey, aVal], [bKey, bVal]) => {
-    if (aKey === bKey) return aVal.localeCompare(bVal);
-    return aKey.localeCompare(bKey);
-  });
-
-  return entries.length ? `?${new URLSearchParams(entries).toString()}` : '';
-}
-
 export function getRouteKey(
   urlLike: string,
   base = typeof window !== 'undefined' ? window.location.origin : 'https://kychon.local',
 ): string {
-  const url = new URL(urlLike, base);
-  return `${normalizePathname(url.pathname)}${normalizeSearch(url.search)}`;
+  return canonicalRouteKey(urlLike, base);
 }
 
 const ACTIVE_ROUTE_ALIASES: Record<string, string[]> = {
-  '/event.html': ['/events.html'],
+  '/event': ['/events'],
 };
+
+function splitRouteKey(key: string): { path: string; search: string } {
+  const idx = key.indexOf('?');
+  return idx >= 0
+    ? { path: key.slice(0, idx), search: key.slice(idx) }
+    : { path: key, search: '' };
+}
 
 export function isNavItemActive(
   itemHref: string,
@@ -172,16 +161,20 @@ export function isNavItemActive(
 ): boolean {
   const current = new URL(currentHref, typeof window !== 'undefined' ? window.location.origin : 'https://kychon.local');
   const target = new URL(itemHref, current);
-  const currentPath = normalizePathname(current.pathname);
-  const targetPath = normalizePathname(target.pathname);
+  if (target.origin !== current.origin) return false;
 
-  if (normalizeSearch(target.search)) {
-    return currentPath === targetPath && normalizeSearch(current.search) === normalizeSearch(target.search);
+  const currentKey = getRouteKey(`${current.pathname}${current.search}`, current.origin);
+  const targetKey = getRouteKey(`${target.pathname}${target.search}`, current.origin);
+  const currentRoute = splitRouteKey(currentKey);
+  const targetRoute = splitRouteKey(targetKey);
+
+  if (targetRoute.search) {
+    return currentKey === targetKey;
   }
 
-  if (currentPath === targetPath) return true;
+  if (currentRoute.path === targetRoute.path) return true;
 
-  return (ACTIVE_ROUTE_ALIASES[currentPath] || []).includes(targetPath);
+  return (ACTIVE_ROUTE_ALIASES[currentRoute.path] || []).includes(targetRoute.path);
 }
 
 export function getBrandedTitle(title: string, siteName: string): string {

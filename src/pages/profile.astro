@@ -87,7 +87,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initProfile() {
-    // Guard: only runs on /profile.html — astro:after-swap fires on all navigations
+    // Guard: only runs on /profile — astro:after-swap fires on all navigations
     const nameEl = document.getElementById('profile-name') as HTMLInputElement | null;
     const bioEl = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
     if (!nameEl || !bioEl) return;

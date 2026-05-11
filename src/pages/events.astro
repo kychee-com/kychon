@@ -6,7 +6,7 @@ import Portal from '../layouts/Portal.astro';
     <div class="flex justify-between items-center mb-2">
       <h2>Events</h2>
       <div class="flex gap-1 items-center">
-        <a href="/calendar.html" class="btn btn-secondary btn-sm" aria-label="View as calendar">View as calendar &rarr;</a>
+        <a href="/calendar" class="btn btn-secondary btn-sm" aria-label="View as calendar">View as calendar &rarr;</a>
         <button class="btn btn-primary hidden" id="event-create-btn">Create Event</button>
       </div>
     </div>
@@ -93,7 +93,7 @@ import Portal from '../layouts/Portal.astro';
       (card as HTMLElement).style.cursor = 'pointer';
       card.addEventListener('click', async () => {
         const { navigate } = await import('astro:transitions/client');
-        navigate(`/event.html?id=${(card as HTMLElement).dataset.eventId}`);
+        navigate(`/event?id=${(card as HTMLElement).dataset.eventId}`);
       });
     });
   }

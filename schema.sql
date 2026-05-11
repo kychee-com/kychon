@@ -546,7 +546,30 @@ BEGIN
       'footer_attribution'
     );
 
-  page_url := CASE WHEN slug_arg = 'index' THEN '/' ELSE '/page.html?slug=' || slug_arg END;
+  page_url := CASE
+    WHEN slug_arg = 'index' THEN '/'
+    WHEN slug_arg ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+      AND slug_arg NOT IN (
+        'page',
+        'admin',
+        'admin-members',
+        'admin-settings',
+        'calendar',
+        'committees',
+        'directory',
+        'event',
+        'events',
+        'forum',
+        'join',
+        'polls',
+        'profile',
+        'resources',
+        'search',
+        'ui-tokens'
+      )
+      THEN '/' || slug_arg
+    ELSE '/page.html?slug=' || slug_arg
+  END;
 
   INSERT INTO search_documents (
     source_type,
@@ -605,7 +628,7 @@ BEGIN
     r.id::TEXT,
     coalesce(r.title, file_label, ''),
     concat_ws(' ', r.description, r.category, r.file_type, file_label),
-    '/resources.html#resource-' || r.id::TEXT,
+    '/resources#resource-' || r.id::TEXT,
     coalesce(r.is_members_only, false),
     true
   )
@@ -645,7 +668,7 @@ BEGIN
     e.id::TEXT,
     coalesce(e.title, ''),
     concat_ws(' ', kychon_search_strip_html(e.description), e.location, to_char(e.starts_at, 'FMMonth FMDD, YYYY HH24:MI')),
-    '/event.html?id=' || e.id::TEXT,
+    '/event?id=' || e.id::TEXT,
     coalesce(e.is_members_only, false),
     true
   )

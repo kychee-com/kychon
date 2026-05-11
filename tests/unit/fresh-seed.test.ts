@@ -33,7 +33,7 @@ describe('fresh starter seed', () => {
     expect(section(seed, 'hero')?.config).toMatchObject({
       heading: 'Welcome to North Side Club',
       cta_text: 'Finish setup',
-      cta_href: '/admin.html',
+      cta_href: '/admin',
     });
   });
 

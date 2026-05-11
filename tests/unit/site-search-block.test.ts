@@ -26,11 +26,16 @@ describe('site_search block renderer', () => {
   it('renders native search form defaults', () => {
     const html = renderBlock(section(), ctx);
     expect(html).toContain('data-block-hydrate="site_search"');
-    expect(html).toContain('action="/search.html"');
+    expect(html).toContain('action="/search"');
     expect(html).toContain('method="get"');
     expect(html).toContain('name="q"');
     expect(html).toContain('name="type" value="all"');
     expect(html).not.toContain('/Sys/Search');
+  });
+
+  it('canonicalizes configured legacy search destinations', () => {
+    const html = renderBlock(section({ destination: '/search.html?q=hello&type=all' }), ctx);
+    expect(html).toContain('action="/search?q=hello&amp;type=all"');
   });
 
   it('preserves copied labels and configured type', () => {

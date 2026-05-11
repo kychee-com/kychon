@@ -57,7 +57,7 @@ import Portal from '../layouts/Portal.astro';
           committees
             .map(
               (c: any) => `
-          <a href="/committees.html?id=${c.id}" class="card" style="text-decoration:none;color:inherit">
+          <a href="/committees?id=${c.id}" class="card" style="text-decoration:none;color:inherit">
             <h3>${esc(c.name)}</h3>
             <p class="text-sm ky-text-muted">${esc(c.description || '')}</p>
             <span class="badge badge-primary">${countMap[c.id] || 0} members</span>
@@ -94,7 +94,7 @@ import Portal from '../layouts/Portal.astro';
 
       const admin = isAdmin();
       container.innerHTML = `
-        <p class="mb-1"><a href="/committees.html">&larr; All Committees</a></p>
+        <p class="mb-1"><a href="/committees">&larr; All Committees</a></p>
         <h2${admin ? ` data-editable="committees.${committee.id}.name"` : ''}>${esc(committee.name)}</h2>
         <p class="ky-text-muted"${admin ? ` data-editable="committees.${committee.id}.description"` : ''}>${esc(committee.description || '')}</p>
 
@@ -166,7 +166,7 @@ import Portal from '../layouts/Portal.astro';
         if (!confirm('Delete this committee?')) return;
         await del(`committees?id=eq.${id}`);
         const { navigate } = await import('astro:transitions/client');
-        navigate('/committees.html');
+        navigate('/committees');
       });
     } catch (_e) {
       container.innerHTML = '<p>Error loading committee.</p>';

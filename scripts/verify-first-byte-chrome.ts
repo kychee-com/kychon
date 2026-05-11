@@ -10,20 +10,20 @@
 
 const DEFAULT_PATHS = [
   '/',
-  '/page.html?slug=membership',
-  '/events.html',
-  '/calendar.html',
-  '/directory.html',
-  '/committees.html',
-  '/forum.html',
-  '/resources.html',
-  '/polls.html',
-  '/profile.html',
-  '/join.html',
-  '/event.html',
-  '/admin.html',
-  '/admin-members.html',
-  '/admin-settings.html',
+  '/membership',
+  '/events',
+  '/calendar',
+  '/directory',
+  '/committees',
+  '/forum',
+  '/resources',
+  '/polls',
+  '/profile',
+  '/join',
+  '/event',
+  '/admin',
+  '/admin-members',
+  '/admin-settings',
 ];
 
 interface Options {
@@ -46,7 +46,7 @@ function parseOptions(args: string[]): Options {
   const pathsArg = readFlag(args, '--paths');
   if (!base || !brand) {
     throw new Error(
-      'Usage: tsx scripts/verify-first-byte-chrome.ts --base <url> --brand <text> [--forbid <text>] [--paths /,/events.html]',
+      'Usage: tsx scripts/verify-first-byte-chrome.ts --base <url> --brand <text> [--forbid <text>] [--paths /,/events]',
     );
   }
   return {

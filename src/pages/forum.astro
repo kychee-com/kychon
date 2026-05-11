@@ -304,7 +304,7 @@ import Portal from '../layouts/Portal.astro';
     const catName = category ? esc(category.name) : 'Category';
 
     let html = `
-      <div class="forum-breadcrumb"><a href="/forum.html">Forum</a> / ${catName}</div>
+      <div class="forum-breadcrumb"><a href="/forum">Forum</a> / ${catName}</div>
       <div class="flex justify-between items-center mb-2">
         <h2>${catName}</h2>
       </div>`;
@@ -478,7 +478,7 @@ import Portal from '../layouts/Portal.astro';
 
     let html = `
       <div class="forum-breadcrumb">
-        <a href="/forum.html">Forum</a> /
+        <a href="/forum">Forum</a> /
         <a href="?cat=${esc(topic.category_id)}">Back to topics</a> /
         ${esc(topic.title)}
       </div>`;
@@ -654,7 +654,7 @@ import Portal from '../layouts/Portal.astro';
             await del(`forum_replies?topic_id=eq.${id}`);
             await del(`forum_topics?id=eq.${id}`);
             const { navigate } = await import('astro:transitions/client');
-            navigate(`/forum.html?cat=${topic.category_id}`);
+            navigate(`/forum?cat=${topic.category_id}`);
             return;
           }
 

@@ -22,8 +22,8 @@ describe('site-search function source', () => {
   it('has safe snippets and stable native URLs', () => {
     expect(source).toContain('makeSnippet');
     expect(source).toContain('escapeHtml');
-    expect(source).toContain('/resources.html#resource-');
-    expect(source).toContain('/event.html?id=');
+    expect(source).toContain('/resources#resource-');
+    expect(source).toContain('/event?id=');
   });
 
   it('normalizes imported HTML entities before rendering snippets', () => {

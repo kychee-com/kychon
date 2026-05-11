@@ -10,7 +10,7 @@ const ROUTES = [
   { id: 'resources', kind: 'public', route: '/resources', file: 'resources.html' },
   { id: 'forum', kind: 'public', route: '/forum', file: 'forum.html' },
   { id: 'admin-settings', kind: 'admin', route: '/admin-settings', file: 'admin-settings.html' },
-  { id: 'baked-chrome-page', kind: 'public', route: '/page.html?slug=showcase', file: 'page.html' },
+  { id: 'baked-chrome-page', kind: 'public', route: '/showcase', file: 'page.html' },
 ] as const;
 
 interface AssetReport {

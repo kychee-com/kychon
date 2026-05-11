@@ -47,14 +47,14 @@ describe('Wild Apricot search mapping', () => {
     expect(section?.config).toMatchObject({
       placeholder: 'Enter search string',
       submit_label: 'Find',
-      destination: '/search.html',
+      destination: '/search',
       default_type: 'all',
     });
   });
 
   it('rewrites source search actions and removes hidden Wild Apricot params', () => {
     const rewritten = rewriteWildApricotSearchHtml(html);
-    expect(rewritten).toContain('/search.html');
+    expect(rewritten).toContain('/search');
     expect(rewritten).not.toContain('/Sys/Search');
     expect(rewritten).not.toContain('target="_blank"');
     expect(rewritten).not.toContain('name="types"');

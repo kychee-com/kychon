@@ -14,6 +14,7 @@
 import { get } from './api';
 import { getSession, getRole } from './auth';
 import { cacheHeroImage, currentBuildId, isFeatureEnabled, ready, siteConfig } from './config';
+import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 
@@ -300,12 +301,5 @@ async function fetchAndUpdate(
 }
 
 export function currentPageSlug(): string {
-  const path = window.location.pathname;
-  if (path === '/' || path === '/index.html') return 'index';
-  if (path === '/page.html') {
-    return new URLSearchParams(window.location.search).get('slug') || 'index';
-  }
-  // Strip trailing .html / leading slash for routes like /events.html etc.
-  const m = path.match(/^\/(.+?)(?:\.html)?$/);
-  return m ? m[1] : 'index';
+  return currentPageSlugFromLocation(window.location.pathname, window.location.search);
 }

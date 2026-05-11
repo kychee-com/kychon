@@ -760,7 +760,7 @@
           ${guide}
           <div class="drag-handle" title="Drag to reorder">&#9776;</div>
           <input type="text" value="${esc(item.label || '')}" data-field="label" placeholder="Label">
-          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/page.html (optional if has children)">
+          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/about (optional if has children)">
           <select data-field="visibility">
             <option value="public"${item.public ? ' selected' : ''}>Public</option>
             <option value="auth"${item.auth ? ' selected' : ''}>Members</option>
@@ -1352,6 +1352,7 @@
 
   async function openZoneAddPicker(zone: 'header' | 'main' | 'footer') {
     const { BLOCK_TYPES } = await import('../lib/blocks');
+    const { currentPageSlugFromLocation } = await import('../lib/clean-routes');
     document.querySelector('.admin-popover-backdrop')?.remove();
     document.querySelector('.admin-popover')?.remove();
 
@@ -1391,12 +1392,7 @@
         // Exception: `page_banner` always defaults to page-scoped + current
         // slug, even when added through the header zone picker (per
         // composable-layout's page-scoped chrome contract).
-        const currentSlugFromPath = (() => {
-          const path = window.location.pathname;
-          if (path === '/' || path === '/index.html') return 'index';
-          if (path === '/page.html') return new URLSearchParams(window.location.search).get('slug') || 'index';
-          return path.replace(/^\//, '').replace(/\.html$/, '') || 'index';
-        })();
+        const currentSlugFromPath = currentPageSlugFromLocation(window.location.pathname, window.location.search);
         let pageSlug: string;
         let scope: 'page' | 'global';
         if (type === 'page_banner') {
