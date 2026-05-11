@@ -175,7 +175,8 @@ import Portal from '../layouts/Portal.astro';
   import { openAuthModal } from '../lib/auth-modal-events';
   import { escAttr } from '../lib/blocks';
   import { addTranslateButton, translateItems, isFeatureEnabled, getConfig } from '../lib/config';
-  import { renderPoll, bindPollVoteListeners, createPollForm, submitPoll, fetchAttachedPoll } from '../lib/poll-ui';
+  import { bindPollVoteListeners, createPollForm, fetchAttachedPoll } from '../lib/poll-ui';
+  import { showToast as showKychonToast, type KychonToastType } from '../lib/toast-events';
 
   // Every esc(...) call below interpolates into a double-quoted attribute or
   // HTML text. escAttr escapes both <>&" and ', closing the quote-breakout
@@ -233,6 +234,17 @@ import Portal from '../layouts/Portal.astro';
 
   function isPermissionDenied(error: unknown): boolean {
     return (error as any)?.code === 'permission.denied';
+  }
+
+  function showForumToast(message: string, type: KychonToastType = 'info'): void {
+    showKychonToast({ message, type });
+  }
+
+  function requireSignedInMember(trigger?: HTMLElement | null): boolean {
+    if (getSession()) return true;
+    showForumToast('Sign in as a member to continue.', 'warning');
+    openAuthModal({ trigger: trigger || undefined });
+    return false;
   }
 
   function renderMemberRequired(root: HTMLElement): void {
@@ -410,10 +422,7 @@ import Portal from '../layouts/Portal.astro';
     if (form) {
       form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
-        const session = getSession();
-        const memberId = session?.user?.member?.id;
-        if (!memberId) {
-          alert('You must be logged in.');
+        if (!requireSignedInMember(form.querySelector('button[type="submit"]') as HTMLElement | null)) {
           return;
         }
 
@@ -426,33 +435,23 @@ import Portal from '../layouts/Portal.astro';
           btn.disabled = true;
           btn.textContent = 'Creating...';
 
-          const [created] = await post('forum_topics', {
+          const pollData = topicPollFormRef?.getPollData() || null;
+          await post('forum_topics', {
             title,
             body,
-            author_id: memberId,
-            author_name: session.user.member.display_name || session.user.email,
             category_id: categoryId,
+            ...(pollData ? { poll: pollData } : {}),
           });
 
-          // Create attached poll if form is filled
-          if (topicPollFormRef) {
-            const pollData = topicPollFormRef.getPollData();
-            if (pollData) {
-              try {
-                await submitPoll(pollData, memberId, { type: 'forum_topic', id: created.id });
-              } catch (e) {
-                console.error('Failed to create attached poll:', e);
-              }
-            }
-            topicPollFormRef = null;
-          }
-
-          await post('activity_log', { member_id: memberId, action: 'forum_post', metadata: { title } });
-
+          topicPollFormRef = null;
+          showForumToast('Topic created', 'success');
           await renderTopicListing(root, categoryId);
         } catch (e) {
           console.error('Failed to create topic:', e);
-          alert('Failed to create topic. Please try again.');
+          showForumToast(
+            isPermissionDenied(e) ? 'Active member access is required to create topics.' : 'Failed to create topic. Please try again.',
+            'error',
+          );
           const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
           if (btn) {
             btn.disabled = false;
@@ -596,10 +595,7 @@ import Portal from '../layouts/Portal.astro';
     if (replyForm) {
       replyForm.addEventListener('submit', async (ev) => {
         ev.preventDefault();
-        const session = getSession();
-        const memberId = session?.user?.member?.id;
-        if (!memberId) {
-          alert('You must be logged in.');
+        if (!requireSignedInMember(replyForm.querySelector('button[type="submit"]') as HTMLElement | null)) {
           return;
         }
 
@@ -613,20 +609,17 @@ import Portal from '../layouts/Portal.astro';
 
           await post('forum_replies', {
             body,
-            author_id: memberId,
-            author_name: session.user.member.display_name || session.user.email,
             topic_id: topicId,
           });
 
-          await patch(`forum_topics?id=eq.${topicId}`, {
-            reply_count: (topic.reply_count || 0) + 1,
-            last_reply_at: new Date().toISOString(),
-          });
-
+          showForumToast('Reply posted', 'success');
           await renderTopicView(root, topicId);
         } catch (e) {
           console.error('Failed to post reply:', e);
-          alert('Failed to post reply. Please try again.');
+          showForumToast(
+            isPermissionDenied(e) ? 'Active member access is required to post replies.' : 'Failed to post reply. Please try again.',
+            'error',
+          );
           const btn = replyForm.querySelector('button[type="submit"]') as HTMLButtonElement;
           if (btn) {
             btn.disabled = false;
@@ -688,7 +681,7 @@ import Portal from '../layouts/Portal.astro';
           await renderTopicView(root, id);
         } catch (e) {
           console.error('Admin action failed:', e);
-          alert('Action failed. Please try again.');
+          showForumToast('Action failed. Please try again.', 'error');
         }
       });
     });
@@ -714,7 +707,7 @@ import Portal from '../layouts/Portal.astro';
           await renderTopicView(root, topicId);
         } catch (e) {
           console.error('Reply admin action failed:', e);
-          alert('Action failed. Please try again.');
+          showForumToast('Action failed. Please try again.', 'error');
         }
       });
     });
