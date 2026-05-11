@@ -26,7 +26,7 @@ describe('page_banner block-type', () => {
 
   it('emits background-image on the section', () => {
     const html = renderBlock(bannerSection({ image_url: '/banner.jpg', image_alt: 'Banner' }), ctx);
-    expect(html).toContain('background-image:url(/banner.jpg)');
+    expect(html).toContain("background-image:url('/banner.jpg')");
     expect(html).toContain('aria-label="Banner"');
   });
 

@@ -37,7 +37,7 @@ describe('hero renderer — background mode (existing behavior)', () => {
     );
     expect(html).toContain('class="section section-hero"');
     expect(html).not.toContain('hero-foreground');
-    expect(html).toContain('background-image:url(/img/hero.jpg)');
+    expect(html).toContain("background-image:url('/img/hero.jpg')");
     expect(html).toContain('<h1>Welcome</h1>');
     expect(html).toContain('<p>Subhead</p>');
     expect(html).toContain('href="/join"');

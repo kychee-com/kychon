@@ -802,7 +802,62 @@ async function executeMutation(name, input, actor) {
     return actionResult({ status: 'queued', job: name.replace(/^jobs\./, '') }, [changedObject('job', name)], null);
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, actor);
   if (name === 'rsvps.cancel') return cancelRsvp(input, actor);
+  if (name === 'members.changeRole') return changeMemberRole(input, actor);
   return genericMutation(name, input, actor);
+}
+
+const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin']);
+
+async function changeMemberRole(input, actor) {
+  // Reject anything that isn't a known role. The old fall-through path
+  // (`input.role || 'member'`) silently demoted on typos and let `'admin'`,
+  // `'moderator'`, or arbitrary strings reach the DB unfiltered. (#29)
+  const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
+  if (!VALID_MEMBER_ROLES.has(role)) {
+    throw capabilityError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
+      role: String(input.role ?? ''),
+    });
+  }
+
+  const targetId = requiredId(input, 'members.changeRole');
+  const members = await selectRows('members');
+  const target = members.find((row) => String(row.id) === String(targetId));
+  if (!target) {
+    throw capabilityError('notFound.object', 'Member not found.', {
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+
+  // Last-admin guard: refuse to demote the actor's own admin role if doing
+  // so leaves zero remaining admins. Otherwise the portal locks itself out
+  // of admin features until someone goes around the API. (#29)
+  const actorMemberId = actor.member?.id ?? null;
+  if (
+    role !== 'admin' &&
+    actorMemberId != null &&
+    String(actorMemberId) === String(targetId) &&
+    String(target.role).toLowerCase() === 'admin'
+  ) {
+    const otherAdmins = members.filter(
+      (row) =>
+        String(row.id) !== String(targetId) &&
+        String(row.role).toLowerCase() === 'admin' &&
+        String(row.status).toLowerCase() === 'active',
+    );
+    if (otherAdmins.length === 0) {
+      throw capabilityError('conflict.state', 'Cannot demote the last active admin.', {
+        object: { type: 'member', id: String(targetId) },
+      });
+    }
+  }
+
+  const row = await updateRow('members', targetId, { role });
+  const object = changedObject('member', row?.id ?? targetId);
+  return actionResult(
+    row || { ...target, role },
+    [object],
+    verification('members.get', { id: row?.id ?? targetId }, object),
+  );
 }
 
 async function genericMutation(operation, input, actor) {
@@ -828,9 +883,13 @@ async function publishAnnouncement(input, actor) {
   // author_id is bound to the acting admin — never honored from input. The
   // dedicated `announcements.update` operation is the path for any later
   // attribution change. (#24)
+  //
+  // Body is sanitized on write so every downstream reader (newsletter
+  // generator, translation cache, CSV/RSS export) inherits the safety
+  // guarantee the read-side hydrator already provides. (#29)
   const announcement = await insertRow('announcements', {
     title: input.title || 'Untitled',
-    body: input.body || '',
+    body: sanitizeRichHtmlServer(input.body || ''),
     is_pinned: input.pin === true || input.is_pinned === true,
     author_id: memberId(actor),
   });
@@ -1039,6 +1098,15 @@ async function setRsvpStatus(input, actor) {
   }
 
   const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
+  // Pre-validate the event so a missing FK surfaces as `notFound.object`,
+  // not the generic `internal.error` we'd get when the DB-side FK rejects
+  // the insert. (#29)
+  const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(event));
+  if (!eventRow) {
+    throw capabilityError('notFound.object', 'Event not found.', {
+      object: { type: 'event', id: String(event) },
+    });
+  }
   const existing = (await selectRows('event_rsvps')).find(
     (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
   );
@@ -1054,6 +1122,17 @@ async function cancelRsvp(input, actor) {
   const member = memberId(actor);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
+  // When the caller addresses by eventId, validate it points at a real event
+  // before scanning rsvps — otherwise a typo collapses to a silent no-op
+  // with `cancelled: false` and the client can't tell why. (#29)
+  if (id == null && eventId != null) {
+    const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(eventId));
+    if (!eventRow) {
+      throw capabilityError('notFound.object', 'Event not found.', {
+        object: { type: 'event', id: String(eventId) },
+      });
+    }
+  }
   const existing =
     id != null
       ? (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id))
@@ -1200,6 +1279,11 @@ function rowForUpdate(operation, input, actor) {
     return { action: input.action || 'reviewed', reviewed_by: input.reviewed_by ?? memberId(actor) };
   if (operation === 'insights.updateStatus') return { status: input.status || 'reviewed' };
   if (operation === 'insights.dismiss') return { status: 'dismissed' };
+  if (operation === 'announcements.update') {
+    const patch = stripControlFields(input);
+    if (patch.body != null) patch.body = sanitizeRichHtmlServer(patch.body);
+    return patch;
+  }
   return stripControlFields(input);
 }
 
@@ -1440,6 +1524,25 @@ const PRIVILEGED_INPUT_FIELDS = new Set([
   'tier_id',
   'tierId',
 ]);
+
+// Server-side rich-HTML sanitizer mirroring the read-side allowlist in
+// `src/lib/sanitize-html.ts`. Run402 functions run in a Node-like runtime
+// without DOMParser, so we strip the obvious attack vectors with regex as
+// belt-and-braces for the read-side sanitizer. (#29)
+function sanitizeRichHtmlServer(input) {
+  if (input == null) return '';
+  let html = String(input);
+  // Strip executable / sandbox-escape tags and their content.
+  html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+  // Strip the same set as void / unclosed forms.
+  html = html.replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, '');
+  // Strip on*= event handlers (quoted and unquoted).
+  html = html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // Neutralize javascript:/vbscript: URLs anywhere they appear in attributes.
+  html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
+  html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
+  return html;
+}
 
 function stripControlFields(input) {
   if (!input) return {};

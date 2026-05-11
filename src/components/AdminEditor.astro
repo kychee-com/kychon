@@ -10,6 +10,7 @@
   import { patch, get } from '../lib/api';
   import { COPIED_THEME_EDITOR_TYPES, openCopiedThemeEditor } from '../lib/admin/copied-theme-editor';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
+  import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
@@ -20,12 +21,6 @@
     return d.innerHTML;
   }
 
-  function getAPI(): string {
-    return window.__KYCHON_API || 'https://api.run402.com';
-  }
-  function getAnonKey(): string {
-    return window.__KYCHON_ANON_KEY || '';
-  }
   function getToken(): string {
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
     return session.access_token || '';
@@ -386,7 +381,6 @@
           try {
             const attr = htmlEl.dataset.editableImage!;
             const target = parseEditTarget(attr);
-            const storageName = `assets/${Date.now()}_${file.name}`;
 
             // Read dimensions in parallel with the upload — it's a hint, so we
             // don't block the upload on it. (Failures are silent.)
@@ -394,47 +388,33 @@
               ? readImageDimensions(file).catch(() => null)
               : Promise.resolve(null);
 
-            // Upload directly to Run402 storage (avoids function body size limit)
-            const res = await fetch(`${getAPI()}/storage/v1/upload/${storageName}`, {
-              method: 'POST',
-              headers: {
-                apikey: getAnonKey(),
-                Authorization: `Bearer ${getToken()}`,
-                'Content-Type': file.type || 'application/octet-stream',
-              },
-              body: file,
+            // Upload via Run402's content-addressed flow.
+            const { url } = await uploadFileContentAddressed(file, {
+              keyPrefix: 'assets',
+              authToken: getToken(),
             });
 
-            if (res.ok) {
-              const data = await res.json();
-              const url = data.url || `/storage/${storageName}`;
+            // Update the image element
+            const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
+            if (img) img.src = url;
 
-              // Update the image element
-              const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
-              if (img) img.src = url;
+            // Save URL to database
+            if (target) {
+              await saveField(htmlEl, target, url);
+            }
+            showToast('Image uploaded');
 
-              // Save URL to database
-              if (target) {
-                await saveField(htmlEl, target, url);
-              }
-              showToast('Image uploaded');
-
-              // brand_icon_url aspect-ratio hint (client-side mirror of the
-              // server-side check in functions/upload-asset.js). Surfaces only
-              // when uploading to the icon slot AND the image is much wider
-              // than tall.
-              const dims = await dimsPromise;
-              if (
-                isBrandIconTarget(target) &&
-                dims &&
-                dims.width > WORDMARK_ASPECT_THRESHOLD * dims.height
-              ) {
-                showWordmarkHint(htmlEl, url, dims);
-              }
-            } else {
-              const err = await res.text();
-              console.error('Upload failed:', err);
-              showToast('Upload failed', 'error');
+            // brand_icon_url aspect-ratio hint (client-side mirror of the
+            // server-side check in functions/upload-asset.js). Surfaces only
+            // when uploading to the icon slot AND the image is much wider
+            // than tall.
+            const dims = await dimsPromise;
+            if (
+              isBrandIconTarget(target) &&
+              dims &&
+              dims.width > WORDMARK_ASPECT_THRESHOLD * dims.height
+            ) {
+              showWordmarkHint(htmlEl, url, dims);
             }
           } catch (e) {
             console.error('Image upload error:', e);

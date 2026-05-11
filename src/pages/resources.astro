@@ -49,6 +49,7 @@ import Portal from '../layouts/Portal.astro';
   import { isAdmin, isAuthenticated } from '../lib/auth';
   import { openAuthModal } from '../lib/auth-modal-events';
   import { refreshMemberRecord, translateItems } from '../lib/config';
+  import { uploadFileContentAddressed } from '../lib/storage-upload';
 
   let allResources: any[] = [];
 
@@ -63,64 +64,9 @@ import Portal from '../layouts/Portal.astro';
     return icons[type] || '\u{1F4C1}';
   }
 
-  function safeStorageName(name: string): string {
-    const base = name.split(/[\\/]/).pop() || 'resource';
-    return base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'resource';
-  }
-
-  async function sha256Hex(file: File): Promise<string> {
-    const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-    return Array.from(new Uint8Array(hash))
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('');
-  }
-
   async function uploadResourceFile(file: File): Promise<string> {
-    const API = window.__KYCHON_API || 'https://api.run402.com';
-    const ANON_KEY = window.__KYCHON_ANON_KEY || '';
-    const key = `resources/${Date.now()}_${safeStorageName(file.name)}`;
-    const initRes = await fetch(`${API}/storage/v1/uploads`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        key,
-        size_bytes: file.size,
-        content_type: file.type || 'application/octet-stream',
-        visibility: 'public',
-        immutable: true,
-        sha256: await sha256Hex(file),
-      }),
-    });
-    if (!initRes.ok) throw new Error(await initRes.text());
-
-    const init = await initRes.json();
-    const parts: Array<{ part_number: number; etag: string }> = [];
-    for (const part of init.parts || []) {
-      const putRes = await fetch(part.url, {
-        method: 'PUT',
-        body: file.slice(part.byte_start, part.byte_end + 1),
-      });
-      if (!putRes.ok) throw new Error(`Part ${part.part_number} upload failed`);
-      parts.push({ part_number: part.part_number, etag: putRes.headers.get('etag') || '' });
-    }
-
-    const completeRes = await fetch(`${API}/storage/v1/uploads/${encodeURIComponent(init.upload_id)}/complete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${ANON_KEY}`,
-      },
-      body: JSON.stringify(init.mode === 'multipart' ? { parts } : {}),
-    });
-    if (!completeRes.ok) throw new Error(await completeRes.text());
-
-    const completed = await completeRes.json();
-    return completed.cdn_immutable_url || completed.immutable_url || completed.cdn_url || completed.url || `/storage/${key}`;
+    const { url } = await uploadFileContentAddressed(file, { keyPrefix: 'resources' });
+    return url;
   }
 
   function applyFilter() {
