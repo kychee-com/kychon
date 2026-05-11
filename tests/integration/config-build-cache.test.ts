@@ -157,6 +157,63 @@ describe('site_config cache build awareness', () => {
     });
   });
 
+  it('does not attempt admin-only member linking for regular members', async () => {
+    const store = installLocalStorage();
+    store.wl_session = JSON.stringify({
+      access_token: 'token',
+      user: {
+        id: 'member-user-id',
+        email: 'demo-member@kychon.com',
+      },
+    });
+
+    const member = {
+      id: 3,
+      display_name: 'Demo Member',
+      role: 'member',
+      status: 'active',
+    };
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === 'https://api.test/functions/v1/kychon-api') {
+        const envelope = envelopeFrom(init);
+        if (envelope.operation === 'config.get')
+          return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'members.list') {
+          const input = JSON.stringify(envelope.input);
+          if (input.includes('member-user-id')) return capabilityResponse({ rows: [], count: 0 });
+          if (input.includes('demo-member@kychon.com')) return capabilityResponse({ rows: [member], count: 1 });
+          throw new Error(`Unexpected members.list input: ${input}`);
+        }
+        if (envelope.operation === 'members.linkUser') {
+          throw new Error('members.linkUser should not be called for regular members');
+        }
+      }
+      return capabilityResponse({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { init } = await import('../../src/lib/config');
+
+    await init();
+
+    const envelopes = fetchMock.mock.calls.map(([, init]) => envelopeFrom(init as RequestInit));
+    expect(envelopes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: 'members.list',
+          input: expect.objectContaining({ email: 'demo-member@kychon.com' }),
+        }),
+      ]),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      'https://api.test/functions/v1/kychon-api',
+      expect.objectContaining({
+        body: expect.stringContaining('"operation":"members.linkUser"'),
+      }),
+    );
+  });
+
   it('bypasses stale member cache on admin pages before checking access', async () => {
     window.history.pushState(null, '', '/admin.html');
     const store = installLocalStorage();
