@@ -212,6 +212,22 @@ export function safeCssValue(value: any, maxLength = 180): string {
   return SAFE_CSS_VALUE_RE.test(s) ? s : '';
 }
 
+// Safe interpolation for `background-image:url(...)` and similar CSS url()
+// sinks. `escAttr` is HTML-quote-safe but does not escape `(`, `)`, `;`, or
+// `'`, so an attacker-controlled URL like `x);background:red url(y` survives
+// it and parses as two CSS declarations. (#29)
+//
+// We accept http(s) URLs and same-origin relative paths only, reject control
+// characters, then percent-encode the CSS-dangerous characters so the value
+// is safe inside single-quoted `url('…')`.
+export function safeCssUrl(value: any, maxLength = 2048): string {
+  const s = String(value ?? '').trim();
+  if (!s || s.length > maxLength) return '';
+  if (/[\r\n\t\x00-\x1f]/.test(s)) return '';
+  if (!/^(https?:\/\/[^\s]+|\/[^\s]*|\.[./][^\s]*)$/i.test(s)) return '';
+  return s.replace(/[()'"\\;*<>]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
+}
+
 function cssVar(name: string, value: any): string {
   const safe = safeCssValue(value);
   return safe ? `${name}:${safe};` : '';
@@ -509,7 +525,8 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
-  const styleAttr = cfg.bg_image ? ` style="background-image:url(${escAttr(cfg.bg_image)})"` : '';
+  const safeBgImage = cfg.bg_image ? safeCssUrl(cfg.bg_image) : '';
+  const styleAttr = safeBgImage ? ` style="background-image:url('${safeBgImage}')"` : '';
   const adminCtrls = sid != null && ctx.admin
     ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
     : '';
@@ -1424,11 +1441,13 @@ const PAGE_BANNER: BlockType = {
     const cfg = section.config || {};
     const height = cfg.height || 'medium';
     const heightCls = `block-page-banner--height-${escAttr(height)}`;
-    const overlay = cfg.overlay_color
-      ? `<div class="block-page-banner__overlay" style="background-color:${escAttr(cfg.overlay_color)}"></div>`
+    const safeOverlay = cfg.overlay_color ? safeCssValue(cfg.overlay_color) : '';
+    const overlay = safeOverlay
+      ? `<div class="block-page-banner__overlay" style="background-color:${safeOverlay}"></div>`
       : '';
-    const bg = cfg.image_url
-      ? ` style="background-image:url(${escAttr(cfg.image_url)})"`
+    const safeImageUrl = cfg.image_url ? safeCssUrl(cfg.image_url) : '';
+    const bg = safeImageUrl
+      ? ` style="background-image:url('${safeImageUrl}')"`
       : '';
     const safeCaption = sanitizeCaptionHtml(String(cfg.caption_html || ''));
     const captionHtml = safeCaption
@@ -1540,11 +1559,13 @@ const PROMO_CARDS: BlockType = {
         const href = item.cta_href || '#';
         const titlePos = item.title_position === 'bottom' ? 'bottom' : 'top';
         const ariaLabel = `${item.title || ''}${item.cta_text ? `, ${item.cta_text}` : ''}`.trim();
-        const overlay = item.overlay_color
-          ? `<span class="promo-card__overlay" style="background-color:${escAttr(item.overlay_color)}"></span>`
+        const safeOverlay = item.overlay_color ? safeCssValue(item.overlay_color) : '';
+        const overlay = safeOverlay
+          ? `<span class="promo-card__overlay" style="background-color:${safeOverlay}"></span>`
           : '';
-        const imgStyle = item.image_url
-          ? ` style="background-image:url(${escAttr(item.image_url)})"`
+        const safeItemImage = item.image_url ? safeCssUrl(item.image_url) : '';
+        const imgStyle = safeItemImage
+          ? ` style="background-image:url('${safeItemImage}')"`
           : '';
         const imgEdit = ctx.admin && section.id != null
           ? ` data-editable-image="sections.${section.id}.config.items.${i}.image_url"`

@@ -31,6 +31,7 @@ import Portal from '../layouts/Portal.astro';
   import { getSession, isAuthenticated } from '../lib/auth';
   import { showAuthGate } from '../lib/auth-gate';
   import { ready } from '../lib/config';
+  import { uploadFileContentAddressed } from '../lib/storage-upload';
 
   function esc(s: string): string {
     const d = document.createElement('div');
@@ -136,24 +137,18 @@ import Portal from '../layouts/Portal.astro';
     document.getElementById('profile-avatar-upload')?.addEventListener('change', async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const API = window.__KYCHON_API || 'https://api.run402.com';
-      const ANON_KEY = window.__KYCHON_ANON_KEY || '';
-      const path = `avatars/${member.id}/${file.name}`;
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch(`${API}/storage/v1/upload/${path}`, {
-        method: 'POST',
-        headers: { apikey: ANON_KEY, Authorization: `Bearer ${session.access_token}` },
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const avatarUrl = data.url || `/storage/${path}`;
+      try {
+        const { url: avatarUrl } = await uploadFileContentAddressed(file, {
+          keyPrefix: `avatars/${member.id}`,
+          authToken: session.access_token,
+        });
         await patch(`members?id=eq.${member.id}`, { avatar_url: avatarUrl });
         (document.getElementById('profile-avatar-img') as HTMLImageElement).src = avatarUrl;
         member.avatar_url = avatarUrl;
         localStorage.setItem('wl_session', JSON.stringify(session));
+      } catch (err) {
+        console.error('Avatar upload failed:', err);
+        alert(err instanceof Error ? err.message : 'Avatar upload failed');
       }
     });
   }

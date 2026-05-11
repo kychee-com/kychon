@@ -180,14 +180,14 @@ describe('bug #25 — upload-asset.js path traversal in delete', () => {
     expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
   });
 
-  it('accepts a clean asset path', async () => {
+  it('accepts a clean asset path and hits the content-addressed delete endpoint (#28)', async () => {
     mockState.user = { id: 'admin-user' };
     mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
     const handler = (await import('../../functions/upload-asset.js')).default;
     const res = await handler(jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }));
     expect(res.status).toBe(200);
     const deleteCall = mockState.fetchCalls.find((c) => c.method === 'DELETE');
-    expect(deleteCall?.url).toBe('https://api.run402.com/storage/v1/delete/assets/logo.png');
+    expect(deleteCall?.url).toBe('https://api.run402.com/storage/v1/blob/assets/logo.png');
   });
 });
 
