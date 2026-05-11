@@ -6,7 +6,7 @@
 // configured view.
 
 import type { BlockRenderContext, Section } from '../blocks.js';
-import { escAttr, escHtml } from '../blocks.js';
+import { escAttr, escHtml, safeCssUrl } from '../blocks.js';
 import { get, patch } from '../api.js';
 import {
   cancelPendingPrefetches,
@@ -384,8 +384,9 @@ function renderEventChip(
   const lock = evt.is_members_only ? `<span class="block-events-calendar__lock" aria-label="${escAttr(t('Members only', locale))}">🔒</span>` : '';
   const cap = capacityBadge(evt, state.rsvps, locale);
   const avatars = density === 'rich' ? rsvpAvatarStack(evt.id, state.rsvps) : '';
-  const thumb = density === 'rich' && evt.image_url
-    ? `<span class="block-events-calendar__chip-thumb" style="background-image:url(${escAttr(evt.image_url)})" aria-hidden="true"></span>`
+  const safeThumbUrl = density === 'rich' && evt.image_url ? safeCssUrl(evt.image_url) : '';
+  const thumb = safeThumbUrl
+    ? `<span class="block-events-calendar__chip-thumb" style="background-image:url('${safeThumbUrl}')" aria-hidden="true"></span>`
     : '';
   const titleHtml = `<span class="block-events-calendar__chip-title">${escHtml(evt.title || '')}</span>`;
   const timeHtml = density === 'glance' ? '' : `<span class="block-events-calendar__chip-time">${escHtml(time)}</span>`;
