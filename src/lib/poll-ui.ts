@@ -1,5 +1,6 @@
 // poll-ui.ts — Shared poll rendering and creation functions
-import { del, get, patch, post } from './api.js';
+import { get, patch, post } from './api.js';
+import { showToast } from './toast-events.js';
 
 function esc(s: string): string {
   const d = document.createElement('div');
@@ -31,11 +32,37 @@ interface PollVoteData {
   id: number;
   poll_id: number;
   option_id: number;
-  member_id: number | null;
+  member_id: number | string | null;
 }
 
 interface SessionData {
-  user?: { member?: { id: number } };
+  access_token?: string;
+  user?: { member?: { id: number | string } };
+}
+
+function sessionLooksSignedIn(session: SessionData | null): boolean {
+  return !!(session?.access_token || session?.user);
+}
+
+function memberIdFromSession(session: SessionData | null): number | string | null {
+  return session?.user?.member?.id ?? null;
+}
+
+function sameId(left: number | string | null | undefined, right: number | string | null | undefined): boolean {
+  if (left == null || right == null) return left == null && right == null;
+  return String(left) === String(right);
+}
+
+function hasStoredSession(): boolean {
+  try {
+    return !!localStorage.getItem('wl_session');
+  } catch {
+    return false;
+  }
+}
+
+function isPermissionDenied(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === 'permission.denied';
 }
 
 // --- Auto-close check ---
@@ -55,11 +82,11 @@ export function renderPoll(
   votes: PollVoteData[],
   session: SessionData | null,
 ): string {
-  const memberId = session?.user?.member?.id ?? null;
-  const isAuthenticated = memberId !== null;
+  const memberId = memberIdFromSession(session);
+  const isAuthenticated = sessionLooksSignedIn(session);
   const expired = poll.closes_at ? new Date(poll.closes_at) <= new Date() : false;
   const isClosed = !poll.is_open || expired;
-  const myVotes = isAuthenticated ? votes.filter((v) => v.member_id === memberId) : [];
+  const myVotes = memberId != null ? votes.filter((v) => sameId(v.member_id, memberId)) : [];
   const hasVoted = myVotes.length > 0;
   const totalVotes = votes.length;
 
@@ -78,7 +105,7 @@ export function renderPoll(
   for (const opt of options) {
     const count = voteCounts[opt.id] || 0;
     const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-    const isMyVote = myVotes.some((v) => v.option_id === opt.id);
+    const isMyVote = myVotes.some((v) => sameId(v.option_id, opt.id));
 
     if (showResults) {
       // Results mode: show bars + counts
@@ -140,34 +167,16 @@ export async function handleSingleVote(
   pollId: number,
   optionId: number,
 ): Promise<void> {
-  // Delete any existing votes for this member on this poll
-  await del(`poll_votes?poll_id=eq.${pollId}`);
-  // Insert new vote
   await post('poll_votes', { poll_id: pollId, option_id: optionId });
-  await post('activity_log', {
-    action: 'poll_vote',
-    metadata: { poll_id: pollId },
-  });
 }
 
 export async function handleMultiVote(
   pollId: number,
   optionId: number,
-  memberId: number,
-  currentVotes: PollVoteData[],
+  _memberId: number | string | null,
+  _currentVotes: PollVoteData[],
 ): Promise<void> {
-  const existing = currentVotes.find(
-    (v) => v.option_id === optionId && v.member_id === memberId,
-  );
-  if (existing) {
-    await del(`poll_votes?id=eq.${existing.id}`);
-  } else {
-    await post('poll_votes', { poll_id: pollId, option_id: optionId });
-  }
-  await post('activity_log', {
-    action: 'poll_vote',
-    metadata: { poll_id: pollId },
-  });
+  await post('poll_votes', { poll_id: pollId, option_id: optionId });
 }
 
 // --- Bind vote event listeners ---
@@ -175,25 +184,39 @@ export function bindPollVoteListeners(
   container: HTMLElement,
   poll: PollData,
   votes: PollVoteData[],
-  memberId: number | null,
+  memberId: number | string | null,
   onVote: () => void,
 ): void {
-  if (!memberId || !poll.is_open) return;
+  if (!memberId && !hasStoredSession()) return;
+  if (!poll.is_open) return;
   const expired = poll.closes_at ? new Date(poll.closes_at) <= new Date() : false;
   if (expired) return;
 
   container.querySelectorAll('[data-poll-vote]').forEach((el) => {
     el.addEventListener('click', async () => {
+      const target = el as HTMLElement;
       const optionId = parseInt((el as HTMLElement).dataset.pollVote!, 10);
+      const button = target instanceof HTMLButtonElement ? target : null;
+      if (button?.disabled) return;
       try {
+        if (button) button.disabled = true;
+        target.setAttribute('aria-busy', 'true');
         if (poll.poll_type === 'multiple') {
           await handleMultiVote(poll.id, optionId, memberId, votes);
         } else {
           await handleSingleVote(poll.id, optionId);
         }
+        showToast('Vote recorded', 'success');
         onVote();
       } catch (e) {
         console.error('Vote failed:', e);
+        showToast(
+          isPermissionDenied(e) ? 'Active member access is required to vote.' : 'Could not record your vote. Please try again.',
+          'error',
+        );
+      } finally {
+        if (button) button.disabled = false;
+        target.removeAttribute('aria-busy');
       }
     });
   });

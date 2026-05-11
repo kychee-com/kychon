@@ -174,7 +174,7 @@ import Portal from '../layouts/Portal.astro';
   import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
   import { openAuthModal } from '../lib/auth-modal-events';
   import { escAttr } from '../lib/blocks';
-  import { addTranslateButton, translateItems, isFeatureEnabled, getConfig } from '../lib/config';
+  import { addTranslateButton, translateItems, isFeatureEnabled, getConfig, ready } from '../lib/config';
   import { bindPollVoteListeners, createPollForm, fetchAttachedPoll } from '../lib/poll-ui';
   import { showToast as showKychonToast, type KychonToastType } from '../lib/toast-events';
 
@@ -714,6 +714,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   async function initForum() {
+    await ready;
     const params = new URLSearchParams(window.location.search);
     const root = document.getElementById('forum-root');
     if (!root) return;

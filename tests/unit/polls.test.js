@@ -47,6 +47,13 @@ describe('renderPoll', () => {
       expect(html).toContain('poll-option-voted');
       expect(html).toContain('\u2713');
     });
+
+    it('highlights user vote when ids arrive as different primitive types', () => {
+      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
+      const session = { user: { member: { id: '42' } } };
+      const html = renderPoll(poll, baseOptions, votes, session);
+      expect(html).toContain('poll-option-voted');
+    });
   });
 
   describe('results_visible = after_vote', () => {
@@ -58,6 +65,13 @@ describe('renderPoll', () => {
       expect(html).toContain('poll-vote-btn');
       expect(html).not.toContain('poll-bar-fill');
       expect(html).toContain('0 votes');
+    });
+
+    it('shows vote buttons for a signed-in session before member hydration finishes', () => {
+      const session = { access_token: 'tok', user: { id: 'user-1' } };
+      const html = renderPoll(poll, baseOptions, [], session);
+      expect(html).toContain('poll-vote-btn');
+      expect(html).not.toContain('poll-option-readonly');
     });
 
     it('shows results after voting', () => {
