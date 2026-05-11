@@ -40,4 +40,5 @@
 
 - [x] 7.1 Add or update tests for deploy route generation, generated static page files, URL canonicalization, page resolution, navigation active state, and search result URLs.
 - [x] 7.2 Run the relevant unit/typecheck/build verification for Kychon.
-- [ ] 7.3 When deployed, diagnose representative public URLs with Run402 v1.66.0, including `/about`, `/volunteer`, `/events`, and `/search?q=hello&type=all`.
+- [x] 7.3 When deployed, diagnose representative public URLs with Run402 v1.66.0, including `/about`, `/volunteer`, `/events`, and `/search?q=hello&type=all`.
+  - Verified active route manifests and public byte identity across Eagles, Silver Pines, and Barrio. Note: `run402 deploy diagnose` currently reports `spa_fallback` for static route aliases even though active release route entries exist and public responses match the exact static target files.
