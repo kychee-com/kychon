@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { generateSeedSql } from '../../scripts/generate-seed-sql';
 import { isDemoModeSeed } from '../../src/lib/demo-mode';
 import { seed as barrioSeed } from '../../src/seeds/barrio-unido';
 import { seed as eaglesSeed } from '../../src/seeds/eagles';
@@ -10,6 +11,7 @@ const DEMOS = [
     name: 'Eagles',
     seed: eaglesSeed,
     pollLabel: 'Polls',
+    pollQuestion: 'Which volunteer project should we spotlight next month?',
     searchPlaceholder: 'Search The Eagles',
     searchSubmit: 'Search',
   },
@@ -17,6 +19,7 @@ const DEMOS = [
     name: 'Silver Pines',
     seed: silverPinesSeed,
     pollLabel: 'Polls',
+    pollQuestion: 'Which Friday social should we add next month?',
     searchPlaceholder: 'Search Silver Pines',
     searchSubmit: 'Search',
   },
@@ -24,6 +27,7 @@ const DEMOS = [
     name: 'Barrio Unido',
     seed: barrioSeed,
     pollLabel: 'Encuestas',
+    pollQuestion: '¿Qué taller deberíamos ofrecer el próximo mes?',
     searchPlaceholder: 'Buscar Barrio Unido',
     searchSubmit: 'Buscar',
   },
@@ -78,6 +82,15 @@ describe('demo seed feature coverage', () => {
             feature: 'feature_polls',
           }),
         );
+      });
+
+      it('seeds a standalone demo poll with options and votes', () => {
+        const sql = generateSeedSql(demo.seed);
+        expect(sql).toContain(`INSERT INTO polls`);
+        expect(sql).toContain(demo.pollQuestion);
+        expect(sql).toContain(`INSERT INTO poll_options`);
+        expect(sql).toContain(`INSERT INTO poll_votes`);
+        expect(sql).toContain(`'poll_create'`);
       });
 
       it('adds native site search to global chrome', () => {
