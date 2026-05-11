@@ -63,16 +63,16 @@ ON CONFLICT (key) DO NOTHING;
 INSERT INTO site_config (key, value, category) VALUES
   ('nav', '[
     {"label": "Home", "href": "/", "icon": "home", "public": true},
-    {"label": "About", "href": "/page.html?slug=about", "icon": "info", "public": true},
-    {"label": "Volunteer", "href": "/page.html?slug=volunteer", "icon": "heart", "public": true},
-    {"label": "Members", "href": "/directory.html", "icon": "users", "auth": true, "feature": "feature_directory"},
-    {"label": "Events", "href": "/events.html", "icon": "calendar", "feature": "feature_events"},
-    {"label": "Resources", "href": "/resources.html", "icon": "book-open", "feature": "feature_resources"},
-    {"label": "Forum", "href": "/forum.html", "icon": "message-circle", "feature": "feature_forum"},
-    {"label": "Committees", "href": "/committees.html", "icon": "briefcase", "feature": "feature_committees"},
-    {"label": "Dashboard", "href": "/admin.html", "icon": "bar-chart-2", "admin": true},
-    {"label": "Members", "href": "/admin-members.html", "icon": "users", "admin": true},
-    {"label": "Settings", "href": "/admin-settings.html", "icon": "settings", "admin": true}
+    {"label": "About", "href": "/about", "icon": "info", "public": true},
+    {"label": "Volunteer", "href": "/volunteer", "icon": "heart", "public": true},
+    {"label": "Members", "href": "/directory", "icon": "users", "auth": true, "feature": "feature_directory"},
+    {"label": "Events", "href": "/events", "icon": "calendar", "feature": "feature_events"},
+    {"label": "Resources", "href": "/resources", "icon": "book-open", "feature": "feature_resources"},
+    {"label": "Forum", "href": "/forum", "icon": "message-circle", "feature": "feature_forum"},
+    {"label": "Committees", "href": "/committees", "icon": "briefcase", "feature": "feature_committees"},
+    {"label": "Dashboard", "href": "/admin", "icon": "bar-chart-2", "admin": true},
+    {"label": "Members", "href": "/admin-members", "icon": "users", "admin": true},
+    {"label": "Settings", "href": "/admin-settings", "icon": "settings", "admin": true}
   ]', 'nav')
 ON CONFLICT (key) DO NOTHING;
 
@@ -1708,7 +1708,7 @@ SELECT 'index', 'hero', '{
   "heading": "Lifting Wichita, One Neighbor at a Time",
   "subheading": "The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.",
   "cta_text": "Join The Eagles",
-  "cta_href": "/join.html",
+  "cta_href": "/join",
   "bg_image": "/assets/hero.jpg"
 }', 1, true
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'hero');
@@ -1739,6 +1739,6 @@ SELECT 'index', 'cta', '{
   "heading": "Ready to make a difference?",
   "text": "Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.",
   "cta_text": "Get Started",
-  "cta_href": "/join.html"
+  "cta_href": "/join"
 }', 4, true
 WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'cta');
