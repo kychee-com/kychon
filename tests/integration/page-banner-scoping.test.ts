@@ -2,6 +2,7 @@
 // other pages' renderZone output.
 import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderZone, type Section } from '../../src/lib/blocks';
+import { filterSectionsForPageSlug } from '../../src/lib/page-render';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
 
@@ -38,5 +39,32 @@ describe('page_banner scoping', () => {
     // sections it gets, regardless of slug. We rely on the per-page query.
     const html = renderZone([globalNav], 'header', ctx);
     expect(html).not.toContain('block-page-banner');
+  });
+
+  it('filters fetched sections to the active page before rendering', () => {
+    const indexActivity: Section = {
+      id: 3,
+      page_slug: 'index',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'activity_feed',
+      config: { heading: 'Recent Activity' },
+      position: 7,
+    };
+    const aboutCta: Section = {
+      id: 4,
+      page_slug: 'about',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'cta',
+      config: { heading: 'About-only CTA' },
+      position: 1,
+    };
+
+    expect(filterSectionsForPageSlug([globalNav, aboutBanner, indexActivity, aboutCta], 'about')).toEqual([
+      globalNav,
+      aboutBanner,
+      aboutCta,
+    ]);
   });
 });
