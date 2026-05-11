@@ -244,6 +244,14 @@ function warmHeroImageCache(sections: Section[]): void {
   if (hero) cacheHeroImage(hero);
 }
 
+export function sectionAppliesToPageSlug(section: Section, slug: string): boolean {
+  return section.scope === 'global' || section.page_slug === '*' || section.page_slug === slug;
+}
+
+export function filterSectionsForPageSlug(sections: Section[], slug: string): Section[] {
+  return sections.filter((section) => sectionAppliesToPageSlug(section, slug));
+}
+
 export async function hydratePage(slug: string): Promise<void> {
   await ready;
   const ctx = getRenderContext();
@@ -275,10 +283,8 @@ async function fetchAndUpdate(
 ): Promise<void> {
   let fresh: Section[] = [];
   try {
-    const query =
-      `sections?or=(and(page_slug.eq.${encodeURIComponent(slug)},scope.eq.page),scope.eq.global,page_slug.eq.*)` +
-      `&visible=eq.true&order=zone.asc,position.asc`;
-    fresh = await get(query);
+    const query = 'sections?visible=eq.true&order=zone.asc,position.asc';
+    fresh = filterSectionsForPageSlug(await get(query), slug);
   } catch (e) {
     console.warn('Failed to fetch sections:', e);
     return;
