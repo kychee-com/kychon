@@ -172,6 +172,7 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { del, get, patch, post } from '../lib/api';
   import { getSession, isAdmin, isAuthenticated } from '../lib/auth';
+  import { openAuthModal } from '../lib/auth-modal-events';
   import { escAttr } from '../lib/blocks';
   import { addTranslateButton, translateItems, isFeatureEnabled, getConfig } from '../lib/config';
   import { renderPoll, bindPollVoteListeners, createPollForm, submitPoll, fetchAttachedPoll } from '../lib/poll-ui';
@@ -230,6 +231,20 @@ import Portal from '../layouts/Portal.astro';
     return `<div class="forum-topic-avatar-fallback">${initial}</div>`;
   }
 
+  function isPermissionDenied(error: unknown): boolean {
+    return (error as any)?.code === 'permission.denied';
+  }
+
+  function renderMemberRequired(root: HTMLElement): void {
+    const signedIn = isAuthenticated();
+    root.innerHTML = signedIn
+      ? '<p class="ky-text-muted">Active member access is required to view the forum.</p>'
+      : '<div class="text-center ky-text-muted"><p class="mb-1">Sign in as a member to view the forum.</p><button class="btn btn-primary" id="forum-signin-btn">Sign in</button></div>';
+    document.getElementById('forum-signin-btn')?.addEventListener('click', (event) => {
+      openAuthModal({ trigger: event.currentTarget as HTMLElement });
+    });
+  }
+
   // -- Category Listing --
   async function renderCategoryListing(root: HTMLElement) {
     let categories: any[] = [];
@@ -238,7 +253,11 @@ import Portal from '../layouts/Portal.astro';
       await translateItems('forum_category', categories, ['name', 'description']);
     } catch (e) {
       console.warn('Failed to load forum categories:', e);
-      root.innerHTML = '<p class="ky-text-muted">Could not load forum categories.</p>';
+      if (isPermissionDenied(e)) {
+        renderMemberRequired(root);
+      } else {
+        root.innerHTML = '<p class="ky-text-muted">Could not load forum categories.</p>';
+      }
       return;
     }
 
@@ -297,7 +316,11 @@ import Portal from '../layouts/Portal.astro';
       await enrichWithAvatars(topics);
     } catch (e) {
       console.warn('Failed to load topics:', e);
-      root.innerHTML = '<p class="ky-text-muted">Could not load topics.</p>';
+      if (isPermissionDenied(e)) {
+        renderMemberRequired(root);
+      } else {
+        root.innerHTML = '<p class="ky-text-muted">Could not load topics.</p>';
+      }
       return;
     }
 
@@ -448,6 +471,10 @@ import Portal from '../layouts/Portal.astro';
       topic = topics[0] || null;
     } catch (e) {
       console.warn('Failed to load topic:', e);
+      if (isPermissionDenied(e)) {
+        renderMemberRequired(root);
+        return;
+      }
     }
 
     if (!topic) {

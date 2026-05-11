@@ -27,13 +27,28 @@ import Portal from '../layouts/Portal.astro';
 
 <script>
   import { del, get, post } from '../lib/api';
-  import { isAdmin } from '../lib/auth';
+  import { isAdmin, isAuthenticated } from '../lib/auth';
+  import { openAuthModal } from '../lib/auth-modal-events';
   import { translateItems } from '../lib/config';
 
   function esc(s: string): string {
     const d = document.createElement('div');
     d.textContent = String(s || '');
     return d.innerHTML;
+  }
+
+  function isPermissionDenied(error: unknown): boolean {
+    return (error as any)?.code === 'permission.denied';
+  }
+
+  function renderMemberRequired(container: HTMLElement, subject = 'committees'): void {
+    const signedIn = isAuthenticated();
+    container.innerHTML = signedIn
+      ? `<p class="ky-text-muted">Active member access is required to view ${subject}.</p>`
+      : `<div class="text-center ky-text-muted"><p class="mb-1">Sign in as a member to view ${subject}.</p><button class="btn btn-primary" id="committees-signin-btn">Sign in</button></div>`;
+    document.getElementById('committees-signin-btn')?.addEventListener('click', (event) => {
+      openAuthModal({ trigger: event.currentTarget as HTMLElement });
+    });
   }
 
   async function renderCommitteeList() {
@@ -43,7 +58,12 @@ import Portal from '../layouts/Portal.astro';
     try {
       const committees = await get('committees?order=name.asc');
       await translateItems('committee', committees, ['name', 'description']);
-      const members = await get('committee_members?select=committee_id');
+      let members: any[] = [];
+      try {
+        members = await get('committee_members?select=committee_id');
+      } catch (e) {
+        if (!isPermissionDenied(e)) throw e;
+      }
       const countMap: Record<number, number> = {};
       members.forEach((m: any) => {
         countMap[m.committee_id] = (countMap[m.committee_id] || 0) + 1;
@@ -73,7 +93,11 @@ import Portal from '../layouts/Portal.astro';
         setupCreate();
       }
     } catch (_e) {
-      container.innerHTML = '<p class="ky-text-muted">Failed to load committees.</p>';
+      if (isPermissionDenied(_e)) {
+        renderMemberRequired(container);
+      } else {
+        container.innerHTML = '<p class="ky-text-muted">Failed to load committees.</p>';
+      }
     }
   }
 
@@ -89,7 +113,14 @@ import Portal from '../layouts/Portal.astro';
       }
       const committee = committees[0];
       await translateItems('committee', [committee], ['name', 'description']);
-      const members = await get(`committee_members?committee_id=eq.${id}&select=*,members(display_name,avatar_url)`);
+      let members: any[] = [];
+      let memberAccessDenied = false;
+      try {
+        members = await get(`committee_members?committee_id=eq.${id}&select=*,members(display_name,avatar_url)`);
+      } catch (e) {
+        if (!isPermissionDenied(e)) throw e;
+        memberAccessDenied = true;
+      }
       const allMembers = isAdmin() ? await get('members?status=eq.active&order=display_name.asc') : [];
 
       const admin = isAdmin();
@@ -100,7 +131,8 @@ import Portal from '../layouts/Portal.astro';
 
         <div class="mt-2">
           <h3 class="mb-1">Members (${members.length})</h3>
-          ${members.length === 0 ? '<p class="ky-text-muted">No members assigned.</p>' : ''}
+          ${memberAccessDenied ? '<p class="ky-text-muted">Sign in as a member to view committee membership.</p>' : ''}
+          ${!memberAccessDenied && members.length === 0 ? '<p class="ky-text-muted">No members assigned.</p>' : ''}
           ${members
             .map(
               (m: any) => `
@@ -169,7 +201,11 @@ import Portal from '../layouts/Portal.astro';
         navigate('/committees');
       });
     } catch (_e) {
-      container.innerHTML = '<p>Error loading committee.</p>';
+      if (isPermissionDenied(_e)) {
+        renderMemberRequired(container);
+      } else {
+        container.innerHTML = '<p>Error loading committee.</p>';
+      }
     }
   }
 
