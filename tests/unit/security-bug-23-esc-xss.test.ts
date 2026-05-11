@@ -16,8 +16,7 @@
 // sanitize announcement bodies before assigning them to innerHTML.
 
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { escAttr, escHtml } from '../../src/lib/blocks.ts';

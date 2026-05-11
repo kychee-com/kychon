@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCleanStaticRouteSpecs,
-  canonicalRouteKey,
   canonicalizeKychonHref,
   canonicalizeKychonOwnedHrefFields,
+  canonicalRouteKey,
   currentPageSlugFromLocation,
   isSafeCustomPageSlug,
   isValidStaticRouteTargetFile,
@@ -46,18 +46,12 @@ describe('clean routes', () => {
       canonicalizeKychonOwnedHrefFields({
         href: '/events.html',
         image_url: '/assets/events.html',
-        items: [
-          { cta_href: '/page.html?slug=volunteer' },
-          { admin_contact_href: 'mailto:volunteer@example.org' },
-        ],
+        items: [{ cta_href: '/page.html?slug=volunteer' }, { admin_contact_href: 'mailto:volunteer@example.org' }],
       }),
     ).toEqual({
       href: '/events',
       image_url: '/assets/events.html',
-      items: [
-        { cta_href: '/volunteer' },
-        { admin_contact_href: 'mailto:volunteer@example.org' },
-      ],
+      items: [{ cta_href: '/volunteer' }, { admin_contact_href: 'mailto:volunteer@example.org' }],
     });
   });
 
