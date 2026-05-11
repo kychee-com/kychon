@@ -769,7 +769,75 @@ SELECT 'Buscamos voluntarios para el mercadito',
 WHERE NOT EXISTS (SELECT 1 FROM announcements WHERE title = 'Buscamos voluntarios para el mercadito');
 
 -- ============================================
--- 11. RESOURCES (12 items)
+-- 11. POLLS
+-- ============================================
+
+INSERT INTO polls (question, description, poll_type, is_anonymous, results_visible, is_open, closes_at, created_by, created_at)
+SELECT '¿Qué taller deberíamos ofrecer el próximo mes?',
+  'Ayúdanos a escoger el próximo taller comunitario para familias y voluntarios.',
+  'single', false, 'always', true, now() + interval '20 days',
+  (SELECT id FROM members WHERE email = 'lucia.ramirez@barriounido.org'),
+  now() - interval '2 days'
+WHERE NOT EXISTS (SELECT 1 FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?');
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?'), 'Preparación para ciudadanía', 0
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?') AND label = 'Preparación para ciudadanía'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?'), 'Conozca sus derechos', 1
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?') AND label = 'Conozca sus derechos'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?'), 'Computación básica', 2
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?') AND label = 'Computación básica'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?'), 'Ayuda con tareas para jóvenes', 3
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = '¿Qué taller deberíamos ofrecer el próximo mes?') AND label = 'Ayuda con tareas para jóvenes'
+);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '1 day'
+FROM polls p, poll_options o, members m
+WHERE p.question = '¿Qué taller deberíamos ofrecer el próximo mes?'
+  AND o.poll_id = p.id
+  AND o.label = 'Preparación para ciudadanía'
+  AND m.email IN ('carlos.medina@outlook.com', 'adriana.morales@gmail.com', 'patricia.wong@gmail.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '18 hours'
+FROM polls p, poll_options o, members m
+WHERE p.question = '¿Qué taller deberíamos ofrecer el próximo mes?'
+  AND o.poll_id = p.id
+  AND o.label = 'Conozca sus derechos'
+  AND m.email IN ('ana.delgado@gmail.com', 'david.kim@gmail.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '10 hours'
+FROM polls p, poll_options o, members m
+WHERE p.question = '¿Qué taller deberíamos ofrecer el próximo mes?'
+  AND o.poll_id = p.id
+  AND o.label = 'Computación básica'
+  AND m.email IN ('jennifer.tran@gmail.com', 'miguel.santos@gmail.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO activity_log (member_id, action, metadata, created_at)
+SELECT (SELECT id FROM members WHERE email = 'lucia.ramirez@barriounido.org'), 'poll_create',
+  '{"question": "¿Qué taller deberíamos ofrecer el próximo mes?"}', now() - interval '2 days'
+WHERE NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'poll_create' AND metadata::text LIKE '%taller%');
+
+-- ============================================
+-- 12. RESOURCES (12 items)
 -- ============================================
 
 INSERT INTO resources (title, description, category, file_url, is_members_only, uploaded_by, created_at)

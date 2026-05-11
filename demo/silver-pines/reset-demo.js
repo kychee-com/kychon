@@ -1039,7 +1039,75 @@ SELECT 'Craft Fair Raised $840 for Transportation Fund!',
 WHERE NOT EXISTS (SELECT 1 FROM announcements WHERE title LIKE 'Craft Fair Raised%');
 
 -- ============================================
--- 10. CUSTOM PAGES
+-- 10. POLLS
+-- ============================================
+
+INSERT INTO polls (question, description, poll_type, is_anonymous, results_visible, is_open, closes_at, created_by, created_at)
+SELECT 'Which Friday social should we add next month?',
+  'The activities committee is choosing one extra Friday afternoon gathering.',
+  'single', false, 'always', true, now() + interval '18 days',
+  (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org'),
+  now() - interval '3 days'
+WHERE NOT EXISTS (SELECT 1 FROM polls WHERE question = 'Which Friday social should we add next month?');
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?'), 'Movie matinee', 0
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?') AND label = 'Movie matinee'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?'), 'Soup lunch', 1
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?') AND label = 'Soup lunch'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?'), 'Beginner line dancing', 2
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?') AND label = 'Beginner line dancing'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?'), 'Local history talk', 3
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which Friday social should we add next month?') AND label = 'Local history talk'
+);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '2 days'
+FROM polls p, poll_options o, members m
+WHERE p.question = 'Which Friday social should we add next month?'
+  AND o.poll_id = p.id
+  AND o.label = 'Movie matinee'
+  AND m.email IN ('margaret.johnson@hotmail.com', 'thomas.brown@gmail.com', 'grace.lee@outlook.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '1 day'
+FROM polls p, poll_options o, members m
+WHERE p.question = 'Which Friday social should we add next month?'
+  AND o.poll_id = p.id
+  AND o.label = 'Soup lunch'
+  AND m.email IN ('betty.williams@outlook.com', 'rosa.martinez@outlook.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '18 hours'
+FROM polls p, poll_options o, members m
+WHERE p.question = 'Which Friday social should we add next month?'
+  AND o.poll_id = p.id
+  AND o.label = 'Local history talk'
+  AND m.email IN ('arthur.williams@gmail.com', 'shirley.davis@yahoo.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO activity_log (member_id, action, metadata, created_at)
+SELECT (SELECT id FROM members WHERE email = 'helen.crawford@silverpines.org'), 'poll_create',
+  '{"question": "Which Friday social should we add next month?"}', now() - interval '3 days'
+WHERE NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'poll_create' AND metadata::text LIKE '%Friday social%');
+
+-- ============================================
+-- 11. CUSTOM PAGES
 -- ============================================
 
 INSERT INTO pages (slug, title, published) VALUES

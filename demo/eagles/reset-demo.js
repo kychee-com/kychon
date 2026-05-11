@@ -1639,7 +1639,75 @@ SELECT 'Holiday Food Baskets: 350 Families Served',
 WHERE NOT EXISTS (SELECT 1 FROM announcements WHERE title = 'Holiday Food Baskets: 350 Families Served');
 
 -- ============================================
--- 13. RESOURCES (15)
+-- 13. POLLS
+-- ============================================
+
+INSERT INTO polls (question, description, poll_type, is_anonymous, results_visible, is_open, closes_at, created_by, created_at)
+SELECT 'Which volunteer project should we spotlight next month?',
+  'Help the communications team choose the next member story and homepage feature.',
+  'single', false, 'always', true, now() + interval '21 days',
+  (SELECT id FROM members WHERE email = 'amanda.brooks@gmail.com'),
+  now() - interval '2 days'
+WHERE NOT EXISTS (SELECT 1 FROM polls WHERE question = 'Which volunteer project should we spotlight next month?');
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?'), 'Annual Spring Food Drive', 0
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?') AND label = 'Annual Spring Food Drive'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?'), 'Habitat build crew', 1
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?') AND label = 'Habitat build crew'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?'), 'Youth mentoring stories', 2
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?') AND label = 'Youth mentoring stories'
+);
+
+INSERT INTO poll_options (poll_id, label, position)
+SELECT (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?'), 'Community garden harvest', 3
+WHERE NOT EXISTS (
+  SELECT 1 FROM poll_options WHERE poll_id = (SELECT id FROM polls WHERE question = 'Which volunteer project should we spotlight next month?') AND label = 'Community garden harvest'
+);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '1 day'
+FROM polls p, poll_options o, members m
+WHERE p.question = 'Which volunteer project should we spotlight next month?'
+  AND o.poll_id = p.id
+  AND o.label = 'Annual Spring Food Drive'
+  AND m.email IN ('diana.flores@gmail.com', 'roberto.castillo@hotmail.com', 'tom.hendricks@outlook.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '18 hours'
+FROM polls p, poll_options o, members m
+WHERE p.question = 'Which volunteer project should we spotlight next month?'
+  AND o.poll_id = p.id
+  AND o.label = 'Habitat build crew'
+  AND m.email IN ('terrence.washington@yahoo.com', 'jasmine.powell@gmail.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO poll_votes (poll_id, option_id, member_id, created_at)
+SELECT p.id, o.id, m.id, now() - interval '12 hours'
+FROM polls p, poll_options o, members m
+WHERE p.question = 'Which volunteer project should we spotlight next month?'
+  AND o.poll_id = p.id
+  AND o.label = 'Youth mentoring stories'
+  AND m.email IN ('devon.jackson@gmail.com', 'keisha.brown@gmail.com')
+  AND NOT EXISTS (SELECT 1 FROM poll_votes WHERE poll_id = p.id AND option_id = o.id AND member_id = m.id);
+
+INSERT INTO activity_log (member_id, action, metadata, created_at)
+SELECT (SELECT id FROM members WHERE email = 'amanda.brooks@gmail.com'), 'poll_create',
+  '{"question": "Which volunteer project should we spotlight next month?"}', now() - interval '2 days'
+WHERE NOT EXISTS (SELECT 1 FROM activity_log WHERE action = 'poll_create' AND metadata::text LIKE '%volunteer project%');
+
+-- ============================================
+-- 14. RESOURCES (15)
 -- ============================================
 
 INSERT INTO resources (title, description, category, file_url, file_type, is_members_only, uploaded_by, created_at)
