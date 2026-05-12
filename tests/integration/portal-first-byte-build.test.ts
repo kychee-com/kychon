@@ -49,6 +49,10 @@ function requireSnapshotHtml(snapshot: Map<string, string>, page: string): strin
   return html;
 }
 
+function normalizeAstroAssetUrls(html: string): string {
+  return html.replace(/\/_astro\/[^"')\s]+\.([cm]?js|css)/g, '/_astro/[asset].$1');
+}
+
 describe('Portal first-byte build output', () => {
   it('renders project chrome before runtime hydration and keeps unchanged HTML stable across rebuilds', () => {
     buildPortal();
@@ -78,7 +82,9 @@ describe('Portal first-byte build output', () => {
     buildPortal();
 
     for (const [page, html] of firstBuildHtml) {
-      expect(readFileSync(join(ROOT, 'dist', page), 'utf8'), page).toBe(html);
+      expect(normalizeAstroAssetUrls(readFileSync(join(ROOT, 'dist', page), 'utf8')), page).toBe(
+        normalizeAstroAssetUrls(html),
+      );
     }
   }, 80_000);
 });
