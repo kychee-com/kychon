@@ -28,7 +28,7 @@ describe('resolveActiveProjectSeed', () => {
     const siteConfig = resolved.seed.site_config as Record<string, { value?: unknown }>;
 
     expect(resolved.source).toEqual({ kind: 'typed-seed', project: 'eagles' });
-    expect(siteConfig.brand_text?.value).toBe('The Eagles — Good Samaritans of Wichita');
+    expect(siteConfig.brand_text?.value).toBe('The Eagles');
   });
 
   it('falls back to neutral chrome for unknown project names', async () => {
