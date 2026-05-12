@@ -51,6 +51,14 @@ function headerSection(seed: ProjectSeed, type: string): SeedSection | undefined
   );
 }
 
+function flattenNavItems(items: unknown[]): unknown[] {
+  return items.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [item];
+    const children = 'children' in item && Array.isArray(item.children) ? flattenNavItems(item.children) : [];
+    return [item, ...children];
+  });
+}
+
 function indexSection(seed: ProjectSeed, type: string): SeedSection | undefined {
   return seed.sections.find(
     (section) =>
@@ -75,7 +83,7 @@ describe('demo seed feature coverage', () => {
       it('includes polls in the header navigation', () => {
         const nav = headerSection(demo.seed, 'nav');
         const items = Array.isArray(nav?.config.items) ? nav.config.items : [];
-        expect(items).toContainEqual(
+        expect(flattenNavItems(items)).toContainEqual(
           expect.objectContaining({
             label: demo.pollLabel,
             href: '/polls',
