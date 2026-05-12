@@ -286,12 +286,62 @@ function applySourceMobileMode(root: HTMLElement): void {
   if (!active) root.classList.remove('open');
 }
 
+function topLevelNavItems(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement
+      && (child.classList.contains('nav-link') || child.classList.contains('nav-item-wrap')),
+  );
+}
+
+function applyOverflowMode(root: HTMLElement): void {
+  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  if (!nav) return;
+  const items = topLevelNavItems(root);
+  if (items.length === 0) return;
+
+  root.classList.remove('open');
+  nav.classList.remove('nav--overflow');
+  items.forEach((item) => item.classList.remove('nav-overflow-item'));
+  if (nav.classList.contains('nav--source-mobile')) return;
+
+  const available = root.getBoundingClientRect().width;
+  if (available <= 0) return;
+
+  const style = window.getComputedStyle(root);
+  const gap = Number.parseFloat(style.columnGap || style.gap || '0') || 0;
+  const total = items.reduce(
+    (sum, item, index) => sum + item.getBoundingClientRect().width + (index > 0 ? gap : 0),
+    0,
+  );
+  if (total <= available) return;
+
+  nav.classList.add('nav--overflow');
+  const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
+  const reserved = (toggle?.getBoundingClientRect().width || 36) + gap;
+  const fitWidth = Math.max(0, root.getBoundingClientRect().width - reserved);
+  let used = 0;
+  let overflowing = false;
+  for (const [index, item] of items.entries()) {
+    const width = item.getBoundingClientRect().width + (index > 0 ? gap : 0);
+    if (!overflowing && used + width <= fitWidth) {
+      used += width;
+    } else {
+      overflowing = true;
+      item.classList.add('nav-overflow-item');
+    }
+  }
+}
+
 function bindResponsiveModes(root: HTMLElement): void {
   applySourceMobileMode(root);
+  applyOverflowMode(root);
   if ((window as any).__navResponsiveModeBound === true) return;
   (window as any).__navResponsiveModeBound = true;
   window.addEventListener('resize', () => {
-    document.querySelectorAll<HTMLElement>('[data-block-nav]').forEach(applySourceMobileMode);
+    document.querySelectorAll<HTMLElement>('[data-block-nav]').forEach((navRoot) => {
+      applySourceMobileMode(navRoot);
+      applyOverflowMode(navRoot);
+    });
   });
 }
 
