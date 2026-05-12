@@ -14,33 +14,11 @@ const WL_CACHE_MEMBER_PREFIX = 'wl_cache_member_';
 const CONFIG_TTL = 5 * 60 * 1000;
 const MEMBER_TTL = 10 * 60 * 1000;
 
-interface CacheOptions {
-  buildAware?: boolean;
-}
-
-export function currentBuildId(): string | null {
-  if (typeof window === 'undefined') return null;
-  const win = window as Window & { __KYCHON_BUILD_ID?: string };
-  return typeof win.__KYCHON_BUILD_ID === 'string' && win.__KYCHON_BUILD_ID
-    ? win.__KYCHON_BUILD_ID
-    : null;
-}
-
-function cacheMatchesCurrentBuild(parsed: { buildId?: unknown } | null | undefined): boolean {
-  const buildId = currentBuildId();
-  if (!buildId) return true;
-  return parsed?.buildId === buildId;
-}
-
-function readCache(key: string, opts: CacheOptions = {}): any {
+function readCache(key: string): any {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (opts.buildAware && !cacheMatchesCurrentBuild(parsed)) {
-      localStorage.removeItem(key);
-      return null;
-    }
     return parsed?.data ?? null;
   } catch {
     localStorage.removeItem(key);
@@ -48,21 +26,17 @@ function readCache(key: string, opts: CacheOptions = {}): any {
   }
 }
 
-function writeCache(key: string, data: any, opts: CacheOptions = {}): void {
+function writeCache(key: string, data: any): void {
   try {
-    const entry: Record<string, unknown> = { data, ts: Date.now() };
-    const buildId = opts.buildAware ? currentBuildId() : null;
-    if (buildId) entry.buildId = buildId;
-    localStorage.setItem(key, JSON.stringify(entry));
+    localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
   } catch {}
 }
 
-function isFresh(key: string, ttlMs: number, opts: CacheOptions = {}): boolean {
+function isFresh(key: string, ttlMs: number): boolean {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return false;
     const parsed = JSON.parse(raw);
-    if (opts.buildAware && !cacheMatchesCurrentBuild(parsed)) return false;
     const { ts } = parsed;
     return typeof ts === 'number' && ts + ttlMs > Date.now();
   } catch {
@@ -498,7 +472,7 @@ export function applyA11yPrefs(): void {
 // --- Main init ---
 export async function init(): Promise<Record<string, any>> {
   const isAdminPage = ADMIN_PATHS.includes(window.location.pathname);
-  const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG, { buildAware: true }) : null;
+  const cached = !isAdminPage ? readCache(WL_CACHE_CONFIG) : null;
 
   if (cached) {
     for (const key of Object.keys(siteConfig)) delete siteConfig[key];
@@ -512,9 +486,9 @@ export async function init(): Promise<Record<string, any>> {
 
     await refreshMemberRecord();
 
-    if (!isFresh(WL_CACHE_CONFIG, CONFIG_TTL, { buildAware: true })) {
+    if (!isFresh(WL_CACHE_CONFIG, CONFIG_TTL)) {
       get('site_config').then((rows: any[]) => {
-        writeCache(WL_CACHE_CONFIG, rows, { buildAware: true });
+        writeCache(WL_CACHE_CONFIG, rows);
         if (JSON.stringify(rows) !== JSON.stringify(cached)) {
           for (const key of Object.keys(siteConfig)) delete siteConfig[key];
           for (const key of Object.keys(features)) delete features[key];
@@ -532,7 +506,7 @@ export async function init(): Promise<Record<string, any>> {
       for (const key of Object.keys(siteConfig)) delete siteConfig[key];
       for (const key of Object.keys(features)) delete features[key];
       populateConfigFromRows(rows);
-      writeCache(WL_CACHE_CONFIG, rows, { buildAware: true });
+      writeCache(WL_CACHE_CONFIG, rows);
     } catch (e) {
       console.warn('Failed to load site_config:', e);
     }

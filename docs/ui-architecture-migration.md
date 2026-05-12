@@ -119,15 +119,15 @@ New UI code should not add fresh usages of those legacy utilities unless the cod
 
 Tailwind/public CSS ownership:
 
-- `src/styles/globals.css` imports Tailwind theme, Kychon's owned public CSS, and Tailwind utilities. Preflight is still not imported, so DB-rendered prose and copied block HTML keep the current reset assumptions.
+- `src/styles/globals.css` imports Tailwind theme, Kychon's token bridge, bundled chrome CSS (`theme.css`, `nav-dropdown.css`, `zone-grid.css`, `a11y.css`), Kychon's owned public CSS, and Tailwind utilities. Preflight is still not imported, so DB-rendered prose and copied block HTML keep the current reset assumptions.
 - `src/styles/public.css` replaced the old static `/css/styles.css` file. Public layout/block styles are now bundled through Astro/Vite next to Tailwind instead of loaded as a separate legacy stylesheet.
 - Tailwind-generated utility rules remain in the `utilities` cascade layer after Kychon's public CSS, so feature code can use unprefixed Tailwind utilities without an old utility layer winning by accident.
 - Kychon's layout container is `.ky-container`; `.container` is no longer a Kychon class. Kychon's muted text helper is `.ky-text-muted`; `text-muted-*` remains available for Tailwind/shadcn utilities.
-- Remaining static `public/css/*.css` files are targeted chrome/admin/block adjuncts (`theme.css`, `nav-dropdown.css`, `zone-grid.css`, `a11y.css`, `admin-editing.css`, and lazy block CSS), not the main legacy stylesheet.
+- Remaining static `public/css/*.css` files are lazy admin/block adjuncts plus compatibility copies for local tooling; portal chrome CSS is bundled from `src/styles/` and should not be linked from shared HTML.
 
 Public CSS token bridge:
 
-- `public/css/theme.css` now defines `--ky-*` runtime tokens first, maps shadcn/Tailwind semantic tokens from them, then exposes the old `--color-*` aliases as compatibility shims.
+- `src/styles/theme.css` now defines `--ky-*` runtime tokens first, maps shadcn/Tailwind semantic tokens from them, then exposes the old `--color-*` aliases as compatibility shims. The public copy is retained only for compatibility tooling.
 - Public blocks remain Astro/static, but shared public classes such as `.nav-link`, `.btn`, `.card`, `.form-input`, `.badge`, `.section-hero`, `.feature-card`, and `.section-cta` now read semantic tokens where practical.
 - Demo seeds and copied-site themes should set runtime values through `site_config.theme`, not dynamic Tailwind classes or one-off generated CSS utility names.
 

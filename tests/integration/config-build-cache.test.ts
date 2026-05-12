@@ -50,11 +50,9 @@ describe('site_config cache build awareness', () => {
     const testWindow = window as Window & {
       __KYCHON_API: string;
       __KYCHON_ANON_KEY: string;
-      __KYCHON_BUILD_ID?: string;
     };
     testWindow.__KYCHON_API = 'https://api.test';
     testWindow.__KYCHON_ANON_KEY = 'test_key';
-    testWindow.__KYCHON_BUILD_ID = 'new-build';
   });
 
   afterEach(() => {
@@ -62,12 +60,11 @@ describe('site_config cache build awareness', () => {
     vi.unstubAllGlobals();
   });
 
-  it('fetches fresh site_config instead of applying a different deploy cache entry', async () => {
+  it('fetches fresh site_config when the local cache is stale', async () => {
     const store = installLocalStorage();
     store.wl_cache_site_config = JSON.stringify({
       data: staleConfig,
-      ts: Date.now(),
-      buildId: 'old-build',
+      ts: Date.now() - 10 * 60 * 1000,
     });
     store.wl_cache_i18n_en = JSON.stringify({ data: {}, ts: Date.now() });
 
@@ -85,15 +82,19 @@ describe('site_config cache build awareness', () => {
 
     await init();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.test/functions/v1/kychon-api',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('"operation":"config.get"'),
-      }),
-    );
-    expect(siteConfig.brand_text).toBe('AAGE');
-    expect(JSON.parse(store.wl_cache_site_config).buildId).toBe('new-build');
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.test/functions/v1/kychon-api',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"operation":"config.get"'),
+        }),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(siteConfig.brand_text).toBe('AAGE');
+    });
+    expect(JSON.parse(store.wl_cache_site_config).data).toEqual(freshConfig);
   });
 
   it('attaches an admin member by session email when the auth user id changed', async () => {

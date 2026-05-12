@@ -32,10 +32,7 @@
     if (cssLoaded) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    const buildId = (window as any).__KYCHON_BUILD_ID;
-    link.href = buildId
-      ? `/css/admin-editing.css?b=${encodeURIComponent(String(buildId))}`
-      : '/css/admin-editing.css';
+    link.href = '/css/admin-editing.css';
     document.head.appendChild(link);
     cssLoaded = true;
   }

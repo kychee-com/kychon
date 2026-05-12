@@ -3,15 +3,16 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const portalSource = readFileSync(join(import.meta.dirname, '../../src/layouts/Portal.astro'), 'utf-8');
-const buildIdTemplate = '$' + '{BUILD_ID}';
+const globalsSource = readFileSync(join(import.meta.dirname, '../../src/styles/globals.css'), 'utf-8');
 
 describe('Portal asset URLs', () => {
-  it('versions every chrome-critical stylesheet with BUILD_ID', () => {
+  it('keeps chrome-critical styles in the Astro/Vite import graph', () => {
     const stylesheets = ['theme.css', 'nav-dropdown.css', 'zone-grid.css', 'a11y.css'];
 
+    expect(portalSource).toContain("import '../styles/globals.css'");
     for (const file of stylesheets) {
-      expect(portalSource).toContain(`/css/${file}?b=`);
-      expect(portalSource).toContain(buildIdTemplate);
+      expect(globalsSource).toContain(`@import "./${file}"`);
+      expect(portalSource).not.toContain(`/css/${file}`);
     }
   });
 
@@ -20,16 +21,16 @@ describe('Portal asset URLs', () => {
     expect(portalSource).not.toContain('/css/styles.css?b=');
   });
 
-  it('versions env.js with BUILD_ID', () => {
-    expect(portalSource).toContain('/js/env.js?b=');
-    expect(portalSource).toContain(buildIdTemplate);
+  it('loads env.js from its stable runtime config URL', () => {
+    expect(portalSource).toContain('src="/js/env.js"');
+    expect(portalSource).not.toContain('/js/env.js?b=');
   });
 
-  it('exposes BUILD_ID to client cache logic', () => {
-    expect(portalSource).toContain("import { KYCHON_BUILD_ID } from '../lib/build-id'");
-    expect(portalSource).toContain('const BUILD_ID = KYCHON_BUILD_ID');
-    expect(portalSource).toContain('define:vars={{ BUILD_ID }}');
-    expect(portalSource).toContain('__KYCHON_BUILD_ID');
+  it('does not expose a generated build id in shared portal HTML', () => {
+    expect(portalSource).not.toContain('BUILD_ID');
+    expect(portalSource).not.toContain('build-id');
+    expect(portalSource).not.toContain('__KYCHON_BUILD_ID');
+    expect(portalSource).not.toContain('?b=');
   });
 
   it('keeps chrome hydration owned by the layout including config changes', () => {
