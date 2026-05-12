@@ -12,7 +12,6 @@ import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
 
 import { resolveActiveProjectSeed } from '../seeds';
-import { KYCHON_BUILD_ID } from '../lib/build-id';
 import { bakeChrome } from '../lib/chrome-bake';
 import { buildCspValue } from '../lib/csp';
 import { isDemoModeSeed } from '../lib/demo-mode';
@@ -23,12 +22,6 @@ interface Props {
 }
 
 const { title, robots } = Astro.props;
-// Build-time cache-buster for /js/env.js. The deploy injects fresh
-// __KYCHON_* globals into env.js, but the file's URL is otherwise stable —
-// browsers from a previous deploy can ship a stale cached copy that
-// references retired globals (e.g. __WILDLYCHEE_API). The build-id query
-// string changes on every build, forcing a refetch.
-const BUILD_ID = KYCHON_BUILD_ID;
 
 // --- Build-time bake of chrome zones ---
 // The bake can come from a typed seed, an external port snapshot, or a neutral
@@ -52,15 +45,8 @@ const cspValue = buildCspValue();
     ? <link rel="icon" type="image/svg+xml" href={chrome.faviconUrl} />
     : <link rel="icon" href={chrome.faviconUrl} />}
   {chrome.fontHead && <Fragment set:html={chrome.fontHead} />}
-  <link rel="stylesheet" href={`/css/theme.css?b=${BUILD_ID}`}>
-  <link rel="stylesheet" href={`/css/nav-dropdown.css?b=${BUILD_ID}`}>
-  <link rel="stylesheet" href={`/css/zone-grid.css?b=${BUILD_ID}`}>
-  <link rel="stylesheet" href={`/css/a11y.css?b=${BUILD_ID}`}>
   {chrome.customCss && <style is:inline set:html={chrome.customCss}></style>}
   <ClientRouter />
-  <script is:inline define:vars={{ BUILD_ID }}>
-    window.__KYCHON_BUILD_ID = BUILD_ID;
-  </script>
   <script is:inline>
     (function applyTheme() {
       var t = localStorage.getItem('wl_theme');
@@ -90,7 +76,7 @@ const cspValue = buildCspValue();
       });
     });
   </script>
-  <script is:inline src={`/js/env.js?b=${BUILD_ID}`}></script>
+  <script is:inline src="/js/env.js"></script>
 </head>
 <body>
   <a href="#main-content" class="wl-skip-nav">Skip to main content</a>

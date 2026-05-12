@@ -1,0 +1,221 @@
+/* nav-dropdown.css — disclosure-button dropdowns for the `nav` block.
+   Member-facing chrome. Hover-open on pointer devices, focus-open via JS,
+   inline expansion on touch / narrow viewports. */
+
+.nav-item-wrap {
+  position: relative;
+  display: inline-flex;
+  /* No align-items here: let the inner <a class="nav-link nav-parent"> stretch
+     to the same cross-axis height as its plain `.nav-link` siblings in the
+     `.nav-links` flex row. With `align-items: center` (previous value) the
+     link shrunk to its content height and centered, which pushed its text
+     ~11px lower than the rest of the nav. */
+}
+
+/* `.nav-link.nav-parent` is the <a> inside the wrap (when the parent has its
+   own href). Inherit `.nav-link`'s `display: block` + padding so the text
+   baseline matches plain sibling links. We don't need flex here — there's
+   no chevron INSIDE this <a>; the chevron is a sibling button next to it. */
+.nav-link.nav-parent {
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* `.nav-link.nav-parent-button` is the <button> case (no href). Text and the
+   inline <span class="nav-chevron"> sit beside each other naturally because
+   the span is inline. Default button display + the inherited padding line
+   the text up with siblings. */
+.nav-link.nav-parent-button {
+  display: inline-block;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nav-link.nav-parent-button > .nav-chevron {
+  margin-left: 0.25rem;
+}
+
+/* The separate chevron toggle button. Sized 32x32 (a11y tap target) but
+   inline-block + vertical-align so the ▾ glyph aligns with the adjacent
+   <a>'s text rather than centering inside the row's full height. */
+.nav-chevron-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.25rem;
+  margin-left: -0.25rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--nav-chevron-color, var(--color-text-muted));
+  cursor: pointer;
+  transition: background var(--nav-transition, var(--transition)), color var(--nav-transition, var(--transition));
+  align-self: center;
+}
+
+.nav-chevron-toggle:hover {
+  background: var(--nav-link-hover-bg, var(--color-surface));
+  color: var(--nav-link-hover-color, var(--color-text));
+}
+
+.nav-chevron {
+  font-size: 0.75rem;
+  line-height: 1;
+  transition: transform 150ms ease;
+  display: inline-block;
+}
+
+.nav-chevron-toggle[aria-expanded="true"] .nav-chevron,
+.nav-link.nav-parent-button[aria-expanded="true"] .nav-chevron {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+.nav-dropdown[hidden] {
+  display: none;
+}
+
+.nav-dropdown li {
+  list-style: none;
+}
+
+.nav-menuitem {
+  display: block;
+  padding: 0.5rem 1rem;
+  color: var(--nav-dropdown-color, var(--color-text-muted));
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: var(--radius);
+  transition: background var(--nav-transition, var(--transition)), color var(--nav-transition, var(--transition));
+}
+
+.nav-menuitem:hover,
+.nav-menuitem:focus {
+  background: var(--nav-dropdown-hover-bg, var(--color-surface));
+  color: var(--nav-dropdown-hover-color, var(--color-text));
+  outline: none;
+}
+
+.nav-menuitem.active {
+  color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+[data-theme="dark"] .nav-menuitem.active {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.35);
+}
+
+/* Desktop / pointer devices: absolute-positioned fly-out, hover + focus open */
+@media (hover: hover) and (pointer: fine) {
+  .nav-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: var(--nav-dropdown-width, 12rem);
+    background: var(--nav-dropdown-bg, var(--color-bg));
+    border: var(--nav-dropdown-border, 1px solid var(--color-border));
+    border-radius: var(--radius);
+    box-shadow: var(--nav-dropdown-shadow, var(--shadow-md));
+    z-index: 50;
+    /* Zero gap between trigger and menu — cursor must not cross dead space. */
+    margin-top: var(--nav-dropdown-offset-y, 0);
+    margin-left: var(--nav-dropdown-offset-x, 0);
+  }
+
+  .nav-dropdown-nested {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    margin-left: 0.25rem;
+  }
+
+  .nav-dropdown-parent {
+    position: relative;
+  }
+
+  /* Hover-open: keep open while cursor is on trigger or inside menu.
+     `.nav-suppress-hover` is added briefly when JS closes the menu (Escape /
+     click-outside) so the close feels immediate even while still hovering. */
+  .nav-item-wrap:not(.nav-suppress-hover):hover > .nav-dropdown,
+  .nav-item-wrap:not(.nav-suppress-hover):focus-within > .nav-dropdown,
+  .nav-dropdown-parent:not(.nav-suppress-hover):hover > .nav-dropdown-nested,
+  .nav-dropdown-parent:not(.nav-suppress-hover):focus-within > .nav-dropdown-nested {
+    display: block;
+  }
+
+  /* JS-controlled aria-expanded="true" also forces open (covers focus + click). */
+  .nav-dropdown:not([hidden]) {
+    display: block;
+    animation: nav-dropdown-fade var(--nav-transition, 150ms ease-out);
+  }
+
+  @keyframes nav-dropdown-fade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* Focus ring for keyboard users on all triggers + menuitems */
+.nav-chevron-toggle:focus-visible,
+.nav-link.nav-parent-button:focus-visible,
+.nav-menuitem:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-color: var(--nav-focus-color, var(--color-primary));
+  outline-offset: 2px;
+}
+
+/* Mobile / no-hover: inline accordion expansion under the hamburger */
+@media (hover: none), (max-width: 768px) {
+  .nav-item-wrap {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-item-wrap > .nav-link.nav-parent,
+  .nav-item-wrap > .nav-link.nav-parent-button {
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  .nav-dropdown {
+    position: static;
+    background: var(--nav-mobile-submenu-bg, transparent);
+    border: none;
+    box-shadow: none;
+    padding-left: var(--nav-mobile-submenu-indent, 1.5rem);
+    width: 100%;
+  }
+
+  .nav-dropdown-nested {
+    padding-left: 1.5rem;
+  }
+
+  .nav-dropdown[hidden] {
+    display: none;
+  }
+
+  .nav-dropdown:not([hidden]) {
+    display: block;
+  }
+
+  .nav-menuitem {
+    padding: 0.625rem 0.75rem;
+  }
+}

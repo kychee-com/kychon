@@ -13,6 +13,12 @@ import {
 const REPO_ROOT = process.cwd();
 const HEADERS_PATH = join(REPO_ROOT, 'public', '_headers');
 
+function requireCsp(headersContent: string): string {
+  const csp = extractCsp(headersContent);
+  if (!csp) throw new Error('Expected headers content to include a CSP directive');
+  return csp;
+}
+
 describe('public/_headers template structure', () => {
   it('exists and is non-empty', () => {
     const raw = readFileSync(HEADERS_PATH, 'utf-8');
@@ -22,6 +28,8 @@ describe('public/_headers template structure', () => {
   it('matches the directive set every Kychon project must ship', () => {
     const raw = readHeadersTemplate();
     const required = [
+      '/js/env.js',
+      'Cache-Control: no-cache, max-age=0, must-revalidate',
       'Content-Security-Policy:',
       'X-Content-Type-Options: nosniff',
       'X-Frame-Options: SAMEORIGIN',
@@ -53,21 +61,21 @@ describe('public/_headers template structure', () => {
 
   it('CSP allows v1 unsafe-inline for scripts and styles (documented compromise)', () => {
     const raw = readHeadersTemplate();
-    const csp = extractCsp(raw)!;
+    const csp = requireCsp(raw);
     expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
     expect(csp).toMatch(/style-src[^;]*'unsafe-inline'/);
   });
 
   it('CSP allows the Google Fonts stylesheet and font files used by baked themes', () => {
     const raw = readHeadersTemplate();
-    const csp = extractCsp(raw)!;
+    const csp = requireCsp(raw);
     expect(csp).toMatch(/style-src[^;]*https:\/\/fonts\.googleapis\.com/);
     expect(csp).toMatch(/font-src[^;]*https:\/\/fonts\.gstatic\.com/);
   });
 
   it('CSP forbids unsafe-eval and wildcards in critical directives', () => {
     const raw = readHeadersTemplate();
-    const csp = extractCsp(raw)!;
+    const csp = requireCsp(raw);
     expect(csp).not.toContain("'unsafe-eval'");
     // No bare `*` token in critical directives.
     expect(csp).not.toMatch(/default-src[^;]*\s\*\s/);

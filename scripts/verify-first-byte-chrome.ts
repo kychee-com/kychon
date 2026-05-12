@@ -62,17 +62,25 @@ function urlFor(base: string, path: string): string {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-function assertFreshAssetUrls(html: string, path: string): void {
-  const expected = [
-    '/css/theme.css?b=',
-    '/css/nav-dropdown.css?b=',
-    '/css/zone-grid.css?b=',
-    '/css/a11y.css?b=',
-    '/js/env.js?b=',
+function assertStableAssetUrls(html: string, path: string): void {
+  if (html.includes('?b=')) {
+    throw new Error(`${path}: contains timestamp build-id asset query`);
+  }
+  if (!html.includes('/js/env.js')) {
+    throw new Error(`${path}: missing stable env.js runtime config URL`);
+  }
+  if (html.includes('/js/env.js?')) {
+    throw new Error(`${path}: env.js must be loaded from a stable URL`);
+  }
+  const retiredStaticLinks = [
+    '/css/theme.css',
+    '/css/nav-dropdown.css',
+    '/css/zone-grid.css',
+    '/css/a11y.css',
   ];
-  for (const marker of expected) {
-    if (!html.includes(marker)) {
-      throw new Error(`${path}: missing deploy-fresh asset marker ${marker}`);
+  for (const marker of retiredStaticLinks) {
+    if (html.includes(marker)) {
+      throw new Error(`${path}: chrome stylesheet should be bundled, not linked as ${marker}`);
     }
   }
   if (!/\/_astro\/[^"']+\.css/.test(html)) {
@@ -94,7 +102,7 @@ async function main(): Promise<void> {
       if (opts.forbid && html.includes(opts.forbid)) {
         throw new Error(`contains forbidden brand "${opts.forbid}"`);
       }
-      assertFreshAssetUrls(html, path);
+      assertStableAssetUrls(html, path);
       process.stdout.write(`ok ${path}\n`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
