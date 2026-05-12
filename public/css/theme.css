@@ -69,7 +69,7 @@
   --nav-header-border-bottom: 1px solid var(--color-border);
   --nav-header-shadow: none;
   --nav-header-gap: 1.5rem;
-  --nav-header-wrap: nowrap;
+  --nav-header-wrap: wrap;
   --nav-header-align-items: center;
   --nav-logo-max-height: 2rem;
   --nav-wordmark-max-height: 2.25rem;
@@ -86,7 +86,7 @@
   --nav-links-padding: 0;
   --nav-links-radius: 0;
   --nav-links-shadow: none;
-  --nav-links-wrap: nowrap;
+  --nav-links-wrap: wrap;
   --nav-mobile-menu-bg: rgba(255, 255, 255, 0.95);
   --social-link-size: 1.875rem;
   --social-link-icon-size: 1rem;

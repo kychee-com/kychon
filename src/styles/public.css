@@ -137,8 +137,9 @@ a:hover {
 }
 .nav-brand {
   order: 1;
-  flex: 0 1 var(--nav-brand-width, 13rem);
+  flex: 0 1 var(--nav-brand-width, 11rem);
   min-width: 0;
+  overflow: hidden;
   font-weight: var(--brand-text-weight, 700);
   font-size: var(--brand-text-size, 1.125rem);
   color: var(--brand-text-color, var(--foreground, var(--color-text)));
@@ -173,13 +174,14 @@ a:hover {
   /* Pure text mode inherits .nav-brand sizing — nothing extra. */
 }
 .brand-header .brand-text {
-  display: inline-flex;
-  align-items: center;
+  display: block;
   min-width: 0;
+  width: 100%;
   max-width: 100%;
+  overflow: hidden;
 }
 .brand-header .brand-text--full {
-  display: inline;
+  display: block;
 }
 .brand-header .brand-text--short {
   display: none;
@@ -191,18 +193,22 @@ a:hover {
     display: none;
   }
   .brand-header .brand-text--short {
-    display: inline;
+    display: block;
   }
 }
 .brand-header .brand-copy {
   display: grid;
   gap: 0.05rem;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   line-height: 1.05;
 }
 .brand-header .brand-text--full,
 .brand-header .brand-text--short,
 .brand-header .brand-subtitle {
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -216,7 +222,9 @@ a:hover {
   order: 2;
   display: flex;
   flex-wrap: var(--nav-links-wrap, nowrap);
+  align-items: center;
   gap: var(--nav-link-gap, 0.25rem);
+  row-gap: var(--nav-link-row-gap, 0.25rem);
   flex: 1 1 auto;
   min-width: 0;
   justify-content: var(--nav-links-justify, center);
@@ -1705,15 +1713,10 @@ tr:hover td {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  h1 {
-    font-size: 1.75rem;
-  }
-  .section-hero {
-    padding: 3rem 0;
-  }
-  .section-features .features-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1200px) {
+  .nav .ky-container {
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
   .nav-toggle {
     display: block;
@@ -1746,6 +1749,18 @@ tr:hover td {
   .nav-user {
     order: 4;
     min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+  .section-hero {
+    padding: 3rem 0;
+  }
+  .section-features .features-grid {
+    grid-template-columns: 1fr;
   }
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2580,7 +2595,13 @@ tr:hover td {
   max-width: 18rem;
   padding: 0;
 }
+.nav .section-site-search:not(.section-site-search--icon) {
+  order: 6;
+  flex: 1 0 100%;
+  max-width: none;
+}
 .nav .section-site-search--icon {
+  order: 3;
   flex: 0 0 auto;
   max-width: none;
 }

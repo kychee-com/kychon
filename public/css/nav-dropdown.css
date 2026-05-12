@@ -52,7 +52,7 @@
   min-width: 2rem;
   min-height: 2rem;
   padding: 0.25rem;
-  margin-left: -0.25rem;
+  margin-left: 0;
   background: none;
   border: none;
   border-radius: var(--radius);
