@@ -592,19 +592,20 @@ export async function hydrateSignInBar(
     ko: '한국어',
   };
   const langBtn = showLangToggle && locales.length >= 2
-    ? `<button class="btn btn-sm btn-secondary" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
+    ? `<button class="btn btn-sm btn-secondary nav-utility-button" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
     : '';
   const themeBtn = showThemeToggle
-    ? `<button class="btn btn-sm btn-secondary" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '☀️' : '🌙'}</button>`
+    ? `<button class="btn btn-sm btn-secondary nav-utility-button" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '☀️' : '🌙'}</button>`
     : '';
   if (!session) {
-    root.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm" id="login-btn">${t('nav.sign_in')}</button>`;
+    root.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm nav-sign-in" id="login-btn">${t('nav.sign_in')}</button>`;
   } else {
     const user = session.user || {};
+    const accountLabel = user.display_name || user.email || 'Account';
     const avatar = user.avatar_url
       ? `<img class="nav-avatar" src="${esc(user.avatar_url)}" alt="" width="32" height="32">`
-      : `<div class="nav-avatar" style="background:var(--color-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.875rem">${(user.display_name || user.email || '?')[0].toUpperCase()}</div>`;
-    root.innerHTML = `${langBtn}${themeBtn}<a href="/profile" class="nav-link">${avatar}</a><button class="btn btn-sm btn-secondary" id="logout-btn">Sign Out</button>`;
+      : `<span class="nav-avatar nav-avatar-fallback">${(accountLabel[0] || '?').toUpperCase()}</span>`;
+    root.innerHTML = `${langBtn}${themeBtn}<details class="nav-account"><summary class="nav-avatar-button" aria-label="${esc(accountLabel)} account menu">${avatar}</summary><div class="nav-account-menu"><a href="/profile" class="nav-account-menu__item">${t('nav.profile')}</a><button class="nav-account-menu__item" type="button" id="logout-btn">${t('nav.sign_out')}</button></div></details>`;
   }
   document.getElementById('login-btn')?.addEventListener('click', (event) => {
     const trigger = event.currentTarget as HTMLElement;

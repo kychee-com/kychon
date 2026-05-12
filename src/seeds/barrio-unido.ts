@@ -3,15 +3,28 @@ import type { ProjectSeed } from './types.js';
 const BARRIO_NAV = [
   { label: 'Inicio', href: '/', icon: 'home', public: true },
   { label: 'Nosotros', href: '/nosotros', icon: 'info', public: true },
-  { label: 'Miembros', href: '/directory', icon: 'users', auth: true, feature: 'feature_directory' },
   { label: 'Eventos', href: '/events', icon: 'calendar', feature: 'feature_events' },
   { label: 'Recursos', href: '/resources', icon: 'book-open', feature: 'feature_resources' },
-  { label: 'Foro', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
-  { label: 'Encuestas', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
-  { label: 'Programas', href: '/committees', icon: 'heart', feature: 'feature_committees' },
-  { label: 'Panel', href: '/admin', icon: 'bar-chart-2', admin: true },
-  { label: 'Miembros', href: '/admin-members', icon: 'users', admin: true },
-  { label: 'Configuración', href: '/admin-settings', icon: 'settings', admin: true },
+  {
+    label: 'Comunidad',
+    icon: 'users',
+    children: [
+      { label: 'Miembros', href: '/directory', icon: 'users', auth: true, feature: 'feature_directory' },
+      { label: 'Foro', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
+      { label: 'Encuestas', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
+      { label: 'Programas', href: '/committees', icon: 'heart', feature: 'feature_committees' },
+    ],
+  },
+  {
+    label: 'Admin',
+    icon: 'settings',
+    admin: true,
+    children: [
+      { label: 'Panel', href: '/admin', icon: 'bar-chart-2', admin: true },
+      { label: 'Miembros', href: '/admin-members', icon: 'users', admin: true },
+      { label: 'Configuración', href: '/admin-settings', icon: 'settings', admin: true },
+    ],
+  },
 ];
 
 const NOSOTROS_HTML = `<img src="/assets/about.jpg" alt="Comunidad de Barrio Unido" style="width:100%;border-radius:0.75rem;margin-bottom:2rem"><h2>Nuestra Historia</h2><p>Barrio Unido nació en 2018 cuando un grupo de vecinos de Boyle Heights decidió que nuestra comunidad merecía un espacio propio — un lugar donde cualquier persona pudiera encontrar ayuda, aprender, conectar y celebrar.</p><p>Lo que empezó como una mesa con café y formularios de inmigración en el garaje de Lucía Ramírez, hoy es un centro comunitario que sirve a más de 2,400 familias al año.</p><h2>Nuestra Misión</h2><p>Empoderar a las familias inmigrantes y latinx de East Los Angeles proporcionando servicios legales, educación, alimentos y espacios culturales — todo gratuito, todo con dignidad.</p><h2>Cómo Participar</h2><p>No importa si hablas español, inglés o ambos. No importa tu estatus migratorio. No importa cuánto tiempo lleves en el barrio. <strong>Aquí hay un lugar para ti.</strong></p><ul><li>Ven a un evento y conoce a la comunidad</li><li>Inscríbete como voluntario/a</li><li>Dona a nuestra despensa de alimentos</li><li>Comparte nuestros recursos con alguien que los necesite</li></ul>`;
@@ -26,7 +39,7 @@ export const seed: ProjectSeed = {
       category: 'branding',
     },
     // Logo is square 256×256 → brand_icon_url. Picker rule: icon + text.
-    brand_text: { value: 'Centro Comunitario Barrio Unido', category: 'branding' },
+    brand_text: { value: 'Barrio Unido', category: 'branding' },
     brand_text_short: { value: 'Barrio Unido', category: 'branding' },
     brand_icon_url: { value: '/assets/logo.png', category: 'branding' },
     brand_wordmark_url: { value: '', category: 'branding' },
@@ -60,16 +73,17 @@ export const seed: ProjectSeed = {
           background: 'color-mix(in srgb, var(--ky-color-bg) 88%, transparent)',
           border_bottom: '1px solid color-mix(in srgb, var(--ky-color-primary) 18%, var(--ky-color-border))',
           shadow: '0 10px 28px rgba(194, 85, 58, 0.08)',
-          padding: '0.9rem 0',
-          logo_max_height: '2.4rem',
+          padding: '0.5rem 0',
+          logo_max_height: '2rem',
           brand_text_color: 'var(--ky-color-text)',
         },
         nav: {
           surface_bg: 'color-mix(in srgb, var(--ky-color-accent) 8%, var(--ky-color-bg))',
           surface_padding: '0.25rem',
           surface_radius: '999px',
-          link_padding: '0.45rem 0.75rem',
+          link_padding: '0.4rem 0.65rem',
           link_radius: '999px',
+          font_size: '0.84rem',
           link_active_bg: 'color-mix(in srgb, var(--ky-color-primary) 16%, var(--ky-color-bg))',
           link_active_color: 'var(--ky-color-primary)',
           link_hover_bg: 'color-mix(in srgb, var(--ky-color-accent) 14%, var(--ky-color-bg))',
@@ -169,7 +183,7 @@ export const seed: ProjectSeed = {
       zone: 'header',
       scope: 'global',
       section_type: 'brand_header',
-      config: { href: '/' },
+      config: { href: '/', title: 'Barrio Unido', short_title: 'Barrio Unido', subtitle: 'Centro Comunitario' },
       position: 1,
     },
     {
@@ -198,6 +212,7 @@ export const seed: ProjectSeed = {
         submit_label: 'Buscar',
         destination: '/search',
         compact: true,
+        mode: 'header_icon',
         default_type: 'all',
       },
       position: 4,

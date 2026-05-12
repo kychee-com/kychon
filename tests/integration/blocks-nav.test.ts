@@ -185,6 +185,30 @@ describe('nav block — nested children', () => {
     expect(html).toContain('aria-haspopup="menu"');
   });
 
+  it('does not mark href-less parent menus active on home', () => {
+    const section = makeSection([
+      {
+        label: 'Community',
+        children: [{ label: 'Forum', href: '/forum' }],
+      },
+    ]);
+    const html = BLOCK_TYPES.nav.render(section, baseCtx);
+    expect(html).toContain('nav-parent-button');
+    expect(html).not.toContain('nav-parent-button active');
+  });
+
+  it('marks href-less parent menus active when a child matches', () => {
+    const section = makeSection([
+      {
+        label: 'Community',
+        children: [{ label: 'Forum', href: '/forum' }],
+      },
+    ]);
+    const html = BLOCK_TYPES.nav.render(section, { ...baseCtx, currentPath: '/forum' });
+    expect(html).toContain('nav-parent-button active');
+    expect(html).toContain('class="nav-menuitem active" href="/forum"');
+  });
+
   it('supports recursive children at depth ≥ 2', () => {
     const section = makeSection([
       {

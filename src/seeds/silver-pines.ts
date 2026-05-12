@@ -4,8 +4,6 @@ const SILVER_PINES_NAV = [
   { label: 'Home', href: '/', icon: 'home', public: true },
   { label: 'Daily Schedule', href: '/daily-schedule', icon: 'calendar', public: true },
   { label: 'Getting Here', href: '/getting-here', icon: 'map', public: true },
-  { label: 'Block Showcase', href: '/showcase', icon: 'star', public: true },
-  { label: 'Our Members', href: '/directory', icon: 'users', public: true },
   { label: 'Events', href: '/events', icon: 'calendar', feature: 'feature_events' },
   {
     label: 'Resources',
@@ -19,13 +17,34 @@ const SILVER_PINES_NAV = [
       { label: 'Technology', href: '/resources?category=Technology', public: true },
     ],
   },
-  { label: 'Forum', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
-  { label: 'Polls', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
-  { label: 'Committees', href: '/committees', icon: 'briefcase', feature: 'feature_committees' },
-  { label: 'Announcements', href: '/#announcements-section', icon: 'bell', public: true },
-  { label: 'Dashboard', href: '/admin', icon: 'bar-chart-2', admin: true },
-  { label: 'Members', href: '/admin-members', icon: 'users', admin: true },
-  { label: 'Settings', href: '/admin-settings', icon: 'settings', admin: true },
+  {
+    label: 'Community',
+    icon: 'users',
+    children: [
+      { label: 'Our Members', href: '/directory', icon: 'users', public: true },
+      { label: 'Forum', href: '/forum', icon: 'message-circle', feature: 'feature_forum' },
+      { label: 'Polls', href: '/polls', icon: 'bar-chart', feature: 'feature_polls' },
+      { label: 'Committees', href: '/committees', icon: 'briefcase', feature: 'feature_committees' },
+      { label: 'Announcements', href: '/#announcements-section', icon: 'bell', public: true },
+    ],
+  },
+  {
+    label: 'More',
+    icon: 'star',
+    children: [
+      { label: 'Block Showcase', href: '/showcase', icon: 'star', public: true },
+    ],
+  },
+  {
+    label: 'Admin',
+    icon: 'settings',
+    admin: true,
+    children: [
+      { label: 'Dashboard', href: '/admin', icon: 'bar-chart-2', admin: true },
+      { label: 'Members', href: '/admin-members', icon: 'users', admin: true },
+      { label: 'Settings', href: '/admin-settings', icon: 'settings', admin: true },
+    ],
+  },
 ];
 
 const GETTING_HERE_HTML = `<div style="max-width:52rem"><p style="font-size:1.25rem;color:var(--color-text-muted);margin-bottom:2rem">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class="mb-2" style="border-radius:var(--radius,8px);overflow:hidden"><iframe src="https://maps.google.com/maps?q=142+Pine+Street,+Asheville,+NC+28801&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="300" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style="margin:1rem 0 1rem 1.5rem"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href='/resources'>download the full schedule</a>.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class="card mb-2" style="padding:2rem"><h3 style="margin-bottom:1rem">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class="card mb-2" style="padding:2rem;border-left:4px solid var(--color-primary)"><h3 style="margin-bottom:1rem">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style="margin:1rem 0 0 1.5rem"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>`;
@@ -42,7 +61,7 @@ export const seed: ProjectSeed = {
       category: 'branding',
     },
     // Logo is square 1024×1024 → brand_icon_url. Picker rule: icon + text.
-    brand_text: { value: 'Silver Pines Senior Center', category: 'branding' },
+    brand_text: { value: 'Silver Pines', category: 'branding' },
     brand_text_short: { value: 'Silver Pines', category: 'branding' },
     brand_icon_url: { value: '/assets/logo.png', category: 'branding' },
     brand_wordmark_url: { value: '', category: 'branding' },
@@ -76,16 +95,17 @@ export const seed: ProjectSeed = {
           background: 'color-mix(in srgb, var(--ky-color-bg) 90%, transparent)',
           border_bottom: '1px solid color-mix(in srgb, var(--ky-color-primary) 18%, var(--ky-color-border))',
           shadow: '0 10px 28px rgba(74, 107, 77, 0.08)',
-          padding: '0.95rem 0',
-          logo_max_height: '2.45rem',
+          padding: '0.5rem 0',
+          logo_max_height: '2rem',
           brand_text_color: 'var(--ky-color-text)',
         },
         nav: {
           surface_bg: 'color-mix(in srgb, var(--ky-color-primary) 7%, var(--ky-color-bg))',
           surface_padding: '0.25rem',
           surface_radius: '999px',
-          link_padding: '0.45rem 0.75rem',
+          link_padding: '0.4rem 0.65rem',
           link_radius: '999px',
+          font_size: '0.84rem',
           link_active_bg: 'color-mix(in srgb, var(--ky-color-primary) 16%, var(--ky-color-bg))',
           link_active_color: 'var(--ky-color-primary)',
           link_hover_bg: 'color-mix(in srgb, var(--ky-color-accent) 14%, var(--ky-color-bg))',
@@ -177,7 +197,7 @@ export const seed: ProjectSeed = {
       zone: 'header',
       scope: 'global',
       section_type: 'brand_header',
-      config: { href: '/' },
+      config: { href: '/', title: 'Silver Pines', short_title: 'Silver Pines', subtitle: 'Senior Center' },
       position: 1,
     },
     {
@@ -206,6 +226,7 @@ export const seed: ProjectSeed = {
         submit_label: 'Search',
         destination: '/search',
         compact: true,
+        mode: 'header_icon',
         default_type: 'all',
       },
       position: 4,

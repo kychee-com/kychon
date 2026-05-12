@@ -985,6 +985,13 @@ function navItemVisible(item: NavItem, ctx: BlockRenderContext): boolean {
   return true;
 }
 
+function navItemActive(item: NavItem, ctx: BlockRenderContext): boolean {
+  const href = typeof item.href === 'string' ? item.href.trim() : '';
+  if (href && isPageActive(cleanHref(href, ''), ctx.currentPath)) return true;
+  const children = Array.isArray(item.children) ? item.children : [];
+  return children.some((child) => navItemVisible(child, ctx) && navItemActive(child, ctx));
+}
+
 function navMenuId(item: NavItem, path: string): string {
   const slug = String(item.label || 'menu')
     .toLowerCase()
@@ -1006,7 +1013,7 @@ function renderNavChild(item: NavItem, ctx: BlockRenderContext, path: string, de
   const hasKids = Array.isArray(item.children) && item.children.length > 0
     && item.children.some((c) => navItemVisible(c, ctx));
   const href = cleanHref(item.href, '#');
-  const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
+  const active = navItemActive(item, ctx) ? ' active' : '';
   if (!hasKids) {
     return `<li role="none"><a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a></li>`;
   }
@@ -1022,7 +1029,7 @@ function renderNavTopItem(item: NavItem, ctx: BlockRenderContext, idx: number): 
   const hasKids = Array.isArray(item.children) && item.children.length > 0
     && item.children.some((c) => navItemVisible(c, ctx));
   const href = cleanHref(item.href, '');
-  const active = isPageActive(href, ctx.currentPath) ? ' active' : '';
+  const active = navItemActive(item, ctx) ? ' active' : '';
   if (!hasKids) {
     return `<a class="nav-link${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`;
   }
@@ -1134,8 +1141,11 @@ const BRAND_HEADER: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const href = cleanHref(cfg.href, '/');
-    const brandText = ctx.brandText || ctx.siteName || 'Kychon';
-    const brandTextShort = ctx.brandTextShort || '';
+    const configuredTitle = typeof cfg.title === 'string' ? cfg.title.trim() : '';
+    const configuredShortTitle = typeof cfg.short_title === 'string' ? cfg.short_title.trim() : '';
+    const brandText = configuredTitle || ctx.brandText || ctx.siteName || 'Kychon';
+    const brandTextShort = configuredShortTitle || ctx.brandTextShort || '';
+    const brandSubtitle = typeof cfg.subtitle === 'string' ? cfg.subtitle.trim() : '';
     const iconUrl = ctx.brandIconUrl || '';
     const wordmarkUrl = ctx.brandWordmarkUrl || '';
 
@@ -1160,7 +1170,10 @@ const BRAND_HEADER: BlockType = {
       const shortSpan = brandTextShort
         ? `<span class="brand-text--short"${editableTextShort}>${escHtml(brandTextShort)}</span>`
         : '';
-      return `<a href="${escAttr(href)}" class="brand-header brand-header--icon nav-brand" aria-label="${escAttr(brandText)}"><img class="brand-icon" src="${escAttr(iconUrl)}" alt=""${editableIcon}><span class="brand-text"><span class="brand-text--full"${editableText}>${escHtml(brandText)}</span>${shortSpan}</span></a>`;
+      const subtitleSpan = brandSubtitle
+        ? `<span class="brand-subtitle">${escHtml(brandSubtitle)}</span>`
+        : '';
+      return `<a href="${escAttr(href)}" class="brand-header brand-header--icon nav-brand" aria-label="${escAttr(brandText)}"><img class="brand-icon" src="${escAttr(iconUrl)}" alt=""${editableIcon}><span class="brand-copy"><span class="brand-text"><span class="brand-text--full"${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
     }
     if (wordmarkUrl) {
       // Mode 2: wordmark alone — the image already contains the org name, so
@@ -1207,6 +1220,11 @@ const SITE_SEARCH: BlockType = {
     const destination = cleanHref(cfg.destination, '/search');
     const placeholder = cfg.placeholder || 'Search this site';
     const submitLabel = cfg.submit_label || 'Search';
+    const mode = cfg.mode === 'header_icon' ? 'header_icon' : 'form';
+    if (mode === 'header_icon') {
+      const inner = `<a class="site-search site-search--header-icon" href="${escAttr(destination)}" aria-label="${escAttr(placeholder)}" title="${escAttr(placeholder)}"><span class="site-search__icon" aria-hidden="true"></span></a>`;
+      return adminWrap(section, ctx, inner, 'section section-site-search section-site-search--icon');
+    }
     const defaultType = ['all', 'pages', 'resources', 'events'].includes(cfg.default_type)
       ? cfg.default_type
       : 'all';
