@@ -135,6 +135,7 @@ describe('demo seed feature coverage', () => {
         );
 
         const hero = indexSection(demo.seed, 'hero');
+        expect(hero?.config).not.toHaveProperty('logo_overlay_url');
         expect(hero?.config).toEqual(
           expect.objectContaining({
             mode: 'foreground',
