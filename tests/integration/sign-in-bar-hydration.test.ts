@@ -71,10 +71,11 @@ function pageBannerSection(config: Record<string, unknown>): Section {
   };
 }
 
-async function hydrateFromCachedSections(sections: Section[]): Promise<void> {
+async function hydrateFromCachedSections(sections: Section[], session?: unknown): Promise<void> {
   const store = installLocalStorage();
+  if (session) store.wl_session = JSON.stringify(session);
   writeCache(store, 'wl_cache_site_config', configRows);
-  writeCache(store, 'wl_cache_i18n_en', { 'nav.sign_in': 'Sign in' });
+  writeCache(store, 'wl_cache_i18n_en', { 'nav.profile': 'Profile', 'nav.sign_in': 'Sign in', 'nav.sign_out': 'Sign out' });
   writeCache(store, 'wl_cache_sections_index', sections, Date.now() - 10 * 60 * 1000);
   mountPortalShell();
 
@@ -125,6 +126,19 @@ describe('sign_in_bar hydration', () => {
     expect(document.querySelector('#login-btn')).toBeTruthy();
     expect(document.querySelector('#lang-toggle')).toBeTruthy();
     expect(document.querySelector('#theme-toggle')).toBeTruthy();
+  });
+
+  it('keeps signed-in account actions inside the avatar menu', async () => {
+    await hydrateFromCachedSections(
+      [signInBarSection({ show_lang_toggle: true, show_theme_toggle: true })],
+      { user: { display_name: 'Demo Member', email: 'demo@example.test' }, access_token: 'token' },
+    );
+
+    expect(document.querySelector('#theme-toggle')).toBeTruthy();
+    expect(document.querySelector('.nav-account')).toBeTruthy();
+    expect(document.querySelector('.nav-avatar-fallback')?.textContent).toBe('D');
+    expect(document.querySelector('.nav-user > #logout-btn')).toBeNull();
+    expect(document.querySelector('.nav-account-menu #logout-btn')?.textContent).toBe('Sign out');
   });
 
   it('opens auth through the Kychon event boundary', async () => {
