@@ -51,9 +51,8 @@ describe('isPageActive — hash-aware active link detection', () => {
     expect(isPageActive('/#announcements-section', '/about')).toBe(false);
   });
 
-  it('hash-less links remain active regardless of current URL hash', () => {
-    // Home should still be active when user has scrolled to /#announcements
-    expect(isPageActive('/', '/#announcements-section')).toBe(true);
+  it('does not keep a hash-less page link active when a hash link matches', () => {
+    expect(isPageActive('/', '/#announcements-section')).toBe(false);
   });
 
   it('respects search param mismatches', () => {
@@ -91,6 +90,20 @@ describe('nav block — flat behavior preserved', () => {
     expect(html).toContain('Public');
     expect(html).not.toContain('Members');
     expect(html).not.toContain('Admin');
+  });
+
+  it('does not highlight Home with a matching hash nav item', () => {
+    const section = makeSection([
+      { label: 'Home', href: '/', public: true },
+      { label: 'Announcements', href: '/#announcements-section', public: true },
+    ]);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = BLOCK_TYPES.nav.render(section, {
+      ...baseCtx,
+      currentPath: '/#announcements-section',
+    });
+    const activeLabels = Array.from(wrap.querySelectorAll('.active')).map((el) => el.textContent);
+    expect(activeLabels).toEqual(['Announcements']);
   });
 });
 

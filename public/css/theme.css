@@ -86,7 +86,7 @@
   --nav-links-padding: 0;
   --nav-links-radius: 0;
   --nav-links-shadow: none;
-  --nav-links-wrap: wrap;
+  --nav-links-wrap: nowrap;
   --nav-mobile-menu-bg: rgba(255, 255, 255, 0.95);
   --social-link-size: 1.875rem;
   --social-link-icon-size: 1rem;

@@ -325,8 +325,9 @@ export function isPageActive(href: string, current?: string): boolean {
     const [bPath] = bKey.split('?');
     if (aPath !== bPath) return false;
     if (aSearch && aKey !== bKey) return false;
-    // Hash-aware: an item linking to "/#x" is active only when the current
-    // URL has the same hash. Items without a hash ignore the current hash.
+    // Hash-aware: when the current URL has a hash, only the matching hash link
+    // is active. This prevents "/" and "/#announcements" lighting up together.
+    if (b.hash && !a.hash) return false;
     if (a.hash && a.hash !== b.hash) return false;
     return true;
   } catch {}
