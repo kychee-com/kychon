@@ -99,6 +99,14 @@ function closeAllOpenMenus(except?: HTMLElement): void {
   });
 }
 
+function closeOverflowMenu(menu: HTMLElement): void {
+  if (menu.hasAttribute('hidden')) return;
+  menu.setAttribute('hidden', '');
+  const trigger = document.querySelector<HTMLElement>(`[aria-controls="${menu.id}"]`);
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  closeAllOpenMenus();
+}
+
 function focusSibling(current: HTMLElement, dir: 1 | -1, items: HTMLElement[]): void {
   const idx = items.indexOf(current);
   if (idx === -1) return;
@@ -261,6 +269,12 @@ function bindClickOutside(): void {
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
+    document.querySelectorAll<HTMLElement>('.nav-overflow-menu:not([hidden])').forEach((menu) => {
+      const trigger = document.querySelector<HTMLElement>(`[aria-controls="${menu.id}"]`);
+      const inMenu = menu.contains(target);
+      const inTrigger = trigger ? trigger.contains(target) : false;
+      if (!inMenu && !inTrigger) closeOverflowMenu(menu);
+    });
     document.querySelectorAll<HTMLElement>('.nav-dropdown:not([hidden])').forEach((menu) => {
       const trigger = findTrigger(menu);
       const inMenu = menu.contains(target);
@@ -274,6 +288,105 @@ function bindClickOutside(): void {
       const inWrap = wrap ? wrap.contains(target) : false;
       if (!inMenu && !inTrigger && !inWrap) closeMenu(menu);
     });
+  });
+}
+
+function overflowMenuId(root: HTMLElement): string {
+  return root.id ? `${root.id}-overflow-menu` : 'nav-overflow-menu';
+}
+
+function getOverflowMenu(root: HTMLElement): HTMLElement | null {
+  const container = root.parentElement;
+  if (!container) return null;
+  const id = overflowMenuId(root);
+  let menu = container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = id;
+    menu.className = 'nav-overflow-menu';
+    menu.setAttribute('hidden', '');
+    container.insertBefore(menu, root.nextSibling);
+  }
+  return menu;
+}
+
+function rewriteCloneIds(clone: HTMLElement, suffix: string): void {
+  const idMap = new Map<string, string>();
+  clone.querySelectorAll<HTMLElement>('[id]').forEach((el) => {
+    const oldId = el.id;
+    const newId = `${oldId}-${suffix}`;
+    idMap.set(oldId, newId);
+    el.id = newId;
+  });
+  clone.querySelectorAll<HTMLElement>('[aria-controls]').forEach((el) => {
+    const controls = el.getAttribute('aria-controls');
+    if (controls && idMap.has(controls)) el.setAttribute('aria-controls', idMap.get(controls)!);
+  });
+}
+
+function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
+  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  const menu = getOverflowMenu(root);
+  if (!nav || !menu) return null;
+  const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
+  const overflowItems = topLevelNavItems(root).filter((item) => item.classList.contains('nav-overflow-item'));
+
+  if (!nav.classList.contains('nav--overflow') || nav.classList.contains('nav--source-mobile') || overflowItems.length === 0) {
+    closeOverflowMenu(menu);
+    menu.replaceChildren();
+    if (toggle && root.id) toggle.setAttribute('aria-controls', root.id);
+    if (toggle) toggle.setAttribute('aria-expanded', root.classList.contains('open') ? 'true' : 'false');
+    return menu;
+  }
+
+  if (toggle) toggle.setAttribute('aria-controls', menu.id);
+  const wasOpen = !menu.hasAttribute('hidden');
+  menu.replaceChildren();
+  overflowItems.forEach((item, index) => {
+    const clone = item.cloneNode(true) as HTMLElement;
+    clone.classList.remove('nav-overflow-item');
+    rewriteCloneIds(clone, `overflow-${index}`);
+    menu.appendChild(clone);
+  });
+  if (wasOpen) menu.removeAttribute('hidden');
+  bindChevronToggles(menu);
+  bindKeyboard(menu);
+  bindFocusSync(menu);
+  bindHoverSync(menu);
+  return menu;
+}
+
+function bindNavToggle(root: HTMLElement): void {
+  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  const toggle = nav?.querySelector<HTMLElement>('.nav-toggle');
+  if (!toggle || toggle.dataset.navToggleBound === 'true') return;
+
+  toggle.dataset.navToggleBound = 'true';
+  if (!toggle.hasAttribute('aria-controls') && root.id) toggle.setAttribute('aria-controls', root.id);
+  if (!toggle.hasAttribute('aria-expanded')) {
+    toggle.setAttribute('aria-expanded', root.classList.contains('open') ? 'true' : 'false');
+  }
+
+  toggle.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (nav?.classList.contains('nav--overflow') && !nav.classList.contains('nav--source-mobile')) {
+      const menu = syncOverflowMenu(root);
+      if (!menu) return;
+      root.classList.remove('open');
+      toggle.setAttribute('aria-controls', menu.id);
+      const isOpen = menu.hasAttribute('hidden');
+      if (isOpen) menu.removeAttribute('hidden');
+      else closeOverflowMenu(menu);
+      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      return;
+    }
+
+    const overflowMenu = getOverflowMenu(root);
+    if (overflowMenu) closeOverflowMenu(overflowMenu);
+    if (root.id) toggle.setAttribute('aria-controls', root.id);
+    const isOpen = root.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (!isOpen) closeAllOpenMenus();
   });
 }
 
@@ -335,12 +448,14 @@ function applyOverflowMode(root: HTMLElement): void {
 function bindResponsiveModes(root: HTMLElement): void {
   applySourceMobileMode(root);
   applyOverflowMode(root);
+  syncOverflowMenu(root);
   if ((window as any).__navResponsiveModeBound === true) return;
   (window as any).__navResponsiveModeBound = true;
   window.addEventListener('resize', () => {
     document.querySelectorAll<HTMLElement>('[data-block-nav]').forEach((navRoot) => {
       applySourceMobileMode(navRoot);
       applyOverflowMode(navRoot);
+      syncOverflowMenu(navRoot);
     });
   });
 }
@@ -349,9 +464,11 @@ export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
   const root = navRoot || (document.getElementById('nav-links') as HTMLElement | null);
   if (!root) return;
   bindResponsiveModes(root);
+  bindNavToggle(root);
   if (root.dataset[BOUND_FLAG] === 'true') {
     // Re-scan: new nav items may have appeared via SPA re-render. The flags on
     // individual elements (chevronBound / focusBound) keep this idempotent.
+    bindNavToggle(root);
     bindChevronToggles(root);
     bindHoverSync(root);
     bindClickOutside();
@@ -365,6 +482,7 @@ export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
   bindHoverSync(root);
   bindClickOutside();
   bindResponsiveModes(root);
+  bindNavToggle(root);
 }
 
 export function rebindNavDropdowns(): void {
@@ -375,6 +493,7 @@ export function rebindNavDropdowns(): void {
   // The root-level flags persist (the listeners are on the root element which
   // doesn't get replaced — only innerHTML changes). For inner triggers we
   // already rely on per-element `dataset.chevronBound` to gate.
+  bindNavToggle(root);
   bindChevronToggles(root);
   bindHoverSync(root);
   bindResponsiveModes(root);

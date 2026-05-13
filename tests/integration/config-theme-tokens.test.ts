@@ -35,4 +35,19 @@ describe('copied-theme token application', () => {
     expect(document.documentElement.style.getPropertyValue('--ky-color-surface')).toBe('#f9f5f5');
     expect(document.getElementById('wl-theme-vars')?.textContent).toContain(':root');
   });
+
+  it('keeps tenant light colors from overriding visitor dark mode', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    applyTheme({
+      bg: '#fffdf7',
+      text: '#1a1a2e',
+      surface: '#f7f1e6',
+      border: '#d4d0c8',
+    });
+
+    expect(document.documentElement.style.getPropertyValue('--color-bg')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--ky-color-bg')).toBe('');
+    expect(document.getElementById('wl-theme-vars')?.textContent).toContain(':root:not([data-theme="dark"])');
+    expect(document.getElementById('wl-theme-vars')?.textContent).toContain('--ky-color-bg: #fffdf7;');
+  });
 });

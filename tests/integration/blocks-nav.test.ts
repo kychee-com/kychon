@@ -348,6 +348,46 @@ describe('nav block — runtime keyboard + click', () => {
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('clicking the hamburger toggles the mobile nav links', () => {
+    const toggle = document.getElementById('nav-toggle') as HTMLElement;
+    const links = document.getElementById('nav-links') as HTMLElement;
+
+    expect(toggle.getAttribute('aria-controls')).toBe('nav-links');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(links.classList.contains('open')).toBe(false);
+
+    toggle.click();
+    expect(links.classList.contains('open')).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+    toggle.click();
+    expect(links.classList.contains('open')).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('clicking the hamburger in overflow mode opens only the overflow menu', () => {
+    const nav = document.getElementById('zone-header') as HTMLElement;
+    const toggle = document.getElementById('nav-toggle') as HTMLElement;
+    const links = document.getElementById('nav-links') as HTMLElement;
+    const overflowItem = links.querySelector('.nav-item-wrap') as HTMLElement;
+
+    nav.classList.add('nav--overflow');
+    overflowItem.classList.add('nav-overflow-item');
+
+    toggle.click();
+    const menu = document.getElementById('nav-links-overflow-menu') as HTMLElement;
+    expect(links.classList.contains('open')).toBe(false);
+    expect(toggle.getAttribute('aria-controls')).toBe('nav-links-overflow-menu');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(menu.hasAttribute('hidden')).toBe(false);
+    expect(menu.textContent).toContain('Marina');
+    expect(menu.textContent).not.toContain('Home');
+
+    toggle.click();
+    expect(menu.hasAttribute('hidden')).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('ArrowDown on chevron opens the menu and focuses the first item', () => {
     const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
     chevron.focus();

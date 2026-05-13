@@ -26,7 +26,8 @@ const MUTABLE_TABLES = [
   'newsletter_drafts', 'member_insights', 'moderation_log',
   'content_translations', 'committee_members', 'committees',
   'forum_replies', 'forum_topics', 'forum_categories',
-  'reactions', 'activity_log', 'event_rsvps', 'events',
+  'reactions', 'activity_log', 'poll_votes', 'poll_options',
+  'polls', 'event_rsvps', 'events',
   'resources', 'announcements',
 ];
 

@@ -1739,8 +1739,7 @@ tr:hover td {
 .nav.nav--source-mobile .nav-toggle {
   display: block;
 }
-.nav.nav--source-mobile .nav-links,
-.nav.nav--overflow .nav-links.open {
+.nav.nav--source-mobile .nav-links {
   display: none;
   flex-direction: column;
   position: absolute;
@@ -1755,27 +1754,49 @@ tr:hover td {
   box-shadow: var(--shadow-md);
   overflow: visible;
 }
-.nav.nav--source-mobile .nav-links.open,
-.nav.nav--overflow .nav-links.open {
+.nav.nav--source-mobile .nav-links.open {
   display: flex;
 }
 .nav.nav--overflow .nav-toggle {
   display: block;
 }
-.nav.nav--overflow .nav-links:not(.open) {
+.nav.nav--overflow .nav-links {
   padding-right: calc(2.25rem + var(--nav-link-gap, 0.25rem));
 }
 .nav .nav-overflow-item {
   display: none !important;
 }
-.nav.nav--overflow .nav-links.open > :not(.nav-overflow-item) {
-  display: none !important;
+.nav-overflow-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  min-width: min(16rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  padding: var(--nav-mobile-menu-padding, 0.5rem);
+  background: var(--nav-overflow-menu-bg, var(--nav-header-bg, var(--color-bg)));
+  border: var(--nav-dropdown-border, 1px solid var(--color-border));
+  border-radius: var(--nav-links-radius, var(--radius));
+  box-shadow: var(--nav-dropdown-shadow, var(--shadow-md));
+  z-index: 60;
 }
-.nav.nav--overflow .nav-links.open > .nav-overflow-item {
-  display: block !important;
+.nav-overflow-menu[hidden] {
+  display: none;
 }
-.nav.nav--overflow .nav-links.open > .nav-item-wrap.nav-overflow-item {
-  display: flex !important;
+.nav-overflow-menu > .nav-link,
+.nav-overflow-menu > .nav-item-wrap {
+  width: 100%;
+}
+.nav-overflow-menu .nav-link,
+.nav-overflow-menu .nav-link.nav-parent-button {
+  width: 100%;
+  text-align: left;
+}
+.nav-overflow-menu .nav-item-wrap {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* Polls */

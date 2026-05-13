@@ -71,7 +71,7 @@ function pageBannerSection(config: Record<string, unknown>): Section {
   };
 }
 
-async function hydrateFromCachedSections(sections: Section[], session?: unknown): Promise<void> {
+async function hydrateFromCachedSections(sections: Section[], session?: unknown): Promise<Record<string, string>> {
   const store = installLocalStorage();
   if (session) store.wl_session = JSON.stringify(session);
   writeCache(store, 'wl_cache_site_config', configRows);
@@ -102,6 +102,7 @@ async function hydrateFromCachedSections(sections: Section[], session?: unknown)
 
   await init();
   await hydratePage('index');
+  return store;
 }
 
 describe('sign_in_bar hydration', () => {
@@ -130,6 +131,24 @@ describe('sign_in_bar hydration', () => {
     expect(document.querySelector('#login-btn')).toBeTruthy();
     expect(document.querySelector('#lang-toggle')).toBeTruthy();
     expect(document.querySelector('#theme-toggle')).toBeTruthy();
+  });
+
+  it('toggles and persists visitor dark mode from the header utility button', async () => {
+    const store = await hydrateFromCachedSections([signInBarSection({ show_lang_toggle: true, show_theme_toggle: true })]);
+
+    const toggle = document.querySelector('#theme-toggle') as HTMLButtonElement | null;
+    expect(toggle).toBeTruthy();
+    expect(document.documentElement.getAttribute('data-theme')).toBeNull();
+
+    toggle?.click();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(store.wl_theme).toBe('dark');
+    expect(toggle?.textContent).toBe('☀️');
+
+    toggle?.click();
+    expect(document.documentElement.getAttribute('data-theme')).toBeNull();
+    expect(store.wl_theme).toBe('light');
+    expect(toggle?.textContent).toBe('🌙');
   });
 
   it('keeps signed-in account actions inside the avatar menu', async () => {
