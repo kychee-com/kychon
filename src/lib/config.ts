@@ -332,6 +332,7 @@ export function applyTheme(theme: Record<string, any> | null): void {
   for (const [prop, value] of Object.entries(vars)) {
     const key = themeVarEntries.find(([, mappedProp]) => mappedProp === prop)?.[0];
     if (key && darkOverridable.has(key)) {
+      el.style.removeProperty(prop);
       rootVars.push(`${prop}: ${value};`);
     } else {
       el.style.setProperty(prop, value);
@@ -345,7 +346,8 @@ export function applyTheme(theme: Record<string, any> | null): void {
     if (firstLink) firstLink.before(styleEl);
     else document.head.appendChild(styleEl);
   }
-  styleEl.textContent = `:root {\n  ${rootVars.join('\n  ')}\n}`;
+  const rootSelector = darkOverridable.size > 0 ? ':root:not([data-theme="dark"])' : ':root';
+  styleEl.textContent = `${rootSelector} {\n  ${rootVars.join('\n  ')}\n}`;
 }
 
 // --- Branding ---
@@ -518,14 +520,6 @@ export async function init(): Promise<Record<string, any>> {
     await loadLocale(null, siteConfig.default_language);
 
     await refreshMemberRecord();
-  }
-
-  const navToggle = document.getElementById('nav-toggle');
-  if (navToggle && navToggle.dataset.bound !== 'true') {
-    navToggle.dataset.bound = 'true';
-    navToggle.addEventListener('click', () => {
-      document.getElementById('nav-links')?.classList.toggle('open');
-    });
   }
 
   resolveReady();

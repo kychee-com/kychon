@@ -1120,7 +1120,7 @@ const NAV: BlockType = {
       ? `<button class="admin-nav-edit-btn" data-nav-edit="${sid}" title="Edit navigation">&#9998;</button>`
       : '';
     const presentationAttrs = renderNavPresentationAttrs(cfg);
-    return `<button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button><div class="nav-links" id="nav-links" data-block-nav${editAttrs}${presentationAttrs}>${links}</div>${adminEditBtn}`;
+    return `<button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false">&#9776;</button><div class="nav-links" id="nav-links" data-block-nav${editAttrs}${presentationAttrs}>${links}</div>${adminEditBtn}`;
   },
 };
 
