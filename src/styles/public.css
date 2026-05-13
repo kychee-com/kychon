@@ -275,7 +275,7 @@ a:hover {
   padding: var(--nav-links-padding, 0);
   border-radius: var(--nav-links-radius, 0);
   box-shadow: var(--nav-links-shadow, none);
-  overflow: hidden;
+  overflow: visible;
 }
 .nav-links[data-nav-full-row="true"] {
   flex-basis: 100%;

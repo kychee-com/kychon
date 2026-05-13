@@ -40,6 +40,12 @@ describe('copied-theme visual verification hooks', () => {
     expect(styles).toContain('@container (max-width: 21rem)');
   });
 
+  it('keeps desktop nav dropdowns visible outside the nav links row', () => {
+    const styles = readFileSync('src/styles/public.css', 'utf8');
+
+    expect(styles).toMatch(/\.nav-links\s*\{[\s\S]*overflow: visible;/);
+  });
+
   it('keeps image accordion hover and keyboard focus reveal hooks', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
     const accordionHtml = htmlFor('image_accordion');
