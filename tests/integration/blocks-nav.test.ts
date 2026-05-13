@@ -348,6 +348,25 @@ describe('nav block — runtime keyboard + click', () => {
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('clicking a hover-open parent pins it open instead of closing it', () => {
+    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const wrap = chevron.closest('.nav-item-wrap') as HTMLElement;
+    const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
+    const firstItem = menu.querySelector('a[role="menuitem"]') as HTMLElement;
+
+    wrap.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.hasAttribute('hidden')).toBe(false);
+
+    chevron.click();
+    expect(menu.hasAttribute('hidden')).toBe(false);
+    expect(chevron.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).not.toBe(firstItem);
+
+    chevron.click();
+    expect(menu.hasAttribute('hidden')).toBe(true);
+    expect(chevron.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('clicking the hamburger toggles the mobile nav links', () => {
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
     const links = document.getElementById('nav-links') as HTMLElement;
