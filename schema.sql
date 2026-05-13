@@ -492,6 +492,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_set_search_vectors()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 BEGIN
   NEW.title_vector := to_tsvector('simple', coalesce(NEW.title, ''));
@@ -516,6 +518,8 @@ CREATE INDEX IF NOT EXISTS idx_search_documents_updated ON search_documents (upd
 CREATE OR REPLACE FUNCTION kychon_upsert_search_page(slug_arg TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 DECLARE
   p RECORD;
@@ -601,6 +605,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_upsert_search_resource(resource_id INT)
 RETURNS VOID
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 DECLARE
   r RECORD;
@@ -644,6 +650,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_upsert_search_event(event_id INT)
 RETURNS VOID
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 DECLARE
   e RECORD;
@@ -684,6 +692,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_reindex_search()
 RETURNS VOID
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 DECLARE
   row RECORD;
@@ -713,6 +723,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_search_page_row_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
@@ -730,6 +742,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_search_section_row_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
@@ -754,6 +768,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_search_resource_row_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
@@ -768,6 +784,8 @@ $$;
 CREATE OR REPLACE FUNCTION kychon_search_event_row_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN

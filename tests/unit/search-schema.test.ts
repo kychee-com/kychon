@@ -38,6 +38,25 @@ describe('native site search schema', () => {
     expect(schema).toContain('trg_search_events_sync');
   });
 
+  it('runs search sync functions as definer with a fixed search path', () => {
+    for (const name of [
+      'kychon_upsert_search_page',
+      'kychon_upsert_search_resource',
+      'kychon_upsert_search_event',
+      'kychon_reindex_search',
+      'kychon_search_page_row_trigger',
+      'kychon_search_section_row_trigger',
+      'kychon_search_resource_row_trigger',
+      'kychon_search_event_row_trigger',
+    ]) {
+      const start = schema.indexOf(`CREATE OR REPLACE FUNCTION ${name}`);
+      const end = schema.indexOf('AS $$', start);
+      const definitionHead = schema.slice(start, end);
+      expect(definitionHead).toContain('SECURITY DEFINER');
+      expect(definitionHead).toContain('SET search_path FROM CURRENT');
+    }
+  });
+
   it('does not expose product tables through the low-level REST deploy config', () => {
     const exposeDeclaration = deployLib.slice(
       deployLib.indexOf('export const EXPOSE_TABLES'),
