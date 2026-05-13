@@ -47,14 +47,14 @@ The deploy script SHALL read `project_id` from environment variable `RUN402_PROJ
 - **WHEN** `RUN402_PROJECT_ID` is not set
 - **THEN** the script uses the active project from `run402 projects list`
 
-### Requirement: Deploy includes RLS configuration
+### Requirement: Deploy includes current database exposure configuration
 
-The deploy manifest SHALL configure Row-Level Security: `user_owns_rows` for `members` (owner_column: `user_id`), `public_read` for config/content tables.
+The deploy flow SHALL use Run402's current database exposure configuration rather than legacy bundle policy templates. Kychon product workflows SHALL be mediated by the Capability API unless a table is explicitly included in the current `database.expose` manifest.
 
-#### Scenario: RLS is applied on deploy
+#### Scenario: Database exposure is applied on deploy
 - **WHEN** the deploy completes
-- **THEN** anonymous users can read `site_config`, `pages`, `sections`, `announcements`, `membership_tiers`
-- **THEN** authenticated users can only update their own row in `members`
+- **THEN** the deploy uses the unified deploy shape with `database.expose`
+- **AND** it does not rely on legacy bundle policy templates or retired policy names
 
 <!-- Phase 2 additions -->
 
@@ -72,10 +72,11 @@ The deploy manifest SHALL include all edge functions with their cron schedules p
 - **THEN** the manifest includes `check-expirations.js` and any other scheduled functions as before
 - **AND** `reset-demo.js` is NOT included (it lives in `demo/` directory, not `functions/`)
 
-### Requirement: Deploy includes RLS for new tables
+### Requirement: Deploy handles new tables through the current exposure model
 
-The deploy manifest RLS configuration SHALL include the new tables: `events`, `event_rsvps`, `resources`, `forum_categories`, `forum_topics`, `forum_replies`, `committees`, `committee_members`.
+The schema SHALL include the new tables: `events`, `event_rsvps`, `resources`, `forum_categories`, `forum_topics`, `forum_replies`, `committees`, `committee_members`. Access to those tables SHALL use the current database exposure configuration or the Kychon Capability API rather than legacy policy-template names.
 
-#### Scenario: New tables have RLS
+#### Scenario: New tables avoid legacy policy templates
 - **WHEN** the deploy completes
-- **THEN** new content tables have `public_read` RLS applied
+- **THEN** new content tables are present in the deployed schema
+- **AND** no legacy policy-template name is required for them to be usable through Kychon workflows

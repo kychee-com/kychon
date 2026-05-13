@@ -141,7 +141,7 @@ The agent doesn't just set up and walk away. The community manager says "add vol
 2. Adds a `volunteer_hours` table to schema
 3. Creates `volunteer.html` + `volunteer.js`
 4. Adds a nav item
-5. Redeploys via `POST /deploy/v1` (idempotent, additive migrations)
+5. Redeploys with `node deploy.js`, which applies the unified Run402 deploy through the SDK (idempotent, additive migrations)
 
 Run402's bundle deploy handles this — `CREATE TABLE IF NOT EXISTS` style migrations, additive site files, function updates. No destructive redeploys.
 
@@ -883,7 +883,7 @@ Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs 
 
 **Current state:** `UPDATE members SET role = 'admin'` is blocked by the SQL injection filter `\bSET\s+(search_path|role)\b`. This is a false positive — `role` here is a column name, not a Postgres `SET ROLE` command.
 
-**Workaround:** Use `db.from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function, which bypasses the SQL filter. Or delete and re-insert the row.
+**Workaround:** Use `adminDb().from('members').update({ role: 'admin' }).eq('id', 1)` from an edge function, which bypasses the SQL filter. Or delete and re-insert the row.
 
 **What would help:** Smarter filter that distinguishes `SET ROLE` (Postgres command) from `SET role =` (column update in an UPDATE statement).
 

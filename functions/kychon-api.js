@@ -416,7 +416,8 @@ function handleQuery(correlationId, envelope, operation, actor) {
       engineVersion: ENGINE_VERSION,
       api: {
         endpoint: API_ENDPOINT,
-        transport: 'run402-functions',
+        transport: 'http',
+        runtime: 'run402-function',
         currentVersion: API_VERSION,
         supportedVersions: SUPPORTED_API_VERSIONS,
         authHeaders: { apiKey: 'apikey', bearerToken: 'Authorization' },

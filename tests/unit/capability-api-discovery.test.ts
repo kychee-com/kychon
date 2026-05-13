@@ -19,7 +19,8 @@ describe('Capability API discovery documents', () => {
     expect(doc.engine).toMatchObject({ version: '1.2.3' });
     expect(doc.api).toMatchObject({
       endpoint: 'https://api.run402.com/functions/v1/kychon-api',
-      transport: 'run402-functions',
+      transport: 'http',
+      runtime: 'run402-function',
       currentVersion: KYCHON_API_VERSION,
       publicKeySource: '/js/env.js',
     });
@@ -41,7 +42,8 @@ describe('Capability API discovery documents', () => {
 
     expect(manifest.apiVersion).toBe(KYCHON_API_VERSION);
     expect(manifest.endpoint).toBe('https://api.run402.com/functions/v1/kychon-api');
-    expect(manifest.transport).toBe('run402-functions');
+    expect(manifest.transport).toBe('http');
+    expect(manifest.runtime).toBe('run402-function');
     expect(manifestOperations).toEqual(registryOperations);
     expect(manifest.rawAccess).toMatchObject({ available: true, level: 'low-level' });
     expect(manifest.uiParity).toMatchObject({ referenceRenderer: true });

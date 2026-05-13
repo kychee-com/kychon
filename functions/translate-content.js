@@ -1,5 +1,5 @@
 // schedule: none (triggered by client after content publish)
-import { ai, db, getUser } from '@run402/functions';
+import { adminDb, ai, getUser } from '@run402/functions';
 
 export default async (req) => {
   const user = await getUser(req);
@@ -7,8 +7,10 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
+  const admin = adminDb();
+
   // Check if feature is enabled
-  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_translation').limit(1);
+  const flag = await admin.from('site_config').select('value').eq('key', 'feature_ai_translation').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_translation disabled' }));
   }
@@ -28,13 +30,13 @@ export default async (req) => {
   // Read the content
   let content = {};
   if (content_type === 'announcement') {
-    const rows = await adminDb().from('announcements').select('title,body').eq('id', content_id).limit(1);
+    const rows = await admin.from('announcements').select('title,body').eq('id', content_id).limit(1);
     if (rows.length > 0) content = rows[0];
   } else if (content_type === 'event') {
-    const rows = await adminDb().from('events').select('title,description').eq('id', content_id).limit(1);
+    const rows = await admin.from('events').select('title,description').eq('id', content_id).limit(1);
     if (rows.length > 0) content = { title: rows[0].title, body: rows[0].description };
   } else if (content_type === 'page') {
-    const rows = await adminDb().from('pages').select('title,content').eq('id', content_id).limit(1);
+    const rows = await admin.from('pages').select('title,content').eq('id', content_id).limit(1);
     if (rows.length > 0) content = { title: rows[0].title, body: rows[0].content };
   }
 
@@ -53,7 +55,7 @@ export default async (req) => {
         const result = await ai.translate(content[field].substring(0, 10000), lang, { context });
         if (result.text) {
           // Upsert into content_translations
-          const existing = await db
+          const existing = await admin
             .from('content_translations')
             .select('id')
             .eq('content_type', content_type)
@@ -63,12 +65,9 @@ export default async (req) => {
             .limit(1);
 
           if (existing.length > 0) {
-            await adminDb()
-              .from('content_translations')
-              .update({ translated_text: result.text })
-              .eq('id', existing[0].id);
+            await admin.from('content_translations').update({ translated_text: result.text }).eq('id', existing[0].id);
           } else {
-            await adminDb().from('content_translations').insert({
+            await admin.from('content_translations').insert({
               content_type,
               content_id,
               language: lang,

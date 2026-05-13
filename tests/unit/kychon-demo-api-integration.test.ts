@@ -131,7 +131,8 @@ describe('official demo portal API integration', () => {
         portalUrl: demo.portalUrl,
         api: {
           endpoint: 'https://api.run402.com/functions/v1/kychon-api',
-          transport: 'run402-functions',
+          transport: 'http',
+          runtime: 'run402-function',
           publicKeySource: '/js/env.js',
         },
         sdk: { package: '@kychon/sdk', firstDeliverable: true },

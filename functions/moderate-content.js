@@ -1,9 +1,11 @@
 // prototype-schedule: "*/15 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
-import { ai, db } from '@run402/functions';
+import { adminDb, ai } from '@run402/functions';
 
 export default async (_req) => {
+  const admin = adminDb();
+
   // Check if feature is enabled
-  const flag = await adminDb().from('site_config').select('value').eq('key', 'feature_ai_moderation').limit(1);
+  const flag = await admin.from('site_config').select('value').eq('key', 'feature_ai_moderation').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
     return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_moderation disabled' }));
   }
@@ -11,11 +13,11 @@ export default async (_req) => {
   let moderated = 0;
 
   // Find last moderation timestamp
-  const lastCheck = await adminDb().sql('SELECT max(created_at) as last_at FROM moderation_log');
+  const lastCheck = await admin.sql('SELECT max(created_at) as last_at FROM moderation_log');
   const lastAt = (lastCheck.rows || lastCheck)[0]?.last_at || '1970-01-01T00:00:00Z';
 
   // Get new forum topics since last check
-  const newTopics = await db
+  const newTopics = await admin
     .from('forum_topics')
     .select('id,title,body,author_id')
     .gt('created_at', lastAt)
@@ -24,9 +26,9 @@ export default async (_req) => {
   for (const topic of newTopics) {
     const result = await moderateContent(`${topic.title}\n\n${topic.body}`);
     if (result.confidence > 0.7 && result.flagged) {
-      await adminDb().from('forum_topics').update({ hidden: true }).eq('id', topic.id);
+      await admin.from('forum_topics').update({ hidden: true }).eq('id', topic.id);
     }
-    await adminDb().from('moderation_log').insert({
+    await admin.from('moderation_log').insert({
       content_type: 'forum_topic',
       content_id: topic.id,
       action: result.action,
@@ -37,7 +39,7 @@ export default async (_req) => {
   }
 
   // Get new forum replies since last check
-  const newReplies = await db
+  const newReplies = await admin
     .from('forum_replies')
     .select('id,body,author_id')
     .gt('created_at', lastAt)
@@ -46,9 +48,9 @@ export default async (_req) => {
   for (const reply of newReplies) {
     const result = await moderateContent(reply.body);
     if (result.confidence > 0.7 && result.flagged) {
-      await adminDb().from('forum_replies').update({ hidden: true }).eq('id', reply.id);
+      await admin.from('forum_replies').update({ hidden: true }).eq('id', reply.id);
     }
-    await adminDb().from('moderation_log').insert({
+    await admin.from('moderation_log').insert({
       content_type: 'forum_reply',
       content_id: reply.id,
       action: result.action,

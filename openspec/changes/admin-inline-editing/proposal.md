@@ -63,5 +63,5 @@ The editing experience should feel premium:
 - **New files**: `functions/upload-asset.js`, `src/components/AssetPicker.astro`, `src/components/NavEditor.astro`, `src/components/SectionEditor.astro`, `src/components/TierEditor.astro`, `public/css/admin-editing.css`
 - **Modified files**: Every `.astro` page (add data-editable attributes), `AdminEditor.astro` (add drag + CRUD modes, fix FormData, add UX polish), `admin-settings.astro` (fix saves, slim down), `Portal.astro` (admin editing CSS), `upload-asset.js` is new edge function
 - **Dependencies**: None new — HTML5 drag-and-drop, existing Tiptap lazy-load, Run402 storage API
-- **RLS**: No changes — `public_read` template already allows authenticated writes
+- **Database exposure**: No changes — existing admin functions continue to mediate authenticated writes without relying on legacy policy-template names
 - **Bundle impact**: ~15kB admin-editing.css (loaded only for admins). Drag + CRUD JS estimated ~4kB additional in AdminEditor.

@@ -39,7 +39,8 @@ export function buildWellKnownKychon(options: CapabilityDiscoveryOptions = {}): 
     },
     api: {
       endpoint,
-      transport: 'run402-functions',
+      transport: 'http',
+      runtime: 'run402-function',
       currentVersion: KYCHON_API_VERSION,
       supportedVersions: [...SUPPORTED_API_VERSIONS],
       deprecatedVersions: [],
@@ -95,7 +96,8 @@ export function buildCapabilityManifest(options: CapabilityDiscoveryOptions = {}
     apiVersion: KYCHON_API_VERSION,
     schemaVersion: options.schemaVersion || KYCHON_API_VERSION,
     endpoint,
-    transport: 'run402-functions',
+    transport: 'http',
+    runtime: 'run402-function',
     operations: listOperations().map((operation) => ({
       name: String(operation.name),
       phases: [...operation.phases],
