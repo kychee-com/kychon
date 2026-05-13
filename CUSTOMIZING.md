@@ -188,10 +188,11 @@ Members select their language in profile settings. The picker only shows when >1
 1. Create `functions/my-job.js`:
    ```js
    // schedule: "0 9 * * *"
-   import { db } from 'run402-functions';
-   export default async (req) => {
+   import { adminDb } from '@run402/functions';
+   export default async (_req) => {
      // Your logic here
-     return new Response(JSON.stringify({ status: 'ok' }));
+     const rows = await adminDb().from('site_config').select('key,value').limit(5);
+     return new Response(JSON.stringify({ status: 'ok', rows_checked: rows.length }));
    };
    ```
 2. The `// schedule:` comment is parsed by `deploy.js` to set the cron schedule

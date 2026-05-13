@@ -138,19 +138,19 @@ async function getAuthenticatedUser(
 }
 
 async function findMemberForUser(
-  db: ReturnType<ActorResolutionDependencies['adminDb']>,
+  admin: ReturnType<ActorResolutionDependencies['adminDb']>,
   user: Run402UserLike,
 ): Promise<ActorMemberContext | null> {
   const userId = typeof user.id === 'string' ? user.id : '';
   if (userId) {
-    const rows = await db.from('members').select(MEMBER_SELECT).eq('user_id', userId).limit(1);
+    const rows = await admin.from('members').select(MEMBER_SELECT).eq('user_id', userId).limit(1);
     const byUserId = rows[0];
     if (byUserId) return normalizeMember(byUserId, 'user_id');
   }
 
   const email = normalizeEmail(user.email);
   if (email) {
-    const rows = await db.from('members').select(MEMBER_SELECT).eq('email', email).limit(1);
+    const rows = await admin.from('members').select(MEMBER_SELECT).eq('email', email).limit(1);
     const byEmail = rows[0];
     if (byEmail) return normalizeMember(byEmail, 'email');
   }
