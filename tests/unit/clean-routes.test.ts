@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCleanStaticRouteSpecs,
+  buildExplicitPublicPathSpecs,
   canonicalizeKychonHref,
   canonicalizeKychonOwnedHrefFields,
   canonicalRouteKey,
   currentPageSlugFromLocation,
+  isValidPublicStaticPath,
+  isValidReleaseAssetPath,
   isSafeCustomPageSlug,
   isValidStaticRouteTargetFile,
   resolveCustomPageSlugFromLocation,
@@ -79,6 +82,49 @@ describe('clean routes', () => {
     expect(routes.some((route) => route.target.file.includes('?'))).toBe(false);
   });
 
+  it('builds explicit public paths without exposing implementation HTML files', () => {
+    const publicPaths = buildExplicitPublicPathSpecs({
+      files: [
+        'index.html',
+        'events.html',
+        'search.html',
+        'about.html',
+        'page.html',
+        '_astro/events.abc123.js',
+        'css/theme.css',
+        'js/env.js',
+        '.well-known/kychon.json',
+        'kychon-release.json',
+        '_headers',
+      ],
+      pageSlugs: ['about', 'events', '../bad'],
+    });
+
+    expect(publicPaths['/']).toEqual({ asset: 'index.html', cache_class: 'html' });
+    expect(publicPaths['/events']).toEqual({ asset: 'events.html', cache_class: 'html' });
+    expect(publicPaths['/search']).toEqual({ asset: 'search.html', cache_class: 'html' });
+    expect(publicPaths['/about']).toEqual({ asset: 'about.html', cache_class: 'html' });
+    expect(publicPaths['/_astro/events.abc123.js']).toEqual({
+      asset: '_astro/events.abc123.js',
+      cache_class: 'immutable_versioned',
+    });
+    expect(publicPaths['/css/theme.css']).toEqual({ asset: 'css/theme.css', cache_class: 'revalidating_asset' });
+    expect(publicPaths['/js/env.js']).toEqual({ asset: 'js/env.js', cache_class: 'revalidating_asset' });
+    expect(publicPaths['/.well-known/kychon.json']).toEqual({
+      asset: '.well-known/kychon.json',
+      cache_class: 'revalidating_asset',
+    });
+    expect(publicPaths['/kychon-release.json']).toEqual({
+      asset: 'kychon-release.json',
+      cache_class: 'revalidating_asset',
+    });
+    expect(publicPaths['/events.html']).toBeUndefined();
+    expect(publicPaths['/search.html']).toBeUndefined();
+    expect(publicPaths['/about.html']).toBeUndefined();
+    expect(publicPaths['/page.html']).toBeUndefined();
+    expect(publicPaths['/_headers']).toBeUndefined();
+  });
+
   it('validates static target files against Run402 constraints', () => {
     expect(isValidStaticRouteTargetFile('events.html')).toBe(true);
     expect(isValidStaticRouteTargetFile('/events.html')).toBe(false);
@@ -87,6 +133,21 @@ describe('clean routes', () => {
     expect(isValidStaticRouteTargetFile('../events.html')).toBe(false);
     expect(isValidStaticRouteTargetFile('events/')).toBe(false);
     expect(isValidStaticRouteTargetFile('events*.html')).toBe(false);
+  });
+
+  it('validates public paths and release asset paths against Run402 constraints', () => {
+    expect(isValidReleaseAssetPath('_astro/app.abc123.js')).toBe(true);
+    expect(isValidReleaseAssetPath('.well-known/kychon.json')).toBe(true);
+    expect(isValidReleaseAssetPath('/_astro/app.abc123.js')).toBe(false);
+    expect(isValidReleaseAssetPath('../secret.txt')).toBe(false);
+    expect(isValidReleaseAssetPath('events.html?x=1')).toBe(false);
+
+    expect(isValidPublicStaticPath('/')).toBe(true);
+    expect(isValidPublicStaticPath('/events')).toBe(true);
+    expect(isValidPublicStaticPath('/.well-known/kychon.json')).toBe(true);
+    expect(isValidPublicStaticPath('events')).toBe(false);
+    expect(isValidPublicStaticPath('/events?x=1')).toBe(false);
+    expect(isValidPublicStaticPath('/../events')).toBe(false);
   });
 
   it('extracts safe build-known page slugs', () => {

@@ -16,6 +16,13 @@ export interface CleanStaticRouteSpec {
   };
 }
 
+export type StaticCacheClass = 'html' | 'immutable_versioned' | 'revalidating_asset';
+
+export interface PublicStaticPathSpec {
+  asset: string;
+  cache_class?: StaticCacheClass;
+}
+
 interface PageLike {
   slug: string;
   published?: boolean;
@@ -102,11 +109,24 @@ export function safeCustomPageSlugs(pages: readonly PageLike[] | undefined): str
 }
 
 export function isValidStaticRouteTargetFile(file: string): file is `${string}.html` {
+  return isValidReleaseAssetPath(file) && file.endsWith('.html');
+}
+
+export function isValidReleaseAssetPath(file: string): boolean {
   if (!file || file !== file.trim()) return false;
   if (file.startsWith('/') || file.startsWith('./') || file.endsWith('/')) return false;
-  if (!file.endsWith('.html')) return false;
   if (/[?#*\\]/.test(file)) return false;
   const segments = file.split('/');
+  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) return false;
+  return true;
+}
+
+export function isValidPublicStaticPath(path: string): path is `/${string}` {
+  if (!path || path !== path.trim() || !path.startsWith('/')) return false;
+  if (/[?#*\\]/.test(path)) return false;
+  if (path === '/') return true;
+  if (path.endsWith('/')) return false;
+  const segments = path.slice(1).split('/');
   if (segments.some((segment) => !segment || segment === '.' || segment === '..')) return false;
   return true;
 }
@@ -148,6 +168,62 @@ export function buildCleanStaticRouteSpecs(opts: {
       return true;
     })
     .map(staticRouteSpec);
+}
+
+export function buildExplicitPublicPathSpecs(opts: {
+  files: Iterable<string>;
+  pageSlugs?: readonly string[];
+}): Record<string, PublicStaticPathSpec> {
+  const files = new Set(opts.files);
+  const entries = new Map<`/${string}`, PublicStaticPathSpec>();
+
+  const addPublicPath = (path: `/${string}`, asset: string) => {
+    if (!files.has(asset)) return;
+    if (!isValidPublicStaticPath(path)) {
+      throw new Error(`Invalid public static path: ${path}`);
+    }
+    if (!isValidReleaseAssetPath(asset)) {
+      throw new Error(`Invalid public static asset path: ${asset}`);
+    }
+    const next = { asset, cache_class: cacheClassForAsset(asset) };
+    const existing = entries.get(path);
+    if (existing && existing.asset !== asset) {
+      throw new Error(`Conflicting public static path ${path}: ${existing.asset} vs ${asset}`);
+    }
+    entries.set(path, next);
+  };
+
+  addPublicPath('/', 'index.html');
+
+  for (const alias of STANDARD_STATIC_ROUTE_ALIASES) {
+    addPublicPath(alias.pattern, alias.file);
+  }
+
+  for (const slug of opts.pageSlugs || []) {
+    const file = customPageStaticFile(slug);
+    const path = customPageCleanPath(slug);
+    if (file && path) addPublicPath(path, file);
+  }
+
+  for (const file of files) {
+    if (isPublicSupportAsset(file)) {
+      addPublicPath(`/${file}`, file);
+    }
+  }
+
+  return Object.fromEntries([...entries].sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function isPublicSupportAsset(file: string): boolean {
+  if (!isValidReleaseAssetPath(file)) return false;
+  if (file === '_headers') return false;
+  return !file.endsWith('.html');
+}
+
+function cacheClassForAsset(asset: string): StaticCacheClass {
+  if (asset.endsWith('.html')) return 'html';
+  if (asset.startsWith('_astro/')) return 'immutable_versioned';
+  return 'revalidating_asset';
 }
 
 export function canonicalizeKychonHref(href: string): string {

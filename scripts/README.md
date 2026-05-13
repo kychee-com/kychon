@@ -77,6 +77,16 @@ When npm refuses to install a recently-published SDK release because of a `befor
 
 The deploy goes through `r.deploy.apply(spec)` — the v2 unified deploy primitive. The SDK builds a `ReleaseSpec` (migrations, expose manifest, functions, site, subdomains), uploads bytes through CAS (only the SHAs the gateway hasn't seen), commits, and polls until `ready`. Re-deploying an unchanged tree issues no S3 PUTs.
 
+Static files use Run402 v1.69 `site.public_paths` in explicit mode. Release assets such as `events.html` and `search.html` are still present in the site bundle, but browser-visible paths are clean entries such as `/events` and `/search`; implementation paths like `/events.html` are intentionally not public unless a future compatibility path declares them.
+
+Deploy logs and dry-runs print representative public path mappings. For deployed checks, inspect `static_public_paths` in the active release inventory and confirm `reachability_authority: "explicit_public_path"` for page routes:
+
+```bash
+run402 deploy release active --project <project_id>
+run402 deploy diagnose --project <project_id> https://example.kychon.com/events --method GET
+npx tsx scripts/verify-first-byte-chrome.ts --base https://example.kychon.com --brand "Example Club"
+```
+
 We migrated off `apps.bundleDeploy()` in 1.50.1 (kychee-com/run402#154) because its compat shim was emitting an `expose.tables` shape the v2 deploy validator briefly rejected. The gateway validator was relaxed in 2026-04-30 to delegate to the same `validateManifest()` the imperative `/expose` route uses, so both bare strings and the rich `{name, expose, policy}` shape now work. We send the rich shape (matches the published schema, type-checks cleanly, and pins the policy explicitly).
 
 ## Engine release metadata

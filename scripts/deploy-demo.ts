@@ -12,7 +12,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, copyFileSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, copyFileSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { run402 } from "@run402/sdk/node";
@@ -144,6 +144,16 @@ function copyAssets(src: string, dst: string): () => void {
     );
   }
   console.log(`Copying ${entries.length} demo asset(s) into public/assets...`);
+  if (existsSync(dst) && realpathSync(dst) === realpathSync(src)) {
+    console.log("public/assets already points at the demo asset directory; preserving existing path.");
+    return () => {};
+  }
+  if (existsSync(dst)) {
+    throw new Error(
+      `Refusing to overwrite existing demo asset destination: ${dst}\n` +
+        "  Remove or move it first, or point it at the demo asset directory.",
+    );
+  }
   mkdirSync(dst, { recursive: true });
   for (const name of entries) {
     copyFileSync(join(src, name), join(dst, name));
