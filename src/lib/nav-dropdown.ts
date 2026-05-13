@@ -54,9 +54,23 @@ function findTrigger(menu: HTMLElement): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[aria-controls="${id}"]`);
 }
 
-function openMenu(menu: HTMLElement, focusFirst: 'first' | 'last' | null = 'first'): void {
-  if (!menu.hasAttribute('hidden') && focusFirst === null) return;
+type MenuOpenMode = 'click' | 'hover' | 'keyboard';
+
+function setMenuOpenMode(menu: HTMLElement, mode: MenuOpenMode): void {
+  menu.dataset.navOpenMode = mode;
+}
+
+function clearMenuOpenMode(menu: HTMLElement): void {
+  delete menu.dataset.navOpenMode;
+}
+
+function openMenu(
+  menu: HTMLElement,
+  focusFirst: 'first' | 'last' | null = 'first',
+  mode: MenuOpenMode = focusFirst ? 'keyboard' : 'click',
+): void {
   menu.removeAttribute('hidden');
+  setMenuOpenMode(menu, mode);
   const trigger = findTrigger(menu);
   if (trigger) trigger.setAttribute('aria-expanded', 'true');
   if (focusFirst) {
@@ -69,6 +83,7 @@ function openMenu(menu: HTMLElement, focusFirst: 'first' | 'last' | null = 'firs
 function closeMenu(menu: HTMLElement, returnFocus = false): void {
   if (menu.hasAttribute('hidden')) return;
   menu.setAttribute('hidden', '');
+  clearMenuOpenMode(menu);
   const trigger = findTrigger(menu);
   if (trigger) trigger.setAttribute('aria-expanded', 'false');
   // Recursively close any nested open submenus.
@@ -139,8 +154,8 @@ function bindChevronToggles(root: HTMLElement): void {
           }
         });
       }
-      if (wasOpen) closeMenu(menu);
-      else openMenu(menu, 'first');
+      if (wasOpen && menu.dataset.navOpenMode !== 'hover') closeMenu(menu);
+      else openMenu(menu, null, 'click');
     });
   });
 }
@@ -250,15 +265,18 @@ function bindHoverSync(root: HTMLElement): void {
       const trigger = findTrigger(menu);
       if (trigger) trigger.setAttribute('aria-expanded', 'true');
       menu.removeAttribute('hidden');
+      if (menu.dataset.navOpenMode !== 'click') setMenuOpenMode(menu, 'hover');
     });
     wrap.addEventListener('mouseleave', () => {
       const menu = directChildren(wrap, '.nav-dropdown')[0] || null;
       if (!menu) return;
+      if (menu.dataset.navOpenMode === 'click') return;
       // Don't close if focus is still inside the menu (keyboard user).
       if (wrap.contains(document.activeElement)) return;
       const trigger = findTrigger(menu);
       if (trigger) trigger.setAttribute('aria-expanded', 'false');
       menu.setAttribute('hidden', '');
+      clearMenuOpenMode(menu);
     });
   });
 }
