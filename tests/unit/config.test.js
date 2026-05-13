@@ -172,7 +172,7 @@ describe('config logic', () => {
     });
 
     it('keeps parent nav items active for related detail pages', () => {
-      expect(isNavItemActive('/events.html', 'https://eagles.kychon.com/event.html?id=42')).toBe(true);
+      expect(isNavItemActive('/events', 'https://eagles.kychon.com/event?id=42')).toBe(true);
     });
   });
 

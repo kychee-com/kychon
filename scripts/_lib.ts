@@ -16,7 +16,7 @@ import { fileSetFromDir, run402 } from "@run402/sdk/node";
 import type { ApplyOptions, FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
 
 import {
-  buildCleanStaticRouteSpecs,
+  buildExplicitPublicPathSpecs,
   customPageStaticFile,
   safeCustomPageSlugs,
 } from "../src/lib/clean-routes.ts";
@@ -28,6 +28,7 @@ import {
   writeEngineReleaseManifest,
   type EngineReleaseManifest,
 } from "./release-manifest.ts";
+import type { PublicStaticPathSpec } from "../src/lib/clean-routes.ts";
 
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
@@ -328,6 +329,36 @@ export interface RunDeployResult {
   elapsedMs?: number;
 }
 
+export interface BuildKychonReleaseSpecOptions {
+  projectId: string;
+  database: ReleaseSpec["database"];
+  fileSet: FileSet;
+  publicPaths: Record<string, PublicStaticPathSpec>;
+  subdomain: string;
+  functionsMap?: Record<string, FunctionSpec>;
+  routes?: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"];
+}
+
+export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): ReleaseSpec {
+  const spec: ReleaseSpec = {
+    project: opts.projectId,
+    database: opts.database,
+    site: {
+      replace: opts.fileSet,
+      public_paths: {
+        mode: "explicit",
+        replace: opts.publicPaths,
+      },
+    },
+    subdomains: { set: [opts.subdomain] },
+    routes: { replace: opts.routes ?? [] },
+  };
+  if (opts.functionsMap && Object.keys(opts.functionsMap).length > 0) {
+    spec.functions = { replace: opts.functionsMap };
+  }
+  return spec;
+}
+
 /**
  * High-level deploy: build Astro, assemble the v2 ReleaseSpec, and call
  * `r.deploy.apply()`. Used by both `deploy.ts` (production) and
@@ -361,10 +392,11 @@ export async function runDeploy(
 
   const fileSet = await fileSetFromDir(distDir);
   const fileCount = Object.keys(fileSet).length;
-  const cleanStaticRoutes = buildCleanStaticRouteSpecs({
+  const publicPaths = buildExplicitPublicPathSpecs({
     files: Object.keys(fileSet),
     pageSlugs: materializedCustomPages.map((page) => page.slug),
   });
+  const publicPathEntries = Object.entries(publicPaths);
 
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
@@ -378,31 +410,31 @@ export async function runDeploy(
     expose: { version: "1", tables: [...EXPOSE_TABLES] },
   };
 
-  const spec: ReleaseSpec = {
-    project: opts.projectId,
+  const spec = buildKychonReleaseSpec({
+    projectId: opts.projectId,
     database,
-    site: { replace: fileSet },
-    subdomains: { set: [opts.subdomain] },
-    routes: { replace: cleanStaticRoutes },
-  };
-  if (fnNames.length > 0) {
-    spec.functions = { replace: functionsMap };
-  }
+    fileSet,
+    publicPaths,
+    subdomain: opts.subdomain,
+    functionsMap,
+  });
 
   console.log(
       `Deploying to ${opts.projectId} (subdomain: ${opts.subdomain})\n` +
       `  ${fileCount} site files (lazy-streamed from ${distDir})\n` +
-      `  ${cleanStaticRoutes.length} clean static routes\n` +
+      `  ${publicPathEntries.length} explicit public paths\n` +
+      `  0 static route aliases (clears v1.66 route aliases)\n` +
       `  ${fnNames.length} functions (${scheduledFns.length} scheduled)\n` +
       `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
-  if (cleanStaticRoutes.length > 0) {
-    const preview = cleanStaticRoutes
+  if (publicPathEntries.length > 0) {
+    const preview = publicPathEntries
       .slice(0, 8)
-      .map((route) => `${route.pattern}->${route.target.file}`)
+      .map(([path, spec]) => `${path}->${spec.asset}`)
       .join(", ");
-    const suffix = cleanStaticRoutes.length > 8 ? ", ..." : "";
-    console.log(`  Clean aliases: ${preview}${suffix}`);
+    const suffix = publicPathEntries.length > 8 ? ", ..." : "";
+    console.log(`  Public paths: ${preview}${suffix}`);
+    console.log("  Hidden implementation paths: /events.html, /search.html, /page.html?slug=...");
     console.log(
       `  Diagnose after deploy: run402 deploy diagnose --project ${opts.projectId} https://${opts.subdomain}.kychon.com/search?q=hello&type=all --method GET`,
     );
@@ -420,8 +452,10 @@ export async function runDeploy(
           functionsWithSchedule: scheduledFns.map(
             (n) => `${n}=${functionsMap[n]?.schedule}`,
           ),
-          routesCount: cleanStaticRoutes.length,
-          cleanStaticRoutes,
+          publicPathsCount: publicPathEntries.length,
+          publicPaths,
+          routesCount: 0,
+          routes: [],
           materializedCustomPages,
           migrationsBytes: sql.length,
           migrationId,

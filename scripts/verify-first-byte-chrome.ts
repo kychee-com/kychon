@@ -26,11 +26,19 @@ const DEFAULT_PATHS = [
   '/admin-settings',
 ];
 
+const DEFAULT_HIDDEN_PATHS = [
+  '/events.html',
+  '/search.html',
+  '/admin.html',
+  '/page.html?slug=about',
+];
+
 interface Options {
   base: string;
   brand: string;
   forbid: string;
   paths: string[];
+  hiddenPaths: string[];
 }
 
 function readFlag(args: string[], name: string): string | null {
@@ -44,9 +52,10 @@ function parseOptions(args: string[]): Options {
   const brand = readFlag(args, '--brand');
   const forbid = readFlag(args, '--forbid') ?? 'Kychon Community';
   const pathsArg = readFlag(args, '--paths');
+  const hiddenPathsArg = readFlag(args, '--hidden-paths');
   if (!base || !brand) {
     throw new Error(
-      'Usage: tsx scripts/verify-first-byte-chrome.ts --base <url> --brand <text> [--forbid <text>] [--paths /,/events]',
+      'Usage: tsx scripts/verify-first-byte-chrome.ts --base <url> --brand <text> [--forbid <text>] [--paths /,/events] [--hidden-paths /events.html,/search.html]',
     );
   }
   return {
@@ -54,6 +63,9 @@ function parseOptions(args: string[]): Options {
     brand,
     forbid,
     paths: pathsArg ? pathsArg.split(',').map((p) => p.trim()).filter(Boolean) : DEFAULT_PATHS,
+    hiddenPaths: hiddenPathsArg
+      ? hiddenPathsArg.split(',').map((p) => p.trim()).filter(Boolean)
+      : DEFAULT_HIDDEN_PATHS,
   };
 }
 
@@ -108,6 +120,22 @@ async function main(): Promise<void> {
       const message = err instanceof Error ? err.message : String(err);
       failures.push(`${path}: ${message}`);
       process.stdout.write(`fail ${path}: ${message}\n`);
+    }
+  }
+
+  for (const path of opts.hiddenPaths) {
+    const url = urlFor(opts.base, path);
+    try {
+      const res = await fetch(url, { redirect: 'manual' });
+      const contentType = res.headers.get('content-type') ?? '';
+      if (res.ok && contentType.includes('text/html')) {
+        throw new Error(`unexpected public HTML response HTTP ${res.status}`);
+      }
+      process.stdout.write(`ok hidden ${path}\n`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      failures.push(`${path}: ${message}`);
+      process.stdout.write(`fail hidden ${path}: ${message}\n`);
     }
   }
 

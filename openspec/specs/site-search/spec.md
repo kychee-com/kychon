@@ -6,11 +6,11 @@ Kychon provides native site search over its own PostgreSQL-backed content withou
 
 ### Requirement: Search block renders native search controls
 
-The system SHALL provide a reusable `site_search` block that can render in global header chrome, page sections, and copied-site layouts. The block SHALL support configurable placeholder text, button label, destination path, compact mode, and `default_type`. The default destination path SHALL be `/search.html`, and the default type SHALL be `all`.
+The system SHALL provide a reusable `site_search` block that can render in global header chrome, page sections, and copied-site layouts. The block SHALL support configurable placeholder text, button label, destination path, compact mode, and `default_type`. The default destination path SHALL be `/search`, and the default type SHALL be `all`.
 
 #### Scenario: Header search renders with defaults
 - **WHEN** a global header section has `section_type = 'site_search'` and empty config
-- **THEN** the rendered page includes a search form that submits to `/search.html`
+- **THEN** the rendered page includes a search form that submits to `/search`
 - **THEN** the form includes a query input, a submit control, and no Wild Apricot `/Sys/Search` dependency
 
 #### Scenario: Search block preserves copied labels
@@ -19,12 +19,12 @@ The system SHALL provide a reusable `site_search` block that can render in globa
 
 #### Scenario: Search block submits selected query without JavaScript
 - **WHEN** JavaScript is unavailable and a visitor submits `membership renewal` from the search block
-- **THEN** the visitor is navigated to `/search.html?q=membership%20renewal&type=all`
+- **THEN** the visitor is navigated to `/search?q=membership%20renewal&type=all`
 
 #### Scenario: Search block submits configured type
 - **WHEN** a `site_search` block is configured with `default_type = 'resources'`
 - **WHEN** a visitor submits a query
-- **THEN** the visitor is navigated to `/search.html` with `type=resources`
+- **THEN** the visitor is navigated to `/search` with `type=resources`
 
 ### Requirement: Page search includes schema-driven section content
 
@@ -127,15 +127,15 @@ The system SHALL enforce search visibility in the server endpoint before returni
 
 ### Requirement: Search results page displays results and filters
 
-The system SHALL provide `/search.html` as the native search results page. The page SHALL read `q`, `type`, and `page` parameters from the URL, render a search form, show visible-only result counts and facets, show filters for all supported source types, and display each result with title, type label, URL, and safe snippet. The page SHALL include `noindex,follow` robots metadata.
+The system SHALL provide `/search` as the native search results page. The page SHALL read `q`, `type`, and `page` parameters from the URL, render a search form, show visible-only result counts and facets, show filters for all supported source types, and display each result with title, type label, URL, and safe snippet. The page SHALL include `noindex,follow` robots metadata.
 
 #### Scenario: Results page renders matching rows
-- **WHEN** a visitor opens `/search.html?q=board`
+- **WHEN** a visitor opens `/search?q=board`
 - **THEN** the page displays the submitted query in the search input
 - **THEN** matching results are shown with title, type label, URL, and snippet
 
 #### Scenario: Results page renders no-query state
-- **WHEN** a visitor opens `/search.html` without a query
+- **WHEN** a visitor opens `/search` without a query
 - **THEN** the page displays a search-ready state
 - **THEN** no empty-query error is shown
 
@@ -177,7 +177,7 @@ The `site_search` block SHALL support lightweight autosuggest by requesting titl
 
 #### Scenario: Keyboard fallback submits full search
 - **WHEN** a visitor submits the search input without choosing a suggestion
-- **THEN** the search block navigates to `/search.html` with the typed query
+- **THEN** the search block navigates to `/search` with the typed query
 
 #### Scenario: Escape closes suggestions
 - **WHEN** suggestions are open and the visitor presses Escape
@@ -219,7 +219,7 @@ The copy/import workflow SHALL map Wild Apricot-style site search gadgets and `/
 #### Scenario: Wild Apricot search form becomes native block
 - **WHEN** the copy/import workflow detects a Wild Apricot site search gadget
 - **THEN** it emits a Kychon section with `section_type = 'site_search'`
-- **THEN** the emitted form targets `/search.html` instead of the source site's `/Sys/Search`
+- **THEN** the emitted form targets `/search` instead of the source site's `/Sys/Search`
 
 #### Scenario: Absolute Wild Apricot search URL is replaced
 - **WHEN** copied source HTML contains an absolute URL ending in `/Sys/Search` or `/Sys/Search/DoSearch`

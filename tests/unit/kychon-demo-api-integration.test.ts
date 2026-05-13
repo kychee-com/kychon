@@ -82,7 +82,7 @@ function demoTables(name: string): Record<string, JsonObject[]> {
         source_key: '1',
         title: `${name} volunteer day`,
         body: 'Volunteer signup and orientation',
-        url: '/events.html',
+        url: '/events',
         published: true,
         is_members_only: false,
       },
