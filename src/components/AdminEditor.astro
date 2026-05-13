@@ -198,6 +198,7 @@
         const newText = htmlEl.textContent?.trim() || '';
         if (newText === original) return; // no change
         const ok = await saveField(htmlEl, target, newText);
+        if (!ok) htmlEl.textContent = original;
         flashSave(htmlEl, ok);
         if (ok) showToast('Saved');
         else showToast('Save failed', 'error');

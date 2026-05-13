@@ -257,9 +257,12 @@ export function sanitizeSvgPathData(path: any): string {
 }
 
 function jsonAttr(value: any): string {
-  // Used inside data-editable-config="..." — escape so quotes survive.
+  // Used inside data-editable-config="..." — escape quotes and markup-like
+  // characters so rich config strings cannot break the containing attribute.
   return JSON.stringify(value)
     .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }

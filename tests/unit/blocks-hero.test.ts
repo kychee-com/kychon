@@ -258,6 +258,28 @@ describe('hero renderer — admin attributes', () => {
     });
     expect(html).toContain('data-section-edit="1"');
   });
+
+  it('keeps rich caption HTML inside data-editable-config from leaking into admin DOM', () => {
+    const html = renderBlock(
+      heroSection({
+        mode: 'foreground',
+        heading: 'Lifting Wichita',
+        image_url: '/assets/hero.jpg',
+        image_alt: 'Volunteers',
+        caption_html: 'Founded 1995 · <strong>Sedgwick County, KS</strong>',
+        image_aspect: '21/9',
+        logo_overlay_url: '/assets/logo.png',
+      }),
+      { ...baseCtx, admin: true },
+    );
+    const editableConfig = html.match(/data-editable-config="([^"]+)"/)?.[1] || '';
+
+    expect(editableConfig).toContain('&lt;strong&gt;Sedgwick County, KS&lt;/strong&gt;');
+    expect(editableConfig).not.toContain('<strong>');
+    expect(html).toContain(
+      '<div class="hero-caption" data-position="bottom-right">Founded 1995 · <strong>Sedgwick County, KS</strong></div>',
+    );
+  });
 });
 
 describe('sanitizeCaptionHtml — allowlist enforcement', () => {
