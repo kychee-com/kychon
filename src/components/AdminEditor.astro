@@ -1043,6 +1043,25 @@
           </div>
         </div>
         <div class="hero-editor-body">
+          <fieldset class="hero-mode-fields">
+            <legend>Text and button</legend>
+            <label class="field">
+              <span>Heading</span>
+              <input type="text" data-field="heading" value="${esc(cfg.heading || '')}">
+            </label>
+            <label class="field">
+              <span>Subheading</span>
+              <textarea data-field="subheading" rows="2">${esc(cfg.subheading || '')}</textarea>
+            </label>
+            <label class="field">
+              <span>Button text</span>
+              <input type="text" data-field="cta_text" value="${esc(cfg.cta_text || '')}">
+            </label>
+            <label class="field">
+              <span>Button link</span>
+              <input type="text" data-field="cta_href" value="${esc(cfg.cta_href || '')}" placeholder="/join">
+            </label>
+          </fieldset>
           <fieldset class="hero-mode-toggle">
             <legend>Mode</legend>
             <label><input type="radio" name="hero-mode" value="background"${mode === 'background' ? ' checked' : ''}> Background image</label>
@@ -1196,12 +1215,14 @@
       panel.querySelector<HTMLButtonElement>('[data-action="cancel"]')?.addEventListener('click', close);
       panel.querySelector<HTMLButtonElement>('[data-action="save"]')?.addEventListener('click', async () => {
         try {
-          // Read current config so we don't clobber unrelated keys (heading,
-          // subheading, cta_text/href live outside this popover).
+          // Read current config so we don't clobber unrelated keys.
           const rows = await get(`sections?id=eq.${sid}`);
           const current = (rows[0]?.config as HeroDraft) || {};
           const merged: HeroDraft = { ...current };
-          // Common scalar fields preserved from the row.
+          merged.heading = cfg.heading || '';
+          merged.subheading = cfg.subheading || '';
+          merged.cta_text = cfg.cta_text || '';
+          merged.cta_href = cfg.cta_href || '';
           // Apply popover-specific fields.
           merged.mode = cfg.mode;
           if (cfg.mode === 'foreground') {
@@ -1344,6 +1365,13 @@
       btn.type = 'button';
       btn.dataset.zoneAdd = zone;
       btn.textContent = `+ Add to ${zone}`;
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (zone === 'header' || zone === 'main' || zone === 'footer') {
+          void openZoneAddPicker(zone);
+        }
+      });
       zoneEl.appendChild(btn);
     });
   }
@@ -1806,8 +1834,11 @@
       '2/3': 'Two-thirds',
     };
     const spanRadioHtml = spans
-      .map((s) => `<button type="button" class="admin-span-radio-btn${s === currentSpan ? ' active' : ''}" data-span="${s}">${esc(spanLabels[s] || s)}</button>`)
-      .join('');
+      .length <= 1
+        ? '<div class="admin-span-fixed">Fixed full width</div>'
+        : spans
+          .map((s) => `<button type="button" class="admin-span-radio-btn${s === currentSpan ? ' active' : ''}" data-span="${s}">${esc(spanLabels[s] || s)}</button>`)
+          .join('');
 
     const scopeLabel = currentScope === 'global' ? 'Make page-only' : 'Make global';
     const scopeNext = currentScope === 'global' ? 'page' : 'global';
