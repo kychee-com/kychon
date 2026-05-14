@@ -22,6 +22,7 @@ import {
   AlertDescription,
   Badge,
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -30,6 +31,11 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
 } from '@/components/kychon/ui';
 import {
@@ -50,6 +56,7 @@ const NAV_EDIT_EVENT = 'kychon:admin-editor-nav-edit';
 const EMBED_EDIT_EVENT = 'kychon:admin-editor-embed-edit';
 const CONTENT_RENDERED_EVENT = 'wl-content-rendered';
 const SECTIONS_CHANGED_EVENT = 'wl-sections-changed';
+const SELECT_EMPTY_VALUE = '__kychon_empty_value__';
 
 type Zone = 'header' | 'main' | 'footer';
 
@@ -230,21 +237,6 @@ function heroConfigFromDraft(current: Record<string, any> = {}, draft: HeroDraft
   return next;
 }
 
-function NativeSelect({
-  className,
-  ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      className={cn(
-        'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 function Field({
   id,
   label,
@@ -259,6 +251,53 @@ function Field({
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
+  );
+}
+
+function encodeSelectItemValue(value: string): string {
+  return value === '' ? SELECT_EMPTY_VALUE : value;
+}
+
+function encodeSelectValue(value: string, options: Array<[string, string]>): string {
+  return value === '' && options.some(([optionValue]) => optionValue === '') ? SELECT_EMPTY_VALUE : value;
+}
+
+function decodeSelectItemValue(value: string): string {
+  return value === SELECT_EMPTY_VALUE ? '' : value;
+}
+
+function EditorSelect({
+  id,
+  value,
+  options,
+  onValueChange,
+  disabled,
+  placeholder = 'Select an option',
+}: {
+  id: string;
+  value: string;
+  options: Array<[string, string]>;
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <Select
+      value={encodeSelectValue(value, options)}
+      disabled={disabled}
+      onValueChange={(nextValue) => onValueChange(decodeSelectItemValue(nextValue))}
+    >
+      <SelectTrigger id={id}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map(([optionValue, optionLabel]) => (
+          <SelectItem key={`${id}-${optionValue || 'empty'}`} value={encodeSelectItemValue(optionValue)}>
+            {optionLabel}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -979,17 +1018,16 @@ function AdminEditorControls() {
             />
           </Field>
           <Field id={`nav-visibility-${key}`} label="Visibility">
-            <NativeSelect
+            <EditorSelect
               id={`nav-visibility-${key}`}
               value={navVisibility(item)}
-              onChange={(event) =>
-                updateNavItem(path, (current) => withVisibility(current, event.currentTarget.value as NavVisibility))
-              }
-            >
-              <option value="public">Public</option>
-              <option value="auth">Members</option>
-              <option value="admin">Admin</option>
-            </NativeSelect>
+              options={[
+                ['public', 'Public'],
+                ['auth', 'Members'],
+                ['admin', 'Admin'],
+              ]}
+              onValueChange={(value) => updateNavItem(path, (current) => withVisibility(current, value as NavVisibility))}
+            />
           </Field>
           <div className="flex items-end gap-1">
             <Button
@@ -1145,14 +1183,15 @@ function AdminEditorControls() {
           {schema.required ? <span className="text-destructive"> *</span> : null}
         </Label>
         {schema.type === 'select' && schema.options ? (
-          <NativeSelect id={id} value={value} onChange={(event) => updateEmbedParam(key, schema, event.currentTarget.value)}>
-            <option value=""></option>
-            {schema.options.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </NativeSelect>
+          <EditorSelect
+            id={id}
+            value={value}
+            options={[
+              ['', 'Default'],
+              ...schema.options.map((option) => [option, option] as [string, string]),
+            ]}
+            onValueChange={(nextValue) => updateEmbedParam(key, schema, nextValue)}
+          />
         ) : (
           <Input
             id={id}
@@ -1262,15 +1301,19 @@ function AdminEditorControls() {
     const value = getValueAtPath(sourceDraft, field.path);
     if (field.type === 'checkbox') {
       return (
-        <label key={field.path} className="flex min-h-9 items-center gap-2 rounded-md border border-transparent px-2 text-sm hover:bg-muted/50">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-[var(--primary)]"
+        <div
+          key={field.path}
+          className="flex min-h-9 items-center gap-2 rounded-md border border-transparent px-2 text-sm hover:bg-muted/50"
+        >
+          <Checkbox
+            id={id}
             checked={value === true}
-            onChange={(event) => updateSourceField(field, event.currentTarget.checked)}
+            onCheckedChange={(checked) => updateSourceField(field, checked === true)}
           />
-          <span>{field.label}</span>
-        </label>
+          <Label htmlFor={id} className="leading-5">
+            {field.label}
+          </Label>
+        </div>
       );
     }
     if (field.type === 'textarea') {
@@ -1289,17 +1332,12 @@ function AdminEditorControls() {
     if (field.type === 'select' && field.options) {
       return (
         <Field key={field.path} id={id} label={field.label}>
-          <NativeSelect
+          <EditorSelect
             id={id}
             value={value == null ? '' : String(value)}
-            onChange={(event) => updateSourceField(field, event.currentTarget.value)}
-          >
-            {field.options.map(([optionValue, optionLabel]) => (
-              <option key={optionValue} value={optionValue}>
-                {optionLabel}
-              </option>
-            ))}
-          </NativeSelect>
+            options={field.options}
+            onValueChange={(nextValue) => updateSourceField(field, nextValue)}
+          />
         </Field>
       );
     }
@@ -1619,16 +1657,15 @@ function AdminEditorControls() {
                     />
                   </Field>
                   <Field id="hero-mode" label="Image mode">
-                    <NativeSelect
+                    <EditorSelect
                       id="hero-mode"
                       value={heroDraft.mode}
-                      onChange={(event) =>
-                        setHeroDraft({ ...heroDraft, mode: event.currentTarget.value as HeroMode })
-                      }
-                    >
-                      <option value="background">Background image</option>
-                      <option value="foreground">Foreground image</option>
-                    </NativeSelect>
+                      options={[
+                        ['background', 'Background image'],
+                        ['foreground', 'Foreground image'],
+                      ]}
+                      onValueChange={(value) => setHeroDraft({ ...heroDraft, mode: value as HeroMode })}
+                    />
                   </Field>
                   {heroDraft.mode === 'background' ? (
                     <Field id="hero-bg-image" label="Background image URL">
@@ -1655,33 +1692,33 @@ function AdminEditorControls() {
                         />
                       </Field>
                       <Field id="hero-image-aspect" label="Aspect ratio">
-                        <NativeSelect
+                        <EditorSelect
                           id="hero-image-aspect"
                           value={heroDraft.image_aspect}
-                          onChange={(event) =>
-                            setHeroDraft({ ...heroDraft, image_aspect: event.currentTarget.value as HeroAspect })
-                          }
-                        >
-                          <option value="auto">Auto</option>
-                          <option value="16/9">16:9</option>
-                          <option value="4/3">4:3</option>
-                          <option value="21/9">21:9</option>
-                        </NativeSelect>
+                          options={[
+                            ['auto', 'Auto'],
+                            ['16/9', '16:9'],
+                            ['4/3', '4:3'],
+                            ['21/9', '21:9'],
+                          ]}
+                          onValueChange={(value) => setHeroDraft({ ...heroDraft, image_aspect: value as HeroAspect })}
+                        />
                       </Field>
                       <Field id="hero-text-position" label="Heading position">
-                        <NativeSelect
+                        <EditorSelect
                           id="hero-text-position"
                           value={heroDraft.text_position}
-                          onChange={(event) =>
+                          options={[
+                            ['over_image', 'Over the image'],
+                            ['below_image', 'Below the image'],
+                          ]}
+                          onValueChange={(value) =>
                             setHeroDraft({
                               ...heroDraft,
-                              text_position: event.currentTarget.value as HeroTextPosition,
+                              text_position: value as HeroTextPosition,
                             })
                           }
-                        >
-                          <option value="over_image">Over the image</option>
-                          <option value="below_image">Below the image</option>
-                        </NativeSelect>
+                        />
                       </Field>
                       <Field id="hero-logo-overlay" label="Logo overlay URL">
                         <Input
@@ -1863,18 +1900,13 @@ function AdminEditorControls() {
 
           <div className="space-y-4">
             <Field id="embed-provider" label="Provider">
-              <NativeSelect
+              <EditorSelect
                 id="embed-provider"
                 value={embedProviderId}
                 disabled={embedLoading || embedSaving}
-                onChange={(event) => selectEmbedProvider(event.currentTarget.value)}
-              >
-                {Object.entries(PROVIDERS).map(([id, provider]) => (
-                  <option key={id} value={id}>
-                    {provider.icon} {provider.label}
-                  </option>
-                ))}
-              </NativeSelect>
+                options={Object.entries(PROVIDERS).map(([id, provider]) => [id, `${provider.icon} ${provider.label}`])}
+                onValueChange={selectEmbedProvider}
+              />
             </Field>
 
             <Field id="embed-heading" label="Heading (optional)">
@@ -1934,18 +1966,17 @@ function AdminEditorControls() {
                       This block embeds content from a source Kychon has not verified. Visitors run any scripts that
                       source serves.
                     </p>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[var(--primary)]"
+                    <div className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        id="embed-trust-ack"
                         checked={embedTrustAck && Boolean(embedTrustedHost)}
                         disabled={!embedTrustedHost || embedLoading || embedSaving}
-                        onChange={(event) => setEmbedTrustAck(event.currentTarget.checked)}
+                        onCheckedChange={(checked) => setEmbedTrustAck(checked === true)}
                       />
-                      <span>
+                      <Label htmlFor="embed-trust-ack" className="leading-5">
                         I trust <code className="rounded bg-muted px-1 py-0.5">{embedTrustedHost || 'this source'}</code>
-                      </span>
-                    </label>
+                      </Label>
+                    </div>
                   </div>
                 </AlertDescription>
               </Alert>
