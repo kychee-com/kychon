@@ -2,6 +2,7 @@ export const AUTH_OPEN_EVENT = 'kychon:auth-open';
 
 export interface AuthModalOpenDetail {
   error?: string;
+  flow?: 'connect-google';
   mode?: 'sign-in' | 'sign-up';
   trigger?: HTMLElement | null;
 }

@@ -230,7 +230,7 @@ describe('auth.js', () => {
     it('stores and consumes the clean current path for Google return navigation', async () => {
       global.window.location.pathname = '/admin.html';
       global.window.location.search = '?tab=setup';
-      localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok' }));
+      localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok', user: { email: 'Owner@Test.com' } }));
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ authorization_url: 'https://accounts.google.test/auth' }),
@@ -240,6 +240,13 @@ describe('auth.js', () => {
 
       expect(localStorage.getItem('wl_auth_return_to')).toBe('/admin?tab=setup');
       expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok');
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toMatchObject({
+        redirect_url: 'http://localhost/',
+        mode: 'redirect',
+        intent: 'link',
+        code_challenge_method: 'S256',
+        login_hint: 'owner@test.com',
+      });
       expect(auth.consumeAuthReturnTo()).toBe('/admin?tab=setup');
       expect(localStorage.getItem('wl_auth_return_to')).toBeNull();
     });
@@ -266,6 +273,39 @@ describe('auth.js', () => {
       expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ token: 'magic123' });
       expect(global.window.history.replaceState).toHaveBeenCalledWith(null, '', '/admin?fresh_start=owner_setup');
       expect(localStorage.getItem('wl_session')).toBeTruthy();
+    });
+
+    it('requests a secure link for verified Google connection', async () => {
+      global.window.location.pathname = '/admin';
+      global.window.location.search = '?fresh_start=owner_setup';
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+
+      await auth.requestGoogleConnectionLink(' Owner@Test.COM ');
+
+      expect(global.fetch.mock.calls[0][0]).toContain('/auth/v1/magic-link');
+      expect(global.fetch.mock.calls[0][1].method).toBe('POST');
+      expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer test_key');
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({
+        email: 'owner@test.com',
+        redirect_url: 'http://localhost/admin?fresh_start=owner_setup&connect_google=1',
+        intent: 'signin',
+        client_state: { intent: 'connect_google' },
+      });
+      expect(localStorage.getItem('kychon_connect_google_after_magic')).toBe('1');
+    });
+
+    it('consumes Google connection resume intent and preserves other query params', () => {
+      global.window.location.pathname = '/admin';
+      global.window.location.search = '?fresh_start=owner_setup&connect_google=1';
+      localStorage.setItem('kychon_connect_google_after_magic', '1');
+
+      expect(auth.consumeGoogleLinkResumeIntent()).toBe(true);
+
+      expect(global.window.history.replaceState).toHaveBeenCalledWith(null, '', '/admin?fresh_start=owner_setup');
+      expect(localStorage.getItem('kychon_connect_google_after_magic')).toBeNull();
     });
 
     it('throws instead of navigating to undefined when Google OAuth start fails', async () => {
@@ -298,7 +338,17 @@ describe('auth.js', () => {
     it('consumes Google callback errors from the hash', () => {
       global.window.location.hash = '#error=account_exists_requires_link';
 
-      expect(auth.consumeOAuthCallbackError()).toContain('already exists');
+      expect(auth.consumeOAuthCallbackError()).toContain('already has access here');
+      expect(global.window.history.replaceState).toHaveBeenCalledWith(null, '', '/');
+    });
+
+    it('maps Google account-match errors to the connection flow', () => {
+      global.window.location.hash = '#error=account_exists_requires_link';
+
+      expect(auth.consumeOAuthCallbackErrorDetail()).toMatchObject({
+        code: 'account_exists_requires_link',
+        flow: 'connect-google',
+      });
       expect(global.window.history.replaceState).toHaveBeenCalledWith(null, '', '/');
     });
 

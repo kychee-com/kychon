@@ -11,6 +11,14 @@ function getAnonKey(): string {
 const AUTH_RETURN_TO_KEY = 'wl_auth_return_to';
 const MAGIC_LINK_TOKEN_PARAMS = ['token', 'magic_link_token', 'magic_token', 'confirmation_token'];
 const PASSWORD_SET_KEY_PREFIX = 'kychon_password_set:';
+const GOOGLE_LINK_RESUME_PARAM = 'connect_google';
+const GOOGLE_LINK_RESUME_KEY = 'kychon_connect_google_after_magic';
+
+export interface OAuthCallbackErrorDetail {
+  code: string;
+  message: string;
+  flow?: 'connect-google';
+}
 
 function currentPathWithSearch(): string {
   const pathname = cleanRoutePath(window.location.pathname || '/');
@@ -77,7 +85,7 @@ function cleanOAuthCallbackUrl(): string {
 function oauthErrorMessage(code: string): string {
   switch (code) {
     case 'account_exists_requires_link':
-      return 'That Google account already exists here, but it is not connected to Google sign-in yet.';
+      return 'This email already has access here. Verify it once, then we will connect Google sign-in to that account.';
     case 'identity_already_linked':
       return 'That Google account is already connected to another user.';
     case 'identity_resolution_failed':
@@ -89,6 +97,10 @@ function oauthErrorMessage(code: string): string {
     default:
       return 'Google sign-in could not be completed. Please try again.';
   }
+}
+
+function oauthErrorFlow(code: string): OAuthCallbackErrorDetail['flow'] {
+  return code === 'account_exists_requires_link' ? 'connect-google' : undefined;
 }
 
 function safeReturnTo(value: string | null): string | null {
@@ -140,6 +152,12 @@ function requireAccessToken(): string {
 function publicAuthHeaders(): Record<string, string> {
   const anonKey = getAnonKey();
   return { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` };
+}
+
+function currentUrlWithParam(param: string, value: string): string {
+  const url = new URL(currentPathWithSearch(), window.location.origin);
+  url.searchParams.set(param, value);
+  return `${url.pathname}${url.search}`;
 }
 
 function decodeBase64UrlJson(value: string): any | null {
@@ -252,6 +270,8 @@ export async function signInWithGoogle(): Promise<void> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', apikey: getAnonKey() };
   const token = getSession()?.access_token;
   if (typeof token === 'string' && token) headers.Authorization = `Bearer ${token}`;
+  const linking = typeof token === 'string' && token.length > 0;
+  const loginHint = linking ? getSessionEmail() : '';
 
   const res = await fetch(`${getAPI()}/auth/v1/oauth/google/start`, {
     method: 'POST',
@@ -259,8 +279,10 @@ export async function signInWithGoogle(): Promise<void> {
     body: JSON.stringify({
       redirect_url: `${window.location.origin}/`,
       mode: 'redirect',
+      intent: linking ? 'link' : 'signin',
       code_challenge: challenge,
       code_challenge_method: 'S256',
+      ...(loginHint ? { login_hint: loginHint } : {}),
     }),
   });
   const body = await res.json().catch(() => null);
@@ -312,17 +334,38 @@ export async function handleOAuthCallback(): Promise<any> {
 }
 
 export function consumeOAuthCallbackError(): string | null {
+  return consumeOAuthCallbackErrorDetail()?.message ?? null;
+}
+
+export function consumeOAuthCallbackErrorDetail(): OAuthCallbackErrorDetail | null {
   const params = getOAuthCallbackParams();
   const error = params.get('error');
   if (!error) return null;
   window.history.replaceState(null, '', cleanOAuthCallbackUrl());
-  return oauthErrorMessage(error);
+  return {
+    code: error,
+    message: oauthErrorMessage(error),
+    flow: oauthErrorFlow(error),
+  };
 }
 
 export function consumeAuthReturnTo(): string | null {
   const returnTo = safeReturnTo(localStorage.getItem(AUTH_RETURN_TO_KEY));
   localStorage.removeItem(AUTH_RETURN_TO_KEY);
   return returnTo;
+}
+
+export function consumeGoogleLinkResumeIntent(): boolean {
+  const queryParams = new URLSearchParams(window.location.search.replace(/^\?/, ''));
+  const fromQuery = queryParams.get(GOOGLE_LINK_RESUME_PARAM) === '1';
+  const fromStorage = localStorage.getItem(GOOGLE_LINK_RESUME_KEY) === '1';
+  localStorage.removeItem(GOOGLE_LINK_RESUME_KEY);
+  if (fromQuery) {
+    queryParams.delete(GOOGLE_LINK_RESUME_PARAM);
+    const query = queryParams.toString();
+    window.history.replaceState(null, '', `${window.location.pathname || '/'}${query ? `?${query}` : ''}`);
+  }
+  return fromQuery || fromStorage;
 }
 
 export function hasMagicLinkCallback(): boolean {
@@ -352,6 +395,28 @@ export async function handleMagicLinkCallback(): Promise<any> {
   const session = await res.json();
   saveSession(session);
   return session;
+}
+
+export async function requestGoogleConnectionLink(email: string): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) throw new Error('Enter your email address first.');
+  localStorage.setItem(GOOGLE_LINK_RESUME_KEY, '1');
+  const redirectUrl = `${window.location.origin}${currentUrlWithParam(GOOGLE_LINK_RESUME_PARAM, '1')}`;
+  const res = await fetch(`${getAPI()}/auth/v1/magic-link`, {
+    method: 'POST',
+    headers: publicAuthHeaders(),
+    body: JSON.stringify({
+      email: normalizedEmail,
+      redirect_url: redirectUrl,
+      intent: 'signin',
+      client_state: { intent: 'connect_google' },
+    }),
+  });
+  if (!res.ok) {
+    localStorage.removeItem(GOOGLE_LINK_RESUME_KEY);
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || 'We could not send that secure link. Please try again.');
+  }
 }
 
 // Password auth
