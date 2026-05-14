@@ -8,7 +8,6 @@
 
 <script>
   import { patch, get } from '../lib/api';
-  import { openCopiedThemeEditor } from '../lib/admin/copied-theme-editor';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
@@ -59,14 +58,6 @@
     return adminEditorControlsPromise;
   }
 
-  function initAdminEditorControlBridge() {
-    if ((document.body as any).__adminEditorControlBridgeBound) return;
-    (document.body as any).__adminEditorControlBridgeBound = true;
-    window.addEventListener('kychon:admin-editor-open-source-settings', ((event: CustomEvent<{ sectionId: number }>) => {
-      if (Number.isFinite(event.detail?.sectionId)) void openSourceSettings(event.detail.sectionId);
-    }) as EventListener);
-  }
-
   async function openReactSectionSettings(sectionId: number) {
     const controls = await ensureAdminEditorControls();
     if (!controls) {
@@ -101,10 +92,6 @@
       return;
     }
     controls.openEmbedEditControl(sectionId);
-  }
-
-  function openSourceSettings(sectionId: number) {
-    return openCopiedThemeEditor(sectionId, { get, patch, showToast });
   }
 
   // --- Save animation on element ---
@@ -828,7 +815,6 @@
     if (session?.user?.member?.role !== 'admin') return;
     document.body.classList.add('admin');
     loadAdminCSS();
-    initAdminEditorControlBridge();
     void ensureAdminEditorControls();
     initEditableText();
     initEditableRich();
