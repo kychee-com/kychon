@@ -210,7 +210,7 @@ describe('auth.js', () => {
       expect(localStorage.getItem('wl_pkce_verifier')).toBeNull();
     });
 
-    it('stores and consumes the current path for Google return navigation', async () => {
+    it('stores and consumes the clean current path for Google return navigation', async () => {
       global.window.location.pathname = '/admin.html';
       global.window.location.search = '?tab=setup';
       global.fetch.mockResolvedValueOnce({
@@ -220,9 +220,29 @@ describe('auth.js', () => {
 
       await auth.signInWithGoogle();
 
-      expect(localStorage.getItem('wl_auth_return_to')).toBe('/admin.html?tab=setup');
-      expect(auth.consumeAuthReturnTo()).toBe('/admin.html?tab=setup');
+      expect(localStorage.getItem('wl_auth_return_to')).toBe('/admin?tab=setup');
+      expect(auth.consumeAuthReturnTo()).toBe('/admin?tab=setup');
       expect(localStorage.getItem('wl_auth_return_to')).toBeNull();
+    });
+
+    it('throws instead of navigating to undefined when Google OAuth start fails', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ message: 'redirect_url is not an allowed origin for this project' }),
+      });
+
+      await expect(auth.signInWithGoogle()).rejects.toThrow('Google sign-in is not ready on this domain yet');
+      expect(global.window.location.href).toBe('http://localhost/');
+    });
+
+    it('throws instead of navigating to undefined when Google OAuth start omits the URL', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+
+      await expect(auth.signInWithGoogle()).rejects.toThrow('Google sign-in could not be started');
+      expect(global.window.location.href).toBe('http://localhost/');
     });
 
     it('ignores unsafe return paths', () => {

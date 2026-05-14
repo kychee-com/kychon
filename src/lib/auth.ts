@@ -11,7 +11,21 @@ function getAnonKey(): string {
 const AUTH_RETURN_TO_KEY = 'wl_auth_return_to';
 
 function currentPathWithSearch(): string {
-  return `${window.location.pathname || '/'}${window.location.search || ''}`;
+  const pathname = cleanRoutePath(window.location.pathname || '/');
+  return `${pathname}${window.location.search || ''}`;
+}
+
+function cleanRoutePath(pathname: string): string {
+  switch (pathname) {
+    case '/admin.html':
+      return '/admin';
+    case '/admin-members.html':
+      return '/admin-members';
+    case '/admin-settings.html':
+      return '/admin-settings';
+    default:
+      return pathname || '/';
+  }
 }
 
 function getOAuthCallbackParams(): URLSearchParams {
@@ -194,8 +208,24 @@ export async function signInWithGoogle(): Promise<void> {
       code_challenge_method: 'S256',
     }),
   });
-  const { authorization_url } = await res.json();
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(authStartErrorMessage(body));
+  }
+
+  const authorization_url = typeof body?.authorization_url === 'string' ? body.authorization_url : '';
+  if (!authorization_url) {
+    throw new Error('Google sign-in could not be started. Please try again.');
+  }
   window.location.href = authorization_url;
+}
+
+function authStartErrorMessage(body: any): string {
+  const message = typeof body?.message === 'string' ? body.message : '';
+  if (/redirect_url is not an allowed origin/i.test(message)) {
+    return 'Google sign-in is not ready on this domain yet. Please use the setup link from Kychon and try again.';
+  }
+  return message || 'Google sign-in could not be started. Please try again.';
 }
 
 export async function handleOAuthCallback(): Promise<any> {
