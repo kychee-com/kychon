@@ -29,7 +29,7 @@ function gateCopy(kind: AuthGateKind, context?: AuthGateContext): GateCopy {
     return {
       title: t('auth.gate.admin.title'),
       body: t('auth.gate.admin.body'),
-      showSignIn: false,
+      showSignIn: true,
     };
   }
   const ctx = context === 'profile' ? 'profile' : 'directory';
