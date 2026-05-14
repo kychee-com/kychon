@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Maximize2, Save, Settings2, Trash2 } from 'lucide-react';
+import { Image, Loader2, Maximize2, Save, Settings2, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
@@ -14,6 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Input,
+  Label,
+  Textarea,
 } from '@/components/kychon/ui';
 import { COPIED_THEME_EDITOR_TYPES, type CopiedThemeEditorType } from '@/lib/admin/copied-theme-editor';
 import { del, get, patch } from '@/lib/api';
@@ -22,12 +25,12 @@ import { showToast } from '@/lib/toast-events';
 import { cn } from '@/lib/ui/cn';
 
 const SECTION_EDIT_EVENT = 'kychon:admin-editor-section-edit';
-const HERO_SETTINGS_EVENT = 'kychon:admin-editor-open-hero-settings';
 const SOURCE_SETTINGS_EVENT = 'kychon:admin-editor-open-source-settings';
 
 interface SectionRow {
   id: number;
   section_type: string;
+  config?: Record<string, any>;
   scope?: string;
   column_span?: string | null;
 }
@@ -36,7 +39,162 @@ interface SectionEditDetail {
   sectionId: number;
 }
 
+type HeroMode = 'background' | 'foreground';
+type HeroAspect = 'auto' | '16/9' | '4/3' | '21/9';
+type HeroTextPosition = 'over_image' | 'below_image';
+type HeroLogoPosition = 'left' | 'center' | 'right';
+type HeroCaptionPosition =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'right-middle'
+  | 'bottom-right'
+  | 'bottom-center'
+  | 'bottom-left'
+  | 'left-middle';
+
+interface HeroDraft {
+  heading: string;
+  subheading: string;
+  cta_text: string;
+  cta_href: string;
+  mode: HeroMode;
+  bg_image: string;
+  image_url: string;
+  image_alt: string;
+  image_aspect: HeroAspect;
+  logo_overlay_url: string;
+  logo_position: HeroLogoPosition;
+  logo_max_height: string;
+  caption_html: string;
+  caption_position: HeroCaptionPosition;
+  text_position: HeroTextPosition;
+}
+
 let root: Root | null = null;
+
+function asHeroMode(value: unknown): HeroMode {
+  return value === 'foreground' ? 'foreground' : 'background';
+}
+
+function asHeroAspect(value: unknown): HeroAspect {
+  return value === '16/9' || value === '4/3' || value === '21/9' ? value : 'auto';
+}
+
+function asHeroTextPosition(value: unknown): HeroTextPosition {
+  return value === 'below_image' ? 'below_image' : 'over_image';
+}
+
+function asHeroLogoPosition(value: unknown): HeroLogoPosition {
+  return value === 'center' || value === 'right' ? value : 'left';
+}
+
+function asHeroCaptionPosition(value: unknown): HeroCaptionPosition {
+  const valid = new Set([
+    'top-left',
+    'top-center',
+    'top-right',
+    'right-middle',
+    'bottom-right',
+    'bottom-center',
+    'bottom-left',
+    'left-middle',
+  ]);
+  return typeof value === 'string' && valid.has(value) ? (value as HeroCaptionPosition) : 'bottom-right';
+}
+
+function textValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function heroDraftFromConfig(config: Record<string, any> = {}): HeroDraft {
+  return {
+    heading: textValue(config.heading),
+    subheading: textValue(config.subheading),
+    cta_text: textValue(config.cta_text),
+    cta_href: textValue(config.cta_href),
+    mode: asHeroMode(config.mode),
+    bg_image: textValue(config.bg_image),
+    image_url: textValue(config.image_url),
+    image_alt: textValue(config.image_alt),
+    image_aspect: asHeroAspect(config.image_aspect),
+    logo_overlay_url: textValue(config.logo_overlay_url),
+    logo_position: asHeroLogoPosition(config.logo_position),
+    logo_max_height: textValue(config.logo_max_height, '120px'),
+    caption_html: textValue(config.caption_html),
+    caption_position: asHeroCaptionPosition(config.caption_position),
+    text_position: asHeroTextPosition(config.text_position),
+  };
+}
+
+function heroConfigFromDraft(current: Record<string, any> = {}, draft: HeroDraft): Record<string, any> {
+  const next: Record<string, any> = {
+    ...current,
+    heading: draft.heading.trim(),
+    subheading: draft.subheading.trim(),
+    cta_text: draft.cta_text.trim(),
+    cta_href: draft.cta_href.trim(),
+    mode: draft.mode,
+  };
+
+  if (draft.mode === 'foreground') {
+    delete next.bg_image;
+    next.image_url = draft.image_url.trim();
+    next.image_alt = draft.image_alt.trim();
+    next.image_aspect = draft.image_aspect;
+    next.logo_overlay_url = draft.logo_overlay_url.trim();
+    next.logo_position = draft.logo_position;
+    next.logo_max_height = draft.logo_max_height.trim() || '120px';
+    next.caption_html = draft.caption_html.trim();
+    next.caption_position = draft.caption_position;
+    next.text_position = draft.text_position;
+  } else {
+    delete next.image_url;
+    delete next.image_alt;
+    delete next.image_aspect;
+    delete next.logo_overlay_url;
+    delete next.logo_position;
+    delete next.logo_max_height;
+    delete next.caption_html;
+    delete next.caption_position;
+    delete next.text_position;
+    next.bg_image = draft.bg_image.trim();
+  }
+
+  return next;
+}
+
+function NativeSelect({
+  className,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={cn(
+        'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function Field({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
+  );
+}
 
 function clearSectionCaches() {
   Object.keys(localStorage)
@@ -80,8 +238,9 @@ function AdminEditorControls() {
   const [open, setOpen] = useState(false);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [row, setRow] = useState<SectionRow | null>(null);
+  const [heroDraft, setHeroDraft] = useState<HeroDraft | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<'span' | 'scope' | 'remove' | null>(null);
+  const [saving, setSaving] = useState<'span' | 'scope' | 'hero' | 'remove' | null>(null);
   const [error, setError] = useState('');
 
   const spans = useMemo(() => (row ? getSupportedSpans(row.section_type) : []), [row]);
@@ -95,6 +254,7 @@ function AdminEditorControls() {
     setOpen(true);
     setSectionId(nextSectionId);
     setRow(null);
+    setHeroDraft(null);
     setError('');
     setLoading(true);
 
@@ -104,7 +264,9 @@ function AdminEditorControls() {
         setError('Block not found');
         return;
       }
-      setRow(rows[0]);
+      const nextRow = rows[0] as SectionRow;
+      setRow(nextRow);
+      setHeroDraft(nextRow.section_type === 'hero' ? heroDraftFromConfig(nextRow.config || {}) : null);
     } catch (loadError) {
       console.error('Failed to load section row:', loadError);
       setError('Could not load block');
@@ -188,10 +350,25 @@ function AdminEditorControls() {
     }
   }
 
-  function openHeroSettings() {
-    if (!sectionId) return;
-    setOpen(false);
-    emitEditorBridgeEvent(HERO_SETTINGS_EVENT, sectionId);
+  async function saveHeroSettings() {
+    if (!row || !sectionId || !heroDraft) return;
+    setSaving('hero');
+    setError('');
+
+    const config = heroConfigFromDraft(row.config || {}, heroDraft);
+    try {
+      await patch(`sections?id=eq.${sectionId}`, { config });
+      clearSectionCaches();
+      setRow({ ...row, config });
+      showToast({ type: 'success', message: 'Hero saved' });
+      document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+    } catch (saveError) {
+      console.error('Hero save failed:', saveError);
+      setError('Hero save failed');
+      showToast({ type: 'error', message: 'Hero save failed' });
+    } finally {
+      setSaving(null);
+    }
   }
 
   function openSourceSettings() {
@@ -229,24 +406,31 @@ function AdminEditorControls() {
           <div className="space-y-5">
             <div className="space-y-2">
               <div className="text-sm font-medium">Width</div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {spans.map((span) => {
-                  const active = span === (row.column_span || '1');
-                  return (
-                    <Button
-                      key={span}
-                      type="button"
-                      variant={active ? 'default' : 'outline'}
-                      className={cn('justify-center', active && 'shadow')}
-                      disabled={saving !== null}
-                      onClick={() => void updateSpan(span)}
-                    >
-                      <Maximize2 aria-hidden="true" />
-                      {span === '1' ? 'Full' : span === '1/2' ? 'Half' : span === '1/3' ? 'Third' : 'Two-thirds'}
-                    </Button>
-                  );
-                })}
-              </div>
+              {spans.length <= 1 ? (
+                <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm text-muted-foreground">
+                  <Maximize2 aria-hidden="true" className="h-4 w-4" />
+                  Fixed full width
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {spans.map((span) => {
+                    const active = span === (row.column_span || '1');
+                    return (
+                      <Button
+                        key={span}
+                        type="button"
+                        variant={active ? 'default' : 'outline'}
+                        className={cn('justify-center', active && 'shadow')}
+                        disabled={saving !== null}
+                        onClick={() => void updateSpan(span)}
+                      >
+                        <Maximize2 aria-hidden="true" />
+                        {span === '1' ? 'Full' : span === '1/2' ? 'Half' : span === '1/3' ? 'Third' : 'Two-thirds'}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -257,20 +441,139 @@ function AdminEditorControls() {
               </Button>
             </div>
 
-            {canEditHero || canEditSource ? (
+            {canEditHero && heroDraft ? (
+              <div className="space-y-4 rounded-md border border-border p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Image aria-hidden="true" className="h-4 w-4" />
+                  Hero content
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field id="hero-heading" label="Heading">
+                    <Input
+                      id="hero-heading"
+                      value={heroDraft.heading}
+                      onChange={(event) => setHeroDraft({ ...heroDraft, heading: event.currentTarget.value })}
+                    />
+                  </Field>
+                  <Field id="hero-subheading" label="Subheading">
+                    <Input
+                      id="hero-subheading"
+                      value={heroDraft.subheading}
+                      onChange={(event) => setHeroDraft({ ...heroDraft, subheading: event.currentTarget.value })}
+                    />
+                  </Field>
+                  <Field id="hero-cta-text" label="Button text">
+                    <Input
+                      id="hero-cta-text"
+                      value={heroDraft.cta_text}
+                      onChange={(event) => setHeroDraft({ ...heroDraft, cta_text: event.currentTarget.value })}
+                    />
+                  </Field>
+                  <Field id="hero-cta-href" label="Button link">
+                    <Input
+                      id="hero-cta-href"
+                      value={heroDraft.cta_href}
+                      onChange={(event) => setHeroDraft({ ...heroDraft, cta_href: event.currentTarget.value })}
+                    />
+                  </Field>
+                  <Field id="hero-mode" label="Image mode">
+                    <NativeSelect
+                      id="hero-mode"
+                      value={heroDraft.mode}
+                      onChange={(event) =>
+                        setHeroDraft({ ...heroDraft, mode: event.currentTarget.value as HeroMode })
+                      }
+                    >
+                      <option value="background">Background image</option>
+                      <option value="foreground">Foreground image</option>
+                    </NativeSelect>
+                  </Field>
+                  {heroDraft.mode === 'background' ? (
+                    <Field id="hero-bg-image" label="Background image URL">
+                      <Input
+                        id="hero-bg-image"
+                        value={heroDraft.bg_image}
+                        onChange={(event) => setHeroDraft({ ...heroDraft, bg_image: event.currentTarget.value })}
+                      />
+                    </Field>
+                  ) : (
+                    <>
+                      <Field id="hero-image-url" label="Image URL">
+                        <Input
+                          id="hero-image-url"
+                          value={heroDraft.image_url}
+                          onChange={(event) => setHeroDraft({ ...heroDraft, image_url: event.currentTarget.value })}
+                        />
+                      </Field>
+                      <Field id="hero-image-alt" label="Image alt text">
+                        <Input
+                          id="hero-image-alt"
+                          value={heroDraft.image_alt}
+                          onChange={(event) => setHeroDraft({ ...heroDraft, image_alt: event.currentTarget.value })}
+                        />
+                      </Field>
+                      <Field id="hero-image-aspect" label="Aspect ratio">
+                        <NativeSelect
+                          id="hero-image-aspect"
+                          value={heroDraft.image_aspect}
+                          onChange={(event) =>
+                            setHeroDraft({ ...heroDraft, image_aspect: event.currentTarget.value as HeroAspect })
+                          }
+                        >
+                          <option value="auto">Auto</option>
+                          <option value="16/9">16:9</option>
+                          <option value="4/3">4:3</option>
+                          <option value="21/9">21:9</option>
+                        </NativeSelect>
+                      </Field>
+                      <Field id="hero-text-position" label="Heading position">
+                        <NativeSelect
+                          id="hero-text-position"
+                          value={heroDraft.text_position}
+                          onChange={(event) =>
+                            setHeroDraft({
+                              ...heroDraft,
+                              text_position: event.currentTarget.value as HeroTextPosition,
+                            })
+                          }
+                        >
+                          <option value="over_image">Over the image</option>
+                          <option value="below_image">Below the image</option>
+                        </NativeSelect>
+                      </Field>
+                      <Field id="hero-logo-overlay" label="Logo overlay URL">
+                        <Input
+                          id="hero-logo-overlay"
+                          value={heroDraft.logo_overlay_url}
+                          onChange={(event) =>
+                            setHeroDraft({ ...heroDraft, logo_overlay_url: event.currentTarget.value })
+                          }
+                        />
+                      </Field>
+                      <Field id="hero-caption" label="Caption HTML">
+                        <Textarea
+                          id="hero-caption"
+                          rows={2}
+                          value={heroDraft.caption_html}
+                          onChange={(event) => setHeroDraft({ ...heroDraft, caption_html: event.currentTarget.value })}
+                        />
+                      </Field>
+                    </>
+                  )}
+                </div>
+                <Button type="button" disabled={saving !== null} onClick={() => void saveHeroSettings()}>
+                  {saving === 'hero' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
+                  Save hero
+                </Button>
+              </div>
+            ) : null}
+
+            {canEditSource ? (
               <div className="flex flex-wrap gap-2">
-                {canEditHero ? (
-                  <Button type="button" variant="outline" onClick={openHeroSettings}>
-                    <Settings2 aria-hidden="true" />
-                    Hero settings
-                  </Button>
-                ) : null}
-                {canEditSource ? (
-                  <Button type="button" variant="outline" onClick={openSourceSettings}>
-                    <Settings2 aria-hidden="true" />
-                    Source settings
-                  </Button>
-                ) : null}
+                <Button type="button" variant="outline" onClick={openSourceSettings}>
+                  <Settings2 aria-hidden="true" />
+                  Source settings
+                </Button>
               </div>
             ) : null}
           </div>
