@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { KeyRound } from 'lucide-react';
 
 import {
   Alert,
@@ -15,7 +16,7 @@ import {
   Label,
 } from '@/components/kychon/ui';
 import type { AuthModalOpenDetail } from '@/lib/auth-modal-events';
-import { signIn, signInWithGoogle, signUp } from '@/lib/auth';
+import { passkeysSupported, signIn, signInWithGoogle, signInWithPasskey, signUp } from '@/lib/auth';
 
 type Mode = 'sign-in' | 'sign-up';
 type Message = { type: 'error' | 'success'; text: string } | null;
@@ -93,6 +94,19 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
     }
   }
 
+  async function onPasskeySignIn(): Promise<void> {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await signInWithPasskey(email.trim() || undefined);
+      setOpen(false);
+      await refreshAfterSignIn();
+    } catch (err) {
+      setBusy(false);
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Passkey sign-in failed' });
+    }
+  }
+
   async function onSubmit(event: React.SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setBusy(true);
@@ -146,6 +160,13 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
           <GoogleIcon />
           Sign in with Google
         </Button>
+
+        {passkeysSupported() && (
+          <Button type="button" variant="outline" onClick={() => void onPasskeySignIn()} disabled={busy}>
+            <KeyRound className="size-4" aria-hidden="true" />
+            Sign in with passkey
+          </Button>
+        )}
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" />

@@ -712,6 +712,99 @@ a:hover {
   }
 }
 
+.admin-account-security {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 8%, transparent), transparent 42%),
+    var(--color-bg);
+}
+
+.admin-account-security__header {
+  margin-bottom: 1rem;
+}
+
+.admin-account-security__header h3 {
+  margin-top: 0.5rem;
+}
+
+.admin-account-security__header p {
+  margin-bottom: 0;
+}
+
+.admin-account-security__steps {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-account-security__step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--border, var(--color-border));
+  border-radius: var(--radius);
+  background: var(--card, var(--color-bg));
+}
+
+.admin-account-security__step div {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.admin-account-security__step strong {
+  font-size: 0.9375rem;
+}
+
+.admin-account-security__step small {
+  color: var(--muted-foreground, var(--color-text-muted));
+  line-height: 1.4;
+}
+
+.admin-account-security__password {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 0.75rem;
+}
+
+.admin-account-security__password.hidden {
+  display: none;
+}
+
+.admin-account-security__password label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-account-security__password span {
+  color: var(--muted-foreground, var(--color-text-muted));
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.admin-account-security__password input {
+  width: 100%;
+}
+
+.admin-account-security__message {
+  margin: 0.75rem 0 0;
+}
+
+.admin-account-security__message--success {
+  color: var(--ky-color-success, var(--color-success));
+}
+
+.admin-account-security__message--error {
+  color: var(--ky-color-danger, var(--color-danger));
+}
+
+@media (max-width: 720px) {
+  .admin-account-security__password {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-checklist {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 44%),

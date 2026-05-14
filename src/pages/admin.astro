@@ -7,6 +7,54 @@ import Portal from '../layouts/Portal.astro';
   <div class="ky-container" data-admin-content hidden>
     <h2 class="mb-2">Dashboard</h2>
 
+    <section class="card admin-account-security hidden mb-2" id="admin-account-security" aria-labelledby="admin-account-security-title">
+      <div class="admin-account-security__header">
+        <div>
+          <span class="badge badge-primary">Owner setup</span>
+          <h3 id="admin-account-security-title">Secure your account</h3>
+          <p class="ky-text-muted">Use a trusted sign-in method before inviting members in.</p>
+        </div>
+      </div>
+
+      <div class="admin-account-security__steps">
+        <div class="admin-account-security__step">
+          <div>
+            <strong>Connect Google</strong>
+            <small id="account-security-google-status">Not connected</small>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="account-security-google">Connect</button>
+        </div>
+        <div class="admin-account-security__step">
+          <div>
+            <strong>Add a passkey</strong>
+            <small id="account-security-passkey-status">Not added</small>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="account-security-passkey">Add</button>
+        </div>
+        <div class="admin-account-security__step">
+          <div>
+            <strong>Set a password</strong>
+            <small id="account-security-password-status">Optional</small>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="account-security-password-toggle">Set</button>
+        </div>
+      </div>
+
+      <form class="admin-account-security__password hidden" id="account-security-password-form">
+        <label>
+          <span>New password</span>
+          <input type="password" id="account-security-password" autocomplete="new-password" minlength="8">
+        </label>
+        <label>
+          <span>Confirm password</span>
+          <input type="password" id="account-security-password-confirm" autocomplete="new-password" minlength="8">
+        </label>
+        <button type="submit" class="btn btn-sm btn-primary">Save password</button>
+      </form>
+
+      <p class="admin-account-security__message ky-text-muted" id="account-security-message" aria-live="polite"></p>
+    </section>
+
     <section class="card admin-checklist hidden mb-2" id="fresh-start-checklist" aria-labelledby="fresh-start-checklist-title">
       <div class="admin-checklist__header">
         <div>
@@ -72,7 +120,17 @@ import Portal from '../layouts/Portal.astro';
 <script>
   import { count, get, patch } from '../lib/api';
   import { revealAdminContent, showAdminAccessDenied } from '../lib/admin-access';
-  import { isAdmin } from '../lib/auth';
+  import {
+    getSession,
+    hasGoogleIdentity,
+    hasPasswordSetMarker,
+    isAdmin,
+    listPasskeys,
+    passkeysSupported,
+    registerPasskey,
+    setPassword,
+    signInWithGoogle,
+  } from '../lib/auth';
   import { isFeatureEnabled, ready, refreshMemberRecord } from '../lib/config';
   import {
     FRESH_START_CHECKLIST_ITEMS,
@@ -117,6 +175,7 @@ import Portal from '../layouts/Portal.astro';
   }
 
   let freshStartChecklistState: FreshStartChecklistState | null = null;
+  let accountSecurityBound = false;
 
   async function saveFreshStartChecklist(state: FreshStartChecklistState) {
     await patch(`site_config?key=eq.${FRESH_START_CHECKLIST_KEY}`, {
@@ -165,14 +224,14 @@ import Portal from '../layouts/Portal.astro';
     });
   }
 
-  async function loadFreshStartChecklist() {
+  async function loadFreshStartChecklist(): Promise<boolean> {
     const shell = document.getElementById('fresh-start-checklist');
-    if (!shell) return;
+    if (!shell) return false;
 
     try {
       const rows = await get(`site_config?key=eq.${FRESH_START_CHECKLIST_KEY}&limit=1`);
       const row = Array.isArray(rows) ? rows[0] : null;
-      if (!row) return;
+      if (!row) return false;
 
       const state = normalizeChecklistState(row.value);
       freshStartChecklistState = state;
@@ -194,7 +253,113 @@ import Portal from '../layouts/Portal.astro';
           await saveFreshStartChecklist(next).catch(() => {});
         });
       }
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function setAccountSecurityMessage(message: string, tone: 'muted' | 'success' | 'error' = 'muted') {
+    const el = document.getElementById('account-security-message');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.toggle('admin-account-security__message--success', tone === 'success');
+    el.classList.toggle('admin-account-security__message--error', tone === 'error');
+  }
+
+  function accountSecurityButton(id: string): HTMLButtonElement | null {
+    return document.getElementById(id) as HTMLButtonElement | null;
+  }
+
+  async function refreshAccountSecurity() {
+    const shell = document.getElementById('admin-account-security');
+    if (!shell) return;
+    shell.classList.remove('hidden');
+
+    const session = getSession();
+    const googleConnected = hasGoogleIdentity(session);
+    const passkeys = passkeysSupported() ? await listPasskeys().catch(() => []) : [];
+    const passwordSet = hasPasswordSetMarker();
+
+    setText('account-security-google-status', googleConnected ? 'Connected' : 'Not connected');
+    setText(
+      'account-security-passkey-status',
+      passkeys.length > 0 ? `${passkeys.length} added` : passkeysSupported() ? 'Not added' : 'Unavailable',
+    );
+    setText('account-security-password-status', passwordSet ? 'Set' : 'Optional');
+
+    const googleButton = accountSecurityButton('account-security-google');
+    if (googleButton) {
+      googleButton.disabled = googleConnected;
+      googleButton.textContent = googleConnected ? 'Connected' : 'Connect';
+    }
+    const passkeyButton = accountSecurityButton('account-security-passkey');
+    if (passkeyButton) {
+      passkeyButton.disabled = !passkeysSupported();
+      passkeyButton.textContent = passkeys.length > 0 ? 'Add another' : 'Add';
+    }
+    const passwordButton = accountSecurityButton('account-security-password-toggle');
+    if (passwordButton) passwordButton.textContent = passwordSet ? 'Change' : 'Set';
+  }
+
+  function bindAccountSecurity() {
+    if (accountSecurityBound) return;
+    accountSecurityBound = true;
+
+    accountSecurityButton('account-security-google')?.addEventListener('click', async () => {
+      setAccountSecurityMessage('');
+      try {
+        await signInWithGoogle();
+      } catch (error) {
+        setAccountSecurityMessage(error instanceof Error ? error.message : 'Google could not be connected.', 'error');
+      }
+    });
+
+    accountSecurityButton('account-security-passkey')?.addEventListener('click', async () => {
+      setAccountSecurityMessage('Opening passkey setup...');
+      try {
+        await registerPasskey();
+        setAccountSecurityMessage('Passkey added.', 'success');
+        await refreshAccountSecurity();
+      } catch (error) {
+        setAccountSecurityMessage(error instanceof Error ? error.message : 'Passkey could not be added.', 'error');
+      }
+    });
+
+    accountSecurityButton('account-security-password-toggle')?.addEventListener('click', () => {
+      document.getElementById('account-security-password-form')?.classList.toggle('hidden');
+    });
+
+    document.getElementById('account-security-password-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const password = (document.getElementById('account-security-password') as HTMLInputElement | null)?.value || '';
+      const confirm = (document.getElementById('account-security-password-confirm') as HTMLInputElement | null)?.value || '';
+      if (password.length < 8) {
+        setAccountSecurityMessage('Use at least 8 characters.', 'error');
+        return;
+      }
+      if (password !== confirm) {
+        setAccountSecurityMessage('Passwords do not match.', 'error');
+        return;
+      }
+      try {
+        await setPassword(password);
+        const passwordInput = document.getElementById('account-security-password') as HTMLInputElement | null;
+        const confirmInput = document.getElementById('account-security-password-confirm') as HTMLInputElement | null;
+        if (passwordInput) passwordInput.value = '';
+        if (confirmInput) confirmInput.value = '';
+        document.getElementById('account-security-password-form')?.classList.add('hidden');
+        setAccountSecurityMessage('Password saved.', 'success');
+        await refreshAccountSecurity();
+      } catch (error) {
+        setAccountSecurityMessage(error instanceof Error ? error.message : 'Password could not be saved.', 'error');
+      }
+    });
+  }
+
+  async function loadAccountSecurity() {
+    bindAccountSecurity();
+    await refreshAccountSecurity();
   }
 
   async function loadModerationQueue() {
@@ -272,7 +437,8 @@ import Portal from '../layouts/Portal.astro';
     }
     revealAdminContent();
 
-    await loadFreshStartChecklist();
+    const hasFreshStartChecklist = await loadFreshStartChecklist();
+    if (hasFreshStartChecklist) await loadAccountSecurity();
 
     const statPromises: Promise<number>[] = [
       count('members?status=eq.active').catch(() => 0),
