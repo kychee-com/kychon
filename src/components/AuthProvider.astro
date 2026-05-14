@@ -6,10 +6,12 @@
 <script>
   import {
     consumeAuthReturnTo,
-    consumeOAuthCallbackError,
+    consumeGoogleLinkResumeIntent,
+    consumeOAuthCallbackErrorDetail,
     handleMagicLinkCallback,
     handleOAuthCallback,
     hasMagicLinkCallback,
+    signInWithGoogle,
   } from '../lib/auth';
   import { openAuthModal } from '../lib/auth-modal-events';
 
@@ -35,15 +37,19 @@
 
   if (hasMagicLinkCallback()) {
     try {
+      const resumeGoogleLink = consumeGoogleLinkResumeIntent();
       const session = await handleMagicLinkCallback();
-      if (session) await refreshAuthenticatedPage();
+      if (session) {
+        await refreshAuthenticatedPage();
+        if (resumeGoogleLink) await signInWithGoogle();
+      }
     } catch (err: any) {
       showAuthError(err?.message || 'This secure sign-in link could not be used. Please request a new link.');
     }
   } else if (hasOAuthCallback) {
-    const callbackError = consumeOAuthCallbackError();
+    const callbackError = consumeOAuthCallbackErrorDetail();
     if (callbackError) {
-      showAuthError(callbackError);
+      openAuthModal({ error: callbackError.message, flow: callbackError.flow });
     } else {
       try {
         const session = await handleOAuthCallback();

@@ -16,9 +16,17 @@ import {
   Label,
 } from '@/components/kychon/ui';
 import type { AuthModalOpenDetail } from '@/lib/auth-modal-events';
-import { passkeysSupported, signIn, signInWithGoogle, signInWithPasskey, signUp } from '@/lib/auth';
+import {
+  passkeysSupported,
+  requestGoogleConnectionLink,
+  signIn,
+  signInWithGoogle,
+  signInWithPasskey,
+  signUp,
+} from '@/lib/auth';
 
 type Mode = 'sign-in' | 'sign-up';
+type Flow = 'standard' | 'connect-google';
 type Message = { type: 'error' | 'success'; text: string } | null;
 type OpenHandler = (detail?: AuthModalOpenDetail) => void;
 
@@ -52,20 +60,26 @@ function GoogleIcon() {
 function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) {
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState<Mode>('sign-in');
+  const [flow, setFlow] = React.useState<Flow>('standard');
   const [message, setMessage] = React.useState<Message>(null);
   const [busy, setBusy] = React.useState(false);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
   const returnFocusRef = React.useRef<HTMLElement | null>(null);
 
   const isSignUp = mode === 'sign-up';
-  const title = isSignUp ? 'Sign Up' : 'Sign In';
+  const isConnectGoogleFlow = flow === 'connect-google';
+  const secureLinkSent = isConnectGoogleFlow && message?.type === 'success';
+  const title = isConnectGoogleFlow ? 'Connect Google' : isSignUp ? 'Sign Up' : 'Sign In';
 
   const openModal = React.useCallback((detail: AuthModalOpenDetail = {}) => {
     const active = document.activeElement;
     returnFocusRef.current = detail.trigger || (active instanceof HTMLElement ? active : null);
     setMode(detail.mode === 'sign-up' ? 'sign-up' : 'sign-in');
-    setMessage(detail.error ? { type: 'error', text: detail.error } : null);
+    setFlow(detail.flow === 'connect-google' ? 'connect-google' : 'standard');
+    setShowPassword(false);
+    setMessage(detail.error && detail.flow !== 'connect-google' ? { type: 'error', text: detail.error } : null);
     setBusy(false);
     setOpen(true);
   }, []);
@@ -94,13 +108,21 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
     }
   }
 
+  async function finishVerifiedSignIn(connectGoogle: boolean): Promise<void> {
+    await refreshAfterSignIn();
+    if (connectGoogle) {
+      await signInWithGoogle();
+      return;
+    }
+    setOpen(false);
+  }
+
   async function onPasskeySignIn(): Promise<void> {
     setBusy(true);
     setMessage(null);
     try {
       await signInWithPasskey(email.trim() || undefined);
-      setOpen(false);
-      await refreshAfterSignIn();
+      await finishVerifiedSignIn(isConnectGoogleFlow);
     } catch (err) {
       setBusy(false);
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Passkey sign-in failed' });
@@ -113,13 +135,18 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
     setMessage(null);
 
     try {
-      if (isSignUp) {
+      if (isConnectGoogleFlow && !showPassword) {
+        await requestGoogleConnectionLink(email);
+        setMessage({
+          type: 'success',
+          text: 'Check your email. The secure link will sign you in and finish connecting Google.',
+        });
+      } else if (isSignUp) {
         await signUp(email, password);
         setMessage({ type: 'success', text: 'Account created! Please check your email to verify.' });
       } else {
         await signIn(email, password);
-        setOpen(false);
-        await refreshAfterSignIn();
+        await finishVerifiedSignIn(isConnectGoogleFlow);
       }
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Authentication failed' });
@@ -129,6 +156,8 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
   }
 
   function toggleMode(): void {
+    setFlow('standard');
+    setShowPassword(false);
     setMode((current) => (current === 'sign-in' ? 'sign-up' : 'sign-in'));
     setMessage(null);
   }
@@ -147,7 +176,11 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Use Google or your email and password to continue.</DialogDescription>
+          <DialogDescription>
+            {isConnectGoogleFlow
+              ? 'That email already belongs to an account here. First verify the account, then we will connect Google sign-in.'
+              : 'Use Google or your email and password to continue.'}
+          </DialogDescription>
         </DialogHeader>
 
         {message && (
@@ -156,58 +189,132 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
           </Alert>
         )}
 
-        <Button type="button" variant="outline" onClick={() => void onGoogleSignIn()} disabled={busy}>
-          <GoogleIcon />
-          Sign in with Google
-        </Button>
+        {!isConnectGoogleFlow && (
+          <Button type="button" variant="outline" onClick={() => void onGoogleSignIn()} disabled={busy}>
+            <GoogleIcon />
+            Sign in with Google
+          </Button>
+        )}
 
         {passkeysSupported() && (
           <Button type="button" variant="outline" onClick={() => void onPasskeySignIn()} disabled={busy}>
             <KeyRound className="size-4" aria-hidden="true" />
-            Sign in with passkey
+            {isConnectGoogleFlow ? 'Verify with passkey' : 'Sign in with passkey'}
           </Button>
         )}
 
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="h-px flex-1 bg-border" />
-          <span>or</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
-        <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
-          <div className="space-y-2">
-            <Label htmlFor="auth-email">Email</Label>
-            <Input
-              id="auth-email"
-              autoComplete="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.currentTarget.value)}
-              required
-            />
+        {!isConnectGoogleFlow && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-border" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="auth-password">Password</Label>
-            <Input
-              id="auth-password"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.currentTarget.value)}
-              minLength={6}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? 'Working...' : title}
-          </Button>
-        </form>
+        )}
 
-        <DialogFooter className="sm:justify-center">
-          <Button type="button" variant="link" className="h-auto px-0" onClick={toggleMode}>
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-          </Button>
-        </DialogFooter>
+        {isConnectGoogleFlow && showPassword && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            <span>or use password</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        )}
+
+        {isConnectGoogleFlow && !showPassword && (
+          <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
+            <div className="space-y-2">
+              <Label htmlFor="auth-email">Email</Label>
+              <Input
+                id="auth-email"
+                autoComplete="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? 'Sending...' : secureLinkSent ? 'Send link again' : 'Send secure link'}
+            </Button>
+          </form>
+        )}
+
+        {isConnectGoogleFlow && !showPassword && (
+          <div className="flex flex-col gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowPassword(true)} disabled={busy}>
+              Use password instead
+            </Button>
+          </div>
+        )}
+
+        {isConnectGoogleFlow && showPassword && (
+          <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
+            <div className="space-y-2">
+              <Label htmlFor="auth-email">Email</Label>
+              <Input
+                id="auth-email"
+                autoComplete="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="auth-password">Password</Label>
+              <Input
+                id="auth-password"
+                autoComplete="current-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                minLength={6}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? 'Working...' : 'Verify and connect Google'}
+            </Button>
+          </form>
+        )}
+
+        {!isConnectGoogleFlow && (
+          <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
+            <div className="space-y-2">
+              <Label htmlFor="auth-email">Email</Label>
+              <Input
+                id="auth-email"
+                autoComplete="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="auth-password">Password</Label>
+              <Input
+                id="auth-password"
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                minLength={6}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? 'Working...' : title}
+            </Button>
+          </form>
+        )}
+
+        {!isConnectGoogleFlow && (
+          <DialogFooter className="sm:justify-center">
+            <Button type="button" variant="link" className="h-auto px-0" onClick={toggleMode}>
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
