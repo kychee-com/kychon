@@ -152,6 +152,33 @@ describe('auth.js', () => {
       );
       expect(auth.getSessionEmail()).toBe('major.tal@gmail.com');
     });
+
+    it('detects Google sessions from top-level OAuth provider metadata', () => {
+      localStorage.setItem(
+        'wl_session',
+        JSON.stringify({
+          access_token: 'tok',
+          provider: 'google',
+          user: { id: '1', email: 'owner@test.com' },
+        }),
+      );
+      expect(auth.hasGoogleIdentity()).toBe(true);
+    });
+
+    it('detects Google sessions from fetched account identities', () => {
+      localStorage.setItem(
+        'wl_session',
+        JSON.stringify({
+          access_token: 'tok',
+          user: {
+            id: '1',
+            email: 'owner@test.com',
+            identities: [{ provider: 'google' }],
+          },
+        }),
+      );
+      expect(auth.hasGoogleIdentity()).toBe(true);
+    });
   });
 
   describe('password auth', () => {
@@ -197,6 +224,36 @@ describe('auth.js', () => {
       expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok');
       expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ new_password: 'new-password' });
       expect(auth.hasPasswordSetMarker()).toBe(true);
+    });
+  });
+
+  describe('current user', () => {
+    it('fetches authoritative account state and merges it into the stored session', async () => {
+      localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok', user: { id: '1' } }));
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: '1',
+            email: 'owner@test.com',
+            identities: [{ provider: 'google' }],
+            has_passkeys: true,
+            passkey_count: 1,
+            has_passkey_for_current_rp: true,
+            current_rp_id: 'localhost',
+            has_password: true,
+          }),
+      });
+
+      const user = await auth.getCurrentUser();
+      const session = auth.getSession();
+
+      expect(user.passkey_count).toBe(1);
+      expect(global.fetch.mock.calls[0][0]).toBe('https://api.test/auth/v1/user?app_origin=http%3A%2F%2Flocalhost');
+      expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok');
+      expect(session.user.email).toBe('owner@test.com');
+      expect(session.user.identities[0].provider).toBe('google');
+      expect(session.user.has_passkey_for_current_rp).toBe(true);
     });
   });
 

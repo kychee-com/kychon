@@ -20,6 +20,20 @@ export interface OAuthCallbackErrorDetail {
   flow?: 'connect-google';
 }
 
+export interface CurrentUser {
+  id: string;
+  email: string;
+  email_verified_at?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  has_passkeys?: boolean;
+  passkey_count?: number;
+  has_passkey_for_current_rp?: boolean | null;
+  current_rp_id?: string | null;
+  identities?: any[];
+  has_password?: boolean;
+}
+
 function currentPathWithSearch(): string {
   const pathname = cleanRoutePath(window.location.pathname || '/');
   return `${pathname}${window.location.search || ''}`;
@@ -230,11 +244,14 @@ export function isProjectAdminSession(session = getSession()): boolean {
 export function hasGoogleIdentity(session = getSession()): boolean {
   const user = session?.user || {};
   const claims = getSessionClaims(session) || {};
-  const identities = Array.isArray(user.identities) ? user.identities : [];
+  const identities = [
+    ...(Array.isArray(user.identities) ? user.identities : []),
+    ...(Array.isArray(session?.identities) ? session.identities : []),
+  ];
   return identities.some((identity: any) => {
     const provider = String(identity?.provider || identity?.identity_provider || '').toLowerCase();
     return provider === 'google' || provider === 'oauth_google';
-  }) || [claims.provider, claims.app_metadata?.provider, user.app_metadata?.provider]
+  }) || [session?.provider, session?.auth_provider, claims.provider, claims.app_metadata?.provider, user.app_metadata?.provider]
     .map((value) => String(value || '').toLowerCase())
     .includes('google');
 }
@@ -476,6 +493,43 @@ export function hasPasswordSetMarker(): boolean {
 
 function passwordSetStorageKey(): string {
   return `${PASSWORD_SET_KEY_PREFIX}${getSessionEmail() || 'anonymous'}`;
+}
+
+export async function getCurrentUser(appOrigin = window.location.origin): Promise<CurrentUser> {
+  const url = new URL(`${getAPI()}/auth/v1/user`);
+  if (appOrigin) url.searchParams.set('app_origin', appOrigin);
+  const res = await fetch(url.toString(), {
+    headers: {
+      apikey: getAnonKey(),
+      Authorization: `Bearer ${requireAccessToken()}`,
+    },
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(body?.message || 'Account status could not be refreshed.');
+  }
+  mergeCurrentUserIntoSession(body);
+  return body;
+}
+
+function mergeCurrentUserIntoSession(user: CurrentUser): void {
+  const session = getSession();
+  if (!session) return;
+  session.user = {
+    ...(session.user || {}),
+    id: user.id,
+    email: user.email,
+    email_verified_at: user.email_verified_at ?? session.user?.email_verified_at ?? null,
+    display_name: user.display_name ?? session.user?.display_name ?? null,
+    avatar_url: user.avatar_url ?? session.user?.avatar_url ?? null,
+    identities: Array.isArray(user.identities) ? user.identities : session.user?.identities,
+    passkey_count: user.passkey_count,
+    has_passkeys: user.has_passkeys,
+    has_passkey_for_current_rp: user.has_passkey_for_current_rp,
+    current_rp_id: user.current_rp_id,
+    has_password: user.has_password,
+  };
+  saveSession(session);
 }
 
 export function passkeysSupported(): boolean {
