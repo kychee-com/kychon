@@ -49,7 +49,10 @@
   } else if (hasOAuthCallback) {
     const callbackError = consumeOAuthCallbackErrorDetail();
     if (callbackError) {
-      openAuthModal({ error: callbackError.message, flow: callbackError.flow });
+      openAuthModal({
+        error: callbackError.message,
+        ...(callbackError.flow ? { flow: callbackError.flow } : {}),
+      });
     } else {
       try {
         const session = await handleOAuthCallback();
