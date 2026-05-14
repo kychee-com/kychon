@@ -1,6 +1,6 @@
 'use client';
 
-import { Image, Loader2, Maximize2, Save, Settings2, Trash2 } from 'lucide-react';
+import { Image, Loader2, Maximize2, Plus, Save, Settings2, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
@@ -19,13 +19,17 @@ import {
   Textarea,
 } from '@/components/kychon/ui';
 import { COPIED_THEME_EDITOR_TYPES, type CopiedThemeEditorType } from '@/lib/admin/copied-theme-editor';
-import { del, get, patch } from '@/lib/api';
+import { del, get, patch, post } from '@/lib/api';
 import { BLOCK_TYPES, getSupportedSpans } from '@/lib/blocks';
+import { currentPageSlugFromLocation } from '@/lib/clean-routes';
 import { showToast } from '@/lib/toast-events';
 import { cn } from '@/lib/ui/cn';
 
 const SECTION_EDIT_EVENT = 'kychon:admin-editor-section-edit';
+const ZONE_ADD_EVENT = 'kychon:admin-editor-zone-add';
 const SOURCE_SETTINGS_EVENT = 'kychon:admin-editor-open-source-settings';
+
+type Zone = 'header' | 'main' | 'footer';
 
 interface SectionRow {
   id: number;
@@ -37,6 +41,10 @@ interface SectionRow {
 
 interface SectionEditDetail {
   sectionId: number;
+}
+
+interface ZoneAddDetail {
+  zone: Zone;
 }
 
 type HeroMode = 'background' | 'foreground';
@@ -234,6 +242,15 @@ function emitEditorBridgeEvent(name: string, sectionId: number) {
   window.dispatchEvent(new CustomEvent<SectionEditDetail>(name, { detail: { sectionId } }));
 }
 
+function isZone(value: unknown): value is Zone {
+  return value === 'header' || value === 'main' || value === 'footer';
+}
+
+function cloneConfig(config: Record<string, any>): Record<string, any> {
+  if (typeof structuredClone === 'function') return structuredClone(config);
+  return JSON.parse(JSON.stringify(config));
+}
+
 function AdminEditorControls() {
   const [open, setOpen] = useState(false);
   const [sectionId, setSectionId] = useState<number | null>(null);
@@ -242,9 +259,20 @@ function AdminEditorControls() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<'span' | 'scope' | 'hero' | 'remove' | null>(null);
   const [error, setError] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
+  const [addZone, setAddZone] = useState<Zone>('main');
+  const [addSaving, setAddSaving] = useState<string | null>(null);
+  const [addError, setAddError] = useState('');
 
   const spans = useMemo(() => (row ? getSupportedSpans(row.section_type) : []), [row]);
   const sectionDef = row ? BLOCK_TYPES[row.section_type] : null;
+  const addCandidates = useMemo(
+    () =>
+      Object.entries(BLOCK_TYPES)
+        .filter(([, block]) => !block.zoneHints || block.zoneHints.includes(addZone))
+        .sort(([, a], [, b]) => a.label.localeCompare(b.label)),
+    [addZone],
+  );
   const currentScope: 'page' | 'global' = row?.scope === 'global' ? 'global' : 'page';
   const nextScope: 'page' | 'global' = currentScope === 'global' ? 'page' : 'global';
   const canEditHero = row?.section_type === 'hero';
@@ -283,6 +311,19 @@ function AdminEditorControls() {
     };
     window.addEventListener(SECTION_EDIT_EVENT, listener);
     return () => window.removeEventListener(SECTION_EDIT_EVENT, listener);
+  }, []);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<ZoneAddDetail>).detail;
+      if (!isZone(detail?.zone)) return;
+      setAddZone(detail.zone);
+      setAddError('');
+      setAddSaving(null);
+      setAddOpen(true);
+    };
+    window.addEventListener(ZONE_ADD_EVENT, listener);
+    return () => window.removeEventListener(ZONE_ADD_EVENT, listener);
   }, []);
 
   async function updateSpan(span: string) {
@@ -377,69 +418,116 @@ function AdminEditorControls() {
     emitEditorBridgeEvent(SOURCE_SETTINGS_EVENT, sectionId);
   }
 
+  async function addBlock(type: string) {
+    const def = BLOCK_TYPES[type];
+    if (!def || addSaving) return;
+    setAddSaving(type);
+    setAddError('');
+
+    const currentSlugFromPath = currentPageSlugFromLocation(window.location.pathname, window.location.search);
+    let pageSlug: string;
+    let scope: 'page' | 'global';
+    if (type === 'page_banner') {
+      pageSlug = currentSlugFromPath;
+      scope = 'page';
+    } else if (addZone === 'header' || addZone === 'footer') {
+      pageSlug = '*';
+      scope = 'global';
+    } else {
+      pageSlug = currentSlugFromPath;
+      scope = 'page';
+    }
+
+    const zoneEl = document.querySelector(`[data-zone="${addZone}"]`) as HTMLElement | null;
+    const existingCount = zoneEl?.querySelectorAll('[data-sortable-id]').length || 0;
+
+    try {
+      await post('sections', {
+        page_slug: pageSlug,
+        zone: addZone,
+        scope,
+        section_type: type,
+        config: cloneConfig(def.defaultConfig),
+        position: existingCount + 1,
+        visible: true,
+      });
+      clearSectionCaches();
+      showToast({ type: 'success', message: 'Block added' });
+      setAddOpen(false);
+      document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+    } catch (addError) {
+      console.error('Failed to add block:', addError);
+      setAddError('Could not add block');
+      showToast({ type: 'error', message: 'Could not add block' });
+    } finally {
+      setAddSaving(null);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings2 aria-hidden="true" className="h-4 w-4" />
-            {row ? sectionDef?.label || row.section_type : 'Block settings'}
-            {currentScope === 'global' ? <Badge>Global</Badge> : null}
-          </DialogTitle>
-          <DialogDescription>Adjust this block in the editor.</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 aria-hidden="true" className="h-4 w-4" />
+              {row ? sectionDef?.label || row.section_type : 'Block settings'}
+              {currentScope === 'global' ? <Badge>Global</Badge> : null}
+            </DialogTitle>
+            <DialogDescription>Adjust this block in the editor.</DialogDescription>
+          </DialogHeader>
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-            Loading block
-          </div>
-        ) : null}
-
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {row ? (
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Width</div>
-              {spans.length <= 1 ? (
-                <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm text-muted-foreground">
-                  <Maximize2 aria-hidden="true" className="h-4 w-4" />
-                  Fixed full width
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {spans.map((span) => {
-                    const active = span === (row.column_span || '1');
-                    return (
-                      <Button
-                        key={span}
-                        type="button"
-                        variant={active ? 'default' : 'outline'}
-                        className={cn('justify-center', active && 'shadow')}
-                        disabled={saving !== null}
-                        onClick={() => void updateSpan(span)}
-                      >
-                        <Maximize2 aria-hidden="true" />
-                        {span === '1' ? 'Full' : span === '1/2' ? 'Half' : span === '1/3' ? 'Third' : 'Two-thirds'}
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+              Loading block
             </div>
+          ) : null}
 
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Scope</div>
-              <Button type="button" variant="secondary" disabled={saving !== null} onClick={() => void updateScope()}>
-                {saving === 'scope' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
-                {nextScope === 'global' ? 'Make global' : 'Make page-only'}
-              </Button>
-            </div>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {row ? (
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Width</div>
+                {spans.length <= 1 ? (
+                  <div className="inline-flex min-h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm text-muted-foreground">
+                    <Maximize2 aria-hidden="true" className="h-4 w-4" />
+                    Fixed full width
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {spans.map((span) => {
+                      const active = span === (row.column_span || '1');
+                      return (
+                        <Button
+                          key={span}
+                          type="button"
+                          variant={active ? 'default' : 'outline'}
+                          className={cn('justify-center', active && 'shadow')}
+                          disabled={saving !== null}
+                          onClick={() => void updateSpan(span)}
+                        >
+                          <Maximize2 aria-hidden="true" />
+                          {span === '1' ? 'Full' : span === '1/2' ? 'Half' : span === '1/3' ? 'Third' : 'Two-thirds'}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Scope</div>
+                <Button type="button" variant="secondary" disabled={saving !== null} onClick={() => void updateScope()}>
+                  {saving === 'scope' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
+                  {nextScope === 'global' ? 'Make global' : 'Make page-only'}
+                </Button>
+              </div>
 
             {canEditHero && heroDraft ? (
               <div className="space-y-4 rounded-md border border-border p-4">
@@ -576,20 +664,66 @@ function AdminEditorControls() {
                 </Button>
               </div>
             ) : null}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Close
-          </Button>
-          <Button type="button" variant="destructive" disabled={!row || saving !== null} onClick={() => void removeSection()}>
-            {saving === 'remove' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Trash2 aria-hidden="true" />}
-            Remove block
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+            <Button type="button" variant="destructive" disabled={!row || saving !== null} onClick={() => void removeSection()}>
+              {saving === 'remove' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Trash2 aria-hidden="true" />}
+              Remove block
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus aria-hidden="true" className="h-4 w-4" />
+              Add block to {addZone}
+            </DialogTitle>
+            <DialogDescription>Choose a block type for this zone.</DialogDescription>
+          </DialogHeader>
+
+          {addError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{addError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {addCandidates.map(([type, def]) => (
+              <Button
+                key={type}
+                type="button"
+                variant="outline"
+                className="h-auto justify-start gap-3 p-4 text-left"
+                disabled={addSaving !== null}
+                onClick={() => void addBlock(type)}
+              >
+                <span className="text-xl leading-none" aria-hidden="true">
+                  {addSaving === type ? <Loader2 className="h-5 w-5 animate-spin" /> : def.icon}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-medium">{def.label}</span>
+                  <span className="block text-xs font-normal text-muted-foreground">{type}</span>
+                </span>
+              </Button>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -601,4 +735,8 @@ export function mountAdminEditorControls(element: HTMLElement): void {
 
 export function openSectionEditControl(sectionId: number): void {
   window.dispatchEvent(new CustomEvent<SectionEditDetail>(SECTION_EDIT_EVENT, { detail: { sectionId } }));
+}
+
+export function openZoneAddControl(zone: Zone): void {
+  window.dispatchEvent(new CustomEvent<ZoneAddDetail>(ZONE_ADD_EVENT, { detail: { zone } }));
 }
