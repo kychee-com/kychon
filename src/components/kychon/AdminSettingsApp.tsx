@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { Check, Clock, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -158,6 +158,20 @@ const EMPTY_EVENT_DISPLAY: EventDisplayForm = {
 };
 
 const AI_FLAGS = ['feature_ai_moderation', 'feature_ai_translation'];
+const FALLBACK_TIMEZONES = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/London',
+  'Europe/Amsterdam',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'Asia/Jerusalem',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+];
 
 function asText(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -218,6 +232,40 @@ function eventDisplayFromConfig(config: ConfigMap): EventDisplayForm {
     event_source_timezone: asText(config.event_source_timezone),
     event_time_display_mode: config.event_time_display_mode === 'source' ? 'source' : 'visitor',
   };
+}
+
+function browserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+}
+
+function supportedTimeZones(): string[] {
+  const supportedValuesOf = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+  try {
+    return typeof supportedValuesOf === 'function' ? supportedValuesOf('timeZone') : FALLBACK_TIMEZONES;
+  } catch {
+    return FALLBACK_TIMEZONES;
+  }
+}
+
+function buildTimeZoneOptions(current: string, detected: string, base: string[] = FALLBACK_TIMEZONES): string[] {
+  const options = new Set<string>(base);
+  if (current) options.add(current);
+  if (detected) options.add(detected);
+  return Array.from(options).sort((a, b) => a.localeCompare(b));
+}
+
+function isValidTimeZone(value: string): boolean {
+  if (!value) return true;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function formatError(error: unknown): string {
@@ -326,6 +374,8 @@ export default function AdminSettingsApp() {
   const [fatalError, setFatalError] = useState('');
   const [saving, setSaving] = useState<SaveKey | null>(null);
   const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
+  const [detectedTimeZone, setDetectedTimeZone] = useState('');
+  const [timezoneOptions, setTimezoneOptions] = useState(() => buildTimeZoneOptions('', ''));
 
   const featureEntries = useMemo(
     () =>
@@ -334,6 +384,11 @@ export default function AdminSettingsApp() {
         .sort(([a], [b]) => a.localeCompare(b)),
     [config],
   );
+  useEffect(() => {
+    const detected = browserTimeZone();
+    setDetectedTimeZone(detected);
+    setTimezoneOptions(buildTimeZoneOptions(eventDisplay.event_source_timezone, detected, supportedTimeZones()));
+  }, [eventDisplay.event_source_timezone]);
 
   async function loadAiActivity(): Promise<void> {
     const sevenDaysAgo = new Date();
@@ -484,11 +539,16 @@ export default function AdminSettingsApp() {
 
   async function saveEventDisplay(event: React.SyntheticEvent) {
     event.preventDefault();
+    const timezone = eventDisplay.event_source_timezone.trim();
+    if (!isValidTimeZone(timezone)) {
+      setSectionError('event-display', 'Choose a valid IANA timezone.');
+      return;
+    }
     await runSave(
       'event-display',
       async () => {
         await Promise.all([
-          patchConfig('event_source_timezone', eventDisplay.event_source_timezone.trim(), 'events'),
+          patchConfig('event_source_timezone', timezone, 'events'),
           patchConfig(
             'event_time_display_mode',
             eventDisplay.event_time_display_mode === 'source' ? 'source' : 'visitor',
@@ -845,14 +905,35 @@ export default function AdminSettingsApp() {
           <CardContent>
             <form className="space-y-4" onSubmit={saveEventDisplay}>
               <Field id="as-event-source-timezone" label="Default source timezone">
-                <Input
-                  id="as-event-source-timezone"
-                  placeholder="Australia/Sydney"
-                  value={eventDisplay.event_source_timezone}
-                  onChange={(event) =>
-                    setEventDisplay({ ...eventDisplay, event_source_timezone: event.currentTarget.value })
-                  }
-                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <NativeSelect
+                    id="as-event-source-timezone"
+                    className="min-w-0 flex-1"
+                    value={eventDisplay.event_source_timezone}
+                    onChange={(event) =>
+                      setEventDisplay({ ...eventDisplay, event_source_timezone: event.currentTarget.value })
+                    }
+                  >
+                    <option value="">No source timezone</option>
+                    {timezoneOptions.map((timezone) => (
+                      <option key={timezone} value={timezone}>
+                        {timezone}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="shrink-0"
+                    disabled={!detectedTimeZone}
+                    onClick={() =>
+                      setEventDisplay({ ...eventDisplay, event_source_timezone: detectedTimeZone })
+                    }
+                  >
+                    <Clock aria-hidden="true" />
+                    Use mine
+                  </Button>
+                </div>
               </Field>
               <Field id="as-event-time-display-mode" label="Default event time display">
                 <NativeSelect
