@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, Clock, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,6 +21,11 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
 } from '@/components/kychon/ui';
 import { showAdminAccessDenied, revealAdminContent } from '@/lib/admin-access';
@@ -27,7 +33,6 @@ import { del, get, patch, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
 import { showToast } from '@/lib/toast-events';
-import { cn } from '@/lib/ui/cn';
 
 type ConfigMap = Record<string, any>;
 type SaveKey =
@@ -158,6 +163,7 @@ const EMPTY_EVENT_DISPLAY: EventDisplayForm = {
 };
 
 const AI_FLAGS = ['feature_ai_moderation', 'feature_ai_translation'];
+const SELECT_EMPTY_VALUE = '__kychon_empty_value__';
 const FALLBACK_TIMEZONES = [
   'UTC',
   'America/New_York',
@@ -300,18 +306,52 @@ function Field({
   );
 }
 
-function NativeSelect({
+function encodeSelectItemValue(value: string): string {
+  return value === '' ? SELECT_EMPTY_VALUE : value;
+}
+
+function encodeSelectValue(value: string, options: Array<[string, string]>): string {
+  return value === '' && options.some(([optionValue]) => optionValue === '') ? SELECT_EMPTY_VALUE : value;
+}
+
+function decodeSelectItemValue(value: string): string {
+  return value === SELECT_EMPTY_VALUE ? '' : value;
+}
+
+function SettingsSelect({
+  id,
+  value,
+  options,
+  onValueChange,
+  disabled,
   className,
-  ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  placeholder = 'Select an option',
+}: {
+  id: string;
+  value: string;
+  options: Array<[string, string]>;
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+  placeholder?: string;
+}) {
   return (
-    <select
-      className={cn(
-        'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-        className,
-      )}
-      {...props}
-    />
+    <Select
+      value={encodeSelectValue(value, options)}
+      disabled={disabled}
+      onValueChange={(nextValue) => onValueChange(decodeSelectItemValue(nextValue))}
+    >
+      <SelectTrigger id={id} className={className}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map(([optionValue, optionLabel]) => (
+          <SelectItem key={`${id}-${optionValue || 'empty'}`} value={encodeSelectItemValue(optionValue)}>
+            {optionLabel}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -326,17 +366,20 @@ function CheckboxField({
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
 }) {
+  const id = useId();
+
   return (
-    <label className="flex min-h-9 items-center gap-2 rounded-md border border-transparent px-2 text-sm hover:bg-muted/50">
-      <input
-        type="checkbox"
-        className="h-4 w-4 accent-[var(--primary)]"
+    <div className="flex min-h-9 items-center gap-2 rounded-md border border-transparent px-2 text-sm hover:bg-muted/50">
+      <Checkbox
+        id={id}
         checked={checked}
         disabled={disabled}
-        onChange={(event) => onCheckedChange(event.currentTarget.checked)}
+        onCheckedChange={(nextChecked) => onCheckedChange(nextChecked === true)}
       />
-      <span>{label}</span>
-    </label>
+      <Label htmlFor={id} className="leading-5">
+        {label}
+      </Label>
+    </div>
   );
 }
 
@@ -859,25 +902,27 @@ export default function AdminSettingsApp() {
             <form className="space-y-4" onSubmit={saveGeneral}>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field id="as-signup-mode" label="Signup Mode">
-                  <NativeSelect
+                  <SettingsSelect
                     id="as-signup-mode"
                     value={general.signup_mode}
-                    onChange={(event) => setGeneral({ ...general, signup_mode: event.currentTarget.value })}
-                  >
-                    <option value="open">Open</option>
-                    <option value="approved">Approved</option>
-                    <option value="closed">Closed</option>
-                  </NativeSelect>
+                    options={[
+                      ['open', 'Open'],
+                      ['approved', 'Approved'],
+                      ['closed', 'Closed'],
+                    ]}
+                    onValueChange={(value) => setGeneral({ ...general, signup_mode: value })}
+                  />
                 </Field>
                 <Field id="as-default-language" label="Default Language">
-                  <NativeSelect
+                  <SettingsSelect
                     id="as-default-language"
                     value={general.default_language}
-                    onChange={(event) => setGeneral({ ...general, default_language: event.currentTarget.value })}
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                  </NativeSelect>
+                    options={[
+                      ['en', 'English'],
+                      ['es', 'Spanish'],
+                    ]}
+                    onValueChange={(value) => setGeneral({ ...general, default_language: value })}
+                  />
                 </Field>
               </div>
               <div className="space-y-1">
@@ -906,21 +951,16 @@ export default function AdminSettingsApp() {
             <form className="space-y-4" onSubmit={saveEventDisplay}>
               <Field id="as-event-source-timezone" label="Default source timezone">
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <NativeSelect
+                  <SettingsSelect
                     id="as-event-source-timezone"
                     className="min-w-0 flex-1"
                     value={eventDisplay.event_source_timezone}
-                    onChange={(event) =>
-                      setEventDisplay({ ...eventDisplay, event_source_timezone: event.currentTarget.value })
-                    }
-                  >
-                    <option value="">No source timezone</option>
-                    {timezoneOptions.map((timezone) => (
-                      <option key={timezone} value={timezone}>
-                        {timezone}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                    options={[
+                      ['', 'No source timezone'],
+                      ...timezoneOptions.map((timezone) => [timezone, timezone] as [string, string]),
+                    ]}
+                    onValueChange={(value) => setEventDisplay({ ...eventDisplay, event_source_timezone: value })}
+                  />
                   <Button
                     type="button"
                     variant="secondary"
@@ -936,16 +976,15 @@ export default function AdminSettingsApp() {
                 </div>
               </Field>
               <Field id="as-event-time-display-mode" label="Default event time display">
-                <NativeSelect
+                <SettingsSelect
                   id="as-event-time-display-mode"
                   value={eventDisplay.event_time_display_mode}
-                  onChange={(event) =>
-                    setEventDisplay({ ...eventDisplay, event_time_display_mode: event.currentTarget.value })
-                  }
-                >
-                  <option value="visitor">Visitor local time</option>
-                  <option value="source">Source timezone</option>
-                </NativeSelect>
+                  options={[
+                    ['visitor', 'Visitor local time'],
+                    ['source', 'Source timezone'],
+                  ]}
+                  onValueChange={(value) => setEventDisplay({ ...eventDisplay, event_time_display_mode: value })}
+                />
               </Field>
               <SectionError message={sectionErrors['event-display']} />
               <SaveButton isSaving={saving === 'event-display'} />
@@ -1187,16 +1226,17 @@ export default function AdminSettingsApp() {
                 />
               </Field>
               <Field id="field-type" label="Type">
-                <NativeSelect
+                <SettingsSelect
                   id="field-type"
                   value={editingField.field_type || 'text'}
-                  onChange={(event) => setEditingField({ ...editingField, field_type: event.currentTarget.value })}
-                >
-                  <option value="text">Text</option>
-                  <option value="textarea">Textarea</option>
-                  <option value="select">Select</option>
-                  <option value="checkbox">Checkbox</option>
-                </NativeSelect>
+                  options={[
+                    ['text', 'Text'],
+                    ['textarea', 'Textarea'],
+                    ['select', 'Select'],
+                    ['checkbox', 'Checkbox'],
+                  ]}
+                  onValueChange={(value) => setEditingField({ ...editingField, field_type: value })}
+                />
               </Field>
               {editingField.field_type === 'select' ? (
                 <Field id="field-options" label="Options">
