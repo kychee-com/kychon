@@ -134,7 +134,9 @@ describe('sign_in_bar hydration', () => {
   });
 
   it('toggles and persists visitor dark mode from the header utility button', async () => {
-    const store = await hydrateFromCachedSections([signInBarSection({ show_lang_toggle: true, show_theme_toggle: true })]);
+    const store = await hydrateFromCachedSections([
+      signInBarSection({ show_lang_toggle: true, show_theme_toggle: true }),
+    ]);
 
     const toggle = document.querySelector('#theme-toggle') as HTMLButtonElement | null;
     expect(toggle).toBeTruthy();

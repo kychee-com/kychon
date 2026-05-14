@@ -331,7 +331,7 @@ export interface RunDeployResult {
 
 export interface BuildKychonReleaseSpecOptions {
   projectId: string;
-  database: ReleaseSpec["database"];
+  database?: NonNullable<ReleaseSpec["database"]>;
   fileSet: FileSet;
   publicPaths: Record<string, PublicStaticPathSpec>;
   subdomain: string;
@@ -342,7 +342,6 @@ export interface BuildKychonReleaseSpecOptions {
 export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): ReleaseSpec {
   const spec: ReleaseSpec = {
     project: opts.projectId,
-    database: opts.database,
     site: {
       replace: opts.fileSet,
       public_paths: {
@@ -353,6 +352,9 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Rel
     subdomains: { set: [opts.subdomain] },
     routes: { replace: opts.routes ?? [] },
   };
+  if (opts.database) {
+    spec.database = opts.database;
+  }
   if (opts.functionsMap && Object.keys(opts.functionsMap).length > 0) {
     spec.functions = { replace: opts.functionsMap };
   }
