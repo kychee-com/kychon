@@ -122,10 +122,26 @@ describe('site_config cache build awareness', () => {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
-        if (envelope.operation === 'members.list' && envelope.input.user_id === 'google-user-id') {
-          return capabilityResponse({ rows: [], count: 0 });
+        if (envelope.operation === 'auth.whoami') {
+          return capabilityResponse({
+            actor: {
+              state: 'admin',
+              authenticated: true,
+              user: { id: 'google-user-id', email: 'major.tal@gmail.com' },
+              member: {
+                id: '2',
+                userId: 'invited-user-id',
+                email: 'major.tal@gmail.com',
+                displayName: 'Tal Weiss',
+                role: 'admin',
+                status: 'active',
+                lookup: 'email',
+              },
+              authority: { projectAdmin: false, activeMemberAdmin: true },
+            },
+          });
         }
-        if (envelope.operation === 'members.list' && envelope.input.email === 'major.tal@gmail.com') {
+        if (envelope.operation === 'members.list' && String(envelope.input.id) === '2') {
           return capabilityResponse({ rows: [member], count: 1 });
         }
         if (envelope.operation === 'members.linkUser') {
@@ -180,11 +196,28 @@ describe('site_config cache build awareness', () => {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'auth.whoami') {
+          return capabilityResponse({
+            actor: {
+              state: 'active_member',
+              authenticated: true,
+              user: { id: 'member-user-id', email: 'demo-member@kychon.com' },
+              member: {
+                id: '3',
+                userId: 'member-user-id',
+                email: 'demo-member@kychon.com',
+                displayName: 'Demo Member',
+                role: 'member',
+                status: 'active',
+                lookup: 'user_id',
+              },
+              authority: { projectAdmin: false, activeMemberAdmin: false },
+            },
+          });
+        }
         if (envelope.operation === 'members.list') {
-          const input = JSON.stringify(envelope.input);
-          if (input.includes('member-user-id')) return capabilityResponse({ rows: [], count: 0 });
-          if (input.includes('demo-member@kychon.com')) return capabilityResponse({ rows: [member], count: 1 });
-          throw new Error(`Unexpected members.list input: ${input}`);
+          if (String(envelope.input.id) === '3') return capabilityResponse({ rows: [member], count: 1 });
+          throw new Error(`Unexpected members.list input: ${JSON.stringify(envelope.input)}`);
         }
         if (envelope.operation === 'members.linkUser') {
           throw new Error('members.linkUser should not be called for regular members');
@@ -203,7 +236,7 @@ describe('site_config cache build awareness', () => {
       expect.arrayContaining([
         expect.objectContaining({
           operation: 'members.list',
-          input: expect.objectContaining({ email: 'demo-member@kychon.com' }),
+          input: expect.objectContaining({ id: 3 }),
         }),
       ]),
     );
@@ -213,6 +246,48 @@ describe('site_config cache build awareness', () => {
         body: expect.stringContaining('"operation":"members.linkUser"'),
       }),
     );
+  });
+
+  it('clears a stored session when the server resolves it as anonymous', async () => {
+    const store = installLocalStorage();
+    store.wl_session = JSON.stringify({
+      access_token: 'stale-token',
+      refresh_token: 'stale-refresh',
+      user: {
+        id: 'stale-user-id',
+        email: 'demo-member@kychon.com',
+      },
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === 'https://api.test/functions/v1/kychon-api') {
+        const envelope = envelopeFrom(init);
+        if (envelope.operation === 'config.get')
+          return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
+        if (envelope.operation === 'auth.whoami') {
+          return capabilityResponse({
+            actor: {
+              state: 'anonymous',
+              authenticated: false,
+              user: null,
+              member: null,
+              authority: { projectAdmin: false, activeMemberAdmin: false },
+            },
+          });
+        }
+        if (envelope.operation === 'members.list') {
+          throw new Error('members.list should not run for an anonymous actor');
+        }
+      }
+      return capabilityResponse({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { init } = await import('../../src/lib/config');
+
+    await init();
+
+    expect(store.wl_session).toBeUndefined();
   });
 
   it('bypasses stale member cache on admin pages before checking access', async () => {
@@ -241,10 +316,26 @@ describe('site_config cache build awareness', () => {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
-        if (envelope.operation === 'members.list' && envelope.input.user_id === 'google-user-id') {
-          return capabilityResponse({ rows: [], count: 0 });
+        if (envelope.operation === 'auth.whoami') {
+          return capabilityResponse({
+            actor: {
+              state: 'admin',
+              authenticated: true,
+              user: { id: 'google-user-id', email: 'major.tal@gmail.com' },
+              member: {
+                id: '2',
+                userId: 'invited-user-id',
+                email: 'major.tal@gmail.com',
+                displayName: 'Tal Weiss',
+                role: 'admin',
+                status: 'active',
+                lookup: 'email',
+              },
+              authority: { projectAdmin: false, activeMemberAdmin: true },
+            },
+          });
         }
-        if (envelope.operation === 'members.list' && envelope.input.email === 'major.tal@gmail.com') {
+        if (envelope.operation === 'members.list' && String(envelope.input.id) === '2') {
           return capabilityResponse({
             rows: [
               {

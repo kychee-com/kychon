@@ -3,7 +3,7 @@
 // (src/lib/blocks.ts) and per-block hydrators (src/lib/block-hydrators.ts).
 // This module no longer touches #nav-links / #nav-user.
 
-import { get } from './api.js';
+import { get, getCurrentActorContext } from './api.js';
 import { getSession, getSessionEmail } from './auth.js';
 import { canonicalRouteKey } from './clean-routes.js';
 import { loadLocale, setAvailableLocales, t } from './i18n.js';
@@ -388,18 +388,55 @@ function applyMemberToSession(member: any): void {
   localStorage.setItem('wl_session', JSON.stringify(session));
 }
 
+function clearStoredSession(): void {
+  localStorage.removeItem('wl_session');
+  document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+}
+
+function actorMemberToSessionMember(member: any): any | null {
+  if (!member?.id) return null;
+  return {
+    id: member.id,
+    user_id: member.userId || null,
+    email: member.email || '',
+    display_name: member.displayName || '',
+    role: member.role || 'member',
+    status: member.status || 'pending',
+  };
+}
+
+function actorCanReadMembers(actor: any): boolean {
+  return ['active_member', 'moderator', 'admin', 'project_admin'].includes(actor?.state);
+}
+
+function isAuthOrPermissionError(error: unknown): boolean {
+  const code = (error as any)?.code;
+  return code === 'permission.denied' || (typeof code === 'string' && code.startsWith('auth.'));
+}
+
 async function findMemberForSession(session: any): Promise<any | null> {
   const userId = session?.user?.id;
-  if (userId) {
-    const members = await get(`members?user_id=eq.${userId}&limit=1`);
-    if (members?.[0]) return members[0];
+
+  const context = await getCurrentActorContext();
+  const actor = context?.actor;
+  if (!actor?.authenticated) {
+    clearStoredSession();
+    return null;
   }
 
-  const email = getSessionEmail(session);
-  if (!email) return null;
+  const actorMember = actorMemberToSessionMember(actor.member);
+  if (!actorMember) return null;
 
-  const members = await get(`members?email=eq.${encodeURIComponent(email)}&limit=1`);
-  const member = members?.[0] || null;
+  let member = actorMember;
+  if (actorCanReadMembers(actor)) {
+    try {
+      const members = await get(`members?id=eq.${encodeURIComponent(String(actorMember.id))}&limit=1`);
+      if (members?.[0]) member = members[0];
+    } catch (error) {
+      if (!isAuthOrPermissionError(error)) throw error;
+    }
+  }
+
   if (member && userId && member.user_id !== userId && member.role === 'admin') {
     patchMemberUserId(member.id, userId).catch(() => {});
   }

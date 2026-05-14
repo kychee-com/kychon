@@ -444,6 +444,10 @@ async function queryPath(path: string): Promise<any[]> {
   return hydrateSelectedRelations(rows, parsed.select);
 }
 
+export async function getCurrentActorContext(): Promise<any> {
+  return callCapability(() => capabilityClient().request<JsonValue>('auth.whoami', 'query', {}));
+}
+
 function normalizeRowsForTable(table: string, rows: any[]): any[] {
   if (table !== 'members') return rows;
   return rows.map((row) => ({
