@@ -80,11 +80,13 @@ describe('copied-theme admin editor helpers', () => {
     expect(storage.getItem('wl_cache_site_config')).toBe('keep');
   });
 
-  it('PATCHes section config, invalidates caches, and dispatches wl-content-rendered', async () => {
+  it('PATCHes section config, invalidates caches, and dispatches section refresh events', async () => {
     storage.setItem('wl_cache_sections_index', 'cached');
     const patch = vi.fn().mockResolvedValue([{ id: 96 }]);
-    const listener = vi.fn();
-    document.addEventListener('wl-content-rendered', listener);
+    const contentRenderedListener = vi.fn();
+    const sectionsChangedListener = vi.fn();
+    document.addEventListener('wl-content-rendered', contentRenderedListener);
+    document.addEventListener('wl-sections-changed', sectionsChangedListener);
 
     await saveCopiedThemeSectionConfig(
       96,
@@ -96,7 +98,8 @@ describe('copied-theme admin editor helpers', () => {
       config: { panels: [{ title: 'Soprano', image_url: '/a.jpg' }] },
     });
     expect(storage.getItem('wl_cache_sections_index')).toBeNull();
-    expect(listener).toHaveBeenCalledTimes(1);
+    expect(sectionsChangedListener).toHaveBeenCalledTimes(1);
+    expect(contentRenderedListener).toHaveBeenCalledTimes(1);
   });
 });
 

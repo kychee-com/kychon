@@ -456,6 +456,7 @@ export async function saveCopiedThemeSectionConfig(
 ): Promise<void> {
   await deps.patch(`sections?id=eq.${sectionId}`, { config });
   clearSectionCaches(storageFrom(deps as CopiedThemeEditorDeps));
+  docFrom(deps as CopiedThemeEditorDeps).dispatchEvent(new CustomEvent('wl-sections-changed'));
   docFrom(deps as CopiedThemeEditorDeps).dispatchEvent(new CustomEvent('wl-content-rendered'));
 }
 

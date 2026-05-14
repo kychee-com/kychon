@@ -15,12 +15,6 @@
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
 
-  function esc(s: string): string {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-  }
-
   function getToken(): string {
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
     return session.access_token || '';
@@ -40,6 +34,11 @@
   // --- Toast notifications ---
   function showToast(message: string, type: 'success' | 'error' = 'success') {
     showKychonToast({ message, type });
+  }
+
+  function emitSectionsChanged() {
+    document.dispatchEvent(new CustomEvent('wl-sections-changed'));
+    document.dispatchEvent(new CustomEvent('wl-content-rendered'));
   }
 
   let adminEditorControlsPromise: Promise<AdminEditorControlsModule | null> | null = null;
@@ -84,6 +83,24 @@
       return;
     }
     controls.openZoneAddControl(zone);
+  }
+
+  async function openReactNavSettings(sectionId: number) {
+    const controls = await ensureAdminEditorControls();
+    if (!controls) {
+      showToast('Editor controls unavailable', 'error');
+      return;
+    }
+    controls.openNavEditControl(sectionId);
+  }
+
+  async function openReactEmbedSettings(sectionId: number) {
+    const controls = await ensureAdminEditorControls();
+    if (!controls) {
+      showToast('Editor controls unavailable', 'error');
+      return;
+    }
+    controls.openEmbedEditControl(sectionId);
   }
 
   function openSourceSettings(sectionId: number) {
@@ -357,7 +374,7 @@
         // on next hydration.
         const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
         if (img) img.removeAttribute('src');
-        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+        emitSectionsChanged();
       } catch (e) {
         console.error('Reroute to wordmark failed:', e);
         showToast('Reroute failed', 'error');
@@ -599,6 +616,7 @@
         .filter((k) => k.startsWith('wl_cache_sections_'))
         .forEach((k) => localStorage.removeItem(k));
       showToast('Order saved');
+      emitSectionsChanged();
     } catch (e) {
       console.error('Failed to persist order:', e);
       showToast('Save failed', 'error');
@@ -643,6 +661,7 @@
           .filter((k) => k.startsWith('wl_cache_sections_'))
           .forEach((k) => localStorage.removeItem(k));
         showToast('Saved — appears on all pages');
+        emitSectionsChanged();
       } catch (e) {
         console.error('Promotion failed:', e);
         showToast('Save failed', 'error');
@@ -652,284 +671,18 @@
     });
   }
 
-  // --- Nav editor overlay ---
-  // composable-layout: nav lives as a block in `sections` (zone='header',
-  // section_type='nav'). The popover edits `config.items` on that block.
-  let navEditorOpen = false;
-  let navBlockId: number | null = null;
-
+  // --- Navigation block editor trigger ---
   function initNavEditor() {
-    // Document-level delegation so newly hydrated nav blocks pick up the click.
     if ((document.body as any).__navEditorBound) return;
     (document.body as any).__navEditorBound = true;
-    document.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement | null;
-      const btn = t?.closest('[data-nav-edit]') as HTMLElement | null;
-      if (!btn) return;
-      e.preventDefault();
-      const sid = parseInt(btn.dataset.navEdit || '', 10);
-      if (Number.isFinite(sid)) {
-        navBlockId = sid;
-        openNavEditor();
-      }
+    document.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest('[data-nav-edit]') as HTMLElement | null;
+      if (!button) return;
+      event.preventDefault();
+      const sectionId = parseInt(button.dataset.navEdit || '', 10);
+      if (Number.isFinite(sectionId)) void openReactNavSettings(sectionId);
     });
-  }
-
-  async function openNavEditor() {
-    if (navEditorOpen) return;
-    navEditorOpen = true;
-
-    // Fetch current nav block config
-    let navItems: any[] = [];
-    try {
-      const id = navBlockId;
-      const rows = id != null
-        ? await get(`sections?id=eq.${id}`)
-        : await get(`sections?section_type=eq.nav&zone=eq.header&order=position.asc&limit=1`);
-      const row = rows[0];
-      if (row) {
-        navBlockId = row.id;
-        navItems = (row.config && Array.isArray(row.config.items)) ? row.config.items : [];
-      }
-    } catch { navItems = []; }
-
-    // Create overlay
-    const backdrop = document.createElement('div');
-    backdrop.className = 'admin-popover-backdrop';
-
-    const panel = document.createElement('div');
-    panel.className = 'admin-nav-editor';
-    panel.innerHTML = `
-      <div class="admin-nav-editor-header">
-        <h3>Edit Navigation</h3>
-        <div style="display:flex;gap:0.5rem">
-          <button class="btn btn-secondary btn-sm" id="nav-editor-source-settings">Source settings</button>
-          <button class="btn btn-primary btn-sm" id="nav-editor-save">Save</button>
-          <button class="btn btn-secondary btn-sm" id="nav-editor-cancel">Cancel</button>
-        </div>
-      </div>
-      <div id="nav-editor-items"></div>
-      <button class="btn btn-secondary btn-sm mt-1" id="nav-editor-add">+ Add item</button>
-    `;
-
-    document.body.appendChild(backdrop);
-    document.body.appendChild(panel);
-
-    // Resolve a navItem object given its dotted path: e.g. "0" → navItems[0],
-    // "0.children.2" → navItems[0].children[2].
-    function getByPath(path: string): any {
-      const parts = path.split('.');
-      let cur: any = { children: navItems };
-      for (let i = 0; i < parts.length; i++) {
-        const key = parts[i];
-        if (key === 'children') {
-          cur = cur.children;
-        } else {
-          const idx = parseInt(key, 10);
-          cur = cur[idx];
-        }
-      }
-      return cur;
-    }
-    // Resolve the parent array (the array that contains the indexed item).
-    function getParentArray(path: string): { arr: any[]; idx: number } {
-      const parts = path.split('.');
-      const lastIdx = parseInt(parts[parts.length - 1], 10);
-      const parentParts = parts.slice(0, -1);
-      let cur: any = { children: navItems };
-      for (let i = 0; i < parentParts.length; i++) {
-        const key = parentParts[i];
-        if (key === 'children') {
-          cur = cur.children;
-        } else {
-          const idx = parseInt(key, 10);
-          cur = cur[idx];
-        }
-      }
-      // cur is the parent object. The array is cur (if we went into children/navItems).
-      const arr = Array.isArray(cur) ? cur : cur.children;
-      return { arr, idx: lastIdx };
-    }
-    function countDescendants(item: any): number {
-      const kids = Array.isArray(item.children) ? item.children : [];
-      let n = kids.length;
-      for (const k of kids) n += countDescendants(k);
-      return n;
-    }
-    function renderRow(item: any, path: string, depth: number): string {
-      const tooDeep = depth >= 2
-        ? `<div class="admin-nav-depth-warn" style="font-size:0.75rem;color:var(--color-warning,#b08000);margin:0.125rem 0 0.25rem 0">Nested deeper than 2 levels — may not render well on mobile</div>`
-        : '';
-      const childCount = Array.isArray(item.children) ? item.children.length : 0;
-      const guide = depth > 0 ? '<div class="admin-nav-guide" aria-hidden="true"></div>' : '';
-      const childRows = (Array.isArray(item.children) ? item.children : [])
-        .map((c: any, ci: number) => renderRow(c, `${path}.children.${ci}`, depth + 1))
-        .join('');
-      const childContainer = childCount > 0
-        ? `<div class="admin-nav-children" data-children-of="${path}">${childRows}</div>`
-        : '';
-      return `
-        <div class="admin-nav-item-row admin-nav-row-depth-${depth}" data-path="${path}" data-depth="${depth}" draggable="true" style="margin-left:${depth * 1.5}rem">
-          ${guide}
-          <div class="drag-handle" title="Drag to reorder">&#9776;</div>
-          <input type="text" value="${esc(item.label || '')}" data-field="label" placeholder="Label">
-          <input type="text" value="${esc(item.href || '')}" data-field="href" placeholder="/about (optional if has children)">
-          <select data-field="visibility">
-            <option value="public"${item.public ? ' selected' : ''}>Public</option>
-            <option value="auth"${item.auth ? ' selected' : ''}>Members</option>
-            <option value="admin"${item.admin ? ' selected' : ''}>Admin</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" data-add-child="${path}" title="Add child item">+ child</button>
-          <button class="remove-btn" title="Remove">&times;</button>
-          ${tooDeep}
-        </div>
-        ${childContainer}
-      `;
-    }
-
-    function renderItems() {
-      const container = panel.querySelector('#nav-editor-items')!;
-      container.innerHTML = navItems
-        .map((item: any, i: number) => renderRow(item, String(i), 0))
-        .join('');
-
-      // Bind row events
-      container.querySelectorAll('.admin-nav-item-row').forEach((row) => {
-        const path = (row as HTMLElement).dataset.path!;
-
-        // Input changes
-        row.querySelectorAll(':scope > input, :scope > select').forEach((input) => {
-          input.addEventListener('change', () => {
-            const field = (input as HTMLElement).dataset.field!;
-            const item = getByPath(path);
-            if (!item) return;
-            if (field === 'visibility') {
-              const val = (input as HTMLSelectElement).value;
-              delete item.public;
-              delete item.auth;
-              delete item.admin;
-              if (val === 'public') item.public = true;
-              else if (val === 'auth') item.auth = true;
-              else if (val === 'admin') item.admin = true;
-            } else {
-              item[field] = (input as HTMLInputElement).value;
-            }
-          });
-        });
-
-        // Add child
-        row.querySelector(':scope > [data-add-child]')?.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const item = getByPath(path);
-          if (!item) return;
-          if (!Array.isArray(item.children)) item.children = [];
-          item.children.push({ label: 'New Link', href: '/', public: true });
-          renderItems();
-        });
-
-        // Remove (with subtree confirmation if children present)
-        row.querySelector(':scope > .remove-btn')?.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const { arr, idx } = getParentArray(path);
-          const item = arr[idx];
-          if (!item) return;
-          const descendants = countDescendants(item);
-          if (descendants > 0) {
-            const word = descendants === 1 ? 'child' : 'children';
-            if (!confirm(`Remove this item and its ${descendants} ${word}?`)) return;
-          }
-          arr.splice(idx, 1);
-          renderItems();
-        });
-
-        // Drag reorder — scoped to the same parent array.
-        row.addEventListener('dragstart', (e) => {
-          (e as DragEvent).dataTransfer!.setData('text/plain', path);
-          (e as DragEvent).dataTransfer!.effectAllowed = 'move';
-          (row as HTMLElement).style.opacity = '0.4';
-        });
-        row.addEventListener('dragend', () => {
-          (row as HTMLElement).style.opacity = '1';
-        });
-        row.addEventListener('dragover', (e) => {
-          const dt = (e as DragEvent).dataTransfer;
-          if (!dt) return;
-          const fromPath = dt.getData('text/plain') || '';
-          // Only accept drops within the same parent scope.
-          const fromParent = fromPath.split('.').slice(0, -1).join('.');
-          const toParent = path.split('.').slice(0, -1).join('.');
-          if (fromParent === toParent) {
-            e.preventDefault();
-            dt.dropEffect = 'move';
-          }
-        });
-        row.addEventListener('drop', (e) => {
-          const dt = (e as DragEvent).dataTransfer;
-          if (!dt) return;
-          const fromPath = dt.getData('text/plain');
-          if (!fromPath || fromPath === path) return;
-          const fromParent = fromPath.split('.').slice(0, -1).join('.');
-          const toParent = path.split('.').slice(0, -1).join('.');
-          if (fromParent !== toParent) return;
-          e.preventDefault();
-          const fromIdx = parseInt(fromPath.split('.').pop()!, 10);
-          const toIdx = parseInt(path.split('.').pop()!, 10);
-          const fromCtx = getParentArray(fromPath);
-          const [moved] = fromCtx.arr.splice(fromIdx, 1);
-          fromCtx.arr.splice(toIdx, 0, moved);
-          renderItems();
-        });
-      });
-    }
-
-    renderItems();
-
-    // Add top-level item
-    panel.querySelector('#nav-editor-add')?.addEventListener('click', () => {
-      navItems.push({ label: 'New Link', href: '/', public: true });
-      renderItems();
-    });
-
-    // Save — PATCH the nav block's `config.items`. read-modify-write so we
-    // don't clobber other config keys on the row.
-    panel.querySelector('#nav-editor-save')?.addEventListener('click', async () => {
-      try {
-        if (navBlockId == null) throw new Error('No nav block id resolved');
-        const rows = await get(`sections?id=eq.${navBlockId}`);
-        const current = rows[0]?.config || {};
-        const newConfig = { ...current, items: navItems };
-        await patch(`sections?id=eq.${navBlockId}`, { config: newConfig });
-        // Bust per-slug section caches so chrome blocks re-render with new nav.
-        Object.keys(localStorage)
-          .filter((k) => k.startsWith('wl_cache_sections_'))
-          .forEach((k) => localStorage.removeItem(k));
-        showToast('Navigation saved');
-        closeNavEditor();
-        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
-      } catch (e) {
-        console.error('Nav save failed:', e);
-        showToast('Save failed', 'error');
-      }
-    });
-
-    panel.querySelector('#nav-editor-source-settings')?.addEventListener('click', () => {
-      const id = navBlockId;
-      if (id == null) return;
-      closeNavEditor();
-      void openSourceSettings(id);
-    });
-
-    // Cancel
-    panel.querySelector('#nav-editor-cancel')?.addEventListener('click', closeNavEditor);
-    backdrop.addEventListener('click', closeNavEditor);
-
-    function closeNavEditor() {
-      panel.remove();
-      backdrop.remove();
-      navEditorOpen = false;
-    }
   }
 
 
@@ -957,6 +710,7 @@
             .forEach((k) => localStorage.removeItem(k));
           removeBtn.closest('[data-sortable-id]')?.remove();
           showToast('Section removed');
+          emitSectionsChanged();
         } catch (err) {
           console.error('Failed to remove section:', err);
           showToast('Remove failed', 'error');
@@ -995,6 +749,7 @@
               existingPill.remove();
             }
           }
+          emitSectionsChanged();
         } catch (err) {
           console.error('Scope toggle failed:', err);
           showToast('Save failed', 'error');
@@ -1044,13 +799,7 @@
     });
   }
 
-  // --- Embed-block edit popover ---
-  // Triggered by clicking the pencil button (data-embed-edit) on any embed
-  // block. Renders a provider selector + dynamic params form + trust gate
-  // (for the generic iframe provider). Reads the section row, lets the admin
-  // change provider/params/heading, then PATCHes the row's `config`.
-  let embedEditorOpen = false;
-
+  // --- Embed block editor trigger ---
   function initEmbedEditor() {
     if ((document.body as any).__embedEditorBound) return;
     (document.body as any).__embedEditorBound = true;
@@ -1061,316 +810,8 @@
       e.preventDefault();
       e.stopPropagation();
       const sid = parseInt(btn.dataset.embedEdit || '', 10);
-      if (Number.isFinite(sid)) openEmbedEditor(sid);
+      if (Number.isFinite(sid)) void openReactEmbedSettings(sid);
     });
-  }
-
-  function extractVideoId(provider: string, raw: string): string | null {
-    if (!raw) return null;
-    const trimmed = raw.trim();
-    if (provider === 'youtube') {
-      const patterns = [
-        /youtube\.com\/watch\?v=([\w-]{6,})/,
-        /youtu\.be\/([\w-]{6,})/,
-        /youtube\.com\/embed\/([\w-]{6,})/,
-        /youtube\.com\/shorts\/([\w-]{6,})/,
-      ];
-      for (const re of patterns) {
-        const m = trimmed.match(re);
-        if (m) return m[1];
-      }
-      // Already a bare ID?
-      if (/^[\w-]{6,}$/.test(trimmed)) return trimmed;
-    }
-    if (provider === 'vimeo') {
-      const m = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-      if (m) return m[1];
-      if (/^\d+$/.test(trimmed)) return trimmed;
-    }
-    return null;
-  }
-
-  async function openEmbedEditor(sectionId: number) {
-    if (embedEditorOpen) return;
-    embedEditorOpen = true;
-
-    const { PROVIDERS } = await import('../lib/blocks/embed-providers');
-
-    let row: any = null;
-    try {
-      const rows = await get(`sections?id=eq.${sectionId}`);
-      row = rows[0];
-    } catch (err) {
-      console.error('Failed to load embed block:', err);
-      showToast('Could not load embed', 'error');
-      embedEditorOpen = false;
-      return;
-    }
-    if (!row) {
-      showToast('Block not found', 'error');
-      embedEditorOpen = false;
-      return;
-    }
-
-    const cfg: any = row.config || {};
-    let providerId: string = cfg.provider || 'youtube';
-    let params: any = { ...(cfg.params || {}) };
-    let heading: string = cfg.heading || '';
-    let trustAck: boolean = cfg.trust_acknowledged === true;
-    let trustedHost: string = '';
-
-    const backdrop = document.createElement('div');
-    backdrop.className = 'admin-popover-backdrop';
-    const panel = document.createElement('div');
-    panel.className = 'admin-popover admin-embed-editor';
-
-    function trustHostFor(srcVal: string): string {
-      try {
-        return new URL(srcVal).host;
-      } catch {
-        return '';
-      }
-    }
-
-    function renderForm() {
-      const provider = PROVIDERS[providerId];
-      if (!provider) return;
-      const fields = Object.entries(provider.paramsSchema)
-        .map(([key, schema]) => {
-          const labelText = schema.label || key;
-          const required = schema.required ? ' <span class="admin-embed__req">*</span>' : '';
-          const helpHtml = schema.help
-            ? `<div class="admin-embed__help">${esc(schema.help)}</div>`
-            : '';
-          const value = params[key] != null ? String(params[key]) : '';
-          let input = '';
-          if (schema.type === 'select' && schema.options) {
-            const opts = schema.options
-              .map((o) => {
-                const sel = String(value) === o ? ' selected' : '';
-                return `<option value="${esc(o)}"${sel}>${esc(o)}</option>`;
-              })
-              .join('');
-            input = `<select data-param="${esc(key)}"><option value=""></option>${opts}</select>`;
-          } else if (schema.type === 'number') {
-            input =
-              `<input type="number" data-param="${esc(key)}" value="${esc(value)}" ` +
-              `placeholder="${esc(schema.placeholder || '')}" ${schema.required ? 'required' : ''}>`;
-          } else {
-            input =
-              `<input type="text" data-param="${esc(key)}" value="${esc(value)}" ` +
-              `placeholder="${esc(schema.placeholder || '')}" ${schema.required ? 'required' : ''}>`;
-          }
-          return `
-            <div class="admin-embed__field">
-              <label>${esc(labelText)}${required}</label>
-              ${input}
-              ${helpHtml}
-            </div>
-          `;
-        })
-        .join('');
-
-      // Provider-specific helper UI
-      let helperUi = '';
-      if (providerId === 'youtube' || providerId === 'vimeo') {
-        helperUi = `
-          <div class="admin-embed__helper">
-            <label>Paste a ${providerId === 'youtube' ? 'YouTube' : 'Vimeo'} URL to extract the ID</label>
-            <div style="display:flex;gap:0.5rem">
-              <input type="text" id="embed-url-helper" placeholder="https://${providerId === 'youtube' ? 'www.youtube.com/watch?v=...' : 'vimeo.com/...'}" style="flex:1">
-              <button type="button" class="btn btn-secondary btn-sm" id="embed-url-extract">Extract</button>
-            </div>
-          </div>
-        `;
-      }
-
-      // Trust gate for generic iframe
-      let trustUi = '';
-      if (providerId === 'iframe') {
-        trustedHost = trustHostFor(String(params.src || ''));
-        const labelHost = trustedHost || 'this source';
-        trustUi = `
-          <div class="admin-embed__trust" role="alert">
-            <strong>⚠ External content</strong>
-            <p>This block embeds content from a source Kychon hasn't verified.
-               Visitors run any scripts the source serves.</p>
-            <label class="admin-embed__trust-check">
-              <input type="checkbox" id="embed-trust-check" ${trustAck && trustedHost ? 'checked' : ''}>
-              <span>I trust <code id="embed-trust-host">${esc(labelHost)}</code></span>
-            </label>
-          </div>
-        `;
-      }
-
-      panel.innerHTML = `
-        <div class="admin-embed__header">
-          <h3>Edit embed</h3>
-          <div class="admin-embed__actions">
-            <button class="btn btn-primary btn-sm" id="embed-save">Save</button>
-            <button class="btn btn-secondary btn-sm" id="embed-cancel">Cancel</button>
-          </div>
-        </div>
-        <div class="admin-embed__field">
-          <label>Provider</label>
-          <select id="embed-provider">
-            ${Object.entries(PROVIDERS)
-              .map(
-                ([id, p]) =>
-                  `<option value="${esc(id)}"${
-                    id === providerId ? ' selected' : ''
-                  }>${esc(p.icon)} ${esc(p.label)}</option>`,
-              )
-              .join('')}
-          </select>
-        </div>
-        <div class="admin-embed__field">
-          <label>Heading (optional)</label>
-          <input type="text" id="embed-heading" value="${esc(heading)}" placeholder="Block heading shown above the embed">
-        </div>
-        ${helperUi}
-        <fieldset class="admin-embed__params">
-          <legend>Provider params</legend>
-          ${fields}
-        </fieldset>
-        ${trustUi}
-      `;
-
-      // Bind input changes
-      panel.querySelectorAll<HTMLElement>('[data-param]').forEach((el) => {
-        el.addEventListener('input', () => {
-          const key = el.dataset.param!;
-          if (el instanceof HTMLInputElement) {
-            params[key] = el.type === 'number' ? (el.value === '' ? undefined : Number(el.value)) : el.value;
-          } else if (el instanceof HTMLSelectElement) {
-            params[key] = el.value;
-          }
-          // Re-evaluate trust host when iframe src changes
-          if (providerId === 'iframe' && key === 'src') {
-            const newHost = trustHostFor(String(params.src || ''));
-            const hostEl = panel.querySelector('#embed-trust-host');
-            if (hostEl) hostEl.textContent = newHost || 'this source';
-            if (newHost !== trustedHost) {
-              trustedHost = newHost;
-              trustAck = false;
-              const cb = panel.querySelector('#embed-trust-check') as HTMLInputElement | null;
-              if (cb) cb.checked = false;
-              updateSaveEnabled();
-            }
-          }
-          updateSaveEnabled();
-        });
-      });
-
-      panel.querySelector('#embed-provider')?.addEventListener('change', (ev) => {
-        const newId = (ev.target as HTMLSelectElement).value;
-        if (newId !== providerId) {
-          providerId = newId;
-          // Reset params when switching providers
-          params = {};
-          trustAck = false;
-          trustedHost = '';
-          renderForm();
-          updateSaveEnabled();
-        }
-      });
-
-      panel.querySelector('#embed-heading')?.addEventListener('input', (ev) => {
-        heading = (ev.target as HTMLInputElement).value;
-      });
-
-      panel.querySelector('#embed-url-extract')?.addEventListener('click', () => {
-        const helper = panel.querySelector('#embed-url-helper') as HTMLInputElement | null;
-        if (!helper) return;
-        const id = extractVideoId(providerId, helper.value);
-        if (id) {
-          params.video_id = id;
-          const target = panel.querySelector('[data-param="video_id"]') as HTMLInputElement | null;
-          if (target) target.value = id;
-          showToast('Video ID extracted', 'success');
-          updateSaveEnabled();
-        } else {
-          showToast('Could not extract video ID from that URL', 'error');
-        }
-      });
-
-      panel.querySelector('#embed-trust-check')?.addEventListener('change', (ev) => {
-        trustAck = (ev.target as HTMLInputElement).checked;
-        updateSaveEnabled();
-      });
-
-      panel.querySelector('#embed-save')?.addEventListener('click', save);
-      panel.querySelector('#embed-cancel')?.addEventListener('click', close);
-
-      updateSaveEnabled();
-    }
-
-    function updateSaveEnabled() {
-      const btn = panel.querySelector('#embed-save') as HTMLButtonElement | null;
-      if (!btn) return;
-      let enabled = true;
-      const provider = PROVIDERS[providerId];
-      if (!provider) enabled = false;
-      else {
-        for (const [key, schema] of Object.entries(provider.paramsSchema)) {
-          if (schema.required && (params[key] == null || params[key] === '')) {
-            enabled = false;
-            break;
-          }
-        }
-      }
-      // Trust gate for iframe blocks the save until checked.
-      if (providerId === 'iframe' && (!trustedHost || !trustAck)) enabled = false;
-      btn.disabled = !enabled;
-    }
-
-    async function save() {
-      const provider = PROVIDERS[providerId];
-      if (!provider) return;
-      // Optimistic-validate by running buildSrc here so we surface errors
-      // before saving.
-      try {
-        provider.buildSrc(params);
-      } catch (err) {
-        showToast(err instanceof Error ? err.message : 'Invalid params', 'error');
-        return;
-      }
-      const newConfig: any = {
-        ...row.config,
-        provider: providerId,
-        params,
-        heading,
-      };
-      if (providerId === 'iframe') {
-        newConfig.trust_acknowledged = trustAck;
-      } else {
-        // Strip trust flag when switching to a verified provider.
-        delete newConfig.trust_acknowledged;
-      }
-      try {
-        await patch(`sections?id=eq.${row.id}`, { config: newConfig });
-        Object.keys(localStorage)
-          .filter((k) => k.startsWith('wl_cache_sections_'))
-          .forEach((k) => localStorage.removeItem(k));
-        showToast('Embed saved');
-        close();
-        document.dispatchEvent(new CustomEvent('wl-content-rendered'));
-      } catch (err) {
-        console.error('Embed save failed:', err);
-        showToast('Save failed', 'error');
-      }
-    }
-
-    function close() {
-      panel.remove();
-      backdrop.remove();
-      embedEditorOpen = false;
-    }
-
-    backdrop.addEventListener('click', close);
-    document.body.appendChild(backdrop);
-    document.body.appendChild(panel);
-    renderForm();
   }
 
 
