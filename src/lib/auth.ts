@@ -677,13 +677,12 @@ function arrayBufferToBase64Url(value: ArrayBuffer): string {
 }
 
 function credentialToJSON(credential: PublicKeyCredential): any {
-  const maybeToJSON = (credential as any).toJSON;
-  if (typeof maybeToJSON === 'function') return maybeToJSON.call(credential);
   const response = credential.response as any;
+  const credentialId = arrayBufferToBase64Url(credential.rawId);
   const json: any = {
-    id: credential.id,
+    id: credentialId,
     type: credential.type,
-    rawId: arrayBufferToBase64Url(credential.rawId),
+    rawId: credentialId,
     response: {
       clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
     },
@@ -693,6 +692,8 @@ function credentialToJSON(credential: PublicKeyCredential): any {
   if (response.authenticatorData) json.response.authenticatorData = arrayBufferToBase64Url(response.authenticatorData);
   if (response.signature) json.response.signature = arrayBufferToBase64Url(response.signature);
   if (response.userHandle) json.response.userHandle = arrayBufferToBase64Url(response.userHandle);
+  if (typeof response.getTransports === 'function') json.response.transports = response.getTransports();
+  if (credential.authenticatorAttachment) json.authenticatorAttachment = credential.authenticatorAttachment;
   return json;
 }
 
