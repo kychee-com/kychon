@@ -342,10 +342,11 @@ export function consumeOAuthCallbackErrorDetail(): OAuthCallbackErrorDetail | nu
   const error = params.get('error');
   if (!error) return null;
   window.history.replaceState(null, '', cleanOAuthCallbackUrl());
+  const flow = oauthErrorFlow(error);
   return {
     code: error,
     message: oauthErrorMessage(error),
-    flow: oauthErrorFlow(error),
+    ...(flow ? { flow } : {}),
   };
 }
 
