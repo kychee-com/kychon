@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   ChevronUp,
   Image,
@@ -30,7 +32,11 @@ import {
   Label,
   Textarea,
 } from '@/components/kychon/ui';
-import { COPIED_THEME_EDITOR_TYPES, type CopiedThemeEditorType } from '@/lib/admin/copied-theme-editor';
+import {
+  buildCopiedThemeEditorConfig,
+  COPIED_THEME_EDITOR_TYPES,
+  type CopiedThemeEditorType,
+} from '@/lib/admin/copied-theme-editor';
 import { del, get, patch, post } from '@/lib/api';
 import { BLOCK_TYPES, getSupportedSpans } from '@/lib/blocks';
 import { PROVIDERS, type ParamSchemaEntry } from '@/lib/blocks/embed-providers';
@@ -42,7 +48,6 @@ const SECTION_EDIT_EVENT = 'kychon:admin-editor-section-edit';
 const ZONE_ADD_EVENT = 'kychon:admin-editor-zone-add';
 const NAV_EDIT_EVENT = 'kychon:admin-editor-nav-edit';
 const EMBED_EDIT_EVENT = 'kychon:admin-editor-embed-edit';
-const SOURCE_SETTINGS_EVENT = 'kychon:admin-editor-open-source-settings';
 const CONTENT_RENDERED_EVENT = 'wl-content-rendered';
 const SECTIONS_CHANGED_EVENT = 'wl-sections-changed';
 
@@ -74,6 +79,20 @@ interface EmbedEditDetail {
 
 type NavVisibility = 'public' | 'auth' | 'admin';
 type EmbedParams = Record<string, unknown>;
+type SourceFieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox';
+type SourceArrayKey = 'panels' | 'layers' | 'items';
+
+interface SourceField {
+  path: string;
+  label: string;
+  type?: SourceFieldType;
+  placeholder?: string;
+  step?: string;
+  min?: string;
+  max?: string;
+  rows?: number;
+  options?: Array<[string, string]>;
+}
 
 interface NavItem {
   label?: string;
@@ -277,10 +296,6 @@ function mirrorRenderedScope(sectionId: number, next: 'page' | 'global') {
   }
 }
 
-function emitEditorBridgeEvent(name: string, sectionId: number) {
-  window.dispatchEvent(new CustomEvent<SectionEditDetail>(name, { detail: { sectionId } }));
-}
-
 function isZone(value: unknown): value is Zone {
   return value === 'header' || value === 'main' || value === 'footer';
 }
@@ -422,6 +437,206 @@ function isMissingRequiredParam(value: unknown): boolean {
   return value == null || value === '';
 }
 
+function sourceTypeLabel(type: CopiedThemeEditorType | null): string {
+  if (type === 'image_accordion') return 'Image accordion';
+  if (type === 'shape_divider') return 'Shape divider';
+  if (type === 'slideshow') return 'Slideshow';
+  if (type === 'nav') return 'Navigation';
+  return 'Block';
+}
+
+function getValueAtPath(obj: Record<string, any>, path: string): any {
+  return path.split('.').reduce((current, part) => {
+    if (current == null) return undefined;
+    const key = /^\d+$/.test(part) ? Number(part) : part;
+    return current[key];
+  }, obj as any);
+}
+
+function setValueAtPath(obj: Record<string, any>, path: string, value: any): Record<string, any> {
+  const next = cloneConfig(obj);
+  const parts = path.split('.');
+  let current: any = next;
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const key = /^\d+$/.test(parts[index]) ? Number(parts[index]) : parts[index];
+    const nextKey = parts[index + 1];
+    if (current[key] == null || typeof current[key] !== 'object') {
+      current[key] = /^\d+$/.test(nextKey) ? [] : {};
+    }
+    current = current[key];
+  }
+  const last = parts[parts.length - 1];
+  current[/^\d+$/.test(last) ? Number(last) : last] = value;
+  return next;
+}
+
+function normalizeSourceDraft(type: CopiedThemeEditorType, config: Record<string, any>): Record<string, any> {
+  const draft = cloneConfig(config);
+  if (type === 'image_accordion') draft.panels = Array.isArray(draft.panels) ? draft.panels : [];
+  if (type === 'shape_divider') draft.layers = Array.isArray(draft.layers) ? draft.layers : [];
+  if (type === 'slideshow') draft.items = Array.isArray(draft.items) ? draft.items : [];
+  return draft;
+}
+
+function defaultSourceItem(key: SourceArrayKey): Record<string, any> {
+  if (key === 'panels') {
+    return {
+      image_url: '',
+      image_alt: '',
+      title: 'New panel',
+      description: '',
+      cta_label: '',
+      href: '',
+      fit: 'cover',
+      object_position: 'center',
+    };
+  }
+  if (key === 'layers') {
+    return { fill: 'var(--shape-bottom-color)', opacity: 1, translate_y: 0 };
+  }
+  return { src: '', alt: 'New slide', caption: '', href: '', fit: '', object_position: 'center' };
+}
+
+function mutateSourceArray(
+  draft: Record<string, any>,
+  key: SourceArrayKey,
+  mutator: (items: Record<string, any>[]) => void,
+): Record<string, any> {
+  const next = cloneConfig(draft);
+  const items = Array.isArray(next[key]) ? [...next[key]] : [];
+  mutator(items);
+  next[key] = items;
+  return next;
+}
+
+function moveSourceArrayItem(
+  draft: Record<string, any>,
+  key: SourceArrayKey,
+  index: number,
+  direction: -1 | 1,
+): Record<string, any> {
+  return mutateSourceArray(draft, key, (items) => {
+    const target = index + direction;
+    if (target < 0 || target >= items.length) return;
+    const [moved] = items.splice(index, 1);
+    items.splice(target, 0, moved);
+  });
+}
+
+const IMAGE_ACCORDION_FIELDS: SourceField[] = [
+  { path: 'heading', label: 'Heading' },
+  { path: 'active_ratio', label: 'Active ratio', type: 'number', step: '0.1', min: '0.1' },
+  { path: 'idle_ratio', label: 'Idle ratio', type: 'number', step: '0.1', min: '0.1' },
+  { path: 'overlay_color', label: 'Overlay color' },
+  { path: 'overlay_opacity', label: 'Overlay opacity', type: 'number', step: '0.05', min: '0', max: '1' },
+  { path: 'reveal_duration', label: 'Reveal duration', placeholder: '260ms' },
+  { path: 'mobile_fallback', label: 'Mobile fallback', type: 'select', options: [['stack', 'Stack'], ['cards', 'Cards']] },
+];
+
+const SHAPE_DIVIDER_FIELDS: SourceField[] = [
+  { path: 'preset', label: 'Preset', type: 'select', options: [['wave', 'Wave'], ['tilt', 'Tilt'], ['curve', 'Curve']] },
+  { path: 'height', label: 'Height', placeholder: '96px' },
+  { path: 'view_box', label: 'View box', placeholder: '0 0 1440 120' },
+  { path: 'top_color', label: 'Top color' },
+  { path: 'bottom_color', label: 'Bottom color' },
+  {
+    path: 'placement',
+    label: 'Placement',
+    type: 'select',
+    options: [['between', 'Between sections'], ['top', 'Top'], ['bottom', 'Bottom']],
+  },
+  { path: 'flip_x', label: 'Flip horizontally', type: 'checkbox' },
+  { path: 'flip_y', label: 'Flip vertically', type: 'checkbox' },
+  { path: 'path', label: 'Imported SVG path', type: 'textarea', rows: 3 },
+];
+
+const SLIDESHOW_FIELDS: SourceField[] = [
+  { path: 'heading', label: 'Heading' },
+  { path: 'height', label: 'Desktop height', placeholder: '420px' },
+  { path: 'mobile_height', label: 'Mobile height', placeholder: '260px' },
+  {
+    path: 'aspect_ratio',
+    label: 'Aspect ratio',
+    type: 'select',
+    options: [['16/9', '16:9'], ['4/3', '4:3'], ['1/1', '1:1'], ['21/9', '21:9']],
+  },
+  { path: 'fit', label: 'Default fit', type: 'select', options: [['cover', 'Cover'], ['contain', 'Contain']] },
+  { path: 'transition', label: 'Transition', type: 'select', options: [['fade', 'Fade'], ['slide', 'Slide']] },
+  { path: 'auto_rotate_seconds', label: 'Autoplay seconds', type: 'number', step: '0.5', min: '0' },
+  { path: 'transition_ms', label: 'Transition ms', type: 'number', step: '50', min: '0' },
+  { path: 'transition_easing', label: 'Transition easing', placeholder: 'ease-in-out' },
+  { path: 'show_arrows', label: 'Show arrows', type: 'checkbox' },
+  { path: 'show_dots', label: 'Show dots', type: 'checkbox' },
+  { path: 'pause_on_hover', label: 'Pause on hover', type: 'checkbox' },
+  { path: 'pause_on_focus', label: 'Pause on focus', type: 'checkbox' },
+  { path: 'manual_pause', label: 'Manual interaction pauses autoplay', type: 'checkbox' },
+];
+
+const SLIDESHOW_STYLE_FIELDS: SourceField[] = [
+  { path: 'arrow_style.background', label: 'Arrow background' },
+  { path: 'arrow_style.text', label: 'Arrow text' },
+  { path: 'arrow_style.hover.background', label: 'Arrow hover background' },
+  { path: 'arrow_style.hover.text', label: 'Arrow hover text' },
+  { path: 'dot_style.background', label: 'Dot background' },
+  { path: 'dot_style.active_background', label: 'Active dot background' },
+];
+
+const NAV_BEHAVIOR_FIELDS: SourceField[] = [
+  {
+    path: 'behavior.desktop_open',
+    label: 'Desktop open',
+    type: 'select',
+    options: [['', 'Default'], ['hover', 'Hover'], ['click', 'Click'], ['focus', 'Focus']],
+  },
+  { path: 'behavior.mobile_breakpoint', label: 'Mobile breakpoint', type: 'number', step: '1', min: '1', placeholder: '768' },
+  {
+    path: 'behavior.mobile_closed_layout',
+    label: 'Mobile closed layout',
+    type: 'select',
+    options: [['', 'Default'], ['hidden', 'Hidden'], ['overlay', 'Overlay']],
+  },
+  {
+    path: 'behavior.mobile_open_layout',
+    label: 'Mobile open layout',
+    type: 'select',
+    options: [['', 'Default'], ['dropdown', 'Dropdown'], ['drawer', 'Drawer'], ['inline', 'Inline']],
+  },
+];
+
+const NAV_PRESENTATION_FIELDS: SourceField[] = [
+  { path: 'presentation.link_color', label: 'Link color' },
+  { path: 'presentation.link_hover_bg', label: 'Link hover background' },
+  { path: 'presentation.link_hover_color', label: 'Link hover color' },
+  { path: 'presentation.link_active_bg', label: 'Link active background' },
+  { path: 'presentation.link_active_color', label: 'Link active color' },
+  { path: 'presentation.link_padding', label: 'Link padding' },
+  { path: 'presentation.link_gap', label: 'Link gap' },
+  { path: 'presentation.font_family', label: 'Font family' },
+  { path: 'presentation.font_size', label: 'Font size' },
+  { path: 'presentation.font_weight', label: 'Font weight' },
+  { path: 'presentation.dropdown_bg', label: 'Dropdown background' },
+  { path: 'presentation.dropdown_color', label: 'Dropdown color' },
+  { path: 'presentation.dropdown_hover_bg', label: 'Dropdown hover background' },
+  { path: 'presentation.dropdown_hover_color', label: 'Dropdown hover color' },
+  { path: 'presentation.dropdown_border', label: 'Dropdown border' },
+  { path: 'presentation.dropdown_shadow', label: 'Dropdown shadow' },
+  { path: 'presentation.dropdown_width', label: 'Dropdown width' },
+  { path: 'presentation.dropdown_offset_x', label: 'Dropdown offset X' },
+  { path: 'presentation.dropdown_offset_y', label: 'Dropdown offset Y' },
+  { path: 'presentation.chevron_color', label: 'Chevron color' },
+  { path: 'presentation.transition', label: 'Transition' },
+  { path: 'presentation.mobile_menu_bg', label: 'Mobile menu background' },
+  { path: 'presentation.mobile_menu_padding', label: 'Mobile menu padding' },
+];
+
+const NAV_INTERACTION_FIELDS: SourceField[] = [
+  { path: 'interactions.hover.background', label: 'Hover background' },
+  { path: 'interactions.hover.text', label: 'Hover text' },
+  { path: 'interactions.hover.icon', label: 'Hover icon' },
+  { path: 'interactions.focus.border', label: 'Focus border' },
+  { path: 'interactions.focus.text', label: 'Focus text' },
+];
+
 function AdminEditorControls() {
   const [open, setOpen] = useState(false);
   const [sectionId, setSectionId] = useState<number | null>(null);
@@ -452,6 +667,14 @@ function AdminEditorControls() {
   const [embedLoading, setEmbedLoading] = useState(false);
   const [embedSaving, setEmbedSaving] = useState(false);
   const [embedError, setEmbedError] = useState('');
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceSectionId, setSourceSectionId] = useState<number | null>(null);
+  const [sourceType, setSourceType] = useState<CopiedThemeEditorType | null>(null);
+  const [sourceConfig, setSourceConfig] = useState<Record<string, any>>({});
+  const [sourceDraft, setSourceDraft] = useState<Record<string, any>>({});
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceSaving, setSourceSaving] = useState(false);
+  const [sourceError, setSourceError] = useState('');
 
   const spans = useMemo(() => (row ? getSupportedSpans(row.section_type) : []), [row]);
   const sectionDef = row ? BLOCK_TYPES[row.section_type] : null;
@@ -666,7 +889,7 @@ function AdminEditorControls() {
   function openSourceSettings() {
     if (!sectionId) return;
     setOpen(false);
-    emitEditorBridgeEvent(SOURCE_SETTINGS_EVENT, sectionId);
+    void openSourceEditor(sectionId);
   }
 
   async function addBlock(type: string) {
@@ -853,7 +1076,7 @@ function AdminEditorControls() {
   function openNavSourceSettings() {
     if (!navSectionId) return;
     setNavOpen(false);
-    emitEditorBridgeEvent(SOURCE_SETTINGS_EVENT, navSectionId);
+    void openSourceEditor(navSectionId);
   }
 
   async function openEmbedEditor(nextSectionId: number) {
@@ -985,6 +1208,313 @@ function AdminEditorControls() {
       showToast({ type: 'error', message: 'Could not save embed' });
     } finally {
       setEmbedSaving(false);
+    }
+  }
+
+  async function openSourceEditor(nextSectionId: number) {
+    setSourceOpen(true);
+    setSourceSectionId(nextSectionId);
+    setSourceType(null);
+    setSourceConfig({});
+    setSourceDraft({});
+    setSourceError('');
+    setSourceLoading(true);
+    try {
+      const rows = await get(`sections?id=eq.${nextSectionId}`);
+      const nextRow = rows[0] as SectionRow | undefined;
+      const nextType = nextRow?.section_type as CopiedThemeEditorType | undefined;
+      if (!nextRow || !nextType || !COPIED_THEME_EDITOR_TYPES.has(nextType)) {
+        setSourceError('No source settings for this block');
+        return;
+      }
+      const config = nextRow.config || {};
+      setSourceType(nextType);
+      setSourceConfig(config);
+      setSourceDraft(normalizeSourceDraft(nextType, config));
+    } catch (loadError) {
+      console.error('Failed to load source settings:', loadError);
+      setSourceError('Could not load source settings');
+      showToast({ type: 'error', message: 'Could not load source settings' });
+    } finally {
+      setSourceLoading(false);
+    }
+  }
+
+  function updateSourceField(field: SourceField, rawValue: string | boolean) {
+    const value = field.type === 'number' ? (rawValue === '' ? undefined : Number(rawValue)) : rawValue;
+    setSourceDraft((draft) => setValueAtPath(draft, field.path, value));
+  }
+
+  function addSourceArrayItem(key: SourceArrayKey) {
+    setSourceDraft((draft) => mutateSourceArray(draft, key, (items) => items.push(defaultSourceItem(key))));
+  }
+
+  function removeSourceArrayItem(key: SourceArrayKey, index: number) {
+    setSourceDraft((draft) => mutateSourceArray(draft, key, (items) => items.splice(index, 1)));
+  }
+
+  function moveSourceItem(key: SourceArrayKey, index: number, direction: -1 | 1) {
+    setSourceDraft((draft) => moveSourceArrayItem(draft, key, index, direction));
+  }
+
+  function renderSourceField(field: SourceField) {
+    const id = `source-${field.path.replace(/[^a-z0-9_-]+/gi, '-')}`;
+    const value = getValueAtPath(sourceDraft, field.path);
+    if (field.type === 'checkbox') {
+      return (
+        <label key={field.path} className="flex min-h-9 items-center gap-2 rounded-md border border-transparent px-2 text-sm hover:bg-muted/50">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-[var(--primary)]"
+            checked={value === true}
+            onChange={(event) => updateSourceField(field, event.currentTarget.checked)}
+          />
+          <span>{field.label}</span>
+        </label>
+      );
+    }
+    if (field.type === 'textarea') {
+      return (
+        <Field key={field.path} id={id} label={field.label}>
+          <Textarea
+            id={id}
+            rows={field.rows || 3}
+            value={value == null ? '' : String(value)}
+            placeholder={field.placeholder || ''}
+            onChange={(event) => updateSourceField(field, event.currentTarget.value)}
+          />
+        </Field>
+      );
+    }
+    if (field.type === 'select' && field.options) {
+      return (
+        <Field key={field.path} id={id} label={field.label}>
+          <NativeSelect
+            id={id}
+            value={value == null ? '' : String(value)}
+            onChange={(event) => updateSourceField(field, event.currentTarget.value)}
+          >
+            {field.options.map(([optionValue, optionLabel]) => (
+              <option key={optionValue} value={optionValue}>
+                {optionLabel}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      );
+    }
+    return (
+      <Field key={field.path} id={id} label={field.label}>
+        <Input
+          id={id}
+          type={field.type === 'number' ? 'number' : 'text'}
+          value={value == null ? '' : String(value)}
+          placeholder={field.placeholder || ''}
+          step={field.step}
+          min={field.min}
+          max={field.max}
+          onChange={(event) => updateSourceField(field, event.currentTarget.value)}
+        />
+      </Field>
+    );
+  }
+
+  function renderSourceFieldGrid(fields: SourceField[]) {
+    return <div className="grid gap-3 sm:grid-cols-2">{fields.map((field) => renderSourceField(field))}</div>;
+  }
+
+  function renderSourceGroup(title: string, children: React.ReactNode) {
+    return (
+      <section className="space-y-3 rounded-md border border-border p-4">
+        <h3 className="text-sm font-medium">{title}</h3>
+        {children}
+      </section>
+    );
+  }
+
+  function renderArrayHeader(title: string, key: SourceArrayKey, index: number, length: number) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-medium">{title}</h4>
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={`Move ${title.toLowerCase()} up`}
+            title="Move up"
+            disabled={index <= 0}
+            onClick={() => moveSourceItem(key, index, -1)}
+          >
+            <ArrowUp aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={`Move ${title.toLowerCase()} down`}
+            title="Move down"
+            disabled={index >= length - 1}
+            onClick={() => moveSourceItem(key, index, 1)}
+          >
+            <ArrowDown aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon"
+            aria-label={`Remove ${title.toLowerCase()}`}
+            title="Remove"
+            onClick={() => removeSourceArrayItem(key, index)}
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderImageAccordionSource() {
+    const panels = Array.isArray(sourceDraft.panels) ? sourceDraft.panels : [];
+    return (
+      <div className="space-y-4">
+        {renderSourceGroup('Accordion settings', renderSourceFieldGrid(IMAGE_ACCORDION_FIELDS))}
+        {renderSourceGroup(
+          'Panels',
+          <div className="space-y-3">
+            {panels.map((_panel, index) => (
+              <div key={index} className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+                {renderArrayHeader(`Panel ${index + 1}`, 'panels', index, panels.length)}
+                {renderSourceFieldGrid([
+                  { path: `panels.${index}.title`, label: 'Title' },
+                  { path: `panels.${index}.cta_label`, label: 'CTA label' },
+                  { path: `panels.${index}.href`, label: 'Link href', placeholder: '/about' },
+                  { path: `panels.${index}.image_url`, label: 'Image URL' },
+                  { path: `panels.${index}.image_alt`, label: 'Image alt' },
+                  { path: `panels.${index}.object_position`, label: 'Object position', placeholder: '50% 50%' },
+                  {
+                    path: `panels.${index}.fit`,
+                    label: 'Image fit',
+                    type: 'select',
+                    options: [['', 'Default'], ['cover', 'Cover'], ['contain', 'Contain']],
+                  },
+                  { path: `panels.${index}.description`, label: 'Description', type: 'textarea', rows: 2 },
+                ])}
+              </div>
+            ))}
+            <Button type="button" variant="secondary" onClick={() => addSourceArrayItem('panels')}>
+              <Plus aria-hidden="true" />
+              Add panel
+            </Button>
+          </div>,
+        )}
+      </div>
+    );
+  }
+
+  function renderShapeDividerSource() {
+    const layers = Array.isArray(sourceDraft.layers) ? sourceDraft.layers : [];
+    return (
+      <div className="space-y-4">
+        {renderSourceGroup('Shape', renderSourceFieldGrid(SHAPE_DIVIDER_FIELDS))}
+        {renderSourceGroup(
+          'Fill layers',
+          <div className="space-y-3">
+            {layers.map((_layer, index) => (
+              <div key={index} className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+                {renderArrayHeader(`Layer ${index + 1}`, 'layers', index, layers.length)}
+                {renderSourceFieldGrid([
+                  { path: `layers.${index}.fill`, label: 'Fill' },
+                  { path: `layers.${index}.opacity`, label: 'Opacity', type: 'number', step: '0.05', min: '0', max: '1' },
+                  { path: `layers.${index}.translate_y`, label: 'Translate Y', type: 'number', step: '1' },
+                  { path: `layers.${index}.path`, label: 'Layer path override', type: 'textarea', rows: 2 },
+                ])}
+              </div>
+            ))}
+            <Button type="button" variant="secondary" onClick={() => addSourceArrayItem('layers')}>
+              <Plus aria-hidden="true" />
+              Add layer
+            </Button>
+          </div>,
+        )}
+      </div>
+    );
+  }
+
+  function renderSlideshowSource() {
+    const slides = Array.isArray(sourceDraft.items) ? sourceDraft.items : [];
+    return (
+      <div className="space-y-4">
+        {renderSourceGroup('Carousel settings', renderSourceFieldGrid(SLIDESHOW_FIELDS))}
+        {renderSourceGroup('Control styling', renderSourceFieldGrid(SLIDESHOW_STYLE_FIELDS))}
+        {renderSourceGroup(
+          'Slides',
+          <div className="space-y-3">
+            {slides.map((_slide, index) => (
+              <div key={index} className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+                {renderArrayHeader(`Slide ${index + 1}`, 'items', index, slides.length)}
+                {renderSourceFieldGrid([
+                  { path: `items.${index}.src`, label: 'Image URL' },
+                  { path: `items.${index}.alt`, label: 'Alt text' },
+                  { path: `items.${index}.href`, label: 'Link href' },
+                  { path: `items.${index}.object_position`, label: 'Object position', placeholder: '50% 50%' },
+                  {
+                    path: `items.${index}.fit`,
+                    label: 'Image fit',
+                    type: 'select',
+                    options: [['', 'Default'], ['cover', 'Cover'], ['contain', 'Contain']],
+                  },
+                  { path: `items.${index}.caption`, label: 'Caption', type: 'textarea', rows: 2 },
+                ])}
+              </div>
+            ))}
+            <Button type="button" variant="secondary" onClick={() => addSourceArrayItem('items')}>
+              <Plus aria-hidden="true" />
+              Add slide
+            </Button>
+          </div>,
+        )}
+      </div>
+    );
+  }
+
+  function renderNavSource() {
+    return (
+      <div className="space-y-4">
+        {renderSourceGroup('Behavior', renderSourceFieldGrid(NAV_BEHAVIOR_FIELDS))}
+        {renderSourceGroup('Links and dropdowns', renderSourceFieldGrid(NAV_PRESENTATION_FIELDS))}
+        {renderSourceGroup('Interaction fallback', renderSourceFieldGrid(NAV_INTERACTION_FIELDS))}
+      </div>
+    );
+  }
+
+  function renderSourceBody() {
+    if (!sourceType || sourceLoading) return null;
+    if (sourceType === 'image_accordion') return renderImageAccordionSource();
+    if (sourceType === 'shape_divider') return renderShapeDividerSource();
+    if (sourceType === 'slideshow') return renderSlideshowSource();
+    return renderNavSource();
+  }
+
+  async function saveSourceSettings() {
+    if (!sourceSectionId || !sourceType || sourceSaving) return;
+    setSourceSaving(true);
+    setSourceError('');
+    const config = buildCopiedThemeEditorConfig(sourceType, sourceConfig, sourceDraft);
+    try {
+      await patch(`sections?id=eq.${sourceSectionId}`, { config });
+      clearSectionCaches();
+      setSourceConfig(config);
+      setSourceDraft(normalizeSourceDraft(sourceType, config));
+      showToast({ type: 'success', message: 'Source settings saved' });
+      setSourceOpen(false);
+      emitSectionsChanged();
+    } catch (saveError) {
+      console.error('Source settings save failed:', saveError);
+      setSourceError('Could not save source settings');
+      showToast({ type: 'error', message: 'Could not save source settings' });
+    } finally {
+      setSourceSaving(false);
     }
   }
 
@@ -1433,6 +1963,47 @@ function AdminEditorControls() {
             >
               {embedSaving ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
               Save embed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sourceOpen} onOpenChange={setSourceOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 aria-hidden="true" className="h-4 w-4" />
+              Source settings
+            </DialogTitle>
+            <DialogDescription>{sourceTypeLabel(sourceType)} block fidelity settings.</DialogDescription>
+          </DialogHeader>
+
+          {sourceLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+              Loading source settings
+            </div>
+          ) : null}
+
+          {sourceError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{sourceError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {renderSourceBody()}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setSourceOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={sourceSaving || sourceLoading || !sourceSectionId || !sourceType}
+              onClick={() => void saveSourceSettings()}
+            >
+              {sourceSaving ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
+              Save source settings
             </Button>
           </DialogFooter>
         </DialogContent>

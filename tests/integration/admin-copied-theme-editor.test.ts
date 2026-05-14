@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCopiedThemeEditorConfig,
   clearSectionCaches,
-  openCopiedThemeEditor,
   saveCopiedThemeSectionConfig,
 } from '../../src/lib/admin/copied-theme-editor';
 
@@ -100,51 +99,5 @@ describe('copied-theme admin editor helpers', () => {
     expect(storage.getItem('wl_cache_sections_index')).toBeNull();
     expect(sectionsChangedListener).toHaveBeenCalledTimes(1);
     expect(contentRenderedListener).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('copied-theme admin editor UI', () => {
-  it('edits image accordion panels through structured config fields', async () => {
-    const get = vi.fn().mockResolvedValue([
-      {
-        id: 96,
-        section_type: 'image_accordion',
-        config: {
-          heading: 'Choirs',
-          panels: [{ title: 'Junior', image_url: '/old.jpg', description: 'Old' }],
-        },
-      },
-    ]);
-    const patch = vi.fn().mockResolvedValue([{ id: 96 }]);
-
-    await openCopiedThemeEditor(96, { get, patch, showToast: vi.fn(), document, localStorage: storage });
-
-    const title = document.querySelector<HTMLInputElement>('[data-bind="panels.0.title"]');
-    if (!title) throw new Error('Missing title field');
-    title.value = 'Senior';
-    title.dispatchEvent(new Event('input', { bubbles: true }));
-
-    const addPanel = document.querySelector<HTMLButtonElement>('[data-panel-add]');
-    if (!addPanel) throw new Error('Missing add panel button');
-    addPanel.click();
-    const added = document.querySelector<HTMLInputElement>('[data-bind="panels.1.title"]');
-    expect(added?.value).toBe('New panel');
-
-    const save = document.querySelector<HTMLButtonElement>('[data-action="save"]');
-    if (!save) throw new Error('Missing save button');
-    save.click();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(patch).toHaveBeenCalledWith('sections?id=eq.96', {
-      config: expect.objectContaining({
-        heading: 'Choirs',
-        panels: expect.arrayContaining([
-          expect.objectContaining({ title: 'Senior', image_url: '/old.jpg' }),
-          expect.objectContaining({ title: 'New panel' }),
-        ]),
-      }),
-    });
-    expect(document.querySelector('[data-copied-theme-editor]')).toBeNull();
   });
 });
