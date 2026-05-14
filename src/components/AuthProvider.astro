@@ -4,7 +4,13 @@
 <div id="auth-provider" transition:persist></div>
 
 <script>
-  import { consumeAuthReturnTo, consumeOAuthCallbackError, handleOAuthCallback } from '../lib/auth';
+  import {
+    consumeAuthReturnTo,
+    consumeOAuthCallbackError,
+    handleMagicLinkCallback,
+    handleOAuthCallback,
+    hasMagicLinkCallback,
+  } from '../lib/auth';
   import { openAuthModal } from '../lib/auth-modal-events';
 
   function showAuthError(message: string) {
@@ -17,7 +23,24 @@
     new URLSearchParams(window.location.search.replace(/^\?/, '')).has('code') ||
     new URLSearchParams(window.location.search.replace(/^\?/, '')).has('error');
 
-  if (hasOAuthCallback) {
+  async function refreshAuthenticatedPage(): Promise<void> {
+    const [{ init }, { currentPageSlug, hydratePage }] = await Promise.all([
+      import('../lib/config'),
+      import('../lib/page-render'),
+    ]);
+    await init();
+    await hydratePage(currentPageSlug());
+    document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+  }
+
+  if (hasMagicLinkCallback()) {
+    try {
+      const session = await handleMagicLinkCallback();
+      if (session) await refreshAuthenticatedPage();
+    } catch (err: any) {
+      showAuthError(err?.message || 'This secure sign-in link could not be used. Please request a new link.');
+    }
+  } else if (hasOAuthCallback) {
     const callbackError = consumeOAuthCallbackError();
     if (callbackError) {
       showAuthError(callbackError);
@@ -30,13 +53,7 @@
           if (returnTo && returnTo !== currentPath) {
             window.location.replace(returnTo);
           } else {
-            const [{ init }, { currentPageSlug, hydratePage }] = await Promise.all([
-              import('../lib/config'),
-              import('../lib/page-render'),
-            ]);
-            await init();
-            await hydratePage(currentPageSlug());
-            document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+            await refreshAuthenticatedPage();
           }
         }
       } catch (err: any) {

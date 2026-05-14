@@ -40,6 +40,7 @@ describe('auth.js', () => {
     global.window.location.search = '';
     global.window.location.hash = '';
     global.window.location.href = 'http://localhost/';
+    delete global.window.PublicKeyCredential;
     global.window.history.replaceState.mockClear();
     auth = await import('../../src/lib/auth.ts');
   });
@@ -181,6 +182,22 @@ describe('auth.js', () => {
       await auth.signUp('new@test.com', 'password');
       expect(global.fetch.mock.calls[0][0]).toContain('/auth/v1/signup');
     });
+
+    it('setPassword uses the signed-in session bearer token', async () => {
+      localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok', user: { email: 'owner@test.com' } }));
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+
+      await auth.setPassword('new-password');
+
+      expect(global.fetch.mock.calls[0][0]).toContain('/auth/v1/user/password');
+      expect(global.fetch.mock.calls[0][1].method).toBe('PUT');
+      expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok');
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ new_password: 'new-password' });
+      expect(auth.hasPasswordSetMarker()).toBe(true);
+    });
   });
 
   describe('Google OAuth', () => {
@@ -213,6 +230,7 @@ describe('auth.js', () => {
     it('stores and consumes the clean current path for Google return navigation', async () => {
       global.window.location.pathname = '/admin.html';
       global.window.location.search = '?tab=setup';
+      localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok' }));
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ authorization_url: 'https://accounts.google.test/auth' }),
@@ -221,8 +239,33 @@ describe('auth.js', () => {
       await auth.signInWithGoogle();
 
       expect(localStorage.getItem('wl_auth_return_to')).toBe('/admin?tab=setup');
+      expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok');
       expect(auth.consumeAuthReturnTo()).toBe('/admin?tab=setup');
       expect(localStorage.getItem('wl_auth_return_to')).toBeNull();
+    });
+
+    it('exchanges magic-link tokens and preserves setup query params', async () => {
+      global.window.location.pathname = '/admin';
+      global.window.location.search = '?fresh_start=owner_setup&token=magic123&type=magic_link';
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: 'tok',
+            refresh_token: 'ref',
+            user: { id: '1', email: 'owner@test.com', is_admin: true },
+          }),
+      });
+
+      expect(auth.hasMagicLinkCallback()).toBe(true);
+      const session = await auth.handleMagicLinkCallback();
+
+      expect(session.access_token).toBe('tok');
+      expect(global.fetch.mock.calls[0][0]).toContain('/auth/v1/token?grant_type=magic_link');
+      expect(global.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer test_key');
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ token: 'magic123' });
+      expect(global.window.history.replaceState).toHaveBeenCalledWith(null, '', '/admin?fresh_start=owner_setup');
+      expect(localStorage.getItem('wl_session')).toBeTruthy();
     });
 
     it('throws instead of navigating to undefined when Google OAuth start fails', async () => {

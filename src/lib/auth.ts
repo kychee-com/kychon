@@ -9,6 +9,8 @@ function getAnonKey(): string {
 }
 
 const AUTH_RETURN_TO_KEY = 'wl_auth_return_to';
+const MAGIC_LINK_TOKEN_PARAMS = ['token', 'magic_link_token', 'magic_token', 'confirmation_token'];
+const PASSWORD_SET_KEY_PREFIX = 'kychon_password_set:';
 
 function currentPathWithSearch(): string {
   const pathname = cleanRoutePath(window.location.pathname || '/');
@@ -36,6 +38,30 @@ function getOAuthCallbackParams(): URLSearchParams {
   if (queryParams.has('code') || queryParams.has('error')) return queryParams;
 
   return new URLSearchParams();
+}
+
+function getCallbackParams(): URLSearchParams {
+  const hash = window.location.hash.replace(/^#/, '');
+  const hashParams = new URLSearchParams(hash);
+  if (hash) return hashParams;
+  return new URLSearchParams(window.location.search.replace(/^\?/, ''));
+}
+
+function getMagicLinkToken(params = getCallbackParams()): string | null {
+  for (const key of MAGIC_LINK_TOKEN_PARAMS) {
+    const token = params.get(key);
+    if (token) return token;
+  }
+  return null;
+}
+
+function cleanMagicLinkCallbackUrl(): string {
+  const queryParams = new URLSearchParams(window.location.search.replace(/^\?/, ''));
+  for (const key of MAGIC_LINK_TOKEN_PARAMS) queryParams.delete(key);
+  if (queryParams.get('type') === 'magic_link') queryParams.delete('type');
+  queryParams.delete('expires_at');
+  const query = queryParams.toString();
+  return `${window.location.pathname || '/'}${query ? `?${query}` : ''}`;
 }
 
 function cleanOAuthCallbackUrl(): string {
@@ -101,6 +127,19 @@ export function getSession(): any {
 
 function saveSession(session: any): void {
   localStorage.setItem('wl_session', JSON.stringify(session));
+}
+
+function requireAccessToken(): string {
+  const token = getSession()?.access_token;
+  if (typeof token !== 'string' || !token) {
+    throw new Error('Please sign in before changing account security.');
+  }
+  return token;
+}
+
+function publicAuthHeaders(): Record<string, string> {
+  const anonKey = getAnonKey();
+  return { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` };
 }
 
 function decodeBase64UrlJson(value: string): any | null {
@@ -170,6 +209,18 @@ export function isProjectAdminSession(session = getSession()): boolean {
   );
 }
 
+export function hasGoogleIdentity(session = getSession()): boolean {
+  const user = session?.user || {};
+  const claims = getSessionClaims(session) || {};
+  const identities = Array.isArray(user.identities) ? user.identities : [];
+  return identities.some((identity: any) => {
+    const provider = String(identity?.provider || identity?.identity_provider || '').toLowerCase();
+    return provider === 'google' || provider === 'oauth_google';
+  }) || [claims.provider, claims.app_metadata?.provider, user.app_metadata?.provider]
+    .map((value) => String(value || '').toLowerCase())
+    .includes('google');
+}
+
 export function getRole(): string | null {
   const session = getSession();
   return session?.user?.member?.role || (isProjectAdminSession(session) ? 'admin' : null);
@@ -198,9 +249,13 @@ export async function signInWithGoogle(): Promise<void> {
   localStorage.setItem('wl_pkce_verifier', verifier);
   localStorage.setItem(AUTH_RETURN_TO_KEY, currentPathWithSearch());
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', apikey: getAnonKey() };
+  const token = getSession()?.access_token;
+  if (typeof token === 'string' && token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(`${getAPI()}/auth/v1/oauth/google/start`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: getAnonKey() },
+    headers,
     body: JSON.stringify({
       redirect_url: `${window.location.origin}/`,
       mode: 'redirect',
@@ -270,6 +325,35 @@ export function consumeAuthReturnTo(): string | null {
   return returnTo;
 }
 
+export function hasMagicLinkCallback(): boolean {
+  return !!getMagicLinkToken();
+}
+
+export async function handleMagicLinkCallback(): Promise<any> {
+  const token = getMagicLinkToken();
+  if (!token) return null;
+
+  window.history.replaceState(null, '', cleanMagicLinkCallbackUrl());
+  const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=magic_link`, {
+    method: 'POST',
+    headers: publicAuthHeaders(),
+    body: JSON.stringify({ token }),
+  });
+
+  if (!res.ok) {
+    let message = 'This secure sign-in link could not be used. Please request a new link.';
+    try {
+      const err = await res.json();
+      if (err?.message) message = err.message;
+    } catch {}
+    throw new Error(message);
+  }
+
+  const session = await res.json();
+  saveSession(session);
+  return session;
+}
+
 // Password auth
 export async function signUp(email: string, password: string): Promise<any> {
   const res = await fetch(`${getAPI()}/auth/v1/signup`, {
@@ -297,6 +381,199 @@ export async function signIn(email: string, password: string): Promise<any> {
   const session = await res.json();
   saveSession(session);
   return session;
+}
+
+export async function setPassword(newPassword: string, currentPassword?: string): Promise<void> {
+  const body: Record<string, string> = { new_password: newPassword };
+  if (currentPassword) body.current_password = currentPassword;
+
+  const res = await fetch(`${getAPI()}/auth/v1/user/password`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: getAnonKey(),
+      Authorization: `Bearer ${requireAccessToken()}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || 'Password could not be updated.');
+  }
+  localStorage.setItem(passwordSetStorageKey(), 'true');
+}
+
+export function hasPasswordSetMarker(): boolean {
+  return localStorage.getItem(passwordSetStorageKey()) === 'true';
+}
+
+function passwordSetStorageKey(): string {
+  return `${PASSWORD_SET_KEY_PREFIX}${getSessionEmail() || 'anonymous'}`;
+}
+
+export function passkeysSupported(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    !!navigator.credentials &&
+    typeof window.PublicKeyCredential !== 'undefined'
+  );
+}
+
+export async function listPasskeys(): Promise<any[]> {
+  const res = await fetch(`${getAPI()}/auth/v1/passkeys`, {
+    headers: {
+      apikey: getAnonKey(),
+      Authorization: `Bearer ${requireAccessToken()}`,
+    },
+  });
+  if (!res.ok) return [];
+  const body = await res.json().catch(() => null);
+  return Array.isArray(body?.passkeys) ? body.passkeys : [];
+}
+
+export async function registerPasskey(label = 'Kychon admin passkey'): Promise<any> {
+  if (!passkeysSupported()) {
+    throw new Error('Passkeys are not available in this browser.');
+  }
+  const accessToken = requireAccessToken();
+  const optionsRes = await fetch(`${getAPI()}/auth/v1/passkeys/register/options`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: getAnonKey(),
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ app_origin: window.location.origin }),
+  });
+  const optionsBody = await optionsRes.json().catch(() => null);
+  if (!optionsRes.ok) {
+    throw new Error(optionsBody?.message || 'Passkey setup could not be started.');
+  }
+
+  const credential = await navigator.credentials.create({
+    publicKey: normalizeCreationOptions(optionsBody?.options),
+  }) as PublicKeyCredential | null;
+  if (!credential) throw new Error('Passkey setup was cancelled.');
+
+  const verifyRes = await fetch(`${getAPI()}/auth/v1/passkeys/register/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: getAnonKey(),
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      challenge_id: optionsBody?.challenge_id,
+      response: credentialToJSON(credential),
+      label,
+    }),
+  });
+  const verifyBody = await verifyRes.json().catch(() => null);
+  if (!verifyRes.ok) {
+    throw new Error(verifyBody?.message || 'Passkey setup could not be completed.');
+  }
+  return verifyBody;
+}
+
+export async function signInWithPasskey(email?: string): Promise<any> {
+  if (!passkeysSupported()) {
+    throw new Error('Passkeys are not available in this browser.');
+  }
+  const optionsRes = await fetch(`${getAPI()}/auth/v1/passkeys/login/options`, {
+    method: 'POST',
+    headers: publicAuthHeaders(),
+    body: JSON.stringify({
+      app_origin: window.location.origin,
+      ...(email ? { email } : {}),
+    }),
+  });
+  const optionsBody = await optionsRes.json().catch(() => null);
+  if (!optionsRes.ok) {
+    throw new Error(optionsBody?.message || 'Passkey sign-in could not be started.');
+  }
+
+  const credential = await navigator.credentials.get({
+    publicKey: normalizeRequestOptions(optionsBody?.options),
+  }) as PublicKeyCredential | null;
+  if (!credential) throw new Error('Passkey sign-in was cancelled.');
+
+  const verifyRes = await fetch(`${getAPI()}/auth/v1/passkeys/login/verify`, {
+    method: 'POST',
+    headers: publicAuthHeaders(),
+    body: JSON.stringify({
+      challenge_id: optionsBody?.challenge_id,
+      response: credentialToJSON(credential),
+    }),
+  });
+  const session = await verifyRes.json().catch(() => null);
+  if (!verifyRes.ok) {
+    throw new Error(session?.message || 'Passkey sign-in could not be completed.');
+  }
+  saveSession(session);
+  return session;
+}
+
+function normalizeCreationOptions(options: any): PublicKeyCredentialCreationOptions {
+  const publicKey = { ...(options?.publicKey ?? options ?? {}) };
+  if (typeof publicKey.challenge === 'string') publicKey.challenge = base64UrlToArrayBuffer(publicKey.challenge);
+  if (publicKey.user?.id && typeof publicKey.user.id === 'string') {
+    publicKey.user = { ...publicKey.user, id: base64UrlToArrayBuffer(publicKey.user.id) };
+  }
+  if (Array.isArray(publicKey.excludeCredentials)) {
+    publicKey.excludeCredentials = publicKey.excludeCredentials.map((credential: any) => ({
+      ...credential,
+      id: typeof credential.id === 'string' ? base64UrlToArrayBuffer(credential.id) : credential.id,
+    }));
+  }
+  return publicKey as PublicKeyCredentialCreationOptions;
+}
+
+function normalizeRequestOptions(options: any): PublicKeyCredentialRequestOptions {
+  const publicKey = { ...(options?.publicKey ?? options ?? {}) };
+  if (typeof publicKey.challenge === 'string') publicKey.challenge = base64UrlToArrayBuffer(publicKey.challenge);
+  if (Array.isArray(publicKey.allowCredentials)) {
+    publicKey.allowCredentials = publicKey.allowCredentials.map((credential: any) => ({
+      ...credential,
+      id: typeof credential.id === 'string' ? base64UrlToArrayBuffer(credential.id) : credential.id,
+    }));
+  }
+  return publicKey as PublicKeyCredentialRequestOptions;
+}
+
+function base64UrlToArrayBuffer(value: string): ArrayBuffer {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((value.length + 3) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64Url(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function credentialToJSON(credential: PublicKeyCredential): any {
+  const maybeToJSON = (credential as any).toJSON;
+  if (typeof maybeToJSON === 'function') return maybeToJSON.call(credential);
+  const response = credential.response as any;
+  const json: any = {
+    id: credential.id,
+    type: credential.type,
+    rawId: arrayBufferToBase64Url(credential.rawId),
+    response: {
+      clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
+    },
+    clientExtensionResults: credential.getClientExtensionResults(),
+  };
+  if (response.attestationObject) json.response.attestationObject = arrayBufferToBase64Url(response.attestationObject);
+  if (response.authenticatorData) json.response.authenticatorData = arrayBufferToBase64Url(response.authenticatorData);
+  if (response.signature) json.response.signature = arrayBufferToBase64Url(response.signature);
+  if (response.userHandle) json.response.userHandle = arrayBufferToBase64Url(response.userHandle);
+  return json;
 }
 
 export function signOut(): void {
