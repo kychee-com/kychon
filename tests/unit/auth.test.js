@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Node 20+ has crypto built-in and read-only — use it directly
 global.btoa = (s) => Buffer.from(s, 'binary').toString('base64');
+global.atob = (s) => Buffer.from(s, 'base64').toString('binary');
 global.TextEncoder = TextEncoder;
 global.localStorage = {
   _data: {},
@@ -254,6 +255,61 @@ describe('auth.js', () => {
       expect(session.user.email).toBe('owner@test.com');
       expect(session.user.identities[0].provider).toBe('google');
       expect(session.user.has_passkey_for_current_rp).toBe(true);
+    });
+  });
+
+  describe('passkeys', () => {
+    it('sends registration credentials as unpadded base64url', async () => {
+      localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok' }));
+      global.window.PublicKeyCredential = function PublicKeyCredential() {};
+      const create = vi.fn().mockResolvedValue({
+        id: '+/8=',
+        rawId: Uint8Array.from([251, 255]).buffer,
+        type: 'public-key',
+        response: {
+          clientDataJSON: Uint8Array.from([1, 2, 3]).buffer,
+          attestationObject: Uint8Array.from([4, 5, 6]).buffer,
+          getTransports: () => ['internal'],
+        },
+        authenticatorAttachment: 'platform',
+        getClientExtensionResults: () => ({}),
+        toJSON: () => ({
+          id: '+/8=',
+          rawId: '+/8=',
+          response: { clientDataJSON: 'AQID', attestationObject: 'BAUG' },
+        }),
+      });
+      Object.defineProperty(global, 'navigator', {
+        value: { credentials: { create } },
+        configurable: true,
+      });
+      global.fetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              challenge_id: 'challenge-1',
+              options: {
+                challenge: 'AQID',
+                user: { id: 'BAUG', name: 'owner@test.com', displayName: 'Owner' },
+                excludeCredentials: [],
+              },
+            }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: 'passkey-1' }),
+        });
+
+      await auth.registerPasskey();
+
+      const verifyBody = JSON.parse(global.fetch.mock.calls[1][1].body);
+      expect(verifyBody.response.id).toBe('-_8');
+      expect(verifyBody.response.rawId).toBe('-_8');
+      expect(verifyBody.response.response.clientDataJSON).toBe('AQID');
+      expect(verifyBody.response.response.attestationObject).toBe('BAUG');
+      expect(verifyBody.response.response.transports).toEqual(['internal']);
+      expect(verifyBody.response.authenticatorAttachment).toBe('platform');
     });
   });
 
