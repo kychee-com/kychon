@@ -343,7 +343,7 @@ mark {
   opacity: 0;
   transition: opacity 600ms ease-out;
 }
-.section-visible {
+.section[data-section-visible="true"] {
   opacity: 1;
 }
 /* Below-fold sections: reserve space without rendering until near viewport */
