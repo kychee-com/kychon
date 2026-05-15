@@ -30,5 +30,15 @@ export {
   SelectValue,
 } from '@/components/ui/select';
 export { toast, Toaster } from '@/components/ui/sonner';
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 export { Textarea } from '@/components/ui/textarea';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
