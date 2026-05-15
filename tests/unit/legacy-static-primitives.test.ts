@@ -93,6 +93,8 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.auth-(?:modal|panel|divider)\b/);
     expect(styles).not.toMatch(/\.table-wrap\b/);
     expect(styles).not.toMatch(/\.sr-only\b/);
+    expect(styles).not.toMatch(/\.page(?:[.{:#\s-]|$)/);
+    expect(styles).not.toMatch(/\.page-content\b/);
     expect(styles).not.toContain('#page-content');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__controls');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__seg-btn');
@@ -145,6 +147,10 @@ describe('legacy static UI primitives', () => {
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');
     expect(portal).toContain('data-section-visible');
+    expect(portal).toContain('class="flex min-h-screen flex-col"');
+    expect(portal).toContain('class="flex-1 py-8" id="main-content"');
+    expect(portal).not.toContain('class="page"');
+    expect(portal).not.toContain('class="page-content"');
     expect(portal).not.toContain("classList.add('section-visible')");
     expect(portal).not.toContain('.section-visible');
     expect(portal).not.toContain('wl-skip-nav');

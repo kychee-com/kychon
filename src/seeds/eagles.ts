@@ -29,7 +29,7 @@ const EAGLES_NAV = [
 ];
 
 const ABOUT_HTML = `
-<section class="page-content">
+<section class="flex-1 py-8">
   <img src="/assets/about-hero.jpg" alt="Eagles volunteers serving the Wichita community" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>About The Eagles — Good Samaritans of Wichita</h1>
 
@@ -77,7 +77,7 @@ const ABOUT_HTML = `
 `;
 
 const VOLUNTEER_HTML = `
-<section class="page-content">
+<section class="flex-1 py-8">
   <img src="/assets/volunteer-hero.jpg" alt="Hands joining together — Eagles volunteers at work" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>Volunteer With The Eagles</h1>
 

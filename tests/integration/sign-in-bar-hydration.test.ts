@@ -51,7 +51,7 @@ function mountPortalShell(): void {
       <div class="ky-container"></div>
     </nav>
     <div data-fullbleed-host data-zone-fullbleed="header"></div>
-    <main class="page-content" id="main-content">
+    <main class="flex-1 py-8" id="main-content">
       <div id="sections" data-zone="main"></div>
     </main>
     <footer id="zone-footer" class="footer" data-zone="footer">
