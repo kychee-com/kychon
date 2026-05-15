@@ -103,7 +103,8 @@ describe('embed renderer — trust gate (generic iframe)', () => {
       adminCtx,
     );
     expect(html).toContain('External content');
-    expect(html).toContain('block-embed__pill');
+    expect(html).toContain('bg-secondary');
+    expect(html).not.toContain('block-embed__pill');
   });
 
   it('does not render the pill for non-admins', () => {

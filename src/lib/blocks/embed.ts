@@ -11,6 +11,7 @@ import {
   adminScopeToggleHtml,
   adminSectionRemoveButtonHtml,
 } from '../admin-action-controls.js';
+import { badgeVariants } from '@/components/kychon/ui';
 import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
 import { escAttr, escHtml } from '../blocks.js';
 import { getProvider, type EmbedProvider } from './embed-providers.js';
@@ -23,6 +24,11 @@ interface EmbedConfig {
   responsive?: boolean;
   trust_acknowledged?: boolean;
 }
+
+const externalContentBadgeClass = badgeVariants({
+  variant: 'secondary',
+  className: 'mt-2 uppercase tracking-wide',
+});
 
 function jsonAttr(value: unknown): string {
   return JSON.stringify(value)
@@ -156,7 +162,7 @@ const EMBED: BlockType = {
       ? `<h2 class="block-embed__heading">${escHtml(cfg.heading)}</h2>`
       : '';
     const pill = provider.trustLevel === 'generic' && ctx.admin
-      ? `<small class="block-embed__pill" title="Generic iframe — bypasses provider allowlist">External content</small>`
+      ? `<small class="${escAttr(externalContentBadgeClass)}" title="Generic iframe — bypasses provider allowlist">External content</small>`
       : '';
     const attrs = buildSectionAttrs(section, ctx, cfg);
     const adminCtrls = buildAdminControls(section, ctx);
