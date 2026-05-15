@@ -404,44 +404,6 @@ a:hover {
   color: var(--foreground, var(--color-text));
   z-index: 2;
 }
-/* Admin first-run checklist */
-.admin-access-check {
-  padding: 2rem 1rem;
-}
-
-.admin-access-check__card {
-  align-items: center;
-  display: flex;
-  gap: 1rem;
-  margin: 0 auto;
-  max-width: 30rem;
-}
-
-.admin-access-check__card h2 {
-  font-size: 1.125rem;
-  margin: 0 0 0.25rem;
-}
-
-.admin-access-check__card p {
-  margin: 0;
-}
-
-.admin-access-check__spinner {
-  animation: admin-access-spin 0.9s linear infinite;
-  border: 3px solid var(--color-border);
-  border-radius: 999px;
-  border-top-color: var(--color-primary);
-  flex: 0 0 auto;
-  height: 2rem;
-  width: 2rem;
-}
-
-@keyframes admin-access-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .admin-account-security {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 8%, transparent), transparent 42%),
