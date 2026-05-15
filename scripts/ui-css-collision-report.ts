@@ -68,10 +68,10 @@ function hit(file: string, line: number, excerpt: string): Hit {
 
 function decisionFor(className: TargetClass): string {
   if (className === 'container') {
-    return 'Retired as a Kychon layout class; use `.ky-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed.';
+    return 'Retired as a Kychon layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed.';
   }
   if (className === 'text-muted') {
-    return 'Retired as a Kychon helper; use `.ky-text-muted` for public/static markup or Tailwind/shadcn semantic text utilities in React code.';
+    return 'Retired as a Kychon helper; use Tailwind/shadcn semantic text utilities in generated markup and React code.';
   }
   if (className === 'toast') {
     return 'Retired as a Kychon public component class; use the Sonner-backed Kychon `Toaster`/`toast` helpers instead.';

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Card, CardContent, buttonVariants } from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
+import { constrainedContainerClass } from '@/lib/ui/container';
 
 export interface SlideshowRenderItem {
   alt: string;
@@ -199,7 +200,7 @@ function SlideshowBlock({
 }: SlideshowRenderProps) {
   if (items.length === 0) {
     return (
-      <div className="ky-container">
+      <div className={constrainedContainerClass} data-layout-container>
         <SlideshowHeading editableHeadingPath={editableHeadingPath} heading={heading} />
         {showEmptyPlaceholder ? (
           <Card className="border-dashed shadow-none" data-slideshow-empty>
@@ -213,7 +214,7 @@ function SlideshowBlock({
   }
 
   return (
-    <div className="ky-container">
+    <div className={constrainedContainerClass} data-layout-container>
       <SlideshowHeading editableHeadingPath={editableHeadingPath} heading={heading} />
       <Card className="overflow-hidden p-0 shadow-none" data-slideshow-card>
         <CardContent className="p-0">

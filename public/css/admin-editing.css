@@ -139,9 +139,9 @@ body[data-admin="true"] [data-editable-image][data-admin-uploading="true"]::afte
 /* composable-layout: cross-zone drag affordances --- */
 
 /* Empty-zone "drop here" placeholder appears only while admin is dragging. */
-body[data-admin-dragging="true"] [data-zone] .ky-container:empty::before,
-body[data-admin-dragging="true"] #zone-header > .ky-container:empty::before,
-body[data-admin-dragging="true"] #zone-footer > .ky-container:empty::before,
+body[data-admin-dragging="true"] [data-zone] [data-layout-container]:empty::before,
+body[data-admin-dragging="true"] #zone-header > [data-layout-container]:empty::before,
+body[data-admin-dragging="true"] #zone-footer > [data-layout-container]:empty::before,
 body[data-admin-dragging="true"] #sections:empty::before {
   content: 'Drop a block here';
   display: block;

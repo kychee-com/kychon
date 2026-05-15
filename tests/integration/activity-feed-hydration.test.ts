@@ -48,7 +48,7 @@ function capabilityResponse(data: unknown) {
 function mountActivityHost(): HTMLElement {
   document.body.innerHTML = `
     <section>
-      <div class="ky-container" data-block-hydrate="activity_feed">
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="activity_feed">
         <h2>Recent Activity</h2>
       </div>
     </section>

@@ -58,11 +58,13 @@ describe('hydrateLinkListResources', () => {
 
     const wrapper = document.createElement('section');
     wrapper.innerHTML = `
-      <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
-        layout: 'rows',
-        source: 'resources',
-        filter: { category: 'newsletters', limit: 3, order: 'newest' },
-      })}'>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${JSON.stringify(
+        {
+          layout: 'rows',
+          source: 'resources',
+          filter: { category: 'newsletters', limit: 3, order: 'newest' },
+        },
+      )}'>
       </div>
     `;
     document.body.appendChild(wrapper);
@@ -113,11 +115,13 @@ describe('hydrateLinkListResources', () => {
 
     const wrapper = document.createElement('section');
     wrapper.innerHTML = `
-      <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
-        layout: 'rows',
-        source: 'resources',
-        filter: { category: 'nope', limit: 5, order: 'newest' },
-      })}'>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${JSON.stringify(
+        {
+          layout: 'rows',
+          source: 'resources',
+          filter: { category: 'nope', limit: 5, order: 'newest' },
+        },
+      )}'>
       </div>
     `;
     document.body.appendChild(wrapper);
@@ -145,16 +149,18 @@ describe('hydrateLinkListResources', () => {
 
     const wrapper = document.createElement('section');
     wrapper.innerHTML = `
-      <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
-        heading: 'Curated',
-        layout: 'compact',
-        source: 'manual',
-        items: [
-          { label: 'A', href: '/a' },
-          { label: 'PDF', href: '/b.pdf', badge: 'PDF' },
-          { label: 'External', href: 'https://www.example.com', external: true },
-        ],
-      })}'></div>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${JSON.stringify(
+        {
+          heading: 'Curated',
+          layout: 'compact',
+          source: 'manual',
+          items: [
+            { label: 'A', href: '/a' },
+            { label: 'PDF', href: '/b.pdf', badge: 'PDF' },
+            { label: 'External', href: 'https://www.example.com', external: true },
+          ],
+        },
+      )}'></div>
     `;
     document.body.appendChild(wrapper);
 

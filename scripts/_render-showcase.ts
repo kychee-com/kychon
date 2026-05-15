@@ -17,8 +17,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { getActiveProjectSeed } from '../src/seeds/index.js';
 import { renderBlock, type BlockRenderContext, type Section } from '../src/lib/blocks.js';
+import { constrainedContainerClass } from '../src/lib/ui/container.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const layoutContainerAttrs = `class="${constrainedContainerClass}" data-layout-container`;
 
 function readAstroCssBundle(): string {
   const astroDir = join(ROOT, 'dist/_astro');
@@ -91,8 +93,8 @@ async function main(): Promise<void> {
     : '';
 
   // Render the page banner OUTSIDE the nav so its full-bleed CSS is not
-  // constrained by .nav .ky-container. The brand_header / nav / sign_in_bar
-  // blocks (the genuine header chrome) stay inside the nav.
+  // constrained by the header layout container. The brand_header / nav /
+  // sign_in_bar blocks (the genuine header chrome) stay inside the nav.
   const chromeHeaderBlocks = headerBlocks.filter((s) => s.section_type !== 'page_banner');
   const pageBannerBlocks = headerBlocks.filter((s) => s.section_type === 'page_banner');
   const chromeHtml = chromeHeaderBlocks.map((s) => renderBlock(s, ctx)).join('');
@@ -118,15 +120,22 @@ async function main(): Promise<void> {
       letter-spacing: 0.06em;
     }
     .preview-label code { font-family: ui-monospace, monospace; color: var(--color-primary); font-weight: 600; }
+    [data-layout-container] {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: var(--max-width);
+      margin-inline: auto;
+      padding-inline: 1.5rem;
+    }
   </style>
 </head>
 <body>
   <nav class="nav" data-zone="header" aria-label="Primary navigation">
-    <div class="ky-container">${chromeHtml}</div>
+    <div ${layoutContainerAttrs}>${chromeHtml}</div>
   </nav>
   ${bannerHtml}
-  <main class="page-content" id="main-content">
-    <div class="ky-container">
+  <main class="flex-1 py-8" id="main-content">
+    <div ${layoutContainerAttrs}>
       <h1 id="page-title">Block Showcase — local preview</h1>
       <p style="color: var(--color-text-muted); margin-top: 0.5rem">
         Every block on this page is a <code>sections</code> row in the silver-pines seed.
@@ -136,13 +145,13 @@ async function main(): Promise<void> {
     <div id="sections" data-zone="main">${mainHtml}</div>
   </main>
   <footer class="footer" data-zone="footer" aria-label="Site footer">
-    <div class="ky-container">${footerHtml}</div>
+    <div ${layoutContainerAttrs}>${footerHtml}</div>
   </footer>
   <script type="module">
     // Sections are opacity:0 by default in production CSS; the layout adds
-    // .section-visible via IntersectionObserver. In this static preview we
+    // data-section-visible via IntersectionObserver. In this static preview we
     // surface every section immediately.
-    document.querySelectorAll('.section').forEach(el => el.classList.add('section-visible'));
+    document.querySelectorAll('.section').forEach((el) => { el.dataset.sectionVisible = 'true'; });
     ${slideshowBundled.replace(/export\s*\{[^}]*\}\s*;?/g, '')}
     document.querySelectorAll('[data-block-hydrate="slideshow"]').forEach((el) => initSlideshow(el));
   </script>

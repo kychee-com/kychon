@@ -46,7 +46,7 @@ const votes = [
 function mount(config = '{"heading":"Member Poll","poll_ids":[42]}'): HTMLElement {
   document.body.innerHTML = `
     <section>
-      <div class="ky-container" data-block-hydrate="polls" data-config='${config}'></div>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="polls" data-config='${config}'></div>
     </section>
   `;
   return document.querySelector('section') as HTMLElement;

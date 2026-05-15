@@ -15,6 +15,7 @@ import {
 } from '../ui/card';
 import { openAuthModal } from '../../lib/auth-modal-events';
 import type { AuthGateKind } from '../../lib/auth-gate';
+import { constrainedContainerClass } from '../../lib/ui/container';
 
 interface GateCopy {
   title: string;
@@ -44,7 +45,7 @@ function AuthGate({ backLabel, copy, kind, signInLabel }: AuthGateProps) {
   }
 
   return (
-    <div className="ky-container flex justify-center py-8">
+    <div className={`${constrainedContainerClass} flex justify-center py-8`} data-layout-container>
       <Card className="w-full max-w-lg text-center" role="status" aria-live="polite">
         <CardHeader className="items-center">
           <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">

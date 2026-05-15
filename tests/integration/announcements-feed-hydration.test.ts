@@ -53,7 +53,7 @@ const votes = [{ id: 1, poll_id: 42, option_id: 1, member_id: 10, created_at: '2
 function mount(config = '{"heading":"Announcements","limit":5}'): HTMLElement {
   document.body.innerHTML = `
     <section>
-      <div class="ky-container" data-block-hydrate="announcements_feed" data-config='${config}'></div>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="announcements_feed" data-config='${config}'></div>
     </section>
   `;
   return document.querySelector('section') as HTMLElement;
