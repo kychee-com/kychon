@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
@@ -23,7 +25,7 @@ describe('promo_cards block-type', () => {
     expect(t.zoneHints).toContain('main');
   });
 
-  it('emits CSS-Grid container with --cols custom property', () => {
+  it('emits a responsive shadcn grid without block CSS primitives', () => {
     const html = renderBlock(
       promoSection({
         heading: '',
@@ -32,8 +34,10 @@ describe('promo_cards block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('block-promo-cards');
-    expect(html).toContain('--cols:4');
+    expect(html).toContain('data-promo-cards=""');
+    expect(html).toContain('grid-cols-[repeat(auto-fit');
+    expect(html).not.toContain('block-promo-cards');
+    expect(html).not.toContain('--cols:');
   });
 
   it('each card is a single anchor with aria-label', () => {
@@ -56,12 +60,11 @@ describe('promo_cards block-type', () => {
     expect(html).toContain('aria-label="Membership, Click Here to Learn More"');
     // Card href is /join on the anchor
     expect(html).toContain('href="/join"');
-    // CTA text is in a <span>, not a nested <a>
-    expect(html).toContain('promo-card__cta');
-    const cardSubstring = html.split('promo-card promo-card--title-top')[1] || '';
-    // Within the card markup there should be just one anchor (the wrapping one)
-    const anchorCount = (cardSubstring.match(/<a /g) || []).length;
-    expect(anchorCount).toBeLessThanOrEqual(0); // no nested <a> after the wrapping anchor opens
+    expect(html).toContain('Click Here to Learn More');
+    expect(html).toContain('text-primary underline-offset-4 hover:underline');
+    // The whole card is the only anchor; the CTA remains non-nested text styled by the shadcn button variant.
+    expect(html.match(/<a /g) || []).toHaveLength(1);
+    expect(html).not.toContain('promo-card__cta');
   });
 
   it('overlay_color renders as semi-transparent layer', () => {
@@ -80,8 +83,9 @@ describe('promo_cards block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('promo-card__overlay');
+    expect(html).toContain('pointer-events-none absolute inset-0');
     expect(html).toContain('rgba(0,0,0,0.4)');
+    expect(html).not.toContain('promo-card__overlay');
   });
 
   it('admin context emits per-item editable image attribute', () => {
@@ -94,7 +98,7 @@ describe('promo_cards block-type', () => {
     expect(html).toContain('data-editable-image="sections.31.config.items.0.image_url"');
   });
 
-  it('title_position bottom adds the modifier class', () => {
+  it('title_position bottom is represented without modifier classes', () => {
     const html = renderBlock(
       promoSection({
         items: [
@@ -103,6 +107,13 @@ describe('promo_cards block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('promo-card--title-bottom');
+    expect(html).toContain('data-title-position="bottom"');
+    expect(html).not.toContain('promo-card--title-bottom');
+  });
+
+  it('does not keep retired promo card primitives in public CSS', () => {
+    const css = readFileSync('src/styles/public.css', 'utf8');
+    expect(css).not.toContain('block-promo-cards');
+    expect(css).not.toContain('promo-card');
   });
 });

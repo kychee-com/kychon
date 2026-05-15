@@ -19,7 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kychon/ui';
+import { Button, buttonVariants, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kychon/ui';
 import { canonicalizeKychonHref } from '@/lib/clean-routes';
 import { cn } from '@/lib/ui/cn';
 
@@ -27,6 +27,11 @@ type MarketingBlockKind = 'features' | 'cta' | 'stats' | 'testimonials' | 'faq';
 
 interface MarketingRenderOptions {
   editablePath?: (path: string) => string | undefined;
+}
+
+interface PromoCardsRenderOptions extends MarketingRenderOptions {
+  editableImagePath?: (index: number) => string | undefined;
+  sanitizeCssValue?: (value: unknown) => string;
 }
 
 interface FeatureItem {
@@ -54,6 +59,16 @@ interface FaqItem {
   a?: string;
 }
 
+interface PromoCardItem {
+  image_url?: string;
+  image_alt?: string;
+  title?: string;
+  title_position?: string;
+  cta_text?: string;
+  cta_href?: string;
+  overlay_color?: string;
+}
+
 const FEATURE_ICONS: Record<string, LucideIcon> = {
   award: Award,
   'bar-chart': BarChart3,
@@ -77,9 +92,22 @@ function editableAttrs(path: string, options: MarketingRenderOptions): { 'data-e
   return editable ? { 'data-editable': editable } : {};
 }
 
+function editableImageAttrs(index: number, options: PromoCardsRenderOptions): { 'data-editable-image'?: string } {
+  const editable = options.editableImagePath?.(index);
+  return editable ? { 'data-editable-image': editable } : {};
+}
+
 function cleanHref(value: unknown, fallback = '#'): string {
   const href = String(value ?? '').trim() || fallback;
   return canonicalizeKychonHref(href);
+}
+
+function cleanImageSrc(value: unknown): string {
+  const src = String(value ?? '').trim();
+  if (!src || src.length > 2048) return '';
+  if (/[\r\n\t\x00-\x1f]/.test(src)) return '';
+  if (!/^(https?:\/\/[^\s]+|\/[^\s]*|\.[./][^\s]*)$/i.test(src)) return '';
+  return src;
 }
 
 function normalizeItems<T>(value: unknown): T[] {
@@ -256,6 +284,83 @@ function FaqBlock({ config, options }: { config: Record<string, unknown>; option
   );
 }
 
+function PromoCardsBlock({ config, options }: { config: Record<string, unknown>; options: PromoCardsRenderOptions }) {
+  const items = normalizeItems<PromoCardItem>(config.items);
+  const heading = String(config.heading || '').trim();
+
+  return (
+    <MarketingContainer className="py-8">
+      {heading && (
+        <h2 className="mb-5 text-2xl font-semibold tracking-normal sm:text-3xl" {...editableAttrs('heading', options)}>
+          {heading}
+        </h2>
+      )}
+      <div className={cn('grid gap-4', columnClass(config.columns))} data-promo-cards="">
+        {items.map((item, index) => {
+          const title = String(item.title || '').trim();
+          const ctaText = String(item.cta_text || '').trim();
+          const href = cleanHref(item.cta_href, '#');
+          const imageSrc = cleanImageSrc(item.image_url);
+          const imageAlt = String(item.image_alt || '').trim();
+          const overlayColor = options.sanitizeCssValue?.(item.overlay_color) || '';
+          const ariaLabel = `${title}${ctaText ? `, ${ctaText}` : ''}`.trim() || 'Promo card';
+
+          return (
+            <a
+              aria-label={ariaLabel}
+              className="group block h-full text-card-foreground no-underline"
+              data-title-position={item.title_position === 'bottom' ? 'bottom' : 'top'}
+              href={href}
+              key={`${title || 'promo'}-${index}`}
+            >
+              <Card className="h-full overflow-hidden transition-colors group-hover:border-primary/30 group-hover:shadow-md">
+                <div
+                  className="relative aspect-[16/10] overflow-hidden bg-muted"
+                  {...editableImageAttrs(index, options)}
+                >
+                  {imageSrc && (
+                    <img
+                      alt={imageAlt}
+                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      loading="lazy"
+                      src={imageSrc}
+                    />
+                  )}
+                  {overlayColor && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{ backgroundColor: overlayColor }}
+                    />
+                  )}
+                </div>
+                <CardHeader className="gap-2">
+                  <CardTitle className="text-xl tracking-normal" {...editableAttrs(`items.${index}.title`, options)}>
+                    {title || 'Card'}
+                  </CardTitle>
+                </CardHeader>
+                {ctaText && (
+                  <CardContent>
+                    <span
+                      className={buttonVariants({
+                        className: 'h-auto justify-start p-0 text-left uppercase tracking-normal',
+                        variant: 'link',
+                      })}
+                      {...editableAttrs(`items.${index}.cta_text`, options)}
+                    >
+                      {ctaText}
+                    </span>
+                  </CardContent>
+                )}
+              </Card>
+            </a>
+          );
+        })}
+      </div>
+    </MarketingContainer>
+  );
+}
+
 function MarketingBlock({ kind, config, options }: { kind: MarketingBlockKind; config: Record<string, unknown>; options: MarketingRenderOptions }) {
   if (kind === 'features') return <FeaturesBlock config={config} options={options} />;
   if (kind === 'cta') return <CtaBlock config={config} options={options} />;
@@ -270,4 +375,11 @@ export function renderMarketingBlockHtml(
   options: MarketingRenderOptions = {},
 ): string {
   return renderToStaticMarkup(<MarketingBlock kind={kind} config={config || {}} options={options} />);
+}
+
+export function renderPromoCardsBlockHtml(
+  config: Record<string, unknown>,
+  options: PromoCardsRenderOptions = {},
+): string {
+  return renderToStaticMarkup(<PromoCardsBlock config={config || {}} options={options} />);
 }
