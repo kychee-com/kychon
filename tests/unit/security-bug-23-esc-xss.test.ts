@@ -3,7 +3,8 @@
 // Regression coverage for #23: stored XSS via the local esc() helpers.
 //
 // Two distinct sinks:
-//   1. `esc()` in src/pages/forum.astro and src/lib/block-hydrators.ts uses
+//   1. The legacy forum page and src/lib/block-hydrators.ts used a local `esc()`
+//      helper based on
 //      `textContent → innerHTML`, which escapes <, >, & but NOT " or '. When
 //      the result is interpolated into a double-quoted attribute, an attacker
 //      can break out of the attribute and inject event handlers (onmouseover,
@@ -26,6 +27,7 @@ import { sanitizeRichHtml } from '../../src/lib/sanitize-html.ts';
 // against the repo root via process.cwd() instead.
 const repoRoot = process.cwd();
 const FORUM_PAGE = resolve(repoRoot, 'src/pages/forum.astro');
+const FORUM_APP = resolve(repoRoot, 'src/components/kychon/ForumPageApp.tsx');
 const BLOCK_HYDRATORS = resolve(repoRoot, 'src/lib/block-hydrators.ts');
 
 // Reproduce the local `esc()` helper as defined in the affected files so the
@@ -61,13 +63,16 @@ describe('bug #23 — esc() quote-escape XSS in attribute contexts', () => {
     expect(attrs).not.toContain('onmouseover');
   });
 
-  it('forum.astro must NOT redefine its own esc() that leaves quotes unescaped', async () => {
-    const source = await readFile(FORUM_PAGE, 'utf8');
-    // The local esc() helper at line ~178 uses textContent → innerHTML, which
-    // is unsafe in attribute contexts. The fix replaces every esc(...) call
-    // with escAttr/escHtml from blocks.ts and removes the local definition.
-    expect(source).not.toMatch(/function esc\s*\(/);
-    expect(source).toMatch(/escAttr|escHtml/);
+  it('forum route must not return to attribute-interpolated HTML rendering', async () => {
+    const page = await readFile(FORUM_PAGE, 'utf8');
+    const app = await readFile(FORUM_APP, 'utf8');
+    // The former inline forum renderer interpolated escaped strings into HTML
+    // attributes. The React island keeps text and attributes as values instead.
+    expect(page).not.toMatch(/function esc\s*\(/);
+    expect(page).not.toContain('innerHTML');
+    expect(app).not.toMatch(/function esc\s*\(/);
+    expect(app).not.toContain('innerHTML');
+    expect(app).not.toContain('data-translate-text');
   });
 
   it('block-hydrators.ts must NOT redefine its own esc() helper', async () => {

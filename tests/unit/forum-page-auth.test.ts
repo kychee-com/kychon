@@ -2,11 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const FORUM_PAGE = resolve(process.cwd(), 'src/pages/forum.astro');
+const FORUM_APP = resolve(process.cwd(), 'src/components/kychon/ForumPageApp.tsx');
 
 describe('forum page auth submission flow', () => {
   it('does not require a hydrated session member object before creating topics or replies', async () => {
-    const source = await readFile(FORUM_PAGE, 'utf8');
+    const source = await readFile(FORUM_APP, 'utf8');
 
     expect(source).not.toMatch(/if\s*\(!memberId\)/);
     expect(source).not.toMatch(/author_id:\s*memberId/);
@@ -16,7 +16,7 @@ describe('forum page auth submission flow', () => {
   });
 
   it('uses app toasts instead of blocking browser alerts for forum actions', async () => {
-    const source = await readFile(FORUM_PAGE, 'utf8');
+    const source = await readFile(FORUM_APP, 'utf8');
 
     expect(source).not.toContain('alert(');
     expect(source).toContain('showForumToast');
