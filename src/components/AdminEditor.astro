@@ -9,7 +9,6 @@
 <script>
   import { del, get, patch } from '../lib/api';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
-  import { adminScopePillClass } from '../lib/admin-action-controls';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
   import { buttonVariants } from './kychon/ui';
@@ -730,25 +729,6 @@
             .filter((k) => k.startsWith('wl_cache_sections_'))
             .forEach((k) => localStorage.removeItem(k));
           showToast(next === 'global' ? 'Saved — appears on all pages' : 'Saved — appears on this page only');
-          // Update DOM attributes so subsequent toggles reflect new state.
-          const sectionEl = scopeBtn.closest('[data-sortable-id]') as HTMLElement | null;
-          if (sectionEl) {
-            sectionEl.setAttribute('data-section-scope', next);
-            const flipped = next === 'global' ? 'page' : 'global';
-            scopeBtn.dataset.scopeNext = flipped;
-            scopeBtn.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
-            scopeBtn.title = scopeBtn.textContent;
-            const existingPill = sectionEl.querySelector('.admin-section-actions [data-admin-scope-pill]');
-            if (next === 'global' && !existingPill) {
-              const pill = document.createElement('span');
-              pill.className = adminScopePillClass;
-              pill.dataset.adminScopePill = '';
-              pill.textContent = 'Global';
-              scopeBtn.before(pill);
-            } else if (next === 'page' && existingPill) {
-              existingPill.remove();
-            }
-          }
           emitSectionsChanged();
         } catch (err) {
           console.error('Scope toggle failed:', err);
