@@ -2636,36 +2636,6 @@ tr:hover td {
   100% { background-position: -200% 0; }
 }
 
-/* Auth gate (inline empty-state shown by src/lib/auth-gate.ts) */
-.auth-gate {
-  display: flex;
-  justify-content: center;
-}
-.auth-gate__card {
-  max-width: 32rem;
-  margin: 2rem auto;
-  text-align: center;
-  padding: 2rem 1.5rem;
-}
-.auth-gate__icon {
-  font-size: 2.5rem;
-  line-height: 1;
-  margin-bottom: 0.75rem;
-}
-.auth-gate__title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
-}
-.auth-gate__body {
-  margin: 0 0 1.25rem 0;
-}
-.auth-gate__actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
 /* Native site search */
 .section-site-search {
   padding: 0.25rem 0;
