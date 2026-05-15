@@ -44,7 +44,7 @@ describe('admin action controls source', () => {
     expect(helper).toContain('badgeVariants');
     expect(helper).toContain('[&:focus]:opacity-100');
     expect(helper).toContain('[nav:hover_&]:opacity-100');
-    expect(helper).toContain('[body.admin_[data-sortable-group]>[data-sortable-id]:hover>&]:flex');
+    expect(helper).toContain('[[data-admin=true]_[data-sortable-group]>[data-sortable-id]:hover>&]:flex');
     expect(helper).toContain('data-section-edit');
     expect(helper).toContain('data-embed-edit');
     expect(helper).toContain('data-section-remove');
@@ -95,6 +95,10 @@ describe('admin action controls source', () => {
     expect(editor).toContain('dataset.adminTiptapActive');
     expect(editor).toContain('dataset.adminUploading');
     expect(editor).toContain('dataset.adminDragging');
+    expect(editor).toContain('document.body.dataset.admin');
+    expect(editor).not.toContain("classList.add('admin')");
+    expect(editor).not.toContain("classList.contains('admin')");
+    expect(editor).not.toContain('body.admin');
     expect(editor).not.toContain("classList.add('uploading')");
     expect(editor).not.toContain("classList.add('dragging')");
     expect(styles).toContain('[data-admin-tiptap-active="true"]');
@@ -103,6 +107,7 @@ describe('admin action controls source', () => {
     expect(styles).not.toContain('.tiptap-active');
     expect(styles).not.toContain('.uploading');
     expect(styles).not.toContain('.dragging');
+    expect(styles).not.toMatch(/\.admin\b/);
     expect(styles).not.toContain('body.admin-dragging');
   });
 
@@ -115,7 +120,8 @@ describe('admin action controls source', () => {
     expect(component).toContain('<Button');
     expect(component).toContain('data-admin-zone-add-button');
     expect(component).toContain('data-zone-add');
-    expect(component).toContain('[body.admin_&]:!flex');
+    expect(component).toContain('[[data-admin=true]_&]:!flex');
+    expect(component).not.toContain('body.admin');
     expect(editor).not.toContain('zoneAddButtonClass');
     expect(editor).not.toContain('ensureZoneAddButtons');
     expect(editor).not.toContain('data-admin-zone-add-button');

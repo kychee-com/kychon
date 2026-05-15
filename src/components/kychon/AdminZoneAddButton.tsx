@@ -10,7 +10,7 @@ interface AdminZoneAddButtonProps {
 export default function AdminZoneAddButton({ zone }: AdminZoneAddButtonProps) {
   return (
     <Button
-      className="mx-auto my-2 hidden w-fit border-dashed bg-background/90 text-muted-foreground shadow-sm hover:text-primary [body.admin_&]:!flex"
+      className="mx-auto my-2 hidden w-fit border-dashed bg-background/90 text-muted-foreground shadow-sm hover:text-primary [[data-admin=true]_&]:!flex"
       data-admin-zone-add-button=""
       data-zone-add={zone}
       size="sm"

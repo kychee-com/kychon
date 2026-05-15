@@ -35,7 +35,7 @@ This report tracks legacy unprefixed classes that collide with Tailwind utilitie
 Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities.
 
 Usages:
-- `src/components/kychon/AdminZoneAddButton.tsx:13` className="mx-auto my-2 hidden w-fit border-dashed bg-background/90 text-muted-foreground shadow-sm hover:text-primary [body.admin_&]:!flex"
+- `src/components/kychon/AdminZoneAddButton.tsx:13` className="mx-auto my-2 hidden w-fit border-dashed bg-background/90 text-muted-foreground shadow-sm hover:text-primary [[data-admin=true]_&]:!flex"
 - `src/components/kychon/DemoBannerIsland.tsx:265` className="hidden h-7 bg-amber-400 px-3 text-xs text-slate-950 hover:bg-amber-500 md:inline-flex"
 - `src/components/kychon/ProfilePageApp.tsx:306` className="hidden"
 

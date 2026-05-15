@@ -34,7 +34,7 @@ const dragHandleButtonClass = buttonVariants({
     'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing',
 });
 
-const sectionActionsClass = 'absolute left-2 top-2 z-10 hidden gap-1 [body.admin_[data-sortable-group]>[data-sortable-id]:hover>&]:flex';
+const sectionActionsClass = 'absolute left-2 top-2 z-10 hidden gap-1 [[data-admin=true]_[data-sortable-group]>[data-sortable-id]:hover>&]:flex';
 
 export const adminScopePillClass = badgeVariants({
   className: 'h-7 rounded-full uppercase tracking-wide shadow-sm',

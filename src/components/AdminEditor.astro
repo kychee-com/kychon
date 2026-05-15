@@ -898,7 +898,7 @@
     await refreshMemberRecord();
     const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
     if (session?.user?.member?.role !== 'admin') return;
-    document.body.classList.add('admin');
+    document.body.dataset.admin = 'true';
     void ensureAdminEditorControls();
     void ensureAdminActionPrompts();
     initEditableText();
@@ -915,7 +915,7 @@
 
   // Use MutationObserver to re-bind after client-side renders
   const observer = new MutationObserver((mutations) => {
-    if (!document.body.classList.contains('admin')) return;
+    if (document.body.dataset.admin !== 'true') return;
     let shouldRebind = false;
     for (const m of mutations) {
       if (m.type === 'childList' && m.addedNodes.length > 0) {
