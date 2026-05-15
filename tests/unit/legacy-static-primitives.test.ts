@@ -7,6 +7,7 @@ const BLOCKS = resolve(process.cwd(), 'src/lib/blocks.ts');
 const EMBED = resolve(process.cwd(), 'src/lib/blocks/embed.ts');
 const STYLES = resolve(process.cwd(), 'src/styles/public.css');
 const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
+const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
 const ctx: BlockRenderContext = { admin: true, locale: 'en', isFeatureEnabled: () => true };
 
 function section(sectionType: string, config: Record<string, unknown>): Section {
@@ -46,6 +47,7 @@ describe('legacy static UI primitives', () => {
     const embed = await readFile(EMBED, 'utf8');
     const styles = await readFile(STYLES, 'utf8');
     const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
+    const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
 
     expect(blocks).not.toContain('ky-text-muted');
     expect(blocks).not.toContain('event-skeleton-card');
@@ -54,6 +56,11 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
+    expect(styles).not.toContain('admin-account-security');
+    expect(styles).not.toContain('admin-checklist');
     expect(adminStyles).not.toContain('block-embed__pill');
+    expect(adminDashboard).toContain('@/components/kychon/ui');
+    expect(adminDashboard).not.toContain('admin-account-security');
+    expect(adminDashboard).not.toContain('admin-checklist');
   });
 });
