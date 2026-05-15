@@ -86,6 +86,7 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toContain('shape-divider__');
     expect(styles).not.toContain('admin-account-security');
     expect(styles).not.toContain('admin-checklist');
+    expect(styles).not.toContain('.section-visible');
     expect(styles).not.toMatch(/\.toast(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('.toast-container');
     expect(styles).not.toContain('toast-success');
@@ -134,6 +135,9 @@ describe('legacy static UI primitives', () => {
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');
+    expect(portal).toContain('data-section-visible');
+    expect(portal).not.toContain("classList.add('section-visible')");
+    expect(portal).not.toContain('.section-visible');
     expect(portal).toContain('id="wl-theme-vars"');
     expect(config).not.toContain('document.createElement');
     expect(config).not.toContain('appendChild');

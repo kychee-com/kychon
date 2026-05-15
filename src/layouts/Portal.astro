@@ -109,14 +109,18 @@ const cspValue = buildCspValue();
   <AdminEditor />
 
   <script>
+    function revealSection(el: Element) {
+      (el as HTMLElement).dataset.sectionVisible = 'true';
+    }
+
     function initAnimations() {
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
         || document.documentElement.classList.contains('wl-reduced-motion');
 
       if (prefersReducedMotion) {
-        document.querySelectorAll('.section').forEach(el => el.classList.add('section-visible'));
+        document.querySelectorAll('.section').forEach(revealSection);
         new MutationObserver(mutations => mutations.forEach(m =>
-          m.addedNodes.forEach(n => { if ((n as Element).classList?.contains('section')) (n as Element).classList.add('section-visible'); })
+          m.addedNodes.forEach(n => { if ((n as Element).classList?.contains('section')) revealSection(n as Element); })
         )).observe(document.body, { childList: true, subtree: true });
         return;
       }
@@ -128,7 +132,7 @@ const cspValue = buildCspValue();
           const el = entry.target as HTMLElement;
           el.style.transitionDelay = `${staggerIndex * 100}ms`;
           staggerIndex++;
-          el.classList.add('section-visible');
+          revealSection(el);
           observer.unobserve(el);
         });
         setTimeout(() => { staggerIndex = 0; }, 50);
@@ -147,7 +151,7 @@ const cspValue = buildCspValue();
       }).observe(document.body, { childList: true, subtree: true });
 
       setTimeout(() => {
-        document.querySelectorAll('main .section:not(.section-visible)').forEach(el => el.classList.add('section-visible'));
+        document.querySelectorAll('main .section:not([data-section-visible="true"])').forEach(revealSection);
       }, 2000);
     }
 
