@@ -317,6 +317,22 @@
 
   const boundRich = new WeakSet();
 
+  function serializeNodeForRichText(node: ChildNode): string {
+    if (node instanceof Element) return node.outerHTML;
+    if (node instanceof Text) return node.textContent || '';
+    return '';
+  }
+
+  function serializeRichTextChildren(el: HTMLElement): string {
+    return Array.from(el.childNodes).map(serializeNodeForRichText).join('');
+  }
+
+  function replaceRichTextChildren(el: HTMLElement, html: string): void {
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    const children = Array.from(doc.body.childNodes).map((node) => document.importNode(node, true));
+    el.replaceChildren(...children);
+  }
+
   function initEditableRich() {
     document.querySelectorAll('[data-editable-rich]').forEach((el) => {
       if (boundRich.has(el)) return;
@@ -329,11 +345,11 @@
         if (editor) return;
         await loadTiptap();
         if (!Editor) return;
-        const originalContent = htmlEl.innerHTML;
+        const originalContent = serializeRichTextChildren(htmlEl);
         htmlEl.classList.add('tiptap-active');
         htmlEl.setAttribute('data-lpignore', 'true');
         // Clear original content — Tiptap will render its own editable copy
-        htmlEl.innerHTML = '';
+        htmlEl.replaceChildren();
 
         editor = new Editor({
           element: htmlEl,
@@ -348,7 +364,7 @@
             editor = null;
             htmlEl.classList.remove('tiptap-active');
             // Restore rendered content (either saved or original)
-            htmlEl.innerHTML = html;
+            replaceRichTextChildren(htmlEl, html);
             const ok = await saveField(htmlEl, target, html);
             flashSave(htmlEl, ok);
             if (ok) showToast('Saved');
