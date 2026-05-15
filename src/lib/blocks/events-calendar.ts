@@ -22,6 +22,7 @@ import type { RsvpAvatar } from '../api.js';
 import { siteConfig } from '../config.js';
 import { eventDayKey, formatEventDateTime } from '../event-display.js';
 import {
+  renderEventsCalendarChipHtml,
   renderEventsCalendarControlsHtml,
   renderEventsCalendarEmptyHtml,
   renderEventsCalendarPeekOverlayHtml,
@@ -255,24 +256,6 @@ function downloadIcs(evt: Event): void {
 
 // --- HTML helpers ---
 
-function avatarChip(rsvp: RsvpAvatar): string {
-  const m = rsvp.members;
-  const name = m?.display_name || '?';
-  const initial = name.charAt(0).toUpperCase();
-  if (m?.avatar_url) {
-    return `<img class="block-events-calendar__avatar" src="${escAttr(m.avatar_url)}" alt="${escAttr(name)}" loading="lazy">`;
-  }
-  return `<span class="block-events-calendar__avatar block-events-calendar__avatar--initial" aria-label="${escAttr(name)}">${escHtml(initial)}</span>`;
-}
-
-function rsvpAvatarStack(eventId: number, rsvps: RsvpAvatar[]): string {
-  const list = rsvps.filter((r) => r.event_id === eventId).slice(0, 3);
-  if (!list.length) return '';
-  const total = rsvps.filter((r) => r.event_id === eventId).length;
-  const more = total > 3 ? `<span class="block-events-calendar__avatar-more">+${total - 3}</span>` : '';
-  return `<span class="block-events-calendar__avatars">${list.map(avatarChip).join('')}${more}</span>`;
-}
-
 function rsvpAvatarStackData(eventId: number, rsvps: RsvpAvatar[]): {
   avatars: EventsCalendarPeekAvatar[];
   overflow: number;
@@ -307,14 +290,6 @@ function capacityBadgeInfo(evt: Event, rsvps: RsvpAvatar[], locale: string): Eve
   if (going >= evt.capacity) return { label: t('Sold out', locale), tone: 'sold' };
   if (going >= evt.capacity * 0.8) return { label: t('Filling fast', locale), tone: 'filling' };
   return null;
-}
-
-function capacityBadge(evt: Event, rsvps: RsvpAvatar[], locale: string): string {
-  const status = capacityBadgeInfo(evt, rsvps, locale);
-  if (!status) return '';
-  if (status.tone === 'sold') return `<span class="block-events-calendar__badge block-events-calendar__badge--sold">${escHtml(status.label)}</span>`;
-  if (status.tone === 'filling') return `<span class="block-events-calendar__badge block-events-calendar__badge--filling">${escHtml(status.label)}</span>`;
-  return '';
 }
 
 // Tiny in-file translations — full i18n table lives in public/custom/strings/{lang}.json.
@@ -380,28 +355,27 @@ function renderEventChip(
   density: Density,
 ): string {
   const time = formatEventDateTime(evt, locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
-  const live = isLiveNow(evt, now);
-  const liveDot = live
-    ? `<span class="block-events-calendar__live-dot" role="img" aria-label="${escAttr(t('Live now', locale))}"></span>`
-    : '';
-  const lock = evt.is_members_only ? `<span class="block-events-calendar__lock" aria-label="${escAttr(t('Members only', locale))}">🔒</span>` : '';
-  const cap = capacityBadge(evt, state.rsvps, locale);
-  const avatars = density === 'rich' ? rsvpAvatarStack(evt.id, state.rsvps) : '';
   const safeThumbUrl = density === 'rich' && evt.image_url ? safeCssUrl(evt.image_url) : '';
-  const thumb = safeThumbUrl
-    ? `<span class="block-events-calendar__chip-thumb" style="background-image:url('${safeThumbUrl}')" aria-hidden="true"></span>`
-    : '';
-  const titleHtml = `<span class="block-events-calendar__chip-title">${escHtml(evt.title || '')}</span>`;
-  const timeHtml = density === 'glance' ? '' : `<span class="block-events-calendar__chip-time">${escHtml(time)}</span>`;
-  return `
-    <a class="block-events-calendar__chip block-events-calendar__chip--${density}${live ? ' is-live' : ''}"
-       href="/event?id=${evt.id}"
-       data-event-id="${evt.id}"
-       data-day="${escAttr(eventDayKey(evt, siteConfig, locale))}"
-       draggable="true">
-      ${thumb}${liveDot}${timeHtml}${titleHtml}${lock}${cap}${avatars}
-    </a>
-  `;
+  const avatarStack = density === 'rich'
+    ? rsvpAvatarStackData(evt.id, state.rsvps)
+    : { avatars: [], overflow: 0 };
+
+  return renderEventsCalendarChipHtml({
+    avatarOverflow: avatarStack.overflow,
+    avatars: avatarStack.avatars,
+    capacity: capacityBadgeInfo(evt, state.rsvps, locale),
+    day: eventDayKey(evt, siteConfig, locale),
+    density,
+    href: `/event?id=${evt.id}`,
+    id: evt.id,
+    isLive: isLiveNow(evt, now),
+    isMembersOnly: !!evt.is_members_only,
+    liveNowLabel: t('Live now', locale),
+    membersOnlyLabel: t('Members only', locale),
+    thumbUrl: safeThumbUrl,
+    time,
+    title: evt.title || '',
+  });
 }
 
 function renderMonthView(state: State, locale: string, _ctx: BlockRenderContext): string {
