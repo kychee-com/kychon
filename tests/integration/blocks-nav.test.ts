@@ -10,6 +10,7 @@ import { bindNavDropdowns } from '../../src/lib/nav-dropdown';
 
 const NAV_VIEW = resolve(process.cwd(), 'src/components/kychon/NavBlockView.tsx');
 const NAV_DROPDOWN = resolve(process.cwd(), 'src/lib/nav-dropdown.ts');
+const PUBLIC_STYLES = resolve(process.cwd(), 'src/styles/public.css');
 
 const baseCtx: BlockRenderContext = {
   admin: false,
@@ -81,6 +82,7 @@ describe('nav block — flat behavior preserved', () => {
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const view = await readFile(NAV_VIEW, 'utf8');
     const runtime = await readFile(NAV_DROPDOWN, 'utf8');
+    const styles = await readFile(PUBLIC_STYLES, 'utf8');
 
     expect(html).toContain('id="nav-toggle"');
     expect(html).toContain('lucide-menu');
@@ -93,6 +95,16 @@ describe('nav block — flat behavior preserved', () => {
     expect(runtime).not.toContain('cloneNode');
     expect(runtime).not.toContain('replaceChildren');
     expect(runtime).not.toContain('.append(');
+    expect(runtime).not.toContain('nav--source-mobile');
+    expect(runtime).not.toContain('nav--overflow');
+    expect(runtime).not.toContain('nav-overflow-item');
+    expect(view).not.toContain('nav--source-mobile');
+    expect(styles).not.toContain('nav--source-mobile');
+    expect(styles).not.toContain('nav--overflow');
+    expect(styles).not.toContain('.nav-overflow-item');
+    expect(styles).toContain('[data-nav-source-mobile="true"]');
+    expect(styles).toContain('[data-nav-overflow="true"]');
+    expect(styles).toContain('[data-nav-overflowed="true"]');
     expect(html).toContain('data-nav-item-index="0"');
     expect(html).toContain('data-nav-overflow-source-index="0"');
   });
@@ -182,7 +194,7 @@ describe('nav block — source presentation config', () => {
     document.body.innerHTML = `<nav id="zone-header" class="nav"><div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
     const host = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(host);
-    expect(document.getElementById('zone-header')?.classList.contains('nav--source-mobile')).toBe(true);
+    expect(document.getElementById('zone-header')?.dataset.navSourceMobile).toBe('true');
   });
 });
 
@@ -431,14 +443,14 @@ describe('nav block — runtime keyboard + click', () => {
 
     expect(toggle.getAttribute('aria-controls')).toBe('nav-links');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(links.classList.contains('open')).toBe(false);
+    expect(links.dataset.navMobileOpen).toBeUndefined();
 
     toggle.click();
-    expect(links.classList.contains('open')).toBe(true);
+    expect(links.dataset.navMobileOpen).toBe('true');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
 
     toggle.click();
-    expect(links.classList.contains('open')).toBe(false);
+    expect(links.dataset.navMobileOpen).toBeUndefined();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
@@ -448,12 +460,12 @@ describe('nav block — runtime keyboard + click', () => {
     const links = document.getElementById('nav-links') as HTMLElement;
     const overflowItem = links.querySelector('.nav-item-wrap') as HTMLElement;
 
-    nav.classList.add('nav--overflow');
-    overflowItem.classList.add('nav-overflow-item');
+    nav.dataset.navOverflow = 'true';
+    overflowItem.dataset.navOverflowed = 'true';
 
     toggle.click();
     const menu = document.getElementById('nav-links-overflow-menu') as HTMLElement;
-    expect(links.classList.contains('open')).toBe(false);
+    expect(links.dataset.navMobileOpen).toBeUndefined();
     expect(toggle.getAttribute('aria-controls')).toBe('nav-links-overflow-menu');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(menu.hasAttribute('hidden')).toBe(false);
@@ -477,8 +489,8 @@ describe('nav block — runtime keyboard + click', () => {
     const links = document.getElementById('nav-links') as HTMLElement;
     const overflowItem = links.querySelector('.nav-item-wrap') as HTMLElement;
 
-    nav.classList.add('nav--overflow');
-    overflowItem.classList.add('nav-overflow-item');
+    nav.dataset.navOverflow = 'true';
+    overflowItem.dataset.navOverflowed = 'true';
 
     toggle.click();
     const overflowTrigger = document.querySelector(

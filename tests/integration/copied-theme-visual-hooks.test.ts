@@ -27,7 +27,7 @@ describe('copied-theme visual verification hooks', () => {
     expect(navHtml).toContain('data-nav-overflow-source-index="');
     expect(navHtml).toContain('nav-chevron-toggle');
     expect(navHtml).toContain('nav-dropdown absolute left-0 top-full');
-    expect(styles).toContain('.nav.nav--source-mobile .nav-links.open');
+    expect(styles).toContain('.nav[data-nav-source-mobile="true"] .nav-links[data-nav-mobile-open="true"]');
     expect(styles).toContain('.nav-overflow-menu[hidden]');
     expect(navComponent).toContain('hover:bg-accent');
     expect(navComponent).toContain('focus:bg-accent');
