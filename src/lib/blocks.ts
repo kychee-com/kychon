@@ -6,6 +6,13 @@
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
 import { buttonVariants } from '@/components/kychon/ui';
 import { renderMarketingBlockHtml } from '@/components/kychon/MarketingBlocksView';
+import {
+  adminNavEditButtonHtml,
+  adminScopePillHtml,
+  adminScopeToggleHtml,
+  adminSectionEditButtonHtml,
+  adminSectionRemoveButtonHtml,
+} from './admin-action-controls.js';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
@@ -274,10 +281,10 @@ function adminScopeControls(section: Section, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
   const sid = section.id;
   const isGlobal = section.scope === 'global';
-  const pill = isGlobal ? `<span class="admin-scope-pill">Global</span>` : '';
+  const pill = isGlobal ? adminScopePillHtml() : '';
   const toggleLabel = isGlobal ? 'Make page-only' : 'Make global';
   const toggleNext = isGlobal ? 'page' : 'global';
-  return `${pill}<button class="admin-scope-toggle" data-scope-toggle="${sid}" data-scope-next="${toggleNext}" title="${toggleLabel}">${toggleLabel}</button>`;
+  return `${pill}${adminScopeToggleHtml(sid, toggleNext, toggleLabel)}`;
 }
 
 // column-span-rows: cog button that opens the per-block edit popover (span
@@ -286,7 +293,7 @@ function adminScopeControls(section: Section, ctx: BlockRenderContext): string {
 // surface but the inline buttons keep working.
 function adminEditButton(section: Section, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
-  return `<button class="admin-section-edit-btn" data-section-edit="${section.id}" title="Edit block">⚙</button>`;
+  return adminSectionEditButtonHtml(section.id);
 }
 
 function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, classes = 'section'): string {
@@ -300,7 +307,7 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
     ? ` data-editable-config="${jsonAttr(section.config || {})}"`
     : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
     : '';
   return `<section class="${classes}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${adminCtrls}${inner}</section>`;
 }
@@ -556,7 +563,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const safeBgImage = cfg.bg_image ? safeCssUrl(cfg.bg_image) : '';
   const styleAttr = safeBgImage ? ` style="background-image:url('${safeBgImage}')"` : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
     : '';
   return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${adminCtrls}${inner}</section>`;
 }
@@ -617,7 +624,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const adminCtrls = sid != null && ctx.admin
-    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+    ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
     : '';
 
   // Body order: picture first, then overlays/captions, then heading group.
@@ -1060,7 +1067,7 @@ const NAV: BlockType = {
       ? ` data-block-id="${sid}" data-block-type="nav"`
       : '';
     const adminEditBtn = sid != null && ctx.admin
-      ? `<button class="admin-nav-edit-btn" data-nav-edit="${sid}" title="Edit navigation">&#9998;</button>`
+      ? adminNavEditButtonHtml(sid)
       : '';
     const presentationAttrs = renderNavPresentationAttrs(cfg);
     return `<button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false">&#9776;</button><div class="nav-links" id="nav-links" data-block-nav${editAttrs}${presentationAttrs}>${links}</div>${adminEditBtn}`;
@@ -1411,7 +1418,7 @@ const PAGE_BANNER: BlockType = {
       ? ` data-editable-image="sections.${sid}.config.image_url"`
       : '';
     const adminCtrls = sid != null && ctx.admin
-      ? `<div class="admin-section-actions">${adminScopeControls(section, ctx)}<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button></div>`
+      ? `<div class="admin-section-actions">${adminScopeControls(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
       : '';
     const ariaLabel = cfg.image_alt
       ? ` aria-label="${escAttr(cfg.image_alt)}"`

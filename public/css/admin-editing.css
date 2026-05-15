@@ -263,61 +263,19 @@
   display: flex;
 }
 
-.admin-section-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--color-border, #e2e8f0);
-  background: rgba(255,255,255,0.9);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: transform 150ms ease, border-color 150ms ease;
-}
-
-.admin-section-btn:hover {
-  transform: scale(1.1);
-  border-color: var(--color-primary, #3b82f6);
-}
-
-.admin-section-btn.danger:hover {
-  border-color: #ef4444;
-  color: #ef4444;
-}
-
 /* ═══════════════════════════════════════════════════
    10. NAV EDIT PENCIL BUTTON
    ═══════════════════════════════════════════════════ */
 
 .admin .admin-nav-edit-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  color: var(--color-text-muted, #94a3b8);
   margin-left: 0.5rem;
   opacity: 0;
-  transition: opacity 200ms ease, background 150ms ease, border-color 150ms ease;
+  transition: opacity 200ms ease;
 }
 
 .admin nav:hover .admin-nav-edit-btn,
 .admin .admin-nav-edit-btn:focus {
   opacity: 1;
-}
-
-.admin .admin-nav-edit-btn:hover {
-  background: var(--color-surface, #f1f5f9);
-  border-color: var(--color-border, #e2e8f0);
-  color: var(--color-primary, #3b82f6);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -437,30 +395,6 @@ body.admin .admin-zone-add-btn {
   color: var(--color-primary, #6366f1);
 }
 
-/* Scope pill on chrome blocks (visible to admins). */
-.admin-section-actions .admin-scope-pill {
-  display: inline-block;
-  margin-right: 0.25rem;
-  padding: 0.1rem 0.45rem;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: var(--color-primary, #6366f1);
-  color: #fff;
-  border-radius: 999px;
-}
-.admin-section-actions .admin-scope-toggle {
-  background: none;
-  border: 1px solid var(--color-border, #d1d5db);
-  color: var(--color-text-muted, #6b7280);
-  font-size: 0.6875rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 999px;
-  cursor: pointer;
-  margin-right: 0.25rem;
-}
-
 /* ═══════════════════════════════════════════════════
    9. EMBED BLOCK
    ═══════════════════════════════════════════════════ */
@@ -515,26 +449,4 @@ body.admin .admin-zone-add-btn {
   background: #fbbf24;
   color: #78350f;
   border-radius: 999px;
-}
-
-/* ═══════════════════════════════════════════════════
-   10. BLOCK SETTINGS TRIGGER
-   ═══════════════════════════════════════════════════ */
-.admin-section-edit-btn {
-  background: none;
-  border: 1px solid var(--color-border, #d1d5db);
-  color: var(--color-text-muted, #6b7280);
-  font-size: 0.875rem;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 999px;
-  cursor: pointer;
-  margin-right: 0.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.admin-section-edit-btn:hover {
-  border-color: var(--color-primary, #6366f1);
-  color: var(--color-primary, #6366f1);
 }
