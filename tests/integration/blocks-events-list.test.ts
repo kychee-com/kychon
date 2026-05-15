@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 beforeEach(() => {
-  (globalThis as any).window.__KYCHON_API = 'https://api.test';
-  (globalThis as any).window.__KYCHON_ANON_KEY = 'test_key';
+  window.__KYCHON_API = 'https://api.test';
+  window.__KYCHON_ANON_KEY = 'test_key';
   const store: Record<string, string> = {};
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => (k in store ? store[k] : null),

@@ -873,7 +873,13 @@ async function genericMutation(operation, input, actor) {
   } else if (spec.action === 'upsertConfig') {
     row = await upsertConfig(input);
   } else {
-    row = await updateRow(spec.table, idForUpdate(operation, input, actor), rowForUpdate(operation, input, actor));
+    const targetId = idForUpdate(operation, input, actor);
+    row = await updateRow(spec.table, targetId, rowForUpdate(operation, input, actor));
+    if (!row) {
+      throw capabilityError('notFound.object', `${objectTypeLabel(spec.objectType)} not found.`, {
+        object: changedObject(spec.objectType, targetId),
+      });
+    }
   }
 
   const object = changedObject(spec.objectType, row?.id ?? input.id ?? input.key ?? 'unknown');
@@ -1342,8 +1348,10 @@ async function insertRow(table, row) {
 async function updateRow(table, id, patch) {
   const cleaned = cleanRow(patch);
   if (SQL_WRITE_TABLES.has(table)) return updateRowSql(table, 'id', id, cleaned);
+  const existing = await selectOneRow(table, 'id', id);
+  if (!existing) return null;
   const result = await adminDb().from(table).update(cleaned).eq('id', id);
-  return normalizeDbRows(result)[0] || { id, ...cleaned };
+  return normalizeDbRows(result)[0] || { ...existing, ...cleaned };
 }
 
 async function updateConfigRow(key, patch) {
@@ -1376,14 +1384,14 @@ async function insertRowSql(table, row) {
 
 async function updateRowSql(table, keyColumn, keyValue, patch) {
   const entries = Object.entries(patch);
-  if (!entries.length) return (await selectOneRowSql(table, keyColumn, keyValue)) || { [keyColumn]: keyValue };
+  if (!entries.length) return selectOneRowSql(table, keyColumn, keyValue);
   const assignments = entries.map(([key], index) => `${quoteIdent(key)} = $${index + 1}`).join(', ');
   const values = [...entries.map(([, value]) => value), keyValue];
   const result = await adminDb().sql(
     `UPDATE ${quoteIdent(table)} SET ${assignments} WHERE ${quoteIdent(keyColumn)} = $${values.length} RETURNING *`,
     values,
   );
-  return normalizeDbRows(result)[0] || { [keyColumn]: keyValue, ...patch };
+  return normalizeDbRows(result)[0] || null;
 }
 
 async function deleteRowSql(table, keyColumn, keyValue) {
@@ -1399,6 +1407,16 @@ async function selectOneRowSql(table, keyColumn, keyValue) {
     keyValue,
   ]);
   return normalizeDbRows(result)[0] || null;
+}
+
+async function selectOneRow(table, keyColumn, keyValue) {
+  const result = await adminDb().from(table).select('*').eq(keyColumn, keyValue).limit(1);
+  return normalizeDbRows(result)[0] || null;
+}
+
+function objectTypeLabel(objectType) {
+  if (objectType === 'member') return 'Member';
+  return 'Object';
 }
 
 function normalizeDbRows(result) {

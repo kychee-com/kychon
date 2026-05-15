@@ -30,11 +30,38 @@ function getAnonKey(): string {
   return window.__KYCHON_ANON_KEY || '';
 }
 
-function getStoredSession(): any {
+function getBrowserStorage(): Storage | null {
+  const globalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  if (globalStorage && 'value' in globalStorage && hasStorageShape(globalStorage.value)) {
+    return globalStorage.value;
+  }
+
   try {
-    return JSON.parse(localStorage.getItem('wl_session') || 'null');
+    const storage = window.localStorage;
+    if (hasStorageShape(storage)) return storage;
   } catch {
-    localStorage.removeItem('wl_session');
+    return null;
+  }
+  return null;
+}
+
+function hasStorageShape(storage: unknown): storage is Storage {
+  return (
+    typeof storage === 'object' &&
+    storage !== null &&
+    typeof (storage as Storage).getItem === 'function' &&
+    typeof (storage as Storage).setItem === 'function' &&
+    typeof (storage as Storage).removeItem === 'function'
+  );
+}
+
+function getStoredSession(): any {
+  const storage = getBrowserStorage();
+  if (!storage) return null;
+  try {
+    return JSON.parse(storage.getItem('wl_session') || 'null');
+  } catch {
+    storage.removeItem('wl_session');
     return null;
   }
 }
@@ -51,6 +78,7 @@ function getAuthHeaders(session = getStoredSession()): Record<string, string> {
 }
 
 async function refreshToken(): Promise<any> {
+  const storage = getBrowserStorage();
   const session = getStoredSession();
   if (!session?.refresh_token) return null;
   const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=refresh_token`, {
@@ -59,11 +87,11 @@ async function refreshToken(): Promise<any> {
     body: JSON.stringify({ refresh_token: session.refresh_token }),
   });
   if (!res.ok) {
-    localStorage.removeItem('wl_session');
+    storage?.removeItem('wl_session');
     return null;
   }
   const newSession = await res.json();
-  localStorage.setItem('wl_session', JSON.stringify(newSession));
+  storage?.setItem('wl_session', JSON.stringify(newSession));
   return newSession;
 }
 
@@ -185,13 +213,13 @@ const DELETE_OPERATION_BY_TABLE: Record<string, string> = {
   newsletter_drafts: 'newsletters.drafts.delete',
 };
 
-function capabilityClient() {
+function capabilityClient(sessionOverride?: any) {
   return createKychonClient({
     portalUrl: window.location?.origin || 'https://kychon.com',
     apiBaseUrl: getAPI(),
     apiEndpoint: `${getAPI()}${KYCHON_CAPABILITY_FUNCTION_PATH}`,
     apiKey: () => getAnonKey(),
-    authToken: () => getStoredSession()?.access_token || null,
+    authToken: () => sessionOverride?.access_token || getStoredSession()?.access_token || null,
   });
 }
 
@@ -200,8 +228,8 @@ function shouldRefreshCapability(error: unknown, session: any): boolean {
   return error.code === 'permission.denied' || error.code.startsWith('auth.');
 }
 
-async function callCapability<T>(fn: () => Promise<T>, retry = true): Promise<T> {
-  const session = getStoredSession();
+async function callCapability<T>(fn: () => Promise<T>, retry = true, sessionOverride?: any): Promise<T> {
+  const session = sessionOverride || getStoredSession();
   try {
     return await fn();
   } catch (error) {
@@ -538,13 +566,15 @@ function updateInputFor(parsed: ParsedPath, body: any): JsonObject {
   return input;
 }
 
-async function executeOperation(operation: string, input: JsonObject): Promise<any[]> {
+async function executeOperation(operation: string, input: JsonObject, sessionOverride?: any): Promise<any[]> {
   if (!operation) throw new Error('Unsupported Kychon API mutation.');
   const result = await callCapability(() =>
-    capabilityClient().execute<ActionResult<JsonValue>>(operation, input, {
+    capabilityClient(sessionOverride).execute<ActionResult<JsonValue>>(operation, input, {
       confirmed: true,
       idempotencyKey: createIdempotencyKey(operation.replace(/\./g, '-')),
     }),
+    true,
+    sessionOverride,
   );
   return representation(result);
 }
@@ -559,9 +589,9 @@ export async function post(path: string, body: any): Promise<any> {
   return executeOperation(operation, createInputFor(parsed, body));
 }
 
-export async function patch(path: string, body: any): Promise<any> {
+export async function patch(path: string, body: any, sessionOverride?: any): Promise<any> {
   const parsed = parsePath(path);
-  return executeOperation(updateOperationFor(parsed, body), updateInputFor(parsed, body));
+  return executeOperation(updateOperationFor(parsed, body), updateInputFor(parsed, body), sessionOverride);
 }
 
 export async function del(path: string): Promise<any> {

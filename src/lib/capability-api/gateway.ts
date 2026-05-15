@@ -8,6 +8,7 @@ import { CapabilityQueryError, runCapabilityQuery, type CapabilityQueryDb } from
 import {
   CapabilityMutationError,
   executeCapabilityMutation,
+  validateCapabilityMutation,
   type CapabilityAi,
   type CapabilityJobs,
   type CapabilityMutationDb,
@@ -107,6 +108,16 @@ export async function handleCapabilityApiRequest(
   if (envelope.phase === 'query') return queryResponse({ correlationId, actor, envelope, operation, deps });
 
   if (envelope.phase === 'validate') {
+    if (deps.mutationDb) {
+      const plan = await validateCapabilityMutation(operation.name, envelope.input, {
+        actor,
+        db: deps.mutationDb,
+        storage: deps.storage,
+        ai: deps.ai,
+        jobs: deps.jobs,
+      });
+      return successResponse(correlationId, plan);
+    }
     return successResponse(correlationId, createActionPlan(operation, envelope.input, permission.allowed, actor.state));
   }
 

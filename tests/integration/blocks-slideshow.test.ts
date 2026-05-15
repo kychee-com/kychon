@@ -7,7 +7,21 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
+
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds = [];
+
+  disconnect() {}
+  observe() {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+  unobserve() {}
+}
 
 function buildSlideshowDOM(
   opts: {
@@ -50,19 +64,21 @@ function buildSlideshowDOM(
   `;
   document.body.appendChild(wrapper);
   // Mock matchMedia for reduced-motion control.
-  (window as any).matchMedia = (q: string) => ({
-    matches: !!opts.reducedMotion && /reduce/.test(q),
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  });
+  vi.stubGlobal(
+    'matchMedia',
+    (q: string): MediaQueryList => ({
+      matches: !!opts.reducedMotion && /reduce/.test(q),
+      media: q,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  );
   // happy-dom doesn't have IntersectionObserver — stub it.
-  (window as any).IntersectionObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
+  vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
   return wrapper.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement;
 }
 

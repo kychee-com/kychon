@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { resolveDeployTarget } from '../../scripts/_lib.ts';
 
 const ORIGINAL_ENV = { ...process.env };
+const run402Stub = {} as Parameters<typeof resolveDeployTarget>[0];
 
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
@@ -14,7 +15,7 @@ describe('resolveDeployTarget', () => {
     process.env.ANON_KEY = 'anon_test';
     delete process.env.SUBDOMAIN;
 
-    await expect(resolveDeployTarget({} as any)).rejects.toThrow('No subdomain resolved');
+    await expect(resolveDeployTarget(run402Stub)).rejects.toThrow('No subdomain resolved');
   });
 
   it('rejects a blank SUBDOMAIN', async () => {
@@ -22,7 +23,7 @@ describe('resolveDeployTarget', () => {
     process.env.ANON_KEY = 'anon_test';
     process.env.SUBDOMAIN = '   ';
 
-    await expect(resolveDeployTarget({} as any)).rejects.toThrow('No subdomain resolved');
+    await expect(resolveDeployTarget(run402Stub)).rejects.toThrow('No subdomain resolved');
   });
 
   it('returns the explicit SUBDOMAIN', async () => {
@@ -30,7 +31,7 @@ describe('resolveDeployTarget', () => {
     process.env.ANON_KEY = 'anon_test';
     process.env.SUBDOMAIN = '  eagles  ';
 
-    await expect(resolveDeployTarget({} as any)).resolves.toEqual({
+    await expect(resolveDeployTarget(run402Stub)).resolves.toEqual({
       projectId: 'prj_test',
       anonKey: 'anon_test',
       subdomain: 'eagles',

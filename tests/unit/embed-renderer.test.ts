@@ -17,6 +17,12 @@ const baseSection = (config: Record<string, unknown>): Section => ({
 const memberCtx: BlockRenderContext = { admin: false, locale: 'en' };
 const adminCtx: BlockRenderContext = { admin: true, locale: 'en' };
 
+function sandboxTokens(html: string): string[] {
+  const match = html.match(/sandbox="([^"]+)"/);
+  if (!match) throw new Error('Expected sandbox attribute');
+  return match[1].split(/\s+/).sort();
+}
+
 describe('embed renderer — happy paths', () => {
   it('renders a YouTube iframe with declared sandbox', () => {
     const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
@@ -149,18 +155,13 @@ describe('embed renderer — error states', () => {
 describe('embed renderer — sandbox enforcement', () => {
   it('uses exactly the provider sandbox tokens — never less, never more', () => {
     const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
-    const match = html.match(/sandbox="([^"]+)"/);
-    expect(match).not.toBeNull();
-    const tokens = match![1].split(/\s+/).sort();
+    const tokens = sandboxTokens(html);
     expect(tokens).toEqual(['allow-presentation', 'allow-same-origin', 'allow-scripts']);
   });
 
   it('calendly emits popups+forms (booking flow), not presentation', () => {
     const html = EMBED.render(baseSection({ provider: 'calendly', params: { username: 'jane' } }), memberCtx);
-    const tokens = html
-      .match(/sandbox="([^"]+)"/)![1]
-      .split(/\s+/)
-      .sort();
+    const tokens = sandboxTokens(html);
     expect(tokens).toEqual(['allow-forms', 'allow-popups', 'allow-same-origin', 'allow-scripts']);
   });
 });

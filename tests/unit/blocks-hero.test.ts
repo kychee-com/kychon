@@ -179,7 +179,7 @@ describe('hero renderer — foreground mode', () => {
         image_url: '/x.png',
         image_alt: 'x',
         caption_html: 'x',
-        caption_position: 'middle-middle' as any,
+        caption_position: 'middle-middle',
       }),
       baseCtx,
     );

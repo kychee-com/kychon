@@ -278,6 +278,37 @@ describe('Capability API gateway', () => {
     expect(conflict.body.error.code).toBe('conflict.idempotencyKey');
   });
 
+  it('returns notFound.object when approving a nonexistent member', async () => {
+    const mutationDb = new MemoryMutationDb({
+      members: [{ id: 1, display_name: 'Admin', role: 'admin', status: 'active', user_id: 'admin-user' }],
+    });
+
+    const res = await handleCapabilityApiRequest(
+      request({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'members.approve',
+        phase: 'execute',
+        idempotencyKey: 'approve-missing-member',
+        input: { id: 99999999 },
+      }),
+      deps({
+        user: { id: 'admin-user' },
+        members: [{ id: 1, user_id: 'admin-user', role: 'admin', status: 'active' }],
+        mutationDb,
+      }),
+    );
+    const out = await json(res);
+
+    expect(out.status).toBe(404);
+    expect(out.body).toMatchObject({
+      ok: false,
+      error: {
+        code: 'notFound.object',
+        detail: { object: { type: 'member', id: '99999999' } },
+      },
+    });
+  });
+
   it('rejects missing confirmation for confirmation-required mutations', async () => {
     const res = await handleCapabilityApiRequest(
       request({

@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { buildKychonReleaseSpec } from '../../scripts/_lib.ts';
 
+interface SitePublicPaths {
+  public_paths: {
+    replace: Record<string, unknown>;
+  };
+}
+
 describe('deploy public paths', () => {
   it('assembles explicit public paths and clears static route aliases', () => {
     const spec = buildKychonReleaseSpec({
@@ -32,7 +38,7 @@ describe('deploy public paths', () => {
         },
       },
     });
-    expect((spec.site as any).public_paths.replace['/events.html']).toBeUndefined();
+    expect((spec.site as SitePublicPaths).public_paths.replace['/events.html']).toBeUndefined();
     expect(spec.routes).toEqual({ replace: [] });
   });
 
@@ -53,6 +59,9 @@ describe('deploy public paths', () => {
     expect(spec.routes).toEqual({
       replace: [{ pattern: '/api/*', methods: ['GET', 'POST'], target: { type: 'function', name: 'api' } }],
     });
-    expect((spec.site as any).public_paths.replace['/']).toEqual({ asset: 'index.html', cache_class: 'html' });
+    expect((spec.site as SitePublicPaths).public_paths.replace['/']).toEqual({
+      asset: 'index.html',
+      cache_class: 'html',
+    });
   });
 });

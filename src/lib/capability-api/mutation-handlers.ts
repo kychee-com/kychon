@@ -71,18 +71,47 @@ export async function validateCapabilityMutation(
   }
   const permission = checkOperationPermission(ctx.actor, operation);
   const requiresConfirmation = operation.confirmation === 'required';
+  const semanticError = permission.allowed ? await validateMutationSemantics(String(operation.name), input, ctx) : null;
+  const warnings = operation.confirmation === 'recommended'
+    ? [{ code: 'confirmation.recommended', message: `${operation.name} is confirmation-recommended.` }]
+    : [];
+  if (semanticError) {
+    warnings.push({
+      code: semanticError.code,
+      message: semanticError.message,
+      ...(semanticError.detail ? { detail: semanticError.detail } : {}),
+    });
+  }
 
   return {
-    accepted: permission.allowed,
+    accepted: permission.allowed && !semanticError,
     normalizedInput: normalizeMutationInput(String(operation.name), input),
     requiresConfirmation,
-    permission,
-    warnings: operation.confirmation === 'recommended'
-      ? [{ code: 'confirmation.recommended', message: `${operation.name} is confirmation-recommended.` }]
-      : [],
+    permission: semanticError ? { ...permission, allowed: false, reason: semanticError.message } : permission,
+    warnings,
     sideEffects: sideEffectsFor(String(operation.name), input),
     cost: operation.costClass === 'free' ? null : { class: operation.costClass, rationale: `${operation.costClass} operation.` },
   };
+}
+
+async function validateMutationSemantics(
+  operation: string,
+  input: JsonObject,
+  ctx: CapabilityMutationContext,
+): Promise<CapabilityMutationError | null> {
+  try {
+    if (operation === 'members.updateProfile') {
+      idForUpdate(operation, input, ctx);
+    } else if (operation === 'forum.replies.create') {
+      await validateForumReplyInput(input, ctx);
+    } else if (operation === 'pollVotes.cast') {
+      await validatePollVoteInput(input, ctx);
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityMutationError) return error;
+    throw error;
+  }
 }
 
 export async function executeCapabilityMutation(
@@ -142,7 +171,9 @@ async function genericMutation(operation: string, input: JsonObject, ctx: Capabi
   } else if (spec.action === 'upsertConfig') {
     row = await upsertConfig(input, ctx);
   } else {
-    row = await ctx.db.update(spec.table, idForUpdate(operation, input, ctx), rowForUpdate(operation, input, ctx));
+    const targetId = idForUpdate(operation, input, ctx);
+    row = await ctx.db.update(spec.table, targetId, rowForUpdate(operation, input, ctx));
+    if (!row) throw notFoundMutationError(spec.objectType, targetId);
   }
 
   const object = changedObject(spec.objectType, String(row?.id ?? input.id ?? input.key ?? 'unknown'));
@@ -192,11 +223,29 @@ async function createForumTopic(input: JsonObject, ctx: CapabilityMutationContex
   return actionResult(topic, changed, verificationQuery(getOperation('forum.topics.get')!.name, { id: topic.id }, changed[0]), auditReference(String(activity.id), 'forum_post'));
 }
 
+async function validateForumReplyInput(input: JsonObject, ctx: CapabilityMutationContext): Promise<void> {
+  const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
+  await findOpenForumTopic(topicId, ctx);
+}
+
+async function findOpenForumTopic(topicId: string | number, ctx: CapabilityMutationContext): Promise<JsonObject> {
+  const topic = (await ctx.db.select('forum_topics')).find((row) => String(row.id) === String(topicId));
+  if (!topic) {
+    throw new CapabilityMutationError('notFound.object', 'Forum topic not found.', {
+      object: { type: 'forum.topic', id: String(topicId) },
+    });
+  }
+  if (topic.locked === true) {
+    throw new CapabilityMutationError('conflict.state', 'Forum topic is locked.', {
+      object: { type: 'forum.topic', id: String(topicId) },
+    });
+  }
+  return topic;
+}
+
 async function createForumReply(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
-  const topic = (await ctx.db.select('forum_topics')).find((row) => String(row.id) === String(topicId));
-  if (!topic) throw new CapabilityMutationError('notFound.object', 'Forum topic not found.', { object: { type: 'forum.topic', id: String(topicId) } });
-  if (topic.locked === true) throw new CapabilityMutationError('conflict.state', 'Forum topic is locked.', { object: { type: 'forum.topic', id: String(topicId) } });
+  const topic = await findOpenForumTopic(topicId, ctx);
 
   const reply = await ctx.db.insert('forum_replies', {
     topic_id: topicId,
@@ -213,12 +262,52 @@ async function createForumReply(input: JsonObject, ctx: CapabilityMutationContex
   return actionResult(reply, [object, changedObject('forum.topic', String(topicId))], verificationQuery(getOperation('forum.replies.list')!.name, { topicId }, object), auditReference(String(activity.id), 'forum_reply'));
 }
 
+async function validatePollVoteInput(input: JsonObject, ctx: CapabilityMutationContext): Promise<void> {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = Array.isArray(input.optionIds)
+    ? input.optionIds
+    : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  await findOpenPoll(pollId, ctx);
+  await validatePollOptionIds(pollId, optionIds, ctx);
+}
+
+async function findOpenPoll(pollId: string | number, ctx: CapabilityMutationContext): Promise<JsonObject> {
+  const poll = (await ctx.db.select('polls')).find((row) => String(row.id) === String(pollId));
+  if (!poll) {
+    throw new CapabilityMutationError('notFound.object', 'Poll not found.', {
+      object: { type: 'poll', id: String(pollId) },
+    });
+  }
+  if (poll.is_open === false) {
+    throw new CapabilityMutationError('conflict.state', 'Poll is closed.', {
+      object: { type: 'poll', id: String(pollId) },
+    });
+  }
+  return poll;
+}
+
+async function validatePollOptionIds(
+  pollId: string | number,
+  optionIds: JsonValue[],
+  ctx: CapabilityMutationContext,
+): Promise<void> {
+  const options = await ctx.db.select('poll_options');
+  for (const optionId of optionIds) {
+    const option = options.find((row) => String(row.id) === String(optionId));
+    if (!option || String(option.poll_id) !== String(pollId)) {
+      throw new CapabilityMutationError('validation.failed', 'pollVotes.cast optionId must belong to pollId.', {
+        object: { type: 'poll', id: String(pollId) },
+        optionId: String(optionId),
+      });
+    }
+  }
+}
+
 async function castPollVote(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
   const optionIds = Array.isArray(input.optionIds) ? input.optionIds : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
-  const poll = (await ctx.db.select('polls')).find((row) => String(row.id) === String(pollId));
-  if (!poll) throw new CapabilityMutationError('notFound.object', 'Poll not found.', { object: { type: 'poll', id: String(pollId) } });
-  if (poll.is_open === false) throw new CapabilityMutationError('conflict.state', 'Poll is closed.', { object: { type: 'poll', id: String(pollId) } });
+  const poll = await findOpenPoll(pollId, ctx);
+  await validatePollOptionIds(pollId, optionIds, ctx);
 
   const member = memberId(ctx);
   const existing = (await ctx.db.select('poll_votes')).filter((vote) => String(vote.poll_id) === String(pollId) && String(vote.member_id) === String(member));
@@ -459,11 +548,31 @@ export function sanitizeRichHtmlServer(input: unknown): string {
   if (input == null) return '';
   let html = String(input);
   html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
-  html = html.replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, '');
-  html = html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/<\/?\s*(script|style|iframe|object|embed|svg|math|details|link|meta)(?:\s|\/|>)[^>]*>/gi, '');
+  html = html.replace(/[\s/]+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\s(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (_match, attr: string, rawValue: string) => {
+    const value = rawValue.replace(/^['"]|['"]$/g, '');
+    const decoded = decodeHtmlEntities(value).trim();
+    return /^(?:javascript|vbscript):/i.test(decoded) ? '' : ` ${attr}=${rawValue}`;
+  });
   html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
   html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
   return html;
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
+    const normalized = entity.toLowerCase();
+    if (normalized === 'amp') return '&';
+    if (normalized === 'lt') return '<';
+    if (normalized === 'gt') return '>';
+    if (normalized === 'quot') return '"';
+    if (normalized === 'apos') return "'";
+    if (normalized.startsWith('#x')) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
+    if (normalized.startsWith('#')) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+    return match;
+  });
 }
 
 async function translateText(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
@@ -658,6 +767,23 @@ function verificationFor(objectType: ObjectType, object: ObjectRef) {
           ? getOperation('resources.get')?.name
           : null;
   return operation ? verificationQuery(operation, { id: object.id }, object) : null;
+}
+
+function notFoundMutationError(objectType: ObjectType, id: string | number): CapabilityMutationError {
+  const object = changedObject(objectType, String(id));
+  return new CapabilityMutationError('notFound.object', `${objectTypeLabel(objectType)} not found.`, {
+    object: {
+      type: object.type,
+      id: object.id,
+      ...(object.label ? { label: object.label } : {}),
+      ...(object.url ? { url: object.url } : {}),
+    },
+  });
+}
+
+function objectTypeLabel(objectType: ObjectType): string {
+  if (objectType === 'member') return 'Member';
+  return 'Object';
 }
 
 function configPatch(input: JsonObject): JsonObject {

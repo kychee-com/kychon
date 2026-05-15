@@ -14,7 +14,7 @@ const freshConfig = [
 
 function installLocalStorage(): Record<string, string> {
   const store: Record<string, string> = {};
-  vi.stubGlobal('localStorage', {
+  const storage = {
     getItem: (k: string) => (k in store ? store[k] : null),
     setItem: (k: string, v: string) => {
       store[k] = String(v);
@@ -25,7 +25,10 @@ function installLocalStorage(): Record<string, string> {
     clear: () => {
       for (const k of Object.keys(store)) delete store[k];
     },
-  });
+  };
+  vi.stubGlobal('localStorage', storage);
+  Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true });
+  Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
   return store;
 }
 

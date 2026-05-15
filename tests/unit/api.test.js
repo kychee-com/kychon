@@ -3,9 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock browser globals
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
-global.window = { __KYCHON_API: 'https://api.test', __KYCHON_ANON_KEY: 'test_key' };
 global.atob = (value) => Buffer.from(value, 'base64').toString('binary');
-global.localStorage = {
+const localStorageMock = {
   _data: {},
   getItem(k) {
     return this._data[k] ?? null;
@@ -16,6 +15,12 @@ global.localStorage = {
   removeItem(k) {
     delete this._data[k];
   },
+};
+global.localStorage = localStorageMock;
+global.window = {
+  __KYCHON_API: 'https://api.test',
+  __KYCHON_ANON_KEY: 'test_key',
+  localStorage: localStorageMock,
 };
 
 const {
@@ -61,7 +66,7 @@ function tokenWithClaims(claims) {
 describe('api.js', () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    localStorage._data = {};
+    localStorageMock._data = {};
   });
 
   it('GET calls the Capability API with the anon key', async () => {
