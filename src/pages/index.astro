@@ -1,8 +1,10 @@
 ---
 import HomePageApp from '../components/kychon/HomePageApp';
+import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Home">
   <HomePageApp client:load />
   <div id="sections" data-sortable-group="homepage-sections" data-zone="main"></div>
+  <AdminZoneAddButton zone="main" />
 </Portal>

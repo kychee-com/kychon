@@ -10,6 +10,7 @@ import AuthModal from '../components/AuthModal.astro';
 import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
+import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
@@ -84,6 +85,7 @@ const cspValue = buildCspValue();
   <div class="page">
     <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
       <div class="ky-container" set:html={chrome.headerHtml}></div>
+      <AdminZoneAddButton zone="header" />
     </nav>
 
     <main class="page-content" id="main-content">
@@ -92,6 +94,7 @@ const cspValue = buildCspValue();
 
     <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
       <div class="ky-container" set:html={chrome.footerHtml}></div>
+      <AdminZoneAddButton zone="footer" />
     </footer>
     <AuthModal />
   </div>

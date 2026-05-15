@@ -1,5 +1,6 @@
 ---
 import CustomPageApp from '../components/kychon/CustomPageApp';
+import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Page">
@@ -7,4 +8,5 @@ import Portal from '../layouts/Portal.astro';
     <CustomPageApp client:load />
   </div>
   <div id="sections" class="mt-8" data-sortable-group="page-sections" data-zone="main"></div>
+  <AdminZoneAddButton zone="main" />
 </Portal>
