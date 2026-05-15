@@ -13,6 +13,7 @@ import {
 } from '@/components/kychon/MarketingBlocksView';
 import { renderSlideshowBlockHtml, type SlideshowRenderItem } from '@/components/kychon/SlideshowBlockView';
 import { renderEventsCalendarShellHtml } from '@/components/kychon/EventsCalendarBlockView';
+import { renderNavBlockHtml, type NavBlockItem, type NavBlockStyle } from '@/components/kychon/NavBlockView';
 import {
   renderImageAccordionBlockHtml,
   type ImageAccordionRenderPanel,
@@ -240,16 +241,6 @@ export function safeCssUrl(value: any, maxLength = 2048): string {
   if (/[\r\n\t\x00-\x1f]/.test(s)) return '';
   if (!/^(https?:\/\/[^\s]+|\/[^\s]*|\.[./][^\s]*)$/i.test(s)) return '';
   return s.replace(/[()'"\\;*<>]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
-}
-
-function cssVar(name: string, value: any): string {
-  const safe = safeCssValue(value);
-  return safe ? `${name}:${safe};` : '';
-}
-
-function styleAttr(vars: string[]): string {
-  const style = vars.filter(Boolean).join('');
-  return style ? ` style="${escAttr(style)}"` : '';
 }
 
 export function sanitizeSvgPathData(path: any): string {
@@ -942,96 +933,87 @@ function navMenuId(item: NavItem, path: string): string {
   return `nav-menu-${slug}-${path}`;
 }
 
-function renderNavChildren(children: NavItem[], ctx: BlockRenderContext, parentPath: string, depth: number): string {
-  const visible = children.filter((c) => navItemVisible(c, ctx));
-  if (visible.length === 0) return '';
-  const items = visible
-    .map((child, i) => renderNavChild(child, ctx, `${parentPath}-${i}`, depth))
-    .join('');
-  return items;
-}
-
-function renderNavChild(item: NavItem, ctx: BlockRenderContext, path: string, depth: number): string {
+function navBlockItem(item: NavItem, ctx: BlockRenderContext, path: string, topLevel: boolean): NavBlockItem {
   const hasKids = Array.isArray(item.children) && item.children.length > 0
     && item.children.some((c) => navItemVisible(c, ctx));
-  const href = cleanHref(item.href, '#');
-  const active = navItemActive(item, ctx) ? ' active' : '';
-  if (!hasKids) {
-    return `<li role="none"><a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a></li>`;
-  }
-  const menuId = navMenuId(item, path);
-  const childrenHtml = renderNavChildren(item.children!, ctx, path, depth + 1);
-  const linkPart = item.href
-    ? `<a role="menuitem" class="nav-menuitem${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`
-    : `<span class="nav-menuitem nav-menuitem-parent">${escHtml(item.label)}</span>`;
-  return `<li role="none" class="nav-dropdown-parent">${linkPart}<button class="nav-chevron-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}" aria-label="Open ${escAttr(item.label)} submenu"><span class="nav-chevron" aria-hidden="true">▾</span></button><ul class="nav-dropdown nav-dropdown-nested" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></li>`;
+  const children = hasKids
+    ? item.children!.filter((child) => navItemVisible(child, ctx)).map((child, index) => navBlockItem(child, ctx, `${path}-${index}`, false))
+    : [];
+
+  return {
+    active: navItemActive(item, ctx),
+    children,
+    hasHref: !!item.href,
+    href: cleanHref(item.href, topLevel ? '' : '#'),
+    label: item.label,
+    menuId: children.length ? navMenuId(item, path) : undefined,
+  };
 }
 
-function renderNavTopItem(item: NavItem, ctx: BlockRenderContext, idx: number): string {
-  const hasKids = Array.isArray(item.children) && item.children.length > 0
-    && item.children.some((c) => navItemVisible(c, ctx));
-  const href = cleanHref(item.href, '');
-  const active = navItemActive(item, ctx) ? ' active' : '';
-  if (!hasKids) {
-    return `<a class="nav-link${active}" href="${escAttr(href)}">${escHtml(item.label)}</a>`;
-  }
-  const menuId = navMenuId(item, `top-${idx}`);
-  const childrenHtml = renderNavChildren(item.children!, ctx, `top-${idx}`, 1);
-  const trigger = item.href
-    ? `<a class="nav-link nav-parent${active}" href="${escAttr(href)}">${escHtml(item.label)}</a><button class="nav-chevron-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}" aria-label="Open ${escAttr(item.label)} submenu"><span class="nav-chevron" aria-hidden="true">▾</span></button>`
-    : `<button class="nav-link nav-parent nav-parent-button${active}" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}">${escHtml(item.label)}<span class="nav-chevron" aria-hidden="true">▾</span></button>`;
-  return `<div class="nav-item-wrap">${trigger}<ul class="nav-dropdown" role="menu" id="${menuId}" hidden>${childrenHtml}</ul></div>`;
+function setNavStyle(style: NavBlockStyle, name: `--${string}`, value: unknown): void {
+  const safe = safeCssValue(value);
+  if (safe) style[name] = safe;
 }
 
-function renderNavPresentationAttrs(cfg: NavConfig): string {
+function renderNavPresentationProps(cfg: NavConfig): {
+  desktopOpen?: string;
+  mobileBreakpoint?: number | null;
+  mobileClosedLayout?: string;
+  mobileOpenLayout?: string;
+  presentationStyle?: NavBlockStyle;
+  useFullRow?: boolean;
+} {
   const p = cfg.presentation || {};
   const b = cfg.behavior || {};
   const i = cfg.interactions || {};
   const hover = i.hover || {};
   const focus = i.focus || {};
-  const style = styleAttr([
-    cssVar('--nav-link-color', p.link_color),
-    cssVar('--nav-link-hover-bg', p.link_hover_bg || hover.background),
-    cssVar('--nav-link-hover-color', p.link_hover_color || hover.text),
-    cssVar('--nav-link-active-bg', p.link_active_bg),
-    cssVar('--nav-link-active-color', p.link_active_color),
-    cssVar('--nav-link-padding', p.link_padding),
-    cssVar('--nav-link-radius', p.link_radius),
-    cssVar('--nav-link-gap', p.link_gap),
-    cssVar('--nav-link-font-family', p.font_family),
-    cssVar('--nav-link-font-size', p.font_size),
-    cssVar('--nav-link-font-weight', p.font_weight),
-    cssVar('--nav-links-bg', p.surface_bg),
-    cssVar('--nav-links-padding', p.surface_padding),
-    cssVar('--nav-links-radius', p.surface_radius),
-    cssVar('--nav-links-shadow', p.surface_shadow),
-    cssVar('--nav-links-wrap', p.wrap),
-    cssVar('--nav-dropdown-bg', p.dropdown_bg),
-    cssVar('--nav-dropdown-color', p.dropdown_color),
-    cssVar('--nav-dropdown-hover-bg', p.dropdown_hover_bg || hover.background),
-    cssVar('--nav-dropdown-hover-color', p.dropdown_hover_color || hover.text),
-    cssVar('--nav-dropdown-border', p.dropdown_border),
-    cssVar('--nav-dropdown-shadow', p.dropdown_shadow),
-    cssVar('--nav-dropdown-width', p.dropdown_width),
-    cssVar('--nav-dropdown-offset-x', p.dropdown_offset_x),
-    cssVar('--nav-dropdown-offset-y', p.dropdown_offset_y),
-    cssVar('--nav-chevron-color', p.chevron_color || hover.icon),
-    cssVar('--nav-focus-color', focus.border || focus.text),
-    cssVar('--nav-transition', p.transition || hover.duration),
-    cssVar('--nav-mobile-menu-bg', p.mobile_menu_bg),
-    cssVar('--nav-mobile-menu-padding', p.mobile_menu_padding),
-  ]);
-  const attrs: string[] = [];
-  if (style) attrs.push(style);
-  if (p.full_row === true) attrs.push(' data-nav-full-row="true"');
+  const style = {} as NavBlockStyle;
+  setNavStyle(style, '--nav-link-color', p.link_color);
+  setNavStyle(style, '--nav-link-hover-bg', p.link_hover_bg || hover.background);
+  setNavStyle(style, '--nav-link-hover-color', p.link_hover_color || hover.text);
+  setNavStyle(style, '--nav-link-active-bg', p.link_active_bg);
+  setNavStyle(style, '--nav-link-active-color', p.link_active_color);
+  setNavStyle(style, '--nav-link-padding', p.link_padding);
+  setNavStyle(style, '--nav-link-radius', p.link_radius);
+  setNavStyle(style, '--nav-link-gap', p.link_gap);
+  setNavStyle(style, '--nav-link-font-family', p.font_family);
+  setNavStyle(style, '--nav-link-font-size', p.font_size);
+  setNavStyle(style, '--nav-link-font-weight', p.font_weight);
+  setNavStyle(style, '--nav-links-bg', p.surface_bg);
+  setNavStyle(style, '--nav-links-padding', p.surface_padding);
+  setNavStyle(style, '--nav-links-radius', p.surface_radius);
+  setNavStyle(style, '--nav-links-shadow', p.surface_shadow);
+  setNavStyle(style, '--nav-links-wrap', p.wrap);
+  setNavStyle(style, '--nav-dropdown-bg', p.dropdown_bg);
+  setNavStyle(style, '--nav-dropdown-color', p.dropdown_color);
+  setNavStyle(style, '--nav-dropdown-hover-bg', p.dropdown_hover_bg || hover.background);
+  setNavStyle(style, '--nav-dropdown-hover-color', p.dropdown_hover_color || hover.text);
+  setNavStyle(style, '--nav-dropdown-border', p.dropdown_border);
+  setNavStyle(style, '--nav-dropdown-shadow', p.dropdown_shadow);
+  setNavStyle(style, '--nav-dropdown-width', p.dropdown_width);
+  setNavStyle(style, '--nav-dropdown-offset-x', p.dropdown_offset_x);
+  setNavStyle(style, '--nav-dropdown-offset-y', p.dropdown_offset_y);
+  setNavStyle(style, '--nav-chevron-color', p.chevron_color || hover.icon);
+  setNavStyle(style, '--nav-focus-color', focus.border || focus.text);
+  setNavStyle(style, '--nav-transition', p.transition || hover.duration);
+  setNavStyle(style, '--nav-mobile-menu-bg', p.mobile_menu_bg);
+  setNavStyle(style, '--nav-mobile-menu-padding', p.mobile_menu_padding);
+
+  let mobileBreakpoint: number | null = null;
   if (b.mobile_breakpoint != null) {
     const n = Number(b.mobile_breakpoint);
-    if (Number.isFinite(n) && n > 0) attrs.push(` data-mobile-breakpoint="${Math.round(n)}"`);
+    if (Number.isFinite(n) && n > 0) mobileBreakpoint = Math.round(n);
   }
-  if (b.mobile_closed_layout) attrs.push(` data-mobile-closed-layout="${escAttr(b.mobile_closed_layout)}"`);
-  if (b.mobile_open_layout) attrs.push(` data-mobile-open-layout="${escAttr(b.mobile_open_layout)}"`);
-  if (b.desktop_open) attrs.push(` data-desktop-open="${escAttr(b.desktop_open)}"`);
-  return attrs.join('');
+
+  return {
+    desktopOpen: b.desktop_open,
+    mobileBreakpoint,
+    mobileClosedLayout: b.mobile_closed_layout,
+    mobileOpenLayout: b.mobile_open_layout,
+    presentationStyle: Object.keys(style).length ? style : undefined,
+    useFullRow: p.full_row === true,
+  };
 }
 
 const NAV: BlockType = {
@@ -1048,17 +1030,18 @@ const NAV: BlockType = {
   render(section, ctx) {
     const cfg: NavConfig = section.config || {};
     const items: NavItem[] = cfg.items || [];
-    const visible = items.filter((item) => navItemVisible(item, ctx));
-    const links = visible.map((item, i) => renderNavTopItem(item, ctx, i)).join('');
     const sid = section.id;
-    const editAttrs = sid != null && ctx.admin
-      ? ` data-block-id="${sid}" data-block-type="nav"`
-      : '';
     const adminEditBtn = sid != null && ctx.admin
       ? adminNavEditButtonHtml(sid)
       : '';
-    const presentationAttrs = renderNavPresentationAttrs(cfg);
-    return `<button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false">&#9776;</button><div class="nav-links" id="nav-links" data-block-nav${editAttrs}${presentationAttrs}>${links}</div>${adminEditBtn}`;
+    const navHtml = renderNavBlockHtml({
+      ...renderNavPresentationProps(cfg),
+      blockId: sid != null && ctx.admin ? sid : null,
+      items: items
+        .filter((item) => navItemVisible(item, ctx))
+        .map((item, index) => navBlockItem(item, ctx, `top-${index}`, true)),
+    });
+    return `${navHtml}${adminEditBtn}`;
   },
 };
 
