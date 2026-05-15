@@ -1,64 +1,31 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   eventTimezonePayload,
+  registrationAvailabilityLabel,
   registrationOptionPayload,
-  renderRegistrationOptions,
+  registrationPriceLabel,
   visibleRegistrationOptions,
 } from '../../src/lib/event-registration';
 
+const EVENT_REGISTRATION_SOURCE = resolve(process.cwd(), 'src/lib/event-registration.ts');
+
 describe('event registration options', () => {
-  it('renders multi-option registration details and safe source links', () => {
-    const html = renderRegistrationOptions([
-      {
-        id: 1,
-        label: 'Member registration',
-        position: 2,
-        raw_price_label: '$25.00',
-        availability_status: 'available',
-        spaces_left: 8,
-        guest_policy: 'Guests allowed',
-        cancellation_note: 'Cancel by Friday',
-        source_registration_url: 'https://club.example/register',
-      },
-      {
-        id: 2,
-        label: 'Waitlist',
-        position: 1,
-        raw_price_label: 'Free',
-        availability_status: 'waitlist',
-      },
-    ]);
-
-    expect(html.indexOf('Waitlist')).toBeLessThan(html.indexOf('Member registration'));
-    expect(html).toContain('$25.00');
-    expect(html).toContain('8 spaces left');
-    expect(html).toContain('Guests allowed');
-    expect(html).toContain('Cancel by Friday');
-    expect(html).toContain('href="https://club.example/register"');
-    expect(html).toContain('target="_blank" rel="noopener noreferrer"');
-  });
-
   it('preserves raw price labels when amount normalization is incomplete', () => {
-    const html = renderRegistrationOptions([
-      {
+    expect(
+      registrationPriceLabel({
         label: 'Depends on selected options',
         raw_price_label: 'Registration (depends on selected options)',
         availability_status: 'unknown',
-      },
-    ]);
-
-    expect(html).toContain('Registration (depends on selected options)');
-  });
-
-  it('renders no registration panel when an event has no options', () => {
-    expect(renderRegistrationOptions([])).toBe('');
+      }),
+    ).toBe('Registration (depends on selected options)');
   });
 
   it('does not present closed options as freely available', () => {
-    const html = renderRegistrationOptions([{ label: 'Late registration', availability_status: 'closed' }]);
-
-    expect(html).toContain('Registration closed');
-    expect(html).not.toContain('spaces left');
+    expect(registrationAvailabilityLabel({ label: 'Late registration', availability_status: 'closed' })).toBe(
+      'Registration closed',
+    );
   });
 
   it('hides disabled or ignored imported options', () => {
@@ -69,6 +36,15 @@ describe('event registration options', () => {
     ]);
 
     expect(options.map((o) => o.label)).toEqual(['Visible']);
+  });
+
+  it('sorts visible registration options by position', () => {
+    const options = visibleRegistrationOptions([
+      { label: 'Second', position: 2, availability_status: 'available' },
+      { label: 'First', position: 1, availability_status: 'available' },
+    ]);
+
+    expect(options.map((o) => o.label)).toEqual(['First', 'Second']);
   });
 
   it('builds admin payloads for registration edits', () => {
@@ -111,5 +87,15 @@ describe('event registration options', () => {
       time_display_mode: 'source',
       import_review_state: 'reviewed',
     });
+  });
+
+  it('keeps rendering in the event detail shadcn island, not legacy HTML helpers', async () => {
+    const source = await readFile(EVENT_REGISTRATION_SOURCE, 'utf8');
+
+    expect(source).not.toContain('renderRegistrationOptions');
+    expect(source).not.toContain('safeExternalLinkAttrs');
+    expect(source).not.toContain('class="btn');
+    expect(source).not.toContain('class="card');
+    expect(source).not.toContain('ky-text-muted');
   });
 });

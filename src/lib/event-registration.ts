@@ -21,19 +21,6 @@ export interface EventRegistrationOption {
   raw_source_metadata?: unknown;
 }
 
-function escHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function escAttr(value: unknown): string {
-  return escHtml(value);
-}
-
 export function isVisibleRegistrationOption(option: EventRegistrationOption): boolean {
   return option.is_disabled !== true && option.review_state !== 'ignored';
 }
@@ -72,11 +59,6 @@ export function registrationAvailabilityLabel(option: EventRegistrationOption): 
   return '';
 }
 
-export function safeExternalLinkAttrs(url: string | null | undefined): string {
-  if (!url || !/^https?:\/\//i.test(url)) return '';
-  return ' target="_blank" rel="noopener noreferrer"';
-}
-
 export function registrationOptionPayload(input: Partial<EventRegistrationOption>): Partial<EventRegistrationOption> {
   return {
     position: Number(input.position ?? 0) || 0,
@@ -108,46 +90,4 @@ export function eventTimezonePayload(input: {
     time_display_mode: input.time_display_mode === 'source' ? 'source' : 'visitor',
     import_review_state: input.import_review_state ? String(input.import_review_state).trim() : null,
   };
-}
-
-export function renderRegistrationOptions(
-  options: EventRegistrationOption[] | null | undefined,
-  opts: { heading?: string; showReviewState?: boolean } = {},
-): string {
-  const visible = visibleRegistrationOptions(options);
-  if (!visible.length) return '';
-  const heading = opts.heading || 'Registration';
-  const cards = visible.map((option) => {
-    const price = registrationPriceLabel(option);
-    const availability = registrationAvailabilityLabel(option);
-    const statusClass = option.availability_status ? ` event-registration__status--${escAttr(option.availability_status)}` : '';
-    const cta = option.source_registration_url
-      ? `<a class="btn btn-primary btn-sm event-registration__cta" href="${escAttr(option.source_registration_url)}"${safeExternalLinkAttrs(option.source_registration_url)}>Register</a>`
-      : '';
-    const review = opts.showReviewState && option.review_state
-      ? `<span class="badge badge-secondary">${escHtml(option.review_state)}</span>`
-      : '';
-    return `
-      <article class="event-registration__option" data-registration-option-id="${escAttr(option.id ?? '')}">
-        <div class="event-registration__option-head">
-          <h4>${escHtml(option.label)}</h4>
-          <div class="event-registration__badges">
-            ${price ? `<span class="badge badge-primary">${escHtml(price)}</span>` : ''}
-            ${availability ? `<span class="badge badge-warning${statusClass}">${escHtml(availability)}</span>` : ''}
-            ${review}
-          </div>
-        </div>
-        ${option.description ? `<p class="text-sm">${escHtml(option.description)}</p>` : ''}
-        ${option.guest_policy ? `<p class="text-sm ky-text-muted">${escHtml(option.guest_policy)}</p>` : ''}
-        ${option.cancellation_note ? `<p class="text-sm ky-text-muted">${escHtml(option.cancellation_note)}</p>` : ''}
-        ${cta}
-      </article>
-    `;
-  }).join('');
-  return `
-    <section class="card event-registration mt-2">
-      <h3 class="mb-1">${escHtml(heading)}</h3>
-      <div class="event-registration__options">${cards}</div>
-    </section>
-  `;
 }
