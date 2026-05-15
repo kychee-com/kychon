@@ -160,6 +160,17 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain("document.createElement('input')");
   });
 
+  it('uses structured parsing for rich text editing instead of HTML assignment sinks', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+
+    expect(editor).toContain('serializeRichTextChildren');
+    expect(editor).toContain('replaceRichTextChildren');
+    expect(editor).toContain('new DOMParser()');
+    expect(editor).not.toContain('htmlEl.innerHTML');
+    expect(editor).not.toContain('innerHTML =');
+    expect(editor).not.toContain('insertAdjacentHTML');
+  });
+
   it('renders admin actions with shared variant classes instead of legacy primitives', () => {
     const html = [
       renderBlock(section('custom', { html: '<p>Custom</p>' }), adminCtx),
