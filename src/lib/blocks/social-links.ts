@@ -1,3 +1,9 @@
+import {
+  adminScopePillHtml,
+  adminScopeToggleHtml,
+  adminSectionEditButtonHtml,
+  adminSectionRemoveButtonHtml,
+} from '../admin-action-controls.js';
 import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
 import { escAttr, escHtml, safeCssValue } from '../blocks.js';
 
@@ -117,14 +123,14 @@ function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
   const sid = section.id;
   const isGlobal = section.scope === 'global';
-  const pill = isGlobal ? `<span class="admin-scope-pill">Global</span>` : '';
+  const pill = isGlobal ? adminScopePillHtml() : '';
   const toggleLabel = isGlobal ? 'Make page-only' : 'Make global';
   const toggleNext = isGlobal ? 'page' : 'global';
   return (
     `<div class="admin-section-actions">${pill}` +
-    `<button class="admin-section-edit-btn" data-section-edit="${sid}" title="Edit block">⚙</button>` +
-    `<button class="admin-scope-toggle" data-scope-toggle="${sid}" data-scope-next="${toggleNext}" title="${toggleLabel}">${toggleLabel}</button>` +
-    `<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button>` +
+    adminSectionEditButtonHtml(sid) +
+    adminScopeToggleHtml(sid, toggleNext, toggleLabel) +
+    adminSectionRemoveButtonHtml(sid) +
     `</div>`
   );
 }

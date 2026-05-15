@@ -5,8 +5,14 @@
 // when the provider is unknown, `buildSrc` throws, or the generic `iframe`
 // provider is used without `trust_acknowledged: true`.
 
-import type { BlockType, Section, BlockRenderContext } from '../blocks.js';
-import { escHtml, escAttr } from '../blocks.js';
+import {
+  adminEmbedEditButtonHtml,
+  adminScopePillHtml,
+  adminScopeToggleHtml,
+  adminSectionRemoveButtonHtml,
+} from '../admin-action-controls.js';
+import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
+import { escAttr, escHtml } from '../blocks.js';
 import { getProvider, type EmbedProvider } from './embed-providers.js';
 
 interface EmbedConfig {
@@ -44,14 +50,14 @@ function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
   const sid = section.id;
   const isGlobal = section.scope === 'global';
-  const pill = isGlobal ? `<span class="admin-scope-pill">Global</span>` : '';
+  const pill = isGlobal ? adminScopePillHtml() : '';
   const toggleLabel = isGlobal ? 'Make page-only' : 'Make global';
   const toggleNext = isGlobal ? 'page' : 'global';
   return (
     `<div class="admin-section-actions">${pill}` +
-    `<button class="admin-section-btn" data-embed-edit="${sid}" title="Edit embed">&#9998;</button>` +
-    `<button class="admin-scope-toggle" data-scope-toggle="${sid}" data-scope-next="${toggleNext}" title="${toggleLabel}">${toggleLabel}</button>` +
-    `<button class="admin-section-btn danger" data-section-remove="${sid}" title="Remove section">&times;</button>` +
+    adminEmbedEditButtonHtml(sid) +
+    adminScopeToggleHtml(sid, toggleNext, toggleLabel) +
+    adminSectionRemoveButtonHtml(sid) +
     `</div>`
   );
 }
