@@ -1656,14 +1656,12 @@ const EVENTS_CALENDAR: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const view = (cfg.view as string) || 'month';
-    const density = (cfg.density as string) || 'light';
     const inner = renderEventsCalendarShellHtml({
       configJson: JSON.stringify(cfg),
       editableHeadingPath: editablePath(section, 'heading', ctx),
       heading: cfg.heading ? String(cfg.heading) : '',
     });
-    const cls = `section section-events-calendar block-events-calendar block-events-calendar--view-${escAttr(view)} block-events-calendar--density-${escAttr(density)}`;
+    const cls = 'section section-events-calendar';
     return adminWrap(section, ctx, inner, cls);
   },
   async hydrate(el, section, ctx) {
