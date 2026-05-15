@@ -663,43 +663,7 @@ mark {
 
 /* Inline editing (admin) — see admin-editing.css for full styles */
 
-/* Auth */
-.auth-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-.auth-panel {
-  background: var(--color-bg);
-  border-radius: var(--radius);
-  padding: 2rem;
-  width: 100%;
-  max-width: 24rem;
-  box-shadow: var(--shadow-lg);
-}
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 1.25rem 0;
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
-}
-.auth-divider::before,
-.auth-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--color-border);
-}
 /* Table */
-.table-wrap {
-  overflow-x: auto;
-}
 table {
   width: 100%;
   border-collapse: collapse;
