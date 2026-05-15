@@ -23,6 +23,7 @@ export interface EventsCalendarShellProps {
 
 export type EventsCalendarViewMode = 'month' | 'week' | 'agenda';
 export type EventsCalendarFilter = 'all' | 'members' | 'open' | 'my_rsvps' | 'past';
+export type EventsCalendarDensity = 'glance' | 'light' | 'rich';
 
 export interface EventsCalendarControlsLabels {
   agenda: string;
@@ -60,6 +61,23 @@ export interface EventsCalendarPeekAvatar {
 export interface EventsCalendarPeekCapacity {
   label: string;
   tone: 'filling' | 'sold';
+}
+
+export interface EventsCalendarChipProps {
+  avatarOverflow: number;
+  avatars: EventsCalendarPeekAvatar[];
+  capacity: EventsCalendarPeekCapacity | null;
+  day: string;
+  density: EventsCalendarDensity;
+  href: string;
+  id: number;
+  isLive: boolean;
+  isMembersOnly: boolean;
+  liveNowLabel: string;
+  membersOnlyLabel: string;
+  thumbUrl?: string | null;
+  time: string;
+  title: string;
 }
 
 export interface EventsCalendarPeekItem {
@@ -225,6 +243,76 @@ function EventsCalendarAvatarStack({
   );
 }
 
+function EventsCalendarChip({
+  avatarOverflow,
+  avatars,
+  capacity,
+  day,
+  density,
+  href,
+  id,
+  isLive,
+  isMembersOnly,
+  liveNowLabel,
+  membersOnlyLabel,
+  thumbUrl,
+  time,
+  title,
+}: EventsCalendarChipProps) {
+  if (density === 'glance') {
+    return (
+      <a
+        aria-label={`${time} ${title}`.trim()}
+        className={cn('block h-2 rounded-full border hover:no-underline', isLive ? 'border-primary bg-primary' : 'border-primary/40 bg-primary/60')}
+        data-day={day}
+        data-event-id={id}
+        data-events-calendar-chip
+        draggable
+        href={href}
+      >
+        <span className="sr-only">{`${time} ${title}`.trim()}</span>
+      </a>
+    );
+  }
+
+  return (
+    <a
+      className={cn(
+        'flex min-w-0 items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground hover:no-underline',
+        density === 'rich' ? 'min-h-10' : 'min-h-8',
+        isLive ? 'border-primary/50' : 'border-border',
+      )}
+      data-day={day}
+      data-event-id={id}
+      data-events-calendar-chip
+      draggable
+      href={href}
+    >
+      {thumbUrl ? (
+        <span
+          aria-hidden="true"
+          className="h-8 w-8 shrink-0 rounded bg-muted bg-cover bg-center"
+          style={{ backgroundImage: `url('${thumbUrl}')` }}
+        />
+      ) : null}
+      {isLive ? <span aria-label={liveNowLabel} className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" role="img" /> : null}
+      <span className="shrink-0 tabular-nums text-muted-foreground">{time}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
+      {isMembersOnly ? (
+        <Badge aria-label={membersOnlyLabel} className="shrink-0 px-1.5 py-0 text-[10px]" variant="outline">
+          {membersOnlyLabel}
+        </Badge>
+      ) : null}
+      {capacity ? (
+        <Badge className="shrink-0 px-1.5 py-0 text-[10px]" variant={capacity.tone === 'sold' ? 'destructive' : 'secondary'}>
+          {capacity.label}
+        </Badge>
+      ) : null}
+      {density === 'rich' ? <EventsCalendarAvatarStack overflow={avatarOverflow} people={avatars} /> : null}
+    </a>
+  );
+}
+
 function EventsCalendarPeekOverlay({
   addToCalendarLabel,
   closeLabel,
@@ -299,6 +387,10 @@ export function renderEventsCalendarShellHtml(props: EventsCalendarShellProps): 
 
 export function renderEventsCalendarControlsHtml(props: EventsCalendarControlsProps): string {
   return renderToStaticMarkup(<EventsCalendarControls {...props} />);
+}
+
+export function renderEventsCalendarChipHtml(props: EventsCalendarChipProps): string {
+  return renderToStaticMarkup(<EventsCalendarChip {...props} />);
 }
 
 export function renderEventsCalendarEmptyHtml(props: EventsCalendarEmptyProps): string {
