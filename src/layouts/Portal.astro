@@ -87,6 +87,7 @@ const cspValue = buildCspValue();
       <div class="ky-container" set:html={chrome.headerHtml}></div>
       <AdminZoneAddButton zone="header" />
     </nav>
+    <div data-fullbleed-host data-zone-fullbleed="header" transition:persist></div>
 
     <main class="page-content" id="main-content">
       <slot />
@@ -94,6 +95,7 @@ const cspValue = buildCspValue();
 
     <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
       <div class="ky-container" set:html={chrome.footerHtml}></div>
+      <div data-fullbleed-host></div>
       <AdminZoneAddButton zone="footer" />
     </footer>
     <AuthModal />

@@ -50,11 +50,13 @@ function mountPortalShell(): void {
     <nav id="zone-header" class="nav" data-zone="header">
       <div class="ky-container"></div>
     </nav>
+    <div data-fullbleed-host data-zone-fullbleed="header"></div>
     <main class="page-content" id="main-content">
       <div id="sections" data-zone="main"></div>
     </main>
     <footer id="zone-footer" class="footer" data-zone="footer">
       <div class="ky-container"></div>
+      <div data-fullbleed-host></div>
     </footer>
     <div id="auth-modal-root"></div>
   `;
