@@ -980,44 +980,8 @@ tr:hover td {
 /* ============================================================
  * Block-types catalog (block-types-catalog)
  * Static block-type styles that have not yet moved to the shadcn renderer:
- * page_banner, link_list, events_list, slideshow.
+ * link_list, events_list, slideshow.
  * ============================================================ */
-
-/* --- page_banner --- */
-.block-page-banner {
-  position: relative;
-  width: 100%;
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  overflow: hidden;
-}
-.block-page-banner--height-small { min-height: 200px; }
-.block-page-banner--height-medium { min-height: 320px; }
-.block-page-banner--height-large { min-height: 480px; }
-.block-page-banner--height-auto { min-height: 0; aspect-ratio: auto; }
-.block-page-banner__overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.block-page-banner__inner {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: var(--max-width);
-  padding: 2rem 1rem;
-  text-align: center;
-}
-.block-page-banner__caption {
-  font-size: 1.25rem;
-  font-weight: 600;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-}
-.block-page-banner__caption a { color: inherit; text-decoration: underline; }
 
 /* --- image_accordion --- */
 .section-image-accordion { padding: 2rem 0; }

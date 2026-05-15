@@ -7,6 +7,7 @@ import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
 import { buttonVariants } from '@/components/kychon/ui';
 import {
   renderMarketingBlockHtml,
+  renderPageBannerBlockHtml,
   renderPromoCardsBlockHtml,
   renderTaglineStripBlockHtml,
 } from '@/components/kychon/MarketingBlocksView';
@@ -1369,39 +1370,18 @@ const PAGE_BANNER: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const height = cfg.height || 'medium';
-    const heightCls = `block-page-banner--height-${escAttr(height)}`;
     const safeOverlay = cfg.overlay_color ? safeCssValue(cfg.overlay_color) : '';
-    const overlay = safeOverlay
-      ? `<div class="block-page-banner__overlay" style="background-color:${safeOverlay}"></div>`
-      : '';
     const safeImageUrl = cfg.image_url ? safeCssUrl(cfg.image_url) : '';
-    const bg = safeImageUrl
-      ? ` style="background-image:url('${safeImageUrl}')"`
-      : '';
     const safeCaption = sanitizeCaptionHtml(String(cfg.caption_html || ''));
-    const captionHtml = safeCaption
-      ? `<div class="block-page-banner__caption">${safeCaption}</div>`
-      : '';
-    const sid = section.id;
-    const sortable = sid != null
-      ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"`
-      : '';
-    const zoneAttr = ` data-section-zone="${section.zone}"`;
-    const scopeAttr = ` data-section-scope="${section.scope}"`;
-    const cfgAttr = sid != null && ctx.admin
-      ? ` data-editable-config="${jsonAttr(cfg)}"`
-      : '';
-    const imgAttr = sid != null && ctx.admin
-      ? ` data-editable-image="sections.${sid}.config.image_url"`
-      : '';
-    const adminCtrls = sid != null && ctx.admin
-      ? `<div class="admin-section-actions">${adminScopeControls(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
-      : '';
-    const ariaLabel = cfg.image_alt
-      ? ` aria-label="${escAttr(cfg.image_alt)}"`
-      : ' aria-hidden="true"';
-    return `<section class="block-page-banner ${heightCls}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}${imgAttr}${bg}${ariaLabel}>${adminCtrls}${overlay}<div class="block-page-banner__inner">${captionHtml}</div></section>`;
+    const inner = renderPageBannerBlockHtml(cfg, {
+      captionHtml: safeCaption,
+      imageEditablePath: ctx.admin && section.id != null
+        ? `sections.${section.id}.config.image_url`
+        : undefined,
+      imageUrl: safeImageUrl,
+      overlayColor: safeOverlay,
+    });
+    return adminWrap(section, ctx, inner, 'section w-full p-0');
   },
 };
 

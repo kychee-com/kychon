@@ -42,6 +42,18 @@ interface TaglineStripConfig {
   icon?: string;
 }
 
+interface PageBannerConfig {
+  image_alt?: string;
+  height?: string;
+}
+
+interface PageBannerRenderOptions {
+  captionHtml?: string;
+  imageEditablePath?: string;
+  imageUrl?: string;
+  overlayColor?: string;
+}
+
 interface FeatureItem {
   icon?: string;
   title?: string;
@@ -150,6 +162,14 @@ function taglineAlignmentClass(value: unknown): string {
   if (alignment === 'left') return 'justify-start text-left';
   if (alignment === 'right') return 'justify-end text-right';
   return 'justify-center text-center';
+}
+
+function pageBannerHeightClass(value: unknown): string {
+  const height = String(value || 'medium');
+  if (height === 'small') return 'min-h-[200px]';
+  if (height === 'large') return 'min-h-[480px]';
+  if (height === 'auto') return 'min-h-0';
+  return 'min-h-[320px]';
 }
 
 function FeatureIcon({ name }: { name: string }) {
@@ -425,6 +445,38 @@ function TaglineStripBlock({ config, options }: { config: TaglineStripConfig; op
   );
 }
 
+function PageBannerBlock({ config, options }: { config: PageBannerConfig; options: PageBannerRenderOptions }) {
+  const imageAlt = String(config.image_alt || '').trim();
+  const style = options.imageUrl ? { backgroundImage: `url(${options.imageUrl})` } : undefined;
+
+  return (
+    <div
+      aria-hidden={imageAlt ? undefined : 'true'}
+      aria-label={imageAlt || undefined}
+      className={cn(
+        'relative flex w-full items-center justify-center overflow-hidden bg-cover bg-center text-white',
+        pageBannerHeightClass(config.height),
+      )}
+      data-editable-image={options.imageEditablePath}
+      data-height={String(config.height || 'medium')}
+      data-page-banner=""
+      style={style}
+    >
+      {options.overlayColor && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundColor: options.overlayColor }}
+        />
+      )}
+      <div
+        className="relative z-10 w-full max-w-6xl px-4 py-8 text-center text-xl font-semibold tracking-normal drop-shadow [&_a]:text-inherit [&_a]:underline"
+        dangerouslySetInnerHTML={options.captionHtml ? { __html: options.captionHtml } : undefined}
+      />
+    </div>
+  );
+}
+
 function MarketingBlock({ kind, config, options }: { kind: MarketingBlockKind; config: Record<string, unknown>; options: MarketingRenderOptions }) {
   if (kind === 'features') return <FeaturesBlock config={config} options={options} />;
   if (kind === 'cta') return <CtaBlock config={config} options={options} />;
@@ -453,4 +505,11 @@ export function renderTaglineStripBlockHtml(
   options: MarketingRenderOptions = {},
 ): string {
   return renderToStaticMarkup(<TaglineStripBlock config={config || {}} options={options} />);
+}
+
+export function renderPageBannerBlockHtml(
+  config: PageBannerConfig,
+  options: PageBannerRenderOptions = {},
+): string {
+  return renderToStaticMarkup(<PageBannerBlock config={config || {}} options={options} />);
 }
