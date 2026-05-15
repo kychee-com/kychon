@@ -93,6 +93,7 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.auth-(?:modal|panel|divider)\b/);
     expect(styles).not.toMatch(/\.table-wrap\b/);
     expect(styles).not.toMatch(/\.sr-only\b/);
+    expect(styles).not.toContain('#page-content');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__controls');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__seg-btn');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__filter-chip');
