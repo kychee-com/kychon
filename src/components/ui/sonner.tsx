@@ -3,23 +3,25 @@
 import type * as React from 'react';
 import { Toaster as Sonner } from 'sonner';
 
+import { cn } from '@/lib/ui/cn';
+
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
-function Toaster({ closeButton = true, richColors = true, toastOptions, ...props }: ToasterProps) {
+function Toaster({ closeButton = true, richColors = true, toastOptions, className, ...props }: ToasterProps) {
+  const classNames = toastOptions?.classNames;
+
   return (
     <Sonner
       closeButton={closeButton}
       richColors={richColors}
-      className="toaster group"
+      className={className}
       toastOptions={{
         ...toastOptions,
         classNames: {
-          toast:
-            'group/ky-toast ky-toast group-[.toaster]:border-border group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:shadow-lg',
-          description: 'group-[.ky-toast]:text-muted-foreground',
-          actionButton: 'group-[.ky-toast]:bg-primary group-[.ky-toast]:text-primary-foreground',
-          cancelButton: 'group-[.ky-toast]:bg-muted group-[.ky-toast]:text-muted-foreground',
-          ...toastOptions?.classNames,
+          toast: cn('border-border bg-background text-foreground shadow-lg', classNames?.toast),
+          description: cn('text-muted-foreground', classNames?.description),
+          actionButton: cn('bg-primary text-primary-foreground', classNames?.actionButton),
+          cancelButton: cn('bg-muted text-muted-foreground', classNames?.cancelButton),
         },
       }}
       {...props}
