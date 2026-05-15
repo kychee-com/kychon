@@ -68,6 +68,8 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-nav-edit-btn');
       expect(source).not.toContain('admin-toast');
       expect(source).not.toContain('admin-section-actions');
+      expect(source).not.toContain('admin-save-success');
+      expect(source).not.toContain('admin-save-error');
       expect(source).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);

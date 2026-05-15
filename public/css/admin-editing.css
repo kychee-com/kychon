@@ -79,32 +79,7 @@
 }
 
 /* ═══════════════════════════════════════════════════
-   3. SAVE FEEDBACK — green pulse + error shake
-   ═══════════════════════════════════════════════════ */
-
-@keyframes admin-save-pulse {
-  0% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.6); }
-  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3); }
-  100% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0); }
-}
-
-@keyframes admin-save-error {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-4px); }
-  40%, 80% { transform: translateX(4px); }
-}
-
-.admin-save-success {
-  animation: admin-save-pulse 600ms ease-out;
-}
-
-.admin-save-error {
-  animation: admin-save-error 400ms ease;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.6) !important;
-}
-
-/* ═══════════════════════════════════════════════════
-   4. DRAG-TO-REORDER
+   3. DRAG-TO-REORDER
    ═══════════════════════════════════════════════════ */
 
 .admin [data-sortable-group] > [data-sortable-id] {
@@ -123,7 +98,7 @@
 }
 
 /* ═══════════════════════════════════════════════════
-   5. IMAGE UPLOAD PROGRESS
+   4. IMAGE UPLOAD PROGRESS
    ═══════════════════════════════════════════════════ */
 
 .admin [data-editable-image].uploading {
