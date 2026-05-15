@@ -123,7 +123,6 @@ const cspValue = buildCspValue();
           staggerIndex++;
           el.classList.add('section-visible');
           observer.unobserve(el);
-          if (el.classList.contains('section-stats')) animateStatCounters(el);
         });
         setTimeout(() => { staggerIndex = 0; }, 50);
       }, { threshold: 0.15 });
@@ -143,29 +142,6 @@ const cspValue = buildCspValue();
       setTimeout(() => {
         document.querySelectorAll('main .section:not(.section-visible)').forEach(el => el.classList.add('section-visible'));
       }, 2000);
-    }
-
-    function animateStatCounters(section: Element) {
-      section.querySelectorAll('.stat-value').forEach((el) => {
-        const text = el.textContent?.trim() || '';
-        const match = text.match(/^([^\d]*?)([\d,]+(?:\.\d+)?)(.*)$/);
-        if (!match) return;
-        const prefix = match[1], numStr = match[2].replace(/,/g, ''), suffix = match[3];
-        const target = parseFloat(numStr);
-        const isInteger = numStr.indexOf('.') === -1;
-        const duration = 1500, start = performance.now();
-        function frame(now: number) {
-          const t = Math.min((now - start) / duration, 1);
-          const eased = t >= 1 ? 1 : 1 - 2 ** (-10 * t);
-          const current = eased * target;
-          const formatted = isInteger
-            ? Math.round(current).toLocaleString()
-            : current.toFixed(numStr.split('.')[1].length).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-          el.textContent = prefix + formatted + suffix;
-          if (t < 1) requestAnimationFrame(frame);
-        }
-        requestAnimationFrame(frame);
-      });
     }
 
     initAnimations();
