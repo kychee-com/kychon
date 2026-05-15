@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
@@ -26,17 +28,20 @@ describe('page_banner block-type', () => {
 
   it('emits background-image on the section', () => {
     const html = renderBlock(bannerSection({ image_url: '/banner.jpg', image_alt: 'Banner' }), ctx);
-    expect(html).toContain("background-image:url('/banner.jpg')");
+    expect(html).toContain('data-page-banner=""');
+    expect(html).toContain('background-image:url(/banner.jpg)');
     expect(html).toContain('aria-label="Banner"');
+    expect(html).not.toContain('block-page-banner');
   });
 
   it.each([
-    ['small', 'block-page-banner--height-small'],
-    ['medium', 'block-page-banner--height-medium'],
-    ['large', 'block-page-banner--height-large'],
-    ['auto', 'block-page-banner--height-auto'],
-  ])('height=%s applies class %s', (height, cls) => {
+    ['small', 'min-h-[200px]'],
+    ['medium', 'min-h-[320px]'],
+    ['large', 'min-h-[480px]'],
+    ['auto', 'min-h-0'],
+  ])('height=%s applies utility class %s', (height, cls) => {
     const html = renderBlock(bannerSection({ image_url: '/x.jpg', image_alt: 'x', height }), ctx);
+    expect(html).toContain(`data-height="${height}"`);
     expect(html).toContain(cls);
   });
 
@@ -45,13 +50,14 @@ describe('page_banner block-type', () => {
       bannerSection({ image_url: '/x.jpg', image_alt: 'x', overlay_color: 'rgba(0,0,0,0.5)' }),
       ctx,
     );
-    expect(html).toContain('block-page-banner__overlay');
+    expect(html).toContain('pointer-events-none absolute inset-0');
     expect(html).toContain('rgba(0,0,0,0.5)');
+    expect(html).not.toContain('block-page-banner__overlay');
   });
 
   it('omits overlay when not set', () => {
     const html = renderBlock(bannerSection({ image_url: '/x.jpg', image_alt: 'x' }), ctx);
-    expect(html).not.toContain('block-page-banner__overlay');
+    expect(html).not.toContain('pointer-events-none absolute inset-0');
   });
 
   it('renders sanitized caption HTML', () => {
@@ -63,8 +69,16 @@ describe('page_banner block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('block-page-banner__caption');
     expect(html).toContain('Welcome <strong>home</strong>!');
+    expect(html).not.toContain('block-page-banner__caption');
+  });
+
+  it('keeps retired page banner classes out of source CSS and renderer', () => {
+    const styles = readFileSync('src/styles/public.css', 'utf8');
+    const blocks = readFileSync('src/lib/blocks.ts', 'utf8');
+
+    expect(styles).not.toContain('block-page-banner');
+    expect(blocks).not.toContain('block-page-banner');
   });
 });
 

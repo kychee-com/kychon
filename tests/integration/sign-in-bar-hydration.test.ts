@@ -265,6 +265,6 @@ describe('sign_in_bar hydration', () => {
     expect(host?.previousElementSibling).toBe(document.getElementById('zone-header'));
     expect(host?.getAttribute('data-zone-fullbleed')).toBe('header');
     expect(document.querySelector('.nav [data-fullbleed-host]')).toBeNull();
-    expect(host?.querySelector('.block-page-banner')).toBeTruthy();
+    expect(host?.querySelector('[data-page-banner]')).toBeTruthy();
   });
 });

@@ -29,7 +29,7 @@ const aboutBanner: Section = {
 describe('page_banner scoping', () => {
   it('renders the banner in the about-page header zone', () => {
     const html = renderZone([globalNav, aboutBanner], 'header', ctx);
-    expect(html).toContain('block-page-banner');
+    expect(html).toContain('data-page-banner');
     expect(html).toContain('/banner.jpg');
   });
 
@@ -38,7 +38,7 @@ describe('page_banner scoping', () => {
     // renderZone. This test pins that contract: renderZone renders whatever
     // sections it gets, regardless of slug. We rely on the per-page query.
     const html = renderZone([globalNav], 'header', ctx);
-    expect(html).not.toContain('block-page-banner');
+    expect(html).not.toContain('data-page-banner');
   });
 
   it('filters fetched sections to the active page before rendering', () => {
