@@ -7,7 +7,7 @@
 <div id="admin-editor-controls-root" transition:persist></div>
 
 <script>
-  import { patch, get } from '../lib/api';
+  import { del, get, patch } from '../lib/api';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
@@ -690,7 +690,6 @@
         if (!id) return;
         if (!confirm('Remove this section?')) return;
         try {
-          const { del } = await import('../lib/api');
           await del(`sections?id=eq.${id}`);
           Object.keys(localStorage)
             .filter((k) => k.startsWith('wl_cache_sections_'))

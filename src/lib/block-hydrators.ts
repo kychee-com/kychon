@@ -3,8 +3,10 @@
 // (Astro frontmatter runs in Node and shouldn't pull in localStorage/auth).
 
 import type { Section, BlockRenderContext } from './blocks.js';
+import { del, get, patch, post, searchSite } from './api.js';
+import { getSession } from './auth.js';
 import { escAttr, escHtml, safeCssUrl } from './blocks.js';
-import { siteConfig } from './config.js';
+import { isFeatureEnabled, siteConfig, translateItems } from './config.js';
 import { formatEventDateTime } from './event-display.js';
 import { sanitizeRichHtml } from './sanitize-html.js';
 
@@ -47,12 +49,7 @@ export async function hydrateAnnouncementsFeed(
   section: Section,
   ctx: BlockRenderContext,
 ): Promise<void> {
-  const [{ get, patch, post, del }, { getSession }, { translateItems, isFeatureEnabled }, pollUI] = await Promise.all([
-    import('./api.js'),
-    import('./auth.js'),
-    import('./config.js'),
-    import('./poll-ui.js'),
-  ]);
+  const pollUI = await import('./poll-ui.js');
   const { fetchAttachedPoll, bindPollVoteListeners, createPollForm } = pollUI;
 
   const root = el.querySelector('[data-block-hydrate="announcements_feed"]') as HTMLElement | null;
@@ -200,7 +197,6 @@ export async function hydrateActivityFeed(
   const feed = root.querySelector('#activity-feed') as HTMLElement | null;
   if (!feed) return;
 
-  const [{ get }, { getSession }] = await Promise.all([import('./api.js'), import('./auth.js')]);
   const cfg = section.config || {};
   const limit = cfg.limit || 15;
   const session = getSession();
@@ -265,7 +261,6 @@ export async function hydrateSiteSearch(
     : 'all';
   typeInputEl.value = defaultType;
 
-  const { searchSite } = await import('./api.js');
   let timer: number | undefined;
   let requestSeq = 0;
   let activeIndex = -1;
@@ -398,7 +393,6 @@ export async function hydrateLinkListResources(
         ? 'created_at.asc'
         : 'created_at.desc';
 
-  const { get } = await import('./api.js');
   let items: any[] = [];
   try {
     const params: string[] = [];
@@ -500,7 +494,6 @@ export async function hydrateEventsList(
     query = `events?starts_at=gte.${nowIso}&order=starts_at.asc&limit=${count}`;
   }
 
-  const { get } = await import('./api.js');
   let events: any[] = [];
   try {
     events = await get(query);
@@ -569,12 +562,7 @@ export async function hydrateSignInBar(
 ): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="sign_in_bar"]') as HTMLElement | null;
   if (!root) return;
-  const [{ getSession }, i18n, { t }] = await Promise.all([
-    import('./auth.js'),
-    import('./i18n.js'),
-    import('./i18n.js'),
-  ]);
-  const { getAvailableLocales, getLocale, setLanguage } = i18n;
+  const { getAvailableLocales, getLocale, setLanguage, t } = await import('./i18n.js');
   const session = getSession();
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const locales = getAvailableLocales();
