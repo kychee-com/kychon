@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 const alias = {
@@ -5,6 +7,18 @@ const alias = {
   '../lib/': new URL('./src/lib/', import.meta.url).pathname,
   '../schemas/': new URL('./src/schemas/', import.meta.url).pathname,
 };
+
+const nodeLocalStorageFile = new URL('./tmp/vitest-node-localstorage', import.meta.url).pathname;
+
+if (
+  process.allowedNodeEnvironmentFlags?.has('--localstorage-file') &&
+  !process.env.NODE_OPTIONS?.includes('--localstorage-file')
+) {
+  mkdirSync(dirname(nodeLocalStorageFile), { recursive: true });
+  process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, `--localstorage-file=${nodeLocalStorageFile}`]
+    .filter(Boolean)
+    .join(' ');
+}
 
 export default defineConfig({
   resolve: {

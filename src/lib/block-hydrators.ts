@@ -562,67 +562,9 @@ export async function hydrateSignInBar(
 ): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="sign_in_bar"]') as HTMLElement | null;
   if (!root) return;
-  const { getAvailableLocales, getLocale, setLanguage, t } = await import('./i18n.js');
-  const session = getSession();
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const locales = getAvailableLocales();
-  const currentLocale = getLocale();
-  const showLangToggle = section.config.show_lang_toggle !== false;
-  const showThemeToggle = section.config.show_theme_toggle !== false;
-  const LANG_LABELS: Record<string, string> = {
-    en: 'EN',
-    es: 'ES',
-    pt: 'PT',
-    fr: 'FR',
-    de: 'DE',
-    zh: '中文',
-    ja: '日本語',
-    ko: '한국어',
-  };
-  const langBtn = showLangToggle && locales.length >= 2
-    ? `<button class="btn btn-sm btn-secondary nav-utility-button" id="lang-toggle" aria-label="Switch language">${LANG_LABELS[currentLocale] || currentLocale.toUpperCase()}</button>`
-    : '';
-  const themeBtn = showThemeToggle
-    ? `<button class="btn btn-sm btn-secondary nav-utility-button" id="theme-toggle" aria-label="Toggle dark mode">${isDark ? '☀️' : '🌙'}</button>`
-    : '';
-  if (!session) {
-    root.innerHTML = `${langBtn}${themeBtn}<button class="btn btn-primary btn-sm nav-sign-in" id="login-btn">${t('nav.sign_in')}</button>`;
-  } else {
-    const user = session.user || {};
-    const accountLabel = user.display_name || user.email || 'Account';
-    const avatar = user.avatar_url
-      ? `<img class="nav-avatar" src="${esc(user.avatar_url)}" alt="" width="32" height="32">`
-      : `<span class="nav-avatar nav-avatar-fallback">${(accountLabel[0] || '?').toUpperCase()}</span>`;
-    root.innerHTML = `${langBtn}${themeBtn}<details class="nav-account"><summary class="nav-avatar-button" aria-label="${esc(accountLabel)} account menu">${avatar}</summary><div class="nav-account-menu"><a href="/profile" class="nav-account-menu__item">${t('nav.profile')}</a><button class="nav-account-menu__item" type="button" id="logout-btn">${t('nav.sign_out')}</button></div></details>`;
-  }
-  document.getElementById('login-btn')?.addEventListener('click', (event) => {
-    const trigger = event.currentTarget as HTMLElement;
-    void import('./auth-modal-events.js').then(({ openAuthModal }) => {
-      openAuthModal({ trigger });
-    });
+  const { mountSignInBarIsland } = await import('@/components/kychon/SignInBarIsland');
+  mountSignInBarIsland(root, {
+    showLangToggle: section.config.show_lang_toggle !== false,
+    showThemeToggle: section.config.show_theme_toggle !== false,
   });
-  document.getElementById('logout-btn')?.addEventListener('click', () => {
-    localStorage.removeItem('wl_session');
-    window.location.href = '/';
-  });
-  if (showThemeToggle) {
-    document.getElementById('theme-toggle')?.addEventListener('click', () => {
-      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const next = dark ? 'light' : 'dark';
-      if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      else document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('wl_theme', next);
-      const btn = document.getElementById('theme-toggle');
-      if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
-    });
-  }
-  if (showLangToggle && locales.length >= 2) {
-    document.getElementById('lang-toggle')?.addEventListener('click', async () => {
-      const idx = locales.indexOf(currentLocale);
-      const next = locales[(idx + 1) % locales.length];
-      if (!next) return;
-      await setLanguage(next);
-      document.dispatchEvent(new CustomEvent('wl-locale-changed', { detail: { locale: next } }));
-    });
-  }
 }
