@@ -23,6 +23,7 @@ import {
   type ShapeDividerRenderLayer,
 } from '@/components/kychon/ShapeDividerBlockView';
 import {
+  adminDragHandleHtml,
   adminNavEditButtonHtml,
   adminScopePillHtml,
   adminScopeToggleHtml,
@@ -292,7 +293,8 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
   const adminCtrls = sid != null && ctx.admin
     ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
     : '';
-  return `<section class="${classes}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${adminCtrls}${inner}</section>`;
+  const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
+  return `<section class="${classes}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
 }
 
 function editableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
@@ -544,7 +546,8 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const adminCtrls = sid != null && ctx.admin
     ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
     : '';
-  return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${adminCtrls}${inner}</section>`;
+  const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
+  return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
 }
 
 function renderForegroundHero(section: Section, ctx: BlockRenderContext): string {
@@ -605,12 +608,13 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   const adminCtrls = sid != null && ctx.admin
     ? `<div class="admin-section-actions">${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}</div>`
     : '';
+  const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
 
   // Body order: picture first, then overlays/captions, then heading group.
   // For below_image, headingGroup falls below the picture in document order.
   const body = `${pictureMarkup}${logoMarkup}${captionMarkup}${headingGroup}`;
 
-  return `<section class="section section-hero hero-foreground" data-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${adminCtrls}${body}</section>`;
+  return `<section class="section section-hero hero-foreground" data-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${dragHandle}${adminCtrls}${body}</section>`;
 }
 
 const HERO: BlockType = {
@@ -1199,7 +1203,8 @@ const FOOTER_ADDRESS: BlockType = {
     const sid = section.id;
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
     const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
-    return `<div class="footer-block footer-address"${sortable}${cfgAttr}>${name}${lines}${phone}${email}${hours}</div>`;
+    const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
+    return `<div class="footer-block footer-address"${sortable}${cfgAttr}>${dragHandle}${name}${lines}${phone}${email}${hours}</div>`;
   },
 };
 
@@ -1232,7 +1237,8 @@ const FOOTER_LINKS: BlockType = {
     const sid = section.id;
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
     const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
-    return `<div class="footer-block footer-links"${sortable}${cfgAttr}>${cols}</div>`;
+    const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
+    return `<div class="footer-block footer-links"${sortable}${cfgAttr}>${dragHandle}${cols}</div>`;
   },
 };
 
@@ -1262,7 +1268,8 @@ const FOOTER_COPYRIGHT: BlockType = {
     const sid = section.id;
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
     const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
-    return `<div class="footer-block footer-copyright"${sortable}${cfgAttr}>&copy; ${year}${orgName ? ' ' + orgName : ''}${adminContact}</div>`;
+    const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
+    return `<div class="footer-block footer-copyright"${sortable}${cfgAttr}>${dragHandle}&copy; ${year}${orgName ? ' ' + orgName : ''}${adminContact}</div>`;
   },
 };
 
@@ -1299,7 +1306,8 @@ const FOOTER_ATTRIBUTION: BlockType = {
     const editText = ctx.admin && sid != null
       ? ` data-editable="sections.${sid}.config.text"`
       : '';
-    return `<div class="footer-block footer-attribution"${sortable}${cfgAttr}><p${editText}>${renderMarkdownLine(text)}</p></div>`;
+    const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
+    return `<div class="footer-block footer-attribution"${sortable}${cfgAttr}>${dragHandle}<p${editText}>${renderMarkdownLine(text)}</p></div>`;
   },
 };
 

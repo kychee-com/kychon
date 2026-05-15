@@ -1,4 +1,5 @@
 import {
+  adminDragHandleHtml,
   adminScopePillHtml,
   adminScopeToggleHtml,
   adminSectionEditButtonHtml,
@@ -150,6 +151,10 @@ function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
     adminSectionRemoveButtonHtml(sid) +
     `</div>`
   );
+}
+
+function buildAdminDragHandle(section: Section, ctx: BlockRenderContext): string {
+  return ctx.admin && section.id != null ? adminDragHandleHtml() : '';
 }
 
 function normalizeProviderToken(value: unknown): string {
@@ -311,10 +316,11 @@ export function renderSocialLinksBlock(
     cssVar('--social-link-justify', p.justify),
   ]);
   const adminControls = buildAdminControls(section, ctx);
+  const dragHandle = buildAdminDragHandle(section, ctx);
   const links = items.map(renderSocialAnchor).join('');
   const layoutAttr = ` data-social-links-zone="${escAttr(zone)}" data-social-links-layout="${escAttr(layout)}"`;
   const legacyAttr = options.legacyFooter ? ' data-legacy-footer-links' : '';
-  return `<section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
+  return `<section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${dragHandle}${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
 }
 
 const SOCIAL_LINKS: BlockType = {
