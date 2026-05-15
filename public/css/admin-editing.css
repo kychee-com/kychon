@@ -365,15 +365,6 @@ body.admin-dragging [data-zone]:hover {
   font-size: 0.875rem;
   animation: admin-toast-in 180ms ease;
 }
-.admin-promotion-tooltip .admin-tooltip-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--color-text-muted, #6b7280);
-  padding: 0 0.25rem;
-}
 
 /* ═══════════════════════════════════════════════════
    9. EMBED BLOCK

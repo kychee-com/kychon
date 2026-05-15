@@ -16,6 +16,11 @@
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
   const tooltipPrimaryButtonClass = buttonVariants({ size: 'sm' });
+  const tooltipCloseButtonClass = buttonVariants({
+    variant: 'ghost',
+    size: 'icon',
+    className: 'h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground',
+  });
   const zoneAddButtonClass = buttonVariants({
     variant: 'outline',
     size: 'sm',
@@ -345,7 +350,7 @@
     tip.innerHTML = `
       <span>This image looks like a wordmark (${dims.width}×${dims.height}). Move it to <code>brand_wordmark_url</code> instead?</span>
       <button class="${tooltipPrimaryButtonClass}" type="button" data-move-to-wordmark>Move to wordmark</button>
-      <button class="admin-tooltip-close" type="button" aria-label="Keep in icon slot">&times;</button>
+      <button class="${tooltipCloseButtonClass}" type="button" data-admin-tooltip-close aria-label="Keep in icon slot">&times;</button>
     `;
     document.body.appendChild(tip);
     const rect = htmlEl.getBoundingClientRect();
@@ -355,7 +360,7 @@
     tip.style.zIndex = '9999';
     const dismiss = () => tip.remove();
     setTimeout(dismiss, 12000);
-    tip.querySelector('.admin-tooltip-close')?.addEventListener('click', dismiss);
+    tip.querySelector('[data-admin-tooltip-close]')?.addEventListener('click', dismiss);
     tip.querySelector('[data-move-to-wordmark]')?.addEventListener('click', async () => {
       try {
         // Reroute: clear the icon slot, set the wordmark slot.
@@ -639,7 +644,7 @@
     tip.innerHTML = `
       <span>This now appears here only.</span>
       <button class="${tooltipPrimaryButtonClass}" type="button" data-make-global="${sectionId}">Make global</button>
-      <button class="admin-tooltip-close" type="button" aria-label="Dismiss">&times;</button>
+      <button class="${tooltipCloseButtonClass}" type="button" data-admin-tooltip-close aria-label="Dismiss">&times;</button>
     `;
     document.body.appendChild(tip);
     const rect = target.getBoundingClientRect();
@@ -648,7 +653,7 @@
     tip.style.left = `${Math.max(8, rect.left)}px`;
     const dismiss = () => tip.remove();
     setTimeout(dismiss, 5000);
-    tip.querySelector('.admin-tooltip-close')?.addEventListener('click', dismiss);
+    tip.querySelector('[data-admin-tooltip-close]')?.addEventListener('click', dismiss);
     tip.querySelector('[data-make-global]')?.addEventListener('click', async () => {
       try {
         await patch(`sections?id=eq.${sectionId}`, { scope: 'global' });
