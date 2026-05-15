@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Menu } from 'lucide-react';
 
 import { Button } from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
@@ -179,9 +180,9 @@ function NavBlock({
 
   return (
     <>
-      <button className="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false" type="button">
-        ☰
-      </button>
+      <Button className="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false" size="icon" type="button" variant="ghost">
+        <Menu aria-hidden="true" className="h-5 w-5" />
+      </Button>
       <div
         className="nav-links"
         id="nav-links"
@@ -198,6 +199,7 @@ function NavBlock({
           <NavTopItem item={item} index={index} key={`${item.label}-${item.href}-${index}`} />
         ))}
       </div>
+      <div className="nav-overflow-menu" hidden id="nav-links-overflow-menu" />
     </>
   );
 }

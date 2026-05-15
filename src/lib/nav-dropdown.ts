@@ -317,15 +317,7 @@ function getOverflowMenu(root: HTMLElement): HTMLElement | null {
   const container = root.parentElement;
   if (!container) return null;
   const id = overflowMenuId(root);
-  let menu = container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-  if (!menu) {
-    menu = document.createElement('div');
-    menu.id = id;
-    menu.className = 'nav-overflow-menu';
-    menu.setAttribute('hidden', '');
-    container.insertBefore(menu, root.nextSibling);
-  }
-  return menu;
+  return container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
 }
 
 function rewriteCloneIds(clone: HTMLElement, suffix: string): void {
@@ -381,7 +373,7 @@ function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
     clone.classList.remove('nav-overflow-item');
     clearCloneBindingFlags(clone);
     rewriteCloneIds(clone, `overflow-${index}`);
-    menu.appendChild(clone);
+    menu.append(clone);
   });
   if (wasOpen) menu.removeAttribute('hidden');
   bindChevronToggles(menu);

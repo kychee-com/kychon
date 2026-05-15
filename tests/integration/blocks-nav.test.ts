@@ -2,9 +2,14 @@
 // Verifies flat behavior, nested children, ARIA pattern, keyboard handlers,
 // and click-outside dismissal.
 
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, isPageActive, type Section } from '../../src/lib/blocks';
 import { bindNavDropdowns } from '../../src/lib/nav-dropdown';
+
+const NAV_VIEW = resolve(process.cwd(), 'src/components/kychon/NavBlockView.tsx');
+const NAV_DROPDOWN = resolve(process.cwd(), 'src/lib/nav-dropdown.ts');
 
 const baseCtx: BlockRenderContext = {
   admin: false,
@@ -68,6 +73,25 @@ describe('isPageActive — hash-aware active link detection', () => {
 });
 
 describe('nav block — flat behavior preserved', () => {
+  it('renders the mobile toggle and overflow host statically with shadcn primitives', async () => {
+    const section = makeSection([
+      { label: 'Home', href: '/', public: true },
+      { label: 'About', href: '/about', public: true },
+    ]);
+    const html = BLOCK_TYPES.nav.render(section, baseCtx);
+    const view = await readFile(NAV_VIEW, 'utf8');
+    const runtime = await readFile(NAV_DROPDOWN, 'utf8');
+
+    expect(html).toContain('id="nav-toggle"');
+    expect(html).toContain('lucide-menu');
+    expect(html).toContain('id="nav-links-overflow-menu"');
+    expect(view).toContain('<Button');
+    expect(view).toContain('Menu');
+    expect(runtime).not.toContain('document.createElement');
+    expect(runtime).not.toContain("className = 'nav-overflow-menu'");
+    expect(runtime).not.toContain('appendChild');
+  });
+
   it('renders flat items as plain anchors', () => {
     const section = makeSection([
       { label: 'Home', href: '/', public: true },
