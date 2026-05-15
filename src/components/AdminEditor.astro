@@ -32,17 +32,6 @@
     return session.access_token || '';
   }
 
-  // --- Admin CSS (loaded once) ---
-  let cssLoaded = false;
-  function loadAdminCSS() {
-    if (cssLoaded) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = '/css/admin-editing.css';
-    document.head.appendChild(link);
-    cssLoaded = true;
-  }
-
   // --- Toast notifications ---
   function showToast(message: string, type: 'success' | 'error' = 'success') {
     showKychonToast({ message, type });
@@ -786,7 +775,6 @@
     const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
     if (session?.user?.member?.role !== 'admin') return;
     document.body.classList.add('admin');
-    loadAdminCSS();
     void ensureAdminEditorControls();
     initEditableText();
     initEditableRich();
