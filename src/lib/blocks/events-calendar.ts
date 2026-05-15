@@ -550,7 +550,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   });
   ro.observe(root);
 
-  // Strip the skeleton class+content; build the shell.
+  // Strip the loading placeholder; build the shell.
   function shell(): string {
     return `
       ${state.peekDayKey ? '' /* peek rendered as overlay below */ : ''}
