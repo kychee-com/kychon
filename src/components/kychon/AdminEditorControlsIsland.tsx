@@ -64,7 +64,11 @@ interface SectionRow {
   id: number;
   section_type: string;
   config?: Record<string, any>;
+  page_slug?: string;
+  position?: number;
   scope?: string;
+  visible?: boolean;
+  zone?: Zone;
   column_span?: string | null;
 }
 
@@ -307,34 +311,6 @@ function clearSectionCaches() {
     .forEach((key) => localStorage.removeItem(key));
 }
 
-function mirrorRenderedSpan(sectionId: number, span: string) {
-  const blockEl = document.querySelector(`[data-sortable-id="sections.${sectionId}"]`) as HTMLElement | null;
-  if (blockEl) blockEl.setAttribute('data-column-span', span);
-}
-
-function mirrorRenderedScope(sectionId: number, next: 'page' | 'global') {
-  const flipped = next === 'global' ? 'page' : 'global';
-  const inlineToggle = document.querySelector(`[data-scope-toggle="${sectionId}"]`) as HTMLElement | null;
-  if (!inlineToggle) return;
-
-  inlineToggle.dataset.scopeNext = flipped;
-  inlineToggle.textContent = flipped === 'global' ? 'Make global' : 'Make page-only';
-  inlineToggle.title = inlineToggle.textContent;
-
-  const sectionEl = inlineToggle.closest('[data-sortable-id]') as HTMLElement | null;
-  if (!sectionEl) return;
-  sectionEl.setAttribute('data-section-scope', next);
-  const existingPill = sectionEl.querySelector('.admin-section-actions .admin-scope-pill');
-  if (next === 'global' && !existingPill) {
-    const pill = document.createElement('span');
-    pill.className = 'admin-scope-pill';
-    pill.textContent = 'Global';
-    inlineToggle.before(pill);
-  } else if (next === 'page' && existingPill) {
-    existingPill.remove();
-  }
-}
-
 function isZone(value: unknown): value is Zone {
   return value === 'header' || value === 'main' || value === 'footer';
 }
@@ -347,6 +323,15 @@ function cloneConfig(config: Record<string, any>): Record<string, any> {
 function emitSectionsChanged(): void {
   document.dispatchEvent(new CustomEvent(SECTIONS_CHANGED_EVENT));
   document.dispatchEvent(new CustomEvent(CONTENT_RENDERED_EVENT));
+}
+
+function sectionAppliesToCurrentPage(section: SectionRow, slug: string): boolean {
+  return section.scope === 'global' || section.page_slug === '*' || section.page_slug === slug;
+}
+
+async function nextSectionPosition(zone: Zone, slug: string): Promise<number> {
+  const rows = (await get('sections?visible=eq.true&order=zone.asc,position.asc')) as SectionRow[];
+  return rows.filter((section) => section.zone === zone && section.visible !== false && sectionAppliesToCurrentPage(section, slug)).length + 1;
 }
 
 function cloneNavItems(items: unknown): NavItem[] {
@@ -846,7 +831,6 @@ function AdminEditorControls() {
     try {
       await patch(`sections?id=eq.${sectionId}`, { column_span: span });
       clearSectionCaches();
-      mirrorRenderedSpan(sectionId, span);
       setRow({ ...row, column_span: span });
       showToast({ type: 'success', message: 'Width saved' });
       emitSectionsChanged();
@@ -867,7 +851,6 @@ function AdminEditorControls() {
     try {
       await patch(`sections?id=eq.${sectionId}`, { scope: nextScope });
       clearSectionCaches();
-      mirrorRenderedScope(sectionId, nextScope);
       setRow({ ...row, scope: nextScope });
       showToast({
         type: 'success',
@@ -891,7 +874,6 @@ function AdminEditorControls() {
     try {
       await del(`sections?id=eq.${sectionId}`);
       clearSectionCaches();
-      document.querySelector(`[data-sortable-id="sections.${sectionId}"]`)?.remove();
       showToast({ type: 'success', message: 'Block removed' });
       setOpen(false);
       emitSectionsChanged();
@@ -951,17 +933,15 @@ function AdminEditorControls() {
       scope = 'page';
     }
 
-    const zoneEl = document.querySelector(`[data-zone="${addZone}"]`) as HTMLElement | null;
-    const existingCount = zoneEl?.querySelectorAll('[data-sortable-id]').length || 0;
-
     try {
+      const position = await nextSectionPosition(addZone, currentSlugFromPath);
       await post('sections', {
         page_slug: pageSlug,
         zone: addZone,
         scope,
         section_type: type,
         config: cloneConfig(def.defaultConfig),
-        position: existingCount + 1,
+        position,
         visible: true,
       });
       clearSectionCaches();
