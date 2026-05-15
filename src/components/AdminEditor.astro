@@ -17,7 +17,16 @@
 <script>
   import { del, get, patch } from '../lib/api';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
-  import { clearHtmlChildren, moveNodeToEnd, renderHtmlChildren, serializeHtmlChildren } from '../lib/dom-fragment';
+  import {
+    clearHtmlChildren,
+    moveNodeAfter,
+    moveNodeBefore,
+    moveNodeToEnd,
+    removeNode,
+    renderHtmlChildren,
+    replaceNodeWith,
+    serializeHtmlChildren,
+  } from '../lib/dom-fragment';
   import {
     ADMIN_ACTION_PROMPT_ACTIVATE,
     ADMIN_ACTION_PROMPT_DISMISS,
@@ -635,14 +644,14 @@
       if (overItem && overItem !== draggedEl && itemHost.contains(overItem)) {
         const rect = overItem.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
-        if ((e as DragEvent).clientY < midY) overItem.before(indicator);
-        else overItem.after(indicator);
+        if ((e as DragEvent).clientY < midY) moveNodeBefore(overItem, indicator);
+        else moveNodeAfter(overItem, indicator);
       } else if (itemHost.children.length === 0 || (itemHost.children.length === 1 && itemHost.contains(indicator))) {
         moveIndicatorToEnd(itemHost, indicator);
       } else {
         const last = itemHost.lastElementChild as HTMLElement | null;
         if (last && last !== indicator) {
-          last.after(indicator);
+          moveNodeAfter(last, indicator);
         }
       }
     });
@@ -657,7 +666,7 @@
       }
       e.preventDefault();
       const targetZone = targetZoneEl.dataset.zone!;
-      indicator.replaceWith(draggedEl);
+      replaceNodeWith(indicator, draggedEl);
       const moved = draggedEl;
       const wasCrossZone = sourceZone !== targetZone;
       cleanupDrag();
@@ -798,7 +807,8 @@
           Object.keys(localStorage)
             .filter((k) => k.startsWith('wl_cache_sections_'))
             .forEach((k) => localStorage.removeItem(k));
-          removeBtn.closest('[data-sortable-id]')?.remove();
+          const section = removeBtn.closest('[data-sortable-id]');
+          if (section) removeNode(section);
           showToast('Section removed');
           emitSectionsChanged();
         } catch (err) {

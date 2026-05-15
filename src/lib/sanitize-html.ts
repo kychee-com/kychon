@@ -8,7 +8,7 @@
 //   - Node tests: relies on happy-dom (or jsdom) to provide parser globals.
 // Both are tested in tests/unit/security-bug-23-esc-xss.test.ts.
 
-import { parseHtmlBody, serializeHtmlChildren } from './dom-fragment';
+import { parseHtmlBody, removeNode, serializeHtmlChildren, unwrapElement } from './dom-fragment';
 
 const ALLOWED_TAGS = new Set([
   'p',
@@ -125,20 +125,18 @@ function walk(node: Node): void {
       const tag = el.tagName.toLowerCase();
       if (!ALLOWED_TAGS.has(tag)) {
         if (DROP_WITH_CONTENT_TAGS.has(tag)) {
-          el.remove();
+          removeNode(el);
           continue;
         }
         // Drop the element but keep its (recursively sanitized) children.
-        const parent = el.parentNode!;
-        for (const grand of Array.from(el.childNodes)) parent.insertBefore(grand, el);
-        parent.removeChild(el);
+        unwrapElement(el);
         continue;
       }
       sanitizeAttributes(el);
       walk(el);
     } else if (child.nodeType !== 3 /* TEXT_NODE */ && child.nodeType !== 4 /* CDATA */) {
       // Strip comments, processing instructions, etc.
-      child.parentNode?.removeChild(child);
+      removeNode(child);
     }
   }
 }

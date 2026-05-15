@@ -47,3 +47,29 @@ export function moveNodeToEnd(host: HTMLElement, node: HTMLElement): void {
   if (node.parentElement === host && node === host.lastElementChild) return;
   host.append(node);
 }
+
+export function moveNodeBefore(reference: HTMLElement, node: HTMLElement): void {
+  if (node === reference || reference.previousSibling === node) return;
+  reference.parentNode?.insertBefore(node, reference);
+}
+
+export function moveNodeAfter(reference: HTMLElement, node: HTMLElement): void {
+  if (node === reference || reference.nextSibling === node) return;
+  reference.parentNode?.insertBefore(node, reference.nextSibling);
+}
+
+export function replaceNodeWith(reference: HTMLElement, node: HTMLElement): void {
+  if (node === reference) return;
+  reference.replaceWith(node);
+}
+
+export function removeNode(node: ChildNode): void {
+  node.remove();
+}
+
+export function unwrapElement(element: Element): void {
+  const parent = element.parentNode;
+  if (!parent) return;
+  for (const child of Array.from(element.childNodes)) parent.insertBefore(child, element);
+  element.remove();
+}
