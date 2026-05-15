@@ -5,7 +5,7 @@
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
 import { buttonVariants } from '@/components/kychon/ui';
-import { renderMarketingBlockHtml } from '@/components/kychon/MarketingBlocksView';
+import { renderMarketingBlockHtml, renderPromoCardsBlockHtml } from '@/components/kychon/MarketingBlocksView';
 import {
   adminNavEditButtonHtml,
   adminScopePillHtml,
@@ -1466,37 +1466,20 @@ const PROMO_CARDS: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const cols = Number(cfg.columns) || 3;
-    const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
-    const heading = cfg.heading
-      ? `<h2 class="block-promo-cards__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '';
-    const cards = items
-      .map((item, i) => {
-        const href = cleanHref(item.cta_href, '#');
-        const titlePos = item.title_position === 'bottom' ? 'bottom' : 'top';
-        const ariaLabel = `${item.title || ''}${item.cta_text ? `, ${item.cta_text}` : ''}`.trim();
-        const safeOverlay = item.overlay_color ? safeCssValue(item.overlay_color) : '';
-        const overlay = safeOverlay
-          ? `<span class="promo-card__overlay" style="background-color:${safeOverlay}"></span>`
-          : '';
-        const safeItemImage = item.image_url ? safeCssUrl(item.image_url) : '';
-        const imgStyle = safeItemImage
-          ? ` style="background-image:url('${safeItemImage}')"`
-          : '';
-        const imgEdit = ctx.admin && section.id != null
-          ? ` data-editable-image="sections.${section.id}.config.items.${i}.image_url"`
-          : '';
-        const titleEdit = editableAttr(section, `items.${i}.title`, ctx);
-        const ctaEdit = editableAttr(section, `items.${i}.cta_text`, ctx);
-        const ctaHtml = item.cta_text
-          ? `<span class="promo-card__cta"${ctaEdit}>${escHtml(item.cta_text)}</span>`
-          : '';
-        return `<a class="promo-card promo-card--title-${titlePos}" href="${escAttr(href)}" aria-label="${escAttr(ariaLabel)}"><span class="promo-card__image"${imgStyle}${imgEdit}>${overlay}</span><span class="promo-card__body"><h3 class="promo-card__title"${titleEdit}>${escHtml(item.title || '')}</h3>${ctaHtml}</span></a>`;
-      })
-      .join('');
-    const inner = `<div class="ky-container">${heading}<div class="block-promo-cards" style="--cols:${cols}">${cards}</div></div>`;
-    return adminWrap(section, ctx, inner, 'section section-promo-cards');
+    const inner = renderPromoCardsBlockHtml(cfg, {
+      editableImagePath(index) {
+        return ctx.admin && section.id != null
+          ? `sections.${section.id}.config.items.${index}.image_url`
+          : undefined;
+      },
+      editablePath(path) {
+        return editablePath(section, path, ctx);
+      },
+      sanitizeCssValue(value) {
+        return safeCssValue(value);
+      },
+    });
+    return adminWrap(section, ctx, inner, 'section w-full');
   },
 };
 
