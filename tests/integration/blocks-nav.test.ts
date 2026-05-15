@@ -222,8 +222,11 @@ describe('nav block — nested children', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, { ...baseCtx, currentPath: '/forum' });
-    expect(html).toContain('nav-parent-button active');
-    expect(html).toContain('class="nav-menuitem active" href="/forum"');
+    const root = renderInto(`<div>${html}</div>`);
+    const parent = root.querySelector('.nav-parent-button') as HTMLElement;
+    const child = root.querySelector('a[href="/forum"]') as HTMLElement;
+    expect(parent.classList.contains('active')).toBe(true);
+    expect(child.classList.contains('active')).toBe(true);
   });
 
   it('supports recursive children at depth ≥ 2', () => {
@@ -242,10 +245,9 @@ describe('nav block — nested children', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    // Outer dropdown.
-    expect(html).toMatch(/<ul class="nav-dropdown" role="menu"/);
-    // Nested dropdown inside.
-    expect(html).toContain('nav-dropdown nav-dropdown-nested');
+    const root = renderInto(`<div>${html}</div>`);
+    expect(root.querySelector('ul.nav-dropdown[role="menu"]')).toBeTruthy();
+    expect(root.querySelector('ul.nav-dropdown.nav-dropdown-nested[role="menu"]')).toBeTruthy();
     expect(html).toContain('Forms');
     expect(html).toContain('Reports');
   });
@@ -409,6 +411,27 @@ describe('nav block — runtime keyboard + click', () => {
     toggle.click();
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('binds dropdown triggers inside cloned overflow menu items', () => {
+    const nav = document.getElementById('zone-header') as HTMLElement;
+    const toggle = document.getElementById('nav-toggle') as HTMLElement;
+    const links = document.getElementById('nav-links') as HTMLElement;
+    const overflowItem = links.querySelector('.nav-item-wrap') as HTMLElement;
+
+    nav.classList.add('nav--overflow');
+    overflowItem.classList.add('nav-overflow-item');
+
+    toggle.click();
+    const overflowTrigger = document.querySelector(
+      '.nav-overflow-menu .nav-parent-button, .nav-overflow-menu .nav-chevron-toggle',
+    ) as HTMLElement;
+    const menu = document.getElementById(overflowTrigger.getAttribute('aria-controls') ?? '') as HTMLElement;
+
+    expect(menu.hasAttribute('hidden')).toBe(true);
+    overflowTrigger.click();
+    expect(menu.hasAttribute('hidden')).toBe(false);
+    expect(overflowTrigger.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('ArrowDown on chevron opens the menu and focuses the first item', () => {

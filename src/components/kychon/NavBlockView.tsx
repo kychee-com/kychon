@@ -26,9 +26,30 @@ export interface NavBlockProps {
   useFullRow?: boolean;
 }
 
+const navParentWrapClass = cn(
+  'nav-item-wrap relative inline-flex',
+  '[.nav-overflow-menu_&]:w-full [.nav-overflow-menu_&]:flex-col [.nav-overflow-menu_&]:items-stretch',
+  '[.nav.nav--source-mobile_.nav-links.open_&]:w-full [.nav.nav--source-mobile_.nav-links.open_&]:flex-col [.nav.nav--source-mobile_.nav-links.open_&]:items-stretch',
+);
+
+const menuListClass = cn(
+  'nav-dropdown absolute left-0 top-full z-50 m-0 ml-[var(--nav-dropdown-offset-x,0)] mt-[var(--nav-dropdown-offset-y,0)] min-w-[var(--nav-dropdown-width,12rem)] list-none rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md',
+  '[.nav-overflow-menu_&]:static [.nav-overflow-menu_&]:ml-0 [.nav-overflow-menu_&]:mt-0 [.nav-overflow-menu_&]:w-full [.nav-overflow-menu_&]:min-w-0 [.nav-overflow-menu_&]:border-0 [.nav-overflow-menu_&]:bg-transparent [.nav-overflow-menu_&]:pl-6 [.nav-overflow-menu_&]:shadow-none',
+  '[.nav.nav--source-mobile_.nav-links.open_&]:static [.nav.nav--source-mobile_.nav-links.open_&]:ml-0 [.nav.nav--source-mobile_.nav-links.open_&]:mt-0 [.nav.nav--source-mobile_.nav-links.open_&]:w-full [.nav.nav--source-mobile_.nav-links.open_&]:border-0 [.nav.nav--source-mobile_.nav-links.open_&]:bg-transparent [.nav.nav--source-mobile_.nav-links.open_&]:pl-6 [.nav.nav--source-mobile_.nav-links.open_&]:shadow-none',
+);
+
+const nestedMenuListClass = cn(
+  menuListClass,
+  'nav-dropdown-nested left-full top-0 ml-1 mt-0',
+  '[.nav-overflow-menu_&]:pl-6',
+  '[.nav.nav--source-mobile_.nav-links.open_&]:pl-6',
+);
+
+const navMenuItemClass = 'nav-menuitem block rounded-md px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none';
+
 function Chevron() {
   return (
-    <span className="nav-chevron" aria-hidden="true">
+    <span className="nav-chevron inline-block text-xs leading-none transition-transform" aria-hidden="true">
       ▾
     </span>
   );
@@ -53,7 +74,11 @@ function MenuButton({
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label={label}
-      className={cn(className, active ? 'active' : '')}
+      className={cn(
+        'border-0 bg-transparent font-[inherit] text-inherit shadow-none hover:bg-accent hover:text-accent-foreground [&[aria-expanded=true]_.nav-chevron]:rotate-180',
+        className,
+        active ? 'active' : '',
+      )}
       type="button"
       variant="ghost"
     >
@@ -66,7 +91,7 @@ function NavMenuItem({ item, nested = false }: { item: NavBlockItem; nested?: bo
   if (!item.children.length) {
     return (
       <li role="none">
-        <a className={cn('nav-menuitem', item.active ? 'active' : '')} href={item.href} role="menuitem">
+        <a className={cn(navMenuItemClass, item.active ? 'active bg-primary/10 text-primary' : '')} href={item.href} role="menuitem">
           {item.label}
         </a>
       </li>
@@ -75,18 +100,18 @@ function NavMenuItem({ item, nested = false }: { item: NavBlockItem; nested?: bo
 
   const menuId = item.menuId || `nav-menu-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   return (
-    <li className="nav-dropdown-parent" role="none">
+    <li className="nav-dropdown-parent relative list-none" role="none">
       {item.hasHref ? (
-        <a className={cn('nav-menuitem', item.active ? 'active' : '')} href={item.href} role="menuitem">
+        <a className={cn(navMenuItemClass, item.active ? 'active bg-primary/10 text-primary' : '')} href={item.href} role="menuitem">
           {item.label}
         </a>
       ) : (
-        <span className="nav-menuitem nav-menuitem-parent">{item.label}</span>
+        <span className={cn(navMenuItemClass, 'nav-menuitem-parent')}>{item.label}</span>
       )}
-      <MenuButton className="nav-chevron-toggle" controls={menuId} label={`Open ${item.label} submenu`}>
+      <MenuButton className="nav-chevron-toggle absolute right-1 top-1 h-8 min-h-8 min-w-8 px-2 py-1" controls={menuId} label={`Open ${item.label} submenu`}>
         <Chevron />
       </MenuButton>
-      <ul className={cn('nav-dropdown', nested ? 'nav-dropdown-nested' : '')} role="menu" hidden id={menuId}>
+      <ul className={nested ? nestedMenuListClass : menuListClass} role="menu" hidden id={menuId}>
         {item.children.map((child) => (
           <NavMenuItem item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
         ))}
@@ -97,8 +122,8 @@ function NavMenuItem({ item, nested = false }: { item: NavBlockItem; nested?: bo
 
 function NavTopItem({ item, index }: { item: NavBlockItem; index: number }) {
   if (!item.children.length) {
-    return (
-      <a className={cn('nav-link', item.active ? 'active' : '')} href={item.href}>
+  return (
+    <a className={cn('nav-link', item.active ? 'active' : '')} href={item.href}>
         {item.label}
       </a>
     );
@@ -106,7 +131,7 @@ function NavTopItem({ item, index }: { item: NavBlockItem; index: number }) {
 
   const menuId = item.menuId || `nav-menu-top-${index}`;
   const childList = (
-    <ul className="nav-dropdown" role="menu" hidden id={menuId}>
+    <ul className={menuListClass} role="menu" hidden id={menuId}>
       {item.children.map((child) => (
         <NavMenuItem item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
       ))}
@@ -115,11 +140,11 @@ function NavTopItem({ item, index }: { item: NavBlockItem; index: number }) {
 
   if (item.hasHref) {
     return (
-      <div className="nav-item-wrap">
-        <a className={cn('nav-link nav-parent', item.active ? 'active' : '')} href={item.href}>
+      <div className={navParentWrapClass}>
+        <a className={cn('nav-link nav-parent border-0 bg-transparent font-[inherit]', item.active ? 'active' : '')} href={item.href}>
           {item.label}
         </a>
-        <MenuButton className="nav-chevron-toggle" controls={menuId} label={`Open ${item.label} submenu`}>
+        <MenuButton className="nav-chevron-toggle h-8 min-h-8 min-w-8 self-center px-2 py-1" controls={menuId} label={`Open ${item.label} submenu`}>
           <Chevron />
         </MenuButton>
         {childList}
@@ -128,8 +153,8 @@ function NavTopItem({ item, index }: { item: NavBlockItem; index: number }) {
   }
 
   return (
-    <div className="nav-item-wrap">
-      <MenuButton active={item.active} className="nav-link nav-parent nav-parent-button" controls={menuId}>
+    <div className={navParentWrapClass}>
+      <MenuButton active={item.active} className="nav-link nav-parent nav-parent-button inline-flex items-center gap-1" controls={menuId}>
         {item.label}
         <Chevron />
       </MenuButton>
