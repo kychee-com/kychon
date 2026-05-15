@@ -851,7 +851,7 @@ export default function AdminSettingsApp() {
                 ['border', 'Border'],
               ].map(([key, label]) => (
                 <label key={key} className="flex items-center gap-3 rounded-md border border-border p-3 text-sm">
-                  <input
+                  <Input
                     type="color"
                     className="h-10 w-10 rounded-md border border-input bg-transparent"
                     value={theme[key as keyof ThemeForm]}

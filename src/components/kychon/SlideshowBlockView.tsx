@@ -3,7 +3,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { Card, CardContent, buttonVariants } from '@/components/kychon/ui';
+import { Button, Card, CardContent } from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
 import { constrainedContainerClass } from '@/lib/ui/container';
 
@@ -37,12 +37,8 @@ export interface SlideshowRenderProps {
   transition: 'fade' | 'slide';
 }
 
-const arrowButtonClass = buttonVariants({
-  className:
-    'absolute top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border-0 bg-[var(--slideshow-arrow-bg,rgba(0,0,0,0.55))] p-0 text-[var(--slideshow-arrow-color,#fff)] shadow-sm hover:bg-[var(--slideshow-arrow-hover-bg,rgba(0,0,0,0.75))] hover:text-[var(--slideshow-arrow-hover-color,var(--slideshow-arrow-color,#fff))] focus-visible:ring-ring',
-  size: 'icon',
-  variant: 'ghost',
-});
+const arrowButtonClass =
+  'absolute top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border-0 bg-[var(--slideshow-arrow-bg,rgba(0,0,0,0.55))] p-0 text-[var(--slideshow-arrow-color,#fff)] shadow-sm hover:bg-[var(--slideshow-arrow-hover-bg,rgba(0,0,0,0.75))] hover:text-[var(--slideshow-arrow-hover-color,var(--slideshow-arrow-color,#fff))] focus-visible:ring-ring';
 
 function SlideshowHeading({ editableHeadingPath, heading }: Pick<SlideshowRenderProps, 'editableHeadingPath' | 'heading'>) {
   if (!heading) return null;
@@ -143,7 +139,7 @@ function SlideshowDots({ items, showDots }: Pick<SlideshowRenderProps, 'items' |
   return (
     <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1.5" data-slideshow-dots role="tablist">
       {items.map((_, index) => (
-        <button
+        <Button
           aria-current={index === 0 ? 'true' : undefined}
           aria-label={`Slide ${index + 1} of ${items.length}`}
           className="h-2.5 w-2.5 rounded-full border border-white/85 bg-[var(--slideshow-dot-bg,rgba(255,255,255,0.45))] p-0 data-[active=true]:bg-[var(--slideshow-dot-active-bg,#fff)]"
@@ -151,7 +147,9 @@ function SlideshowDots({ items, showDots }: Pick<SlideshowRenderProps, 'items' |
           data-slide-go={index}
           data-slideshow-dot
           key={`dot-${index}`}
+          size="icon"
           type="button"
+          variant="ghost"
         />
       ))}
     </div>
@@ -162,22 +160,26 @@ function SlideshowArrows({ showArrows }: Pick<SlideshowRenderProps, 'showArrows'
   if (!showArrows) return null;
   return (
     <>
-      <button
+      <Button
         aria-label="Previous slide"
         className={cn(arrowButtonClass, 'left-2')}
         data-slide-prev
+        size="icon"
         type="button"
+        variant="ghost"
       >
         <ChevronLeft aria-hidden="true" className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         aria-label="Next slide"
         className={cn(arrowButtonClass, 'right-2')}
         data-slide-next
+        size="icon"
         type="button"
+        variant="ghost"
       >
         <ChevronRight aria-hidden="true" className="h-5 w-5" />
-      </button>
+      </Button>
     </>
   );
 }
