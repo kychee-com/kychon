@@ -30,20 +30,20 @@ export interface NavBlockProps {
 const navParentWrapClass = cn(
   'nav-item-wrap relative inline-flex',
   '[.nav-overflow-menu_&]:w-full [.nav-overflow-menu_&]:flex-col [.nav-overflow-menu_&]:items-stretch',
-  '[.nav.nav--source-mobile_.nav-links.open_&]:w-full [.nav.nav--source-mobile_.nav-links.open_&]:flex-col [.nav.nav--source-mobile_.nav-links.open_&]:items-stretch',
+  '[.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:w-full [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:flex-col [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:items-stretch',
 );
 
 const menuListClass = cn(
   'nav-dropdown absolute left-0 top-full z-50 m-0 ml-[var(--nav-dropdown-offset-x,0)] mt-[var(--nav-dropdown-offset-y,0)] min-w-[var(--nav-dropdown-width,12rem)] list-none rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md',
   '[.nav-overflow-menu_&]:static [.nav-overflow-menu_&]:ml-0 [.nav-overflow-menu_&]:mt-0 [.nav-overflow-menu_&]:w-full [.nav-overflow-menu_&]:min-w-0 [.nav-overflow-menu_&]:border-0 [.nav-overflow-menu_&]:bg-transparent [.nav-overflow-menu_&]:pl-6 [.nav-overflow-menu_&]:shadow-none',
-  '[.nav.nav--source-mobile_.nav-links.open_&]:static [.nav.nav--source-mobile_.nav-links.open_&]:ml-0 [.nav.nav--source-mobile_.nav-links.open_&]:mt-0 [.nav.nav--source-mobile_.nav-links.open_&]:w-full [.nav.nav--source-mobile_.nav-links.open_&]:border-0 [.nav.nav--source-mobile_.nav-links.open_&]:bg-transparent [.nav.nav--source-mobile_.nav-links.open_&]:pl-6 [.nav.nav--source-mobile_.nav-links.open_&]:shadow-none',
+  '[.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:static [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:ml-0 [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:mt-0 [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:w-full [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:border-0 [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:bg-transparent [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:pl-6 [.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:shadow-none',
 );
 
 const nestedMenuListClass = cn(
   menuListClass,
   'nav-dropdown-nested left-full top-0 ml-1 mt-0',
   '[.nav-overflow-menu_&]:pl-6',
-  '[.nav.nav--source-mobile_.nav-links.open_&]:pl-6',
+  '[.nav[data-nav-source-mobile=true]_.nav-links[data-nav-mobile-open=true]_&]:pl-6',
 );
 
 const navMenuItemClass = 'nav-menuitem block rounded-md px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none';

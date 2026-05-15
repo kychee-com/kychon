@@ -16,6 +16,15 @@
 
 const BOUND_FLAG = 'navBound';
 
+function hasState(el: HTMLElement, key: string): boolean {
+  return el.dataset[key] === 'true';
+}
+
+function setState(el: HTMLElement, key: string, active: boolean): void {
+  if (active) el.dataset[key] = 'true';
+  else delete el.dataset[key];
+}
+
 function getFocusableInMenu(menu: HTMLElement): HTMLElement[] {
   // Items focusable via arrow keys: top-level menuitems + immediate chevron toggles.
   // Selector intentionally avoids `:scope` (not supported by happy-dom) — we
@@ -97,9 +106,9 @@ function closeMenu(menu: HTMLElement, returnFocus = false): void {
   // mouseleave so Escape / click-outside closes feel immediate.
   const wrap = menu.parentElement;
   if (wrap?.classList.contains('nav-item-wrap') || wrap?.classList.contains('nav-dropdown-parent')) {
-    wrap.classList.add('nav-suppress-hover');
+    setState(wrap, 'navSuppressHover', true);
     const cleanup = () => {
-      wrap.classList.remove('nav-suppress-hover');
+      setState(wrap, 'navSuppressHover', false);
       wrap.removeEventListener('mouseleave', cleanup);
     };
     wrap.addEventListener('mouseleave', cleanup);
@@ -351,16 +360,16 @@ function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
   if (!nav || !menu) return null;
   const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
   const items = topLevelNavItems(root);
-  const overflowItems = items.filter((item) => item.classList.contains('nav-overflow-item'));
+  const overflowItems = items.filter((item) => hasState(item, 'navOverflowed'));
   const overflowIndexes = new Set(
     overflowItems.map((item) => item.dataset.navItemIndex || String(items.indexOf(item))).filter((index) => index !== '-1'),
   );
 
-  if (!nav.classList.contains('nav--overflow') || nav.classList.contains('nav--source-mobile') || overflowItems.length === 0) {
+  if (!hasState(nav, 'navOverflow') || hasState(nav, 'navSourceMobile') || overflowItems.length === 0) {
     closeOverflowMenu(menu);
     syncStaticOverflowCopies(menu, new Set());
     if (toggle && root.id) toggle.setAttribute('aria-controls', root.id);
-    if (toggle) toggle.setAttribute('aria-expanded', root.classList.contains('open') ? 'true' : 'false');
+    if (toggle) toggle.setAttribute('aria-expanded', hasState(root, 'navMobileOpen') ? 'true' : 'false');
     return menu;
   }
 
@@ -383,15 +392,15 @@ function bindNavToggle(root: HTMLElement): void {
   toggle.dataset.navToggleBound = 'true';
   if (!toggle.hasAttribute('aria-controls') && root.id) toggle.setAttribute('aria-controls', root.id);
   if (!toggle.hasAttribute('aria-expanded')) {
-    toggle.setAttribute('aria-expanded', root.classList.contains('open') ? 'true' : 'false');
+    toggle.setAttribute('aria-expanded', hasState(root, 'navMobileOpen') ? 'true' : 'false');
   }
 
   toggle.addEventListener('click', (event) => {
     event.preventDefault();
-    if (nav?.classList.contains('nav--overflow') && !nav.classList.contains('nav--source-mobile')) {
+    if (nav && hasState(nav, 'navOverflow') && !hasState(nav, 'navSourceMobile')) {
       const menu = syncOverflowMenu(root);
       if (!menu) return;
-      root.classList.remove('open');
+      setState(root, 'navMobileOpen', false);
       toggle.setAttribute('aria-controls', menu.id);
       const isOpen = menu.hasAttribute('hidden');
       if (isOpen) menu.removeAttribute('hidden');
@@ -403,7 +412,8 @@ function bindNavToggle(root: HTMLElement): void {
     const overflowMenu = getOverflowMenu(root);
     if (overflowMenu) closeOverflowMenu(overflowMenu);
     if (root.id) toggle.setAttribute('aria-controls', root.id);
-    const isOpen = root.classList.toggle('open');
+    const isOpen = !hasState(root, 'navMobileOpen');
+    setState(root, 'navMobileOpen', isOpen);
     toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     if (!isOpen) closeAllOpenMenus();
   });
@@ -414,8 +424,8 @@ function applySourceMobileMode(root: HTMLElement): void {
   if (!nav) return;
   const raw = Number(root.dataset.mobileBreakpoint || 0);
   const active = Number.isFinite(raw) && raw > 0 && window.innerWidth <= raw;
-  nav.classList.toggle('nav--source-mobile', active);
-  if (!active) root.classList.remove('open');
+  setState(nav, 'navSourceMobile', active);
+  if (!active) setState(root, 'navMobileOpen', false);
 }
 
 function topLevelNavItems(root: HTMLElement): HTMLElement[] {
@@ -431,10 +441,10 @@ function applyOverflowMode(root: HTMLElement): void {
   const items = topLevelNavItems(root);
   if (items.length === 0) return;
 
-  root.classList.remove('open');
-  nav.classList.remove('nav--overflow');
-  items.forEach((item) => item.classList.remove('nav-overflow-item'));
-  if (nav.classList.contains('nav--source-mobile')) return;
+  setState(root, 'navMobileOpen', false);
+  setState(nav, 'navOverflow', false);
+  items.forEach((item) => setState(item, 'navOverflowed', false));
+  if (hasState(nav, 'navSourceMobile')) return;
 
   const available = root.getBoundingClientRect().width;
   if (available <= 0) return;
@@ -447,7 +457,7 @@ function applyOverflowMode(root: HTMLElement): void {
   );
   if (total <= available) return;
 
-  nav.classList.add('nav--overflow');
+  setState(nav, 'navOverflow', true);
   const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
   const reserved = (toggle?.getBoundingClientRect().width || 36) + gap;
   const fitWidth = Math.max(0, root.getBoundingClientRect().width - reserved);
@@ -459,7 +469,7 @@ function applyOverflowMode(root: HTMLElement): void {
       used += width;
     } else {
       overflowing = true;
-      item.classList.add('nav-overflow-item');
+      setState(item, 'navOverflowed', true);
     }
   }
 }
