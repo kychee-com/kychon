@@ -105,6 +105,13 @@ describe('bug #23 — announcement body raw innerHTML sink', () => {
     }
   });
 
+  it('sanitizeRichHtml drops script contents instead of rendering them as text', () => {
+    const cleaned = sanitizeRichHtml('<p>Safe</p><script>window.__bad = true</script><style>.x{color:red}</style>');
+    expect(cleaned).toContain('<p>Safe</p>');
+    expect(cleaned).not.toContain('window.__bad');
+    expect(cleaned).not.toContain('.x{color:red}');
+  });
+
   it('sanitizeRichHtml allows safe Tiptap output (<p>, <strong>, links with safe href)', () => {
     const cleaned = sanitizeRichHtml('<p>Hello <strong>world</strong> <a href="https://example.com">link</a></p>');
     expect(cleaned).toContain('<p>');
