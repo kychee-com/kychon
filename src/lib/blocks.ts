@@ -1572,7 +1572,7 @@ const IMAGE_ACCORDION: BlockType = {
       .map((panel, index) => renderImageAccordionPanel(panel, section, ctx, index))
       .join('');
     const empty = ctx.admin && panels.length === 0
-      ? '<p class="ky-text-muted">No accordion panels yet — add panels via the editor.</p>'
+      ? '<p class="text-sm text-muted-foreground">No accordion panels yet — add panels via the editor.</p>'
       : '';
     const inner = `<div class="ky-container">${heading}<div class="image-accordion image-accordion--mobile-${escAttr(mobileFallback)}"${style}>${renderedPanels}${empty}</div></div>`;
     return adminWrap(section, ctx, inner, 'section section-image-accordion');
@@ -1705,7 +1705,7 @@ const EVENTS_CALENDAR: BlockType = {
       : '';
     const view = (cfg.view as string) || 'month';
     const density = (cfg.density as string) || 'light';
-    const skeleton = `<div class="block-events-calendar__skeleton">${'<div class="event-skeleton-card skeleton"></div>'.repeat(4)}</div>`;
+    const skeleton = `<div class="block-events-calendar__skeleton" aria-label="Loading events">${'<div class="h-24 animate-pulse rounded-md bg-muted"></div>'.repeat(4)}</div>`;
     const inner = `<div class="ky-container" data-block-hydrate="events_calendar" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
     const cls = `section section-events-calendar block-events-calendar block-events-calendar--view-${escAttr(view)} block-events-calendar--density-${escAttr(density)}`;
     return adminWrap(section, ctx, inner, cls);
@@ -1756,7 +1756,7 @@ const SLIDESHOW: BlockType = {
     if (!items.length) {
       // Empty: show a placeholder for admins, hide for visitors.
       const empty = ctx.admin
-        ? `<div class="block-slideshow block-slideshow--empty"><p class="ky-text-muted">No slides yet — add some via the editor.</p></div>`
+        ? `<div class="block-slideshow block-slideshow--empty"><p class="text-sm text-muted-foreground">No slides yet — add some via the editor.</p></div>`
         : '';
       const inner = `<div class="ky-container">${heading}${empty}</div>`;
       return adminWrap(section, ctx, inner, 'section section-slideshow');
