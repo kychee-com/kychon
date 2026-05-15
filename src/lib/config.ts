@@ -3,7 +3,7 @@
 // (src/lib/blocks.ts) and per-block hydrators (src/lib/block-hydrators.ts).
 // This module no longer touches #nav-links / #nav-user.
 
-import { get, getCurrentActorContext } from './api.js';
+import { get, getCurrentActorContext, patch } from './api.js';
 import { getSession, getSessionEmail } from './auth.js';
 import { canonicalRouteKey } from './clean-routes.js';
 import { loadLocale, setAvailableLocales, t } from './i18n.js';
@@ -450,7 +450,6 @@ async function findMemberForSession(session: any): Promise<any | null> {
 
 async function patchMemberUserId(memberId: unknown, userId: string, session: any): Promise<void> {
   if (!memberId || !userId) return;
-  const { patch } = await import('./api.js');
   await patch(`members?id=eq.${memberId}`, { user_id: userId }, session);
 }
 

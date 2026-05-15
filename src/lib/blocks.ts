@@ -4,6 +4,8 @@
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
+import { get } from './api.js';
+import { getSession } from './auth.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
 export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
@@ -799,10 +801,7 @@ const POLLS: BlockType = {
     if (!container) return;
     const skeleton = container.querySelector('.polls-skeleton');
     if (skeleton) skeleton.remove();
-    const [{ fetchAndRenderPoll, bindPollVoteListeners }, { getSession }] = await Promise.all([
-      import('./poll-ui.js'),
-      import('./auth.js'),
-    ]);
+    const { fetchAndRenderPoll, bindPollVoteListeners } = await import('./poll-ui.js');
     const session = getSession();
     const memberId = session?.user?.member?.id ?? null;
     for (const pid of pollIds) {
@@ -851,7 +850,6 @@ const EVENT_COUNTDOWN: BlockType = {
     }
     const container = el.querySelector('[data-block-hydrate="event_countdown"]') as HTMLElement | null;
     if (!container) return;
-    const { get } = await import('./api.js');
     try {
       const events = await get('events?starts_at=gte.now()&order=starts_at.asc&limit=1');
       const skeleton = container.querySelector('.skeleton');
