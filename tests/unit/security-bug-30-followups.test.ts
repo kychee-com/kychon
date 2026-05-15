@@ -119,7 +119,6 @@ describe('bug #30 — server rich-HTML sanitizer closes known regex bypasses', (
     );
   });
 });
-
 describe('bug #30 — validate phase runs the same semantic checks as execute', () => {
   it('rejects validating another member profile update even though active members can update profiles', async () => {
     const db = new MemoryMutationDb({ members: [] });
@@ -210,5 +209,35 @@ describe('bug #30 — validate phase runs the same semantic checks as execute', 
     expect(out.status).toBe(200);
     expect(out.body.data.accepted).toBe(false);
     expect(out.body.data.warnings.some((warning: JsonObject) => warning.code === 'validation.failed')).toBe(true);
+  });
+});
+
+describe('bug #30 - last-active-admin guard covers suspend and reject', () => {
+  it.each(['members.suspend', 'members.reject'])('refuses to %s the only active admin', async (operation) => {
+    const db = new MemoryMutationDb({
+      members: [{ id: 1, role: 'admin', status: 'active', user_id: 'admin-user' }],
+      activity_log: [],
+    });
+
+    const plan = await validateCapabilityMutation(operation, { id: 1 }, { actor: adminActor, db });
+    expectRejectedPlan(plan, 'conflict.state');
+
+    await expect(executeCapabilityMutation(operation, { id: 1 }, { actor: adminActor, db })).rejects.toMatchObject({
+      code: 'conflict.state',
+    });
+    expect(db.tables.members[0]).toMatchObject({ role: 'admin', status: 'active' });
+  });
+
+  it('allows suspending an admin when another active admin remains', async () => {
+    const db = new MemoryMutationDb({
+      members: [
+        { id: 1, role: 'admin', status: 'active', user_id: 'admin-user' },
+        { id: 2, role: 'admin', status: 'active', user_id: 'backup-admin' },
+      ],
+      activity_log: [],
+    });
+
+    await executeCapabilityMutation('members.suspend', { id: 1 }, { actor: adminActor, db });
+    expect(db.tables.members[0]).toMatchObject({ role: 'admin', status: 'suspended' });
   });
 });

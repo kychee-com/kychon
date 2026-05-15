@@ -106,6 +106,16 @@ async function validateMutationSemantics(
       await validateForumReplyInput(input, ctx);
     } else if (operation === 'pollVotes.cast') {
       await validatePollVoteInput(input, ctx);
+    } else if (operation === 'members.changeRole') {
+      const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
+      if (!VALID_MEMBER_ROLES.has(role)) {
+        throw new CapabilityMutationError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
+          role: String(input.role ?? ''),
+        });
+      }
+      await ensureActiveAdminRemains(operation, requiredId(input, operation), { role }, ctx);
+    } else if (operation === 'members.suspend' || operation === 'members.reject') {
+      await ensureActiveAdminRemains(operation, requiredId(input, operation), rowForUpdate(operation, input, ctx), ctx);
     }
     return null;
   } catch (error) {
@@ -172,12 +182,52 @@ async function genericMutation(operation: string, input: JsonObject, ctx: Capabi
     row = await upsertConfig(input, ctx);
   } else {
     const targetId = idForUpdate(operation, input, ctx);
-    row = await ctx.db.update(spec.table, targetId, rowForUpdate(operation, input, ctx));
+    const patch = rowForUpdate(operation, input, ctx);
+    await ensureActiveAdminRemains(operation, targetId, patch, ctx);
+    row = await ctx.db.update(spec.table, targetId, patch);
     if (!row) throw notFoundMutationError(spec.objectType, targetId);
   }
 
   const object = changedObject(spec.objectType, String(row?.id ?? input.id ?? input.key ?? 'unknown'));
   return actionResult(row || {}, [object], verificationFor(spec.objectType, object));
+}
+
+async function ensureActiveAdminRemains(
+  operation: string,
+  targetId: string | number,
+  patch: JsonObject,
+  ctx: CapabilityMutationContext,
+  members?: JsonObject[],
+  target?: JsonObject,
+): Promise<JsonObject | null> {
+  if (!guardsLastActiveAdmin(operation)) return target ?? null;
+  const rows = members ?? await ctx.db.select('members');
+  const row = target ?? rows.find((member) => String(member.id) === String(targetId));
+  if (!row) throw notFoundMutationError('member', targetId);
+  if (!memberPatchRemovesActiveAdmin(row, patch)) return row;
+
+  const hasOtherActiveAdmin = rows.some((member) => String(member.id) !== String(targetId) && isActiveAdminMember(member));
+  if (!hasOtherActiveAdmin) {
+    throw new CapabilityMutationError('conflict.state', 'Cannot remove the last active admin.', {
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+  return row;
+}
+
+function guardsLastActiveAdmin(operation: string): boolean {
+  return operation === 'members.changeRole' || operation === 'members.suspend' || operation === 'members.reject';
+}
+
+function memberPatchRemovesActiveAdmin(member: JsonObject, patch: JsonObject): boolean {
+  if (!isActiveAdminMember(member)) return false;
+  const nextRole = patch.role != null ? String(patch.role).toLowerCase() : String(member.role).toLowerCase();
+  const nextStatus = patch.status != null ? String(patch.status).toLowerCase() : String(member.status).toLowerCase();
+  return nextRole !== 'admin' || nextStatus !== 'active';
+}
+
+function isActiveAdminMember(member: JsonObject): boolean {
+  return String(member.role).toLowerCase() === 'admin' && String(member.status).toLowerCase() === 'active';
 }
 
 async function publishAnnouncement(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
@@ -506,25 +556,9 @@ async function changeMemberRole(input: JsonObject, ctx: CapabilityMutationContex
     });
   }
 
-  // Last-admin guard: refuse to demote the actor's own admin role if doing
-  // so leaves zero remaining admins. Otherwise the portal locks itself out
-  // of admin features until someone goes around the API. (#29)
-  const actorMemberId = ctx.actor.member?.id ?? null;
-  if (
-    role !== 'admin' &&
-    actorMemberId != null &&
-    String(actorMemberId) === String(targetId) &&
-    String(target.role).toLowerCase() === 'admin'
-  ) {
-    const otherAdmins = members.filter(
-      (row) => String(row.id) !== String(targetId) && String(row.role).toLowerCase() === 'admin' && String(row.status).toLowerCase() === 'active',
-    );
-    if (otherAdmins.length === 0) {
-      throw new CapabilityMutationError('conflict.state', 'Cannot demote the last active admin.', {
-        object: { type: 'member', id: String(targetId) },
-      });
-    }
-  }
+  // Last-admin guard: role changes, suspension, and rejection all remove
+  // admin availability when the target is the only active admin. (#30)
+  await ensureActiveAdminRemains('members.changeRole', targetId, { role }, ctx, members, target);
 
   const row = (await ctx.db.update('members', String(targetId), { role })) || { ...target, role };
   const object = changedObject('member', String(row.id ?? targetId));

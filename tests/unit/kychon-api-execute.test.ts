@@ -330,4 +330,155 @@ describe('deployable kychon-api execute mutations', () => {
     });
     expect(mockState.tables.members[1].display_name).toBe('Other');
   });
+
+  it('validate phase rejects member profile updates for another member', async () => {
+    mockState.user = { id: 'member-user', email: 'member@example.com' };
+    mockState.tables.members = [
+      {
+        id: 1,
+        user_id: 'member-user',
+        email: 'member@example.com',
+        display_name: 'Self',
+        role: 'member',
+        status: 'active',
+      },
+      {
+        id: 2,
+        user_id: 'other-user',
+        email: 'other@example.com',
+        display_name: 'Other',
+        role: 'member',
+        status: 'active',
+      },
+    ];
+
+    const validated = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'members.updateProfile',
+        phase: 'validate',
+        input: { id: 2, display_name: 'Hijacked' },
+      }),
+    );
+
+    expect(validated.status).toBe(200);
+    expect(validated.body.data.accepted).toBe(false);
+    expect(validated.body.data.warnings.some((warning: JsonObject) => warning.code === 'permission.denied')).toBe(true);
+  });
+
+  it('sanitizes announcement body bypass payloads on deployable function write', async () => {
+    mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.tables.members = [
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
+    ];
+    mockState.tables.announcements = [];
+
+    const created = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'announcements.publish',
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: 'announcement-sanitize-bug30',
+        input: {
+          title: 'News',
+          body: [
+            '<p>safe</p>',
+            '<svg/onload=alert(1)>',
+            '<details/open/ontoggle=alert(1)>',
+            '<img style="background:url(javascript:alert(1))">',
+            '<a href="&#106;avascript:alert(1)">x</a>',
+          ].join(''),
+        },
+      }),
+    );
+
+    expect(created.status).toBe(200);
+    const stored = String(mockState.tables.announcements[0]?.body || '');
+    expect(stored).toContain('<p>safe</p>');
+    expect(stored).not.toMatch(/onload|ontoggle|style\s*=|javascript:|&#106;avascript|<svg|<details/i);
+  });
+
+  it.each(['members.suspend', 'members.reject'])('refuses to %s the only active admin', async (operation) => {
+    mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.tables.members = [
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
+    ];
+
+    const validated = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation,
+        phase: 'validate',
+        input: { id: 1 },
+      }),
+    );
+    const executed = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation,
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: `${operation}-last-admin`,
+        input: { id: 1 },
+      }),
+    );
+
+    expect(validated.status).toBe(200);
+    expect(validated.body.data.accepted).toBe(false);
+    expect(validated.body.data.warnings.some((warning: JsonObject) => warning.code === 'conflict.state')).toBe(true);
+    expect(executed.status).toBe(409);
+    expect(executed.body.error.code).toBe('conflict.state');
+    expect(mockState.tables.members[0]).toMatchObject({ role: 'admin', status: 'active' });
+  });
+
+  it('allows suspending an admin when another active admin remains', async () => {
+    mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.tables.members = [
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
+      {
+        id: 2,
+        user_id: 'backup-admin',
+        email: 'backup@example.com',
+        display_name: 'Backup',
+        role: 'admin',
+        status: 'active',
+      },
+    ];
+
+    const executed = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'members.suspend',
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: 'members-suspend-non-last-admin',
+        input: { id: 1 },
+      }),
+    );
+
+    expect(executed.status).toBe(200);
+    expect(mockState.tables.members[0]).toMatchObject({ role: 'admin', status: 'suspended' });
+  });
 });
