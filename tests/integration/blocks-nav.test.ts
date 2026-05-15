@@ -90,6 +90,11 @@ describe('nav block — flat behavior preserved', () => {
     expect(runtime).not.toContain('document.createElement');
     expect(runtime).not.toContain("className = 'nav-overflow-menu'");
     expect(runtime).not.toContain('appendChild');
+    expect(runtime).not.toContain('cloneNode');
+    expect(runtime).not.toContain('replaceChildren');
+    expect(runtime).not.toContain('.append(');
+    expect(html).toContain('data-nav-item-index="0"');
+    expect(html).toContain('data-nav-overflow-source-index="0"');
   });
 
   it('renders flat items as plain anchors', () => {
@@ -130,7 +135,7 @@ describe('nav block — flat behavior preserved', () => {
       ...baseCtx,
       currentPath: '/#announcements-section',
     });
-    const activeLabels = Array.from(wrap.querySelectorAll('.active')).map((el) => el.textContent);
+    const activeLabels = Array.from(wrap.querySelectorAll('[data-nav-item-index].active')).map((el) => el.textContent);
     expect(activeLabels).toEqual(['Announcements']);
   });
 });
@@ -339,6 +344,29 @@ describe('nav block — ARIA attributes', () => {
     expect(menu).toBeTruthy();
     expect(menu?.classList.contains('nav-dropdown')).toBe(true);
   });
+
+  it('renders static overflow copies with duplicate-safe dropdown ids', () => {
+    const section = makeSection([
+      {
+        label: 'Marina',
+        children: [
+          {
+            label: 'Guides',
+            children: [{ label: 'Layout', href: '/m/l' }],
+          },
+        ],
+      },
+    ]);
+    const html = BLOCK_TYPES.nav.render(section, baseCtx);
+    const root = renderInto(`<div>${html}</div>`);
+    const ids = Array.from(root.querySelectorAll<HTMLElement>('[id]')).map((el) => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const overflowTrigger = root.querySelector<HTMLElement>('[data-nav-overflow-source-index] [aria-controls]');
+    const controls = overflowTrigger?.getAttribute('aria-controls') ?? '';
+    expect(controls).toContain('overflow-0');
+    expect(root.querySelector(`#${CSS.escape(controls)}`)).toBeTruthy();
+  });
 });
 
 describe('nav block — runtime keyboard + click', () => {
@@ -429,15 +457,21 @@ describe('nav block — runtime keyboard + click', () => {
     expect(toggle.getAttribute('aria-controls')).toBe('nav-links-overflow-menu');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(menu.hasAttribute('hidden')).toBe(false);
-    expect(menu.textContent).toContain('Marina');
-    expect(menu.textContent).not.toContain('Home');
+    const visibleOverflowText = Array.from(menu.children)
+      .filter((child) => child instanceof HTMLElement && !child.hasAttribute('hidden'))
+      .map((child) => child.textContent)
+      .join('');
+    expect(visibleOverflowText).toContain('Marina');
+    expect(visibleOverflowText).not.toContain('Home');
+    expect(menu.querySelector('[data-nav-overflow-source-index="0"]')?.hasAttribute('hidden')).toBe(true);
+    expect(menu.querySelector('[data-nav-overflow-source-index="1"]')?.hasAttribute('hidden')).toBe(false);
 
     toggle.click();
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('binds dropdown triggers inside cloned overflow menu items', () => {
+  it('binds dropdown triggers inside static overflow menu items', () => {
     const nav = document.getElementById('zone-header') as HTMLElement;
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
     const links = document.getElementById('nav-links') as HTMLElement;
