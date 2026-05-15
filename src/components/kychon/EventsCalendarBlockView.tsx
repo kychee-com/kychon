@@ -157,18 +157,23 @@ function EventsCalendarShell({ configJson, editableHeadingPath, heading }: Event
           {heading}
         </h2>
       ) : null}
-      <div aria-label="Loading events" className="grid min-h-32 grid-cols-1 gap-2 sm:grid-cols-2" data-events-calendar-skeleton>
-        {Array.from({ length: 4 }, (_, index) => (
-          <Card className="shadow-none" data-events-calendar-skeleton-card key={index}>
-            <CardContent className="h-24 animate-pulse rounded-md bg-muted p-0" />
-          </Card>
-        ))}
+      <a aria-hidden="true" className="sr-only" data-events-calendar-download tabIndex={-1} />
+      <div data-events-calendar-controls-host />
+      <div data-events-calendar-viewport data-view="month">
+        <div aria-label="Loading events" className="grid min-h-32 grid-cols-1 gap-2 sm:grid-cols-2" data-events-calendar-skeleton>
+          {Array.from({ length: 4 }, (_, index) => (
+            <Card className="shadow-none" data-events-calendar-skeleton-card key={index}>
+              <CardContent className="h-24 animate-pulse rounded-md bg-muted p-0" />
+            </Card>
+          ))}
+        </div>
       </div>
+      <div data-events-calendar-peek-host />
     </div>
   );
 }
 
-function EventsCalendarEmpty({ message }: EventsCalendarEmptyProps) {
+export function EventsCalendarEmpty({ message }: EventsCalendarEmptyProps) {
   return (
     <Card className="border-dashed shadow-none" data-events-calendar-empty>
       <CardContent className="p-8 text-center text-sm text-muted-foreground">{message}</CardContent>
@@ -180,7 +185,7 @@ function activeButtonClass(active: boolean) {
   return cn(active ? '' : 'bg-background', 'shrink-0');
 }
 
-function EventsCalendarControls({
+export function EventsCalendarControls({
   activeView,
   filter,
   isAuthenticated,
@@ -374,7 +379,7 @@ function EventsCalendarMoreButton({ day, label }: EventsCalendarMoreButtonProps)
   );
 }
 
-function EventsCalendarMonthView({ density, label, liveText, rows, weekdays }: EventsCalendarMonthViewProps) {
+export function EventsCalendarMonthView({ density, label, liveText, rows, weekdays }: EventsCalendarMonthViewProps) {
   return (
     <>
       <Card className="overflow-hidden shadow-none" data-events-calendar-month role="grid" aria-label={label}>
@@ -427,7 +432,7 @@ function EventsCalendarMonthView({ density, label, liveText, rows, weekdays }: E
   );
 }
 
-function EventsCalendarAgendaView({ days, emptyMessage }: EventsCalendarAgendaViewProps) {
+export function EventsCalendarAgendaView({ days, emptyMessage }: EventsCalendarAgendaViewProps) {
   if (!days.length) return <EventsCalendarEmpty message={emptyMessage} />;
 
   return (
@@ -451,7 +456,7 @@ function EventsCalendarAgendaView({ days, emptyMessage }: EventsCalendarAgendaVi
   );
 }
 
-function EventsCalendarWeekView({ days }: EventsCalendarWeekViewProps) {
+export function EventsCalendarWeekView({ days }: EventsCalendarWeekViewProps) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-7" data-events-calendar-week>
       {days.map((day) => (
@@ -476,7 +481,7 @@ function EventsCalendarWeekView({ days }: EventsCalendarWeekViewProps) {
   );
 }
 
-function EventsCalendarPeekOverlay({
+export function EventsCalendarPeekOverlay({
   addToCalendarLabel,
   closeLabel,
   heading,

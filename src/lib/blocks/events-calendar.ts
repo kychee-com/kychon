@@ -6,6 +6,9 @@
 // configured view.
 
 import type { BlockRenderContext, Section } from '../blocks.js';
+import { createElement, type ReactElement } from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot, type Root as ReactRoot } from 'react-dom/client';
 import { safeCssUrl } from '../blocks.js';
 import { get, patch } from '../api.js';
 import {
@@ -22,18 +25,22 @@ import type { RsvpAvatar } from '../api.js';
 import { siteConfig } from '../config.js';
 import { eventDayKey, formatEventDateTime } from '../event-display.js';
 import {
-  renderEventsCalendarAgendaViewHtml,
-  renderEventsCalendarControlsHtml,
-  renderEventsCalendarMonthViewHtml,
-  renderEventsCalendarPeekOverlayHtml,
-  renderEventsCalendarWeekViewHtml,
+  EventsCalendarAgendaView,
+  EventsCalendarControls,
+  EventsCalendarMonthView,
+  EventsCalendarPeekOverlay,
+  EventsCalendarWeekView,
   type EventsCalendarAgendaDay,
+  type EventsCalendarAgendaViewProps,
   type EventsCalendarChipProps,
   type EventsCalendarControlsLabels,
   type EventsCalendarMonthCell,
+  type EventsCalendarMonthViewProps,
   type EventsCalendarPeekAvatar,
   type EventsCalendarPeekCapacity,
+  type EventsCalendarPeekOverlayProps,
   type EventsCalendarWeekDay,
+  type EventsCalendarWeekViewProps,
 } from '@/components/kychon/EventsCalendarBlockView';
 
 type ViewMode = 'month' | 'week' | 'agenda';
@@ -70,6 +77,38 @@ const REDUCED_MOTION = typeof window !== 'undefined' &&
 
 const HOVER_CAPABLE = typeof window !== 'undefined' &&
   window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+
+interface CalendarRenderRoots {
+  controls: ReactRoot;
+  controlsHost: HTMLElement;
+  viewport: ReactRoot;
+  viewportHost: HTMLElement;
+  peek: ReactRoot;
+  peekHost: HTMLElement;
+}
+
+const calendarRenderRoots = new WeakMap<HTMLElement, CalendarRenderRoots>();
+
+function getCalendarRenderRoots(root: HTMLElement): CalendarRenderRoots | null {
+  const existing = calendarRenderRoots.get(root);
+  if (existing) return existing;
+
+  const controlsHost = root.querySelector<HTMLElement>('[data-events-calendar-controls-host]');
+  const viewportHost = root.querySelector<HTMLElement>('[data-events-calendar-viewport]');
+  const peekHost = root.querySelector<HTMLElement>('[data-events-calendar-peek-host]');
+  if (!controlsHost || !viewportHost || !peekHost) return null;
+
+  const roots: CalendarRenderRoots = {
+    controls: createRoot(controlsHost),
+    controlsHost,
+    viewport: createRoot(viewportHost),
+    viewportHost,
+    peek: createRoot(peekHost),
+    peekHost,
+  };
+  calendarRenderRoots.set(root, roots);
+  return roots;
+}
 
 // --- Date utilities (Intl-only, no external date lib) ---
 
@@ -243,18 +282,22 @@ function eventToIcs(evt: Event, host: string): string {
   return lines.join('\r\n');
 }
 
-function downloadIcs(evt: Event): void {
+function downloadIcs(evt: Event, root: HTMLElement): void {
   const host = window.location.host || 'kychon.run402.com';
   const ics = eventToIcs(evt, host);
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = root.querySelector<HTMLAnchorElement>('[data-events-calendar-download]');
+  if (!a) {
+    URL.revokeObjectURL(url);
+    return;
+  }
   a.href = url;
   a.download = `event-${evt.id}.ics`;
-  document.body.appendChild(a);
   a.click();
   setTimeout(() => {
-    document.body.removeChild(a);
+    a.removeAttribute('href');
+    a.removeAttribute('download');
     URL.revokeObjectURL(url);
   }, 0);
 }
@@ -383,7 +426,7 @@ function eventChipProps(
   };
 }
 
-function renderMonthView(state: State, locale: string, firstDayOfWeek: number): string {
+function monthViewProps(state: State, locale: string, firstDayOfWeek: number): EventsCalendarMonthViewProps {
   const firstDow = state.density === 'glance' ? 0 : firstDayOfWeek;
   const win = visibleWindow(state.currentMonth, firstDow);
   const now = new Date();
@@ -430,16 +473,16 @@ function renderMonthView(state: State, locale: string, firstDayOfWeek: number): 
   }
 
   const visibleCount = filterEvents(state.events, state, new Date()).length;
-  return renderEventsCalendarMonthViewHtml({
+  return {
     density: state.density,
     label: fmtMonthYear(state.currentMonth, locale),
     liveText: `${fmtMonthYear(state.currentMonth, locale)}, ${visibleCount} ${visibleCount === 1 ? 'event' : 'events'}`,
     rows,
     weekdays: weekdayCells,
-  });
+  };
 }
 
-function renderAgendaView(state: State, locale: string): string {
+function agendaViewProps(state: State, locale: string): EventsCalendarAgendaViewProps {
   const now = new Date();
   const filtered = filterEvents(state.events, state, now).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const grouped = groupByDay(filtered, locale);
@@ -453,13 +496,13 @@ function renderAgendaView(state: State, locale: string): string {
       isToday: isSameDay(dayDate, now),
     };
   });
-  return renderEventsCalendarAgendaViewHtml({
+  return {
     days,
     emptyMessage: t('No events this month.', locale),
-  });
+  };
 }
 
-function renderWeekView(state: State, locale: string): string {
+function weekViewProps(state: State, locale: string): EventsCalendarWeekViewProps {
   const firstDow = 0;
   const start = startOfWeek(state.focusDate || new Date(), firstDow);
   const now = new Date();
@@ -477,7 +520,7 @@ function renderWeekView(state: State, locale: string): string {
       weekdayLabel: fmtWeekday(d, locale),
     });
   }
-  return renderEventsCalendarWeekViewHtml({ days });
+  return { days };
 }
 
 // --- Main entry ---
@@ -521,38 +564,37 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   });
   ro.observe(root);
 
-  // Strip the loading placeholder; build the shell.
-  function shell(): string {
-    return `
-      ${state.peekDayKey ? '' /* peek rendered as overlay below */ : ''}
-      ${renderEventsCalendarControlsHtml({
+  function renderViewportElement(): ReactElement {
+    if (state.effectiveView === 'agenda') {
+      return createElement(EventsCalendarAgendaView, agendaViewProps(state, ctx.locale));
+    }
+    if (state.effectiveView === 'week') {
+      return createElement(EventsCalendarWeekView, weekViewProps(state, ctx.locale));
+    }
+    return createElement(EventsCalendarMonthView, monthViewProps(state, ctx.locale, cfg.first_day_of_week ?? 0));
+  }
+
+  function repaint(): void {
+    const roots = getCalendarRenderRoots(root);
+    if (!roots) return;
+    root.dataset.eventsCalendarView = state.effectiveView;
+    root.dataset.eventsCalendarDensity = state.density;
+    root.toggleAttribute('data-events-calendar-narrow', containerNarrow);
+    roots.viewportHost.dataset.view = state.effectiveView;
+    flushSync(() => {
+      roots.controls.render(createElement(EventsCalendarControls, {
         activeView: state.effectiveView,
         filter: state.filter,
         isAuthenticated: isAuthed,
         labels: calendarControlLabels(ctx.locale),
         monthLabel: fmtMonthYear(state.currentMonth, ctx.locale),
         showFilterChips: cfg.show_filter_chips !== false,
-      })}
-      <div data-events-calendar-viewport data-view="${state.effectiveView}"></div>
-    `;
-  }
-
-  function renderViewport(): string {
-    if (state.effectiveView === 'agenda') return renderAgendaView(state, ctx.locale);
-    if (state.effectiveView === 'week') return renderWeekView(state, ctx.locale);
-    return renderMonthView(state, ctx.locale, cfg.first_day_of_week ?? 0);
-  }
-
-  function repaint(): void {
-    root.dataset.eventsCalendarView = state.effectiveView;
-    root.dataset.eventsCalendarDensity = state.density;
-    root.toggleAttribute('data-events-calendar-narrow', containerNarrow);
-    root.innerHTML = shell();
-    const viewport = root.querySelector<HTMLElement>('[data-events-calendar-viewport]');
-    if (viewport) viewport.innerHTML = renderViewport();
+      }));
+      roots.viewport.render(renderViewportElement());
+    });
     bindControls();
     bindCells();
-    if (state.peekDayKey) renderPeekOverlay();
+    renderPeekOverlay();
     announceMonth();
   }
 
@@ -624,7 +666,9 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   // --- Listeners ---
 
   function bindControls(): void {
-    root.querySelectorAll<HTMLElement>('[data-nav]').forEach((btn) => {
+    root.querySelectorAll<HTMLElement>('button[data-nav]').forEach((btn) => {
+      if (btn.dataset.eventsCalendarNavBound === 'true') return;
+      btn.dataset.eventsCalendarNavBound = 'true';
       btn.addEventListener('click', () => {
         const dir = btn.dataset.nav;
         if (dir === 'today') {
@@ -638,7 +682,9 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
         void loadWindow();
       });
     });
-    root.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) => {
+    root.querySelectorAll<HTMLElement>('button[data-view]').forEach((btn) => {
+      if (btn.dataset.eventsCalendarViewBound === 'true') return;
+      btn.dataset.eventsCalendarViewBound = 'true';
       btn.addEventListener('click', () => {
         const v = btn.dataset.view as ViewMode;
         if (v && v !== state.view) {
@@ -648,7 +694,9 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
         }
       });
     });
-    root.querySelectorAll<HTMLElement>('[data-filter]').forEach((btn) => {
+    root.querySelectorAll<HTMLElement>('button[data-filter]').forEach((btn) => {
+      if (btn.dataset.eventsCalendarFilterBound === 'true') return;
+      btn.dataset.eventsCalendarFilterBound = 'true';
       btn.addEventListener('click', () => {
         const f = btn.dataset.filter as Filter;
         if (f && f !== state.filter) {
@@ -668,6 +716,8 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     // Click chip → no special handling (anchor href to /event); drag handlers TODO.
     // Click overflow "+N more" → open day peek.
     root.querySelectorAll<HTMLElement>('[data-day-peek]').forEach((btn) => {
+      if (btn.dataset.eventsCalendarPeekButtonBound === 'true') return;
+      btn.dataset.eventsCalendarPeekButtonBound = 'true';
       btn.addEventListener('click', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
@@ -678,6 +728,8 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
 
     // Tap a day cell on touch → also opens peek (mobile-friendly).
     root.querySelectorAll<HTMLElement>('[data-events-calendar-cell]').forEach((cell) => {
+      if (cell.dataset.eventsCalendarCellBound === 'true') return;
+      cell.dataset.eventsCalendarCellBound = 'true';
       cell.addEventListener('click', (ev) => {
         if (HOVER_CAPABLE) return;
         const target = ev.target as HTMLElement;
@@ -693,6 +745,8 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     if (HOVER_CAPABLE) {
       let hoverTimer: number | undefined;
       root.querySelectorAll<HTMLElement>('[data-events-calendar-cell]').forEach((cell) => {
+        if (cell.dataset.eventsCalendarHoverBound === 'true') return;
+        cell.dataset.eventsCalendarHoverBound = 'true';
         cell.addEventListener('mouseenter', () => {
           const events = (state.events && state.events.length)
             ? filterEvents(state.events, state, new Date()).filter((e) => eventDayKey(e, siteConfig, ctx.locale) === cell.dataset.day)
@@ -712,9 +766,12 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   }
 
   function renderPeekOverlay(): void {
-    // Remove any existing peek.
-    root.querySelector('[data-events-calendar-peek]')?.remove();
-    if (!state.peekDayKey) return;
+    const roots = getCalendarRenderRoots(root);
+    if (!roots) return;
+    if (!state.peekDayKey) {
+      flushSync(() => roots.peek.render(null));
+      return;
+    }
 
     const dayDate = new Date(state.peekDayKey + 'T00:00:00');
     const events = filterEvents(state.events, state, new Date()).filter((e) => {
@@ -723,6 +780,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     });
     if (!events.length) {
       state.peekDayKey = null;
+      flushSync(() => roots.peek.render(null));
       return;
     }
     const heading = fmtDateLong(dayDate, ctx.locale);
@@ -743,36 +801,44 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       };
     });
 
-    root.insertAdjacentHTML('beforeend', renderEventsCalendarPeekOverlayHtml({
+    const props: EventsCalendarPeekOverlayProps = {
       addToCalendarLabel: t('Add to my calendar', ctx.locale),
       closeLabel: t('Close', ctx.locale),
       heading,
       items,
       liveNowLabel: t('Live now', ctx.locale),
       membersOnlyLabel: t('Members only', ctx.locale),
-    }));
+    };
+    flushSync(() => {
+      roots.peek.render(createElement(EventsCalendarPeekOverlay, props));
+    });
 
-    const overlay = root.querySelector<HTMLElement>('[data-events-calendar-peek]');
+    const overlay = roots.peekHost.querySelector<HTMLElement>('[data-events-calendar-peek]');
     if (!overlay) return;
 
-    overlay.querySelector('[data-events-calendar-peek-close]')?.addEventListener('click', () => {
-      state.peekDayKey = null;
-      overlay.remove();
-    });
-    // Click outside closes
-    overlay.addEventListener('click', (ev) => {
-      if (ev.target === overlay) {
+    if (overlay.dataset.eventsCalendarPeekBound !== 'true') {
+      overlay.dataset.eventsCalendarPeekBound = 'true';
+      overlay.querySelector('[data-events-calendar-peek-close]')?.addEventListener('click', () => {
         state.peekDayKey = null;
-        overlay.remove();
-      }
-    });
+        renderPeekOverlay();
+      });
+      // Click outside closes
+      overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) {
+          state.peekDayKey = null;
+          renderPeekOverlay();
+        }
+      });
+    }
     overlay.querySelectorAll<HTMLElement>('[data-events-calendar-peek-ics][data-event-id]').forEach((btn) => {
+      if (btn.dataset.eventsCalendarIcsBound === 'true') return;
+      btn.dataset.eventsCalendarIcsBound = 'true';
       btn.addEventListener('click', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
         const id = Number(btn.dataset.eventId);
         const evt = state.events.find((e) => e.id === id);
-        if (evt) downloadIcs(evt);
+        if (evt) downloadIcs(evt, root);
       });
     });
   }
@@ -785,7 +851,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     if (k === 'Escape' && state.peekDayKey) {
       ev.preventDefault();
       state.peekDayKey = null;
-      root.querySelector('[data-events-calendar-peek]')?.remove();
+      renderPeekOverlay();
       return;
     }
     if (k === 't' || k === 'T') {
@@ -868,6 +934,13 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   function cleanup(): void {
     ro.disconnect();
     cancelPendingPrefetches();
+    const roots = calendarRenderRoots.get(root);
+    if (roots) {
+      roots.controls.unmount();
+      roots.viewport.unmount();
+      roots.peek.unmount();
+      calendarRenderRoots.delete(root);
+    }
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('wl-auth-changed', onAuthChanged);
     document.removeEventListener('wl-locale-changed', onLocaleChanged);
