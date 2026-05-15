@@ -255,6 +255,10 @@ describe('legacy static UI primitives', () => {
     expect(toastIsland).toContain('Toaster');
     expect(toastIsland).toContain('toast.success');
     expect(sonner).toContain('sonner');
-    expect(sonner).toContain('ky-toast');
+    expect(sonner).toContain('border-border bg-background text-foreground shadow-lg');
+    expect(sonner).toContain('text-muted-foreground');
+    expect(sonner).not.toContain('ky-toast');
+    expect(sonner).not.toContain('group-[');
+    expect(sonner).not.toContain('className="toaster');
   });
 });
