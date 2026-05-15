@@ -90,6 +90,8 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.toast(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('.toast-container');
     expect(styles).not.toContain('toast-success');
+    expect(styles).not.toMatch(/\.auth-(?:modal|panel|divider)\b/);
+    expect(styles).not.toMatch(/\.table-wrap\b/);
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__controls');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__seg-btn');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__filter-chip');
