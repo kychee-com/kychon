@@ -6,7 +6,7 @@
 // configured view.
 
 import type { BlockRenderContext, Section } from '../blocks.js';
-import { escAttr, escHtml, safeCssUrl } from '../blocks.js';
+import { safeCssUrl } from '../blocks.js';
 import { get, patch } from '../api.js';
 import {
   cancelPendingPrefetches,
@@ -22,14 +22,18 @@ import type { RsvpAvatar } from '../api.js';
 import { siteConfig } from '../config.js';
 import { eventDayKey, formatEventDateTime } from '../event-display.js';
 import {
-  renderEventsCalendarChipHtml,
+  renderEventsCalendarAgendaViewHtml,
   renderEventsCalendarControlsHtml,
-  renderEventsCalendarEmptyHtml,
-  renderEventsCalendarMoreButtonHtml,
+  renderEventsCalendarMonthViewHtml,
   renderEventsCalendarPeekOverlayHtml,
+  renderEventsCalendarWeekViewHtml,
+  type EventsCalendarAgendaDay,
+  type EventsCalendarChipProps,
   type EventsCalendarControlsLabels,
+  type EventsCalendarMonthCell,
   type EventsCalendarPeekAvatar,
   type EventsCalendarPeekCapacity,
+  type EventsCalendarWeekDay,
 } from '@/components/kychon/EventsCalendarBlockView';
 
 type ViewMode = 'month' | 'week' | 'agenda';
@@ -348,20 +352,20 @@ function calendarControlLabels(locale: string): EventsCalendarControlsLabels {
   };
 }
 
-function renderEventChip(
+function eventChipProps(
   evt: Event,
   state: State,
   locale: string,
   now: Date,
   density: Density,
-): string {
+): EventsCalendarChipProps {
   const time = formatEventDateTime(evt, locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
   const safeThumbUrl = density === 'rich' && evt.image_url ? safeCssUrl(evt.image_url) : '';
   const avatarStack = density === 'rich'
     ? rsvpAvatarStackData(evt.id, state.rsvps)
     : { avatars: [], overflow: 0 };
 
-  return renderEventsCalendarChipHtml({
+  return {
     avatarOverflow: avatarStack.overflow,
     avatars: avatarStack.avatars,
     capacity: capacityBadgeInfo(evt, state.rsvps, locale),
@@ -376,27 +380,26 @@ function renderEventChip(
     thumbUrl: safeThumbUrl,
     time,
     title: evt.title || '',
-  });
+  };
 }
 
-function renderMonthView(state: State, locale: string, _ctx: BlockRenderContext): string {
-  const firstDow = state.density === 'glance' ? 0 : (Number.isInteger((state as any).first_day_of_week) ? (state as any).first_day_of_week : 0);
+function renderMonthView(state: State, locale: string, firstDayOfWeek: number): string {
+  const firstDow = state.density === 'glance' ? 0 : firstDayOfWeek;
   const win = visibleWindow(state.currentMonth, firstDow);
   const now = new Date();
 
-  // Weekday headers
   const weekdayCells: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(win.start, i);
-    weekdayCells.push(`<div class="block-events-calendar__weekday" role="columnheader">${escHtml(fmtWeekday(d, locale, 'short'))}</div>`);
+    weekdayCells.push(fmtWeekday(d, locale, 'short'));
   }
 
   const filtered = filterEvents(state.events, state, now);
   const grouped = groupByDay(filtered, locale);
 
-  const rows: string[] = [];
+  const rows: EventsCalendarMonthCell[][] = [];
   for (let row = 0; row < 6; row++) {
-    const cells: string[] = [];
+    const cells: EventsCalendarMonthCell[] = [];
     for (let col = 0; col < 7; col++) {
       const cellDate = addDays(win.start, row * 7 + col);
       const inMonth = isSameMonth(cellDate, state.currentMonth);
@@ -405,87 +408,76 @@ function renderMonthView(state: State, locale: string, _ctx: BlockRenderContext)
       const events = grouped.get(dayKey(cellDate)) || [];
       const visible = events.slice(0, 3);
       const overflow = events.length - visible.length;
-      const overflowHtml = overflow > 0
-        ? renderEventsCalendarMoreButtonHtml({
+      const moreButton = overflow > 0
+        ? {
           day: dayKey(cellDate),
           label: `+${overflow} ${t('more', locale)}`,
-        })
-        : '';
-      const chipsHtml = visible.map((e) => renderEventChip(e, state, locale, now, state.density)).join('');
+        }
+        : null;
       const ariaLabel = `${fmtDateLong(cellDate, locale)}, ${events.length} ${events.length === 1 ? 'event' : 'events'}`;
-      cells.push(`
-        <div class="block-events-calendar__cell${inMonth ? '' : ' is-outside'}${today ? ' is-today' : ''}${focused ? ' is-focused' : ''}"
-             role="gridcell"
-             tabindex="${focused ? '0' : '-1'}"
-             data-day="${escAttr(dayKey(cellDate))}"
-             aria-label="${escAttr(ariaLabel)}">
-          <div class="block-events-calendar__cell-num">${escHtml(fmtDayOfMonth(cellDate, locale))}</div>
-          <div class="block-events-calendar__cell-events">${chipsHtml}${overflowHtml}</div>
-        </div>
-      `);
+      cells.push({
+        ariaLabel,
+        chips: visible.map((e) => eventChipProps(e, state, locale, now, state.density)),
+        day: dayKey(cellDate),
+        dayLabel: fmtDayOfMonth(cellDate, locale),
+        focused: !!focused,
+        inMonth,
+        isToday: today,
+        moreButton,
+      });
     }
-    rows.push(`<div class="block-events-calendar__row" role="row">${cells.join('')}</div>`);
+    rows.push(cells);
   }
 
-  const liveRegion = `<div class="block-events-calendar__live-region sr-only" aria-live="polite"></div>`;
-  return `
-    <div class="block-events-calendar__grid" role="grid" aria-label="${escAttr(fmtMonthYear(state.currentMonth, locale))}" data-grid-cols="7">
-      <div class="block-events-calendar__weekdays" role="row">${weekdayCells.join('')}</div>
-      ${rows.join('')}
-    </div>
-    ${liveRegion}
-  `;
+  const visibleCount = filterEvents(state.events, state, new Date()).length;
+  return renderEventsCalendarMonthViewHtml({
+    density: state.density,
+    label: fmtMonthYear(state.currentMonth, locale),
+    liveText: `${fmtMonthYear(state.currentMonth, locale)}, ${visibleCount} ${visibleCount === 1 ? 'event' : 'events'}`,
+    rows,
+    weekdays: weekdayCells,
+  });
 }
 
 function renderAgendaView(state: State, locale: string): string {
   const now = new Date();
   const filtered = filterEvents(state.events, state, now).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
-  if (!filtered.length) {
-    return renderEventsCalendarEmptyHtml({ message: t('No events this month.', locale) });
-  }
-  // Group by day key, render header + chip list.
   const grouped = groupByDay(filtered, locale);
   const dayKeys = Array.from(grouped.keys()).sort();
-  const sections = dayKeys.map((k) => {
+  const days: EventsCalendarAgendaDay[] = dayKeys.map((k) => {
     const dayDate = new Date(k + 'T00:00:00');
     const events = grouped.get(k)!;
-    const heading = fmtAgendaDayHeading(dayDate, locale);
-    const today = isSameDay(dayDate, now) ? ' is-today' : '';
-    const chips = events.map((e) => renderEventChip(e, state, locale, now, state.density === 'glance' ? 'light' : state.density)).join('');
-    return `
-      <section class="block-events-calendar__agenda-day${today}">
-        <h4 class="block-events-calendar__agenda-heading">${escHtml(heading)}</h4>
-        <div class="block-events-calendar__agenda-events">${chips}</div>
-      </section>
-    `;
+    return {
+      chips: events.map((e) => eventChipProps(e, state, locale, now, state.density === 'glance' ? 'light' : state.density)),
+      heading: fmtAgendaDayHeading(dayDate, locale),
+      isToday: isSameDay(dayDate, now),
+    };
   });
-  return `<div class="block-events-calendar__agenda">${sections.join('')}</div>`;
+  return renderEventsCalendarAgendaViewHtml({
+    days,
+    emptyMessage: t('No events this month.', locale),
+  });
 }
 
 function renderWeekView(state: State, locale: string): string {
-  // Week view = 7-column day strip, single row, taller cells.
   const firstDow = 0;
   const start = startOfWeek(state.focusDate || new Date(), firstDow);
   const now = new Date();
   const filtered = filterEvents(state.events, state, now);
   const grouped = groupByDay(filtered, locale);
-  const cols: string[] = [];
+  const days: EventsCalendarWeekDay[] = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(start, i);
     const events = grouped.get(dayKey(d)) || [];
-    const today = isSameDay(d, now) ? ' is-today' : '';
-    const chips = events.map((e) => renderEventChip(e, state, locale, now, state.density === 'glance' ? 'light' : state.density)).join('');
-    cols.push(`
-      <section class="block-events-calendar__week-col${today}" data-day="${escAttr(dayKey(d))}">
-        <header class="block-events-calendar__week-head">
-          <div class="block-events-calendar__week-dow">${escHtml(fmtWeekday(d, locale))}</div>
-          <div class="block-events-calendar__week-num">${escHtml(fmtDayOfMonth(d, locale))}</div>
-        </header>
-        <div class="block-events-calendar__week-events">${chips || `<div class="block-events-calendar__week-empty"></div>`}</div>
-      </section>
-    `);
+    days.push({
+      chips: events.map((e) => eventChipProps(e, state, locale, now, state.density === 'glance' ? 'light' : state.density)),
+      day: dayKey(d),
+      dayLabel: fmtDayOfMonth(d, locale),
+      isToday: isSameDay(d, now),
+      weekdayLabel: fmtWeekday(d, locale),
+    });
   }
-  return `<div class="block-events-calendar__week">${cols.join('')}</div>`;
+  return renderEventsCalendarWeekViewHtml({ days });
 }
 
 // --- Main entry ---
@@ -541,25 +533,22 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
         monthLabel: fmtMonthYear(state.currentMonth, ctx.locale),
         showFilterChips: cfg.show_filter_chips !== false,
       })}
-      <div class="block-events-calendar__viewport" data-view="${state.effectiveView}"></div>
+      <div data-events-calendar-viewport data-view="${state.effectiveView}"></div>
     `;
   }
 
   function renderViewport(): string {
     if (state.effectiveView === 'agenda') return renderAgendaView(state, ctx.locale);
     if (state.effectiveView === 'week') return renderWeekView(state, ctx.locale);
-    return renderMonthView(state, ctx.locale, ctx);
+    return renderMonthView(state, ctx.locale, cfg.first_day_of_week ?? 0);
   }
 
   function repaint(): void {
-    // Preserve scroll, focus where reasonable.
-    root.classList.toggle('block-events-calendar--narrow', containerNarrow);
-    root.classList.remove('block-events-calendar--view-month', 'block-events-calendar--view-week', 'block-events-calendar--view-agenda');
-    root.classList.add(`block-events-calendar--view-${state.effectiveView}`);
-    root.classList.remove('block-events-calendar--density-glance', 'block-events-calendar--density-light', 'block-events-calendar--density-rich');
-    root.classList.add(`block-events-calendar--density-${state.density}`);
+    root.dataset.eventsCalendarView = state.effectiveView;
+    root.dataset.eventsCalendarDensity = state.density;
+    root.toggleAttribute('data-events-calendar-narrow', containerNarrow);
     root.innerHTML = shell();
-    const viewport = root.querySelector<HTMLElement>('.block-events-calendar__viewport');
+    const viewport = root.querySelector<HTMLElement>('[data-events-calendar-viewport]');
     if (viewport) viewport.innerHTML = renderViewport();
     bindControls();
     bindCells();
@@ -568,7 +557,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   }
 
   function announceMonth(): void {
-    const live = root.querySelector('.block-events-calendar__live-region');
+    const live = root.querySelector('[data-events-calendar-live-region]');
     if (!live) return;
     const count = filterEvents(state.events, state, new Date()).length;
     live.textContent = `${fmtMonthYear(state.currentMonth, ctx.locale)}, ${count} ${count === 1 ? 'event' : 'events'}`;
@@ -688,7 +677,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     });
 
     // Tap a day cell on touch → also opens peek (mobile-friendly).
-    root.querySelectorAll<HTMLElement>('.block-events-calendar__cell').forEach((cell) => {
+    root.querySelectorAll<HTMLElement>('[data-events-calendar-cell]').forEach((cell) => {
       cell.addEventListener('click', (ev) => {
         if (HOVER_CAPABLE) return;
         const target = ev.target as HTMLElement;
@@ -703,7 +692,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     // Hover peek (desktop only).
     if (HOVER_CAPABLE) {
       let hoverTimer: number | undefined;
-      root.querySelectorAll<HTMLElement>('.block-events-calendar__cell').forEach((cell) => {
+      root.querySelectorAll<HTMLElement>('[data-events-calendar-cell]').forEach((cell) => {
         cell.addEventListener('mouseenter', () => {
           const events = (state.events && state.events.length)
             ? filterEvents(state.events, state, new Date()).filter((e) => eventDayKey(e, siteConfig, ctx.locale) === cell.dataset.day)
@@ -853,7 +842,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     } else {
       repaint();
       // Move focus to new cell.
-      const cell = root.querySelector<HTMLElement>(`[data-day="${dayKey(next)}"]`);
+      const cell = root.querySelector<HTMLElement>(`[data-events-calendar-cell][data-day="${dayKey(next)}"]`);
       cell?.focus();
     }
   }

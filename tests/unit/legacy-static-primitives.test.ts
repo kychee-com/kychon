@@ -7,7 +7,8 @@ const BLOCKS = resolve(process.cwd(), 'src/lib/blocks.ts');
 const EMBED = resolve(process.cwd(), 'src/lib/blocks/embed.ts');
 const STYLES = resolve(process.cwd(), 'src/styles/public.css');
 const EVENT_CALENDAR_RUNTIME = resolve(process.cwd(), 'src/lib/blocks/events-calendar.ts');
-const EVENT_CALENDAR_STYLES = resolve(process.cwd(), 'src/styles/block-events-calendar.css');
+const EVENT_CALENDAR_VIEW = resolve(process.cwd(), 'src/components/kychon/EventsCalendarBlockView.tsx');
+const GLOBAL_STYLES = resolve(process.cwd(), 'src/styles/globals.css');
 const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
 const ctx: BlockRenderContext = { admin: true, locale: 'en', isFeatureEnabled: () => true };
@@ -40,6 +41,7 @@ describe('legacy static UI primitives', () => {
 
     expect(html).toContain('data-events-calendar-skeleton');
     expect(html).toContain('animate-pulse');
+    expect(html).not.toContain('block-events-calendar');
     expect(html).not.toContain('block-events-calendar__skeleton');
     expect(html).not.toContain('event-skeleton-card');
     expect(html).not.toContain(' skeleton');
@@ -50,7 +52,8 @@ describe('legacy static UI primitives', () => {
     const embed = await readFile(EMBED, 'utf8');
     const styles = await readFile(STYLES, 'utf8');
     const eventCalendarRuntime = await readFile(EVENT_CALENDAR_RUNTIME, 'utf8');
-    const eventCalendarStyles = await readFile(EVENT_CALENDAR_STYLES, 'utf8');
+    const eventCalendarView = await readFile(EVENT_CALENDAR_VIEW, 'utf8');
+    const globalStyles = await readFile(GLOBAL_STYLES, 'utf8');
     const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
 
@@ -76,15 +79,10 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__avatar');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__badge');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__more');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__controls');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__seg-btn');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__filter-chip');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__peek');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__empty');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__chip');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__avatar');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__badge');
-    expect(eventCalendarStyles).not.toContain('block-events-calendar__more');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__');
+    expect(eventCalendarView).toContain('@/components/kychon/ui');
+    expect(eventCalendarView).not.toContain('block-events-calendar__');
+    expect(globalStyles).not.toContain('block-events-calendar.css');
     expect(adminStyles).not.toContain('block-embed');
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');

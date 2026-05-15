@@ -85,6 +85,48 @@ export interface EventsCalendarMoreButtonProps {
   label: string;
 }
 
+export interface EventsCalendarMonthCell {
+  ariaLabel: string;
+  chips: EventsCalendarChipProps[];
+  day: string;
+  dayLabel: string;
+  focused: boolean;
+  inMonth: boolean;
+  isToday: boolean;
+  moreButton: EventsCalendarMoreButtonProps | null;
+}
+
+export interface EventsCalendarMonthViewProps {
+  density: EventsCalendarDensity;
+  label: string;
+  liveText: string;
+  rows: EventsCalendarMonthCell[][];
+  weekdays: string[];
+}
+
+export interface EventsCalendarAgendaDay {
+  chips: EventsCalendarChipProps[];
+  heading: string;
+  isToday: boolean;
+}
+
+export interface EventsCalendarAgendaViewProps {
+  days: EventsCalendarAgendaDay[];
+  emptyMessage: string;
+}
+
+export interface EventsCalendarWeekDay {
+  chips: EventsCalendarChipProps[];
+  day: string;
+  dayLabel: string;
+  isToday: boolean;
+  weekdayLabel: string;
+}
+
+export interface EventsCalendarWeekViewProps {
+  days: EventsCalendarWeekDay[];
+}
+
 export interface EventsCalendarPeekItem {
   avatarOverflow: number;
   avatars: EventsCalendarPeekAvatar[];
@@ -283,7 +325,7 @@ function EventsCalendarChip({
   return (
     <a
       className={cn(
-        'flex min-w-0 items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground hover:no-underline',
+        'flex max-w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-md border bg-card px-2 py-1 text-xs text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground hover:no-underline',
         density === 'rich' ? 'min-h-10' : 'min-h-8',
         isLive ? 'border-primary/50' : 'border-border',
       )}
@@ -301,7 +343,7 @@ function EventsCalendarChip({
         />
       ) : null}
       {isLive ? <span aria-label={liveNowLabel} className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" role="img" /> : null}
-      <span className="shrink-0 tabular-nums text-muted-foreground">{time}</span>
+      <span className="min-w-0 truncate tabular-nums text-muted-foreground">{time}</span>
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
       {isMembersOnly ? (
         <Badge aria-label={membersOnlyLabel} className="shrink-0 px-1.5 py-0 text-[10px]" variant="outline">
@@ -329,6 +371,108 @@ function EventsCalendarMoreButton({ day, label }: EventsCalendarMoreButtonProps)
     >
       {label}
     </Button>
+  );
+}
+
+function EventsCalendarMonthView({ density, label, liveText, rows, weekdays }: EventsCalendarMonthViewProps) {
+  return (
+    <>
+      <Card className="overflow-hidden shadow-none" data-events-calendar-month role="grid" aria-label={label}>
+        <div className="grid grid-cols-7 border-b bg-muted/50" role="row">
+          {weekdays.map((weekday, index) => (
+            <div className="px-2 py-2 text-center text-xs font-semibold uppercase text-muted-foreground" key={`${weekday}-${index}`} role="columnheader">
+              {weekday}
+            </div>
+          ))}
+        </div>
+        {rows.map((row, rowIndex) => (
+          <div className="grid grid-cols-7" key={`row-${rowIndex}`} role="row">
+            {row.map((cell, cellIndex) => (
+              <div
+                aria-label={cell.ariaLabel}
+                className={cn(
+                  'flex min-h-24 min-w-0 flex-col gap-1 border-b border-r p-1.5 outline-none last:border-r-0',
+                  rowIndex === rows.length - 1 ? 'border-b-0' : '',
+                  cell.inMonth ? 'bg-card' : 'bg-muted/30',
+                  cell.focused ? 'ring-2 ring-inset ring-primary' : '',
+                )}
+                data-day={cell.day}
+                data-events-calendar-cell
+                key={`${cell.day}-${cellIndex}`}
+                role="gridcell"
+                tabIndex={cell.focused ? 0 : -1}
+              >
+                <span
+                  className={cn(
+                    'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs tabular-nums text-muted-foreground',
+                    cell.isToday ? 'bg-accent text-accent-foreground font-semibold' : '',
+                    cell.inMonth ? '' : 'opacity-45',
+                  )}
+                >
+                  {cell.dayLabel}
+                </span>
+                <div className={cn('flex min-w-0 flex-1 gap-1', density === 'glance' ? 'flex-row flex-wrap content-start' : 'flex-col')}>
+                  {cell.chips.map((chip) => <EventsCalendarChip {...chip} key={chip.id} />)}
+                  {cell.moreButton ? <EventsCalendarMoreButton {...cell.moreButton} /> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </Card>
+      <div className="sr-only" aria-live="polite" data-events-calendar-live-region>
+        {liveText}
+      </div>
+    </>
+  );
+}
+
+function EventsCalendarAgendaView({ days, emptyMessage }: EventsCalendarAgendaViewProps) {
+  if (!days.length) return <EventsCalendarEmpty message={emptyMessage} />;
+
+  return (
+    <div className="flex flex-col gap-4" data-events-calendar-agenda>
+      {days.map((day) => (
+        <section data-events-calendar-agenda-day key={day.heading}>
+          <h4
+            className={cn(
+              'sticky top-0 z-10 mb-2 border-b bg-background py-2 text-sm font-semibold uppercase text-muted-foreground tracking-normal',
+              day.isToday ? 'text-accent' : '',
+            )}
+          >
+            {day.heading}
+          </h4>
+          <div className="flex flex-col gap-2">
+            {day.chips.map((chip) => <EventsCalendarChip {...chip} key={chip.id} />)}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function EventsCalendarWeekView({ days }: EventsCalendarWeekViewProps) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-7" data-events-calendar-week>
+      {days.map((day) => (
+        <Card
+          className={cn('min-h-48 shadow-none', day.isToday ? 'border-primary' : '')}
+          data-day={day.day}
+          data-events-calendar-week-day
+          key={day.day}
+        >
+          <CardHeader className="items-center border-b p-3">
+            <div className="text-xs font-semibold uppercase text-muted-foreground tracking-normal">{day.weekdayLabel}</div>
+            <CardTitle className="text-lg tracking-normal">{day.dayLabel}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1.5 p-2">
+            {day.chips.length ? day.chips.map((chip) => <EventsCalendarChip {...chip} key={chip.id} />) : (
+              <div className="min-h-8 rounded-md border border-dashed" data-events-calendar-week-empty />
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -414,6 +558,18 @@ export function renderEventsCalendarChipHtml(props: EventsCalendarChipProps): st
 
 export function renderEventsCalendarMoreButtonHtml(props: EventsCalendarMoreButtonProps): string {
   return renderToStaticMarkup(<EventsCalendarMoreButton {...props} />);
+}
+
+export function renderEventsCalendarMonthViewHtml(props: EventsCalendarMonthViewProps): string {
+  return renderToStaticMarkup(<EventsCalendarMonthView {...props} />);
+}
+
+export function renderEventsCalendarAgendaViewHtml(props: EventsCalendarAgendaViewProps): string {
+  return renderToStaticMarkup(<EventsCalendarAgendaView {...props} />);
+}
+
+export function renderEventsCalendarWeekViewHtml(props: EventsCalendarWeekViewProps): string {
+  return renderToStaticMarkup(<EventsCalendarWeekView {...props} />);
 }
 
 export function renderEventsCalendarEmptyHtml(props: EventsCalendarEmptyProps): string {
