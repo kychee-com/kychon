@@ -6,6 +6,7 @@
 // provider is used without `trust_acknowledged: true`.
 
 import {
+  adminDragHandleHtml,
   adminEmbedEditButtonHtml,
   adminScopePillHtml,
   adminScopeToggleHtml,
@@ -65,6 +66,10 @@ function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
   );
 }
 
+function buildAdminDragHandle(section: Section, ctx: BlockRenderContext): string {
+  return ctx.admin && section.id != null ? adminDragHandleHtml() : '';
+}
+
 /** Render the visible error placeholder. Used when a provider can't render —
  *  unknown id, `buildSrc` throw, missing trust gate, etc. */
 export function renderEmbedError(
@@ -77,6 +82,7 @@ export function renderEmbedError(
   const adminCtrls = buildAdminControls(section, ctx);
   return (
     `<section class="${embedSectionClass}" data-embed data-embed-state="error"${attrs}>` +
+    buildAdminDragHandle(section, ctx) +
     adminCtrls +
     renderEmbedErrorContentHtml(message) +
     `</section>`
@@ -149,6 +155,7 @@ const EMBED: BlockType = {
     return (
       `<section class="${embedSectionClass}" data-embed data-embed-state="ready" ` +
       `data-embed-provider="${escAttr(provider.id)}" data-provider="${escAttr(provider.id)}"${attrs}>` +
+      buildAdminDragHandle(section, ctx) +
       adminCtrls +
       content +
       `</section>`

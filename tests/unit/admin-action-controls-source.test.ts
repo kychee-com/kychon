@@ -99,11 +99,18 @@ describe('admin action controls source', () => {
     expect(styles).not.toContain('admin-zone-add-btn');
   });
 
-  it('keeps dynamically inserted drag handles on shadcn variants', async () => {
+  it('renders drag handles through shared shadcn variants instead of inserted DOM primitives', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const helper = await readFile(HELPER, 'utf8');
     const styles = await readFile(ADMIN_CSS, 'utf8');
 
-    expect(editor).toContain('dragHandleButtonClass');
+    expect(helper).toContain('dragHandleButtonClass');
+    expect(helper).toContain('buttonVariants');
+    expect(helper).toContain('adminDragHandleHtml');
+    expect(helper).toContain('data-admin-drag-handle');
+    expect(editor).not.toContain('dragHandleButtonClass');
+    expect(editor).not.toContain("document.createElement('button')");
+    expect(editor).not.toContain('appendChild(handle)');
     expect(editor).toContain('data-admin-drag-handle');
     expect(editor).toContain('aria-label');
     expect(editor).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);

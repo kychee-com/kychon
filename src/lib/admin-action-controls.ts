@@ -27,6 +27,13 @@ const scopeButtonClass = buttonVariants({
   className: 'h-7 rounded-full bg-background/90 px-2 text-[0.6875rem] shadow-sm',
 });
 
+const dragHandleButtonClass = buttonVariants({
+  variant: 'outline',
+  size: 'icon',
+  className:
+    'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing',
+});
+
 export const adminScopePillClass = badgeVariants({
   className: 'h-7 rounded-full uppercase tracking-wide shadow-sm',
 });
@@ -53,4 +60,8 @@ export function adminNavEditButtonHtml(sectionId: number): string {
 
 export function adminSectionRemoveButtonHtml(sectionId: number): string {
   return `<button class="${attr(destructiveIconButtonClass)}" data-section-remove="${sectionId}" title="Remove section" aria-label="Remove section"><span aria-hidden="true">&times;</span></button>`;
+}
+
+export function adminDragHandleHtml(): string {
+  return `<button class="${attr(dragHandleButtonClass)}" type="button" draggable="true" data-admin-drag-handle aria-label="Drag to reorder"><span aria-hidden="true">☰</span></button>`;
 }
