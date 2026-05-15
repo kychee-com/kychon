@@ -36,8 +36,9 @@ describe('legacy static UI primitives', () => {
   it('renders the event calendar placeholder without the old skeleton primitive class', () => {
     const html = renderBlock(section('events_calendar', {}), ctx);
 
-    expect(html).toContain('block-events-calendar__skeleton');
+    expect(html).toContain('data-events-calendar-skeleton');
     expect(html).toContain('animate-pulse');
+    expect(html).not.toContain('block-events-calendar__skeleton');
     expect(html).not.toContain('event-skeleton-card');
     expect(html).not.toContain(' skeleton');
   });
@@ -51,11 +52,13 @@ describe('legacy static UI primitives', () => {
 
     expect(blocks).not.toContain('ky-text-muted');
     expect(blocks).not.toContain('event-skeleton-card');
+    expect(blocks).not.toContain('block-events-calendar__skeleton');
     expect(blocks).not.toContain(' skeleton"></div>');
     expect(embed).not.toContain('block-embed');
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
+    expect(styles).not.toContain('block-events-calendar__skeleton');
     expect(styles).not.toContain('section-shape-divider');
     expect(styles).not.toContain('shape-divider__');
     expect(styles).not.toContain('admin-account-security');

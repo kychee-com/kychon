@@ -12,6 +12,7 @@ import {
   renderTaglineStripBlockHtml,
 } from '@/components/kychon/MarketingBlocksView';
 import { renderSlideshowBlockHtml, type SlideshowRenderItem } from '@/components/kychon/SlideshowBlockView';
+import { renderEventsCalendarShellHtml } from '@/components/kychon/EventsCalendarBlockView';
 import {
   renderImageAccordionBlockHtml,
   type ImageAccordionRenderPanel,
@@ -1655,13 +1656,13 @@ const EVENTS_CALENDAR: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const heading = cfg.heading
-      ? `<h2 class="block-events-calendar__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '';
     const view = (cfg.view as string) || 'month';
     const density = (cfg.density as string) || 'light';
-    const skeleton = `<div class="block-events-calendar__skeleton" aria-label="Loading events">${'<div class="h-24 animate-pulse rounded-md bg-muted"></div>'.repeat(4)}</div>`;
-    const inner = `<div class="ky-container" data-block-hydrate="events_calendar" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
+    const inner = renderEventsCalendarShellHtml({
+      configJson: JSON.stringify(cfg),
+      editableHeadingPath: editablePath(section, 'heading', ctx),
+      heading: cfg.heading ? String(cfg.heading) : '',
+    });
     const cls = `section section-events-calendar block-events-calendar block-events-calendar--view-${escAttr(view)} block-events-calendar--density-${escAttr(density)}`;
     return adminWrap(section, ctx, inner, cls);
   },
