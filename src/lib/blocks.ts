@@ -4,7 +4,6 @@
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
-import { getSession } from './auth.js';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
@@ -782,47 +781,30 @@ const POLLS: BlockType = {
   defaultConfig: { heading: '', poll_ids: [] },
   render(section, ctx) {
     const cfg = section.config || {};
-    const heading = cfg.heading ? `<h2 class="mb-2">${escHtml(cfg.heading)}</h2>` : '';
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="polls">${heading}<div class="polls-skeleton"><div class="skeleton skeleton-card mb-1"></div></div></div>`,
-      'section section-polls',
+      `<div class="ky-container" data-block-hydrate="polls" data-config="${jsonAttr(cfg)}"></div>`,
+      'section w-full py-8',
     );
   },
   async hydrate(el, section, ctx) {
     if (!ctx.isFeatureEnabled?.('feature_polls')) {
-      el.style.display = 'none';
+      el.hidden = true;
       return;
     }
-    const cfg = section.config || {};
-    const pollIds: number[] = cfg.poll_ids || [];
     const container = el.querySelector('[data-block-hydrate="polls"]') as HTMLElement | null;
     if (!container) return;
-    const skeleton = container.querySelector('.polls-skeleton');
-    if (skeleton) skeleton.remove();
-    const { fetchAndRenderPoll, bindPollVoteListeners } = await import('./poll-ui.js');
-    const session = getSession();
-    const memberId = session?.user?.member?.id ?? null;
-    for (const pid of pollIds) {
-      try {
-        const result = await fetchAndRenderPoll(pid, session);
-        const wrap = document.createElement('div');
-        wrap.className = 'card mb-1';
-        wrap.dataset.sectionPoll = String(pid);
-        wrap.innerHTML = result.html;
-        container.appendChild(wrap);
-        bindPollVoteListeners(wrap, result.poll, result.votes, memberId, () => {
-          const ev = new CustomEvent('wl-content-rendered');
-          document.dispatchEvent(ev);
-        });
-      } catch (e) {
-        console.warn(`Failed to fetch poll ${pid}:`, e);
-      }
-    }
-    if (!container.querySelector('[data-section-poll]')) {
-      container.innerHTML += '<p class="ky-text-muted">No polls to display.</p>';
-    }
+    let cfg: Record<string, unknown> = section.config || {};
+    try {
+      cfg = { ...cfg, ...JSON.parse(container.getAttribute('data-config') || '{}') };
+    } catch {}
+    const { mountPollsBlockIsland } = await import('@/components/kychon/PollsBlockIsland');
+    mountPollsBlockIsland(container, {
+      config: cfg,
+      headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
+    });
+    container.dataset.hydrated = 'true';
   },
 };
 
