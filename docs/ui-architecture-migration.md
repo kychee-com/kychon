@@ -112,7 +112,7 @@ npm run ui:css-collisions -- --out docs/ui-css-collision-report.md
 Legacy classes that collide with Tailwind or the component system are split into three buckets:
 
 - `.container` remains a temporary Kychon chrome/layout class and must not be treated as Tailwind's container utility during migration.
-- `.btn`, `.card`, `.badge`, `.toast`, `.form-input`, `.form-select`, and `.form-textarea` remain temporary legacy component classes until their call sites move to Kychon UI components.
+- `.btn`, `.card`, `.badge`, `.form-input`, `.form-select`, and `.form-textarea` remain temporary legacy component classes until their call sites move to Kychon UI components.
 - `.hidden`, `.flex`, `.flex-col`, `.gap-1`, `.mt-1`, `.mt-2`, `.mb-1`, `.mb-2`, `.items-center`, `.justify-between`, `.text-sm`, and `.text-center` are legacy utility collisions that should be renamed, deleted, or quarantined before broad unprefixed Tailwind usage.
 
 New UI code should not add fresh usages of those legacy utilities unless the code is explicitly working inside the compatibility layer.

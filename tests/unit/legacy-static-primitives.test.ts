@@ -15,6 +15,8 @@ const PUBLIC_A11Y_STYLES = resolve(process.cwd(), 'public/css/a11y.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
 const CONFIG = resolve(process.cwd(), 'src/lib/config.ts');
 const PORTAL = resolve(process.cwd(), 'src/layouts/Portal.astro');
+const TOAST_ISLAND = resolve(process.cwd(), 'src/components/kychon/ToastIsland.tsx');
+const SONNER = resolve(process.cwd(), 'src/components/ui/sonner.tsx');
 const ctx: BlockRenderContext = { admin: true, locale: 'en', isFeatureEnabled: () => true };
 
 function section(sectionType: string, config: Record<string, unknown>): Section {
@@ -68,6 +70,8 @@ describe('legacy static UI primitives', () => {
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
     const config = await readFile(CONFIG, 'utf8');
     const portal = await readFile(PORTAL, 'utf8');
+    const toastIsland = await readFile(TOAST_ISLAND, 'utf8');
+    const sonner = await readFile(SONNER, 'utf8');
 
     expect(blocks).not.toContain('ky-text-muted');
     expect(blocks).not.toContain('event-skeleton-card');
@@ -82,6 +86,9 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toContain('shape-divider__');
     expect(styles).not.toContain('admin-account-security');
     expect(styles).not.toContain('admin-checklist');
+    expect(styles).not.toMatch(/\.toast(?:[.{:#\s-]|$)/);
+    expect(styles).not.toContain('.toast-container');
+    expect(styles).not.toContain('toast-success');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__controls');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__seg-btn');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__filter-chip');
@@ -120,5 +127,9 @@ describe('legacy static UI primitives', () => {
     expect(portal).toContain('id="wl-theme-vars"');
     expect(config).not.toContain('document.createElement');
     expect(config).not.toContain('appendChild');
+    expect(toastIsland).toContain('Toaster');
+    expect(toastIsland).toContain('toast.success');
+    expect(sonner).toContain('sonner');
+    expect(sonner).toContain('ky-toast');
   });
 });
