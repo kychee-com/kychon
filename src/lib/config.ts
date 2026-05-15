@@ -6,7 +6,7 @@
 import { get, getCurrentActorContext, patch } from './api.js';
 import { getSession, getSessionEmail } from './auth.js';
 import { canonicalRouteKey } from './clean-routes.js';
-import { loadLocale, setAvailableLocales, t } from './i18n.js';
+import { loadLocale, setAvailableLocales } from './i18n.js';
 
 // --- Cache layer (stale-while-revalidate) ---
 const WL_CACHE_CONFIG = 'wl_cache_site_config';
@@ -603,54 +603,6 @@ export async function translateItems(contentType: string, items: any[], fields: 
     }
   } catch {}
   return items;
-}
-
-export function addTranslateButton(el: HTMLElement, text: string): void {
-  if (!text || text.length < 10) return;
-  const locale = localStorage.getItem('wl_locale') || siteConfig.default_language || 'en';
-  const defaultLang = siteConfig.default_language || 'en';
-  if (locale === defaultLang) return;
-
-  const contentType = el.dataset.ct || '';
-  const contentId = el.dataset.ci || '';
-  const field = el.dataset.cf || '';
-
-  const link = document.createElement('button');
-  link.className = 'translate-link';
-  link.textContent = t('common.translate') || 'Translate';
-  link.addEventListener('click', async () => {
-    link.textContent = t('common.translating') || 'Translating...';
-    link.disabled = true;
-    try {
-      const payload: Record<string, any> = { text, target_lang: locale };
-      if (contentType && contentId && field) {
-        payload.content_type = contentType;
-        payload.content_id = contentId;
-        payload.field = field;
-      }
-      const res = await fetch(`${window.__KYCHON_API}/functions/v1/translate-text`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${window.__KYCHON_ANON_KEY}`,
-          apikey: window.__KYCHON_ANON_KEY,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.translated) {
-        const translatedEl = document.createElement('div');
-        translatedEl.className = 'translated-content';
-        translatedEl.innerHTML = `<div class="translated-text">${data.translated}</div><span class="translated-label">${t('common.translated_by_ai') || 'Translated by AI'}</span>`;
-        link.replaceWith(translatedEl);
-      } else {
-        link.textContent = t('common.translation_failed') || 'Translation unavailable';
-      }
-    } catch {
-      link.textContent = t('common.translation_failed') || 'Translation unavailable';
-    }
-  });
-  el.after(link);
 }
 
 export { features, siteConfig };
