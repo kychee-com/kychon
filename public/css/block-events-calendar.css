@@ -580,13 +580,6 @@
   border: 1px dashed var(--color-border, #e5e7eb);
   border-radius: var(--radius, 0.375rem);
 }
-.block-events-calendar__skeleton {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  min-height: 8rem;
-}
-
 /* --- Container query: narrow → forced agenda --- */
 
 @container events-calendar (max-width: 600px) {
