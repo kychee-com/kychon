@@ -21,6 +21,10 @@ import type { Event } from '../../schemas/event.js';
 import type { RsvpAvatar } from '../api.js';
 import { siteConfig } from '../config.js';
 import { eventDayKey, formatEventDateTime } from '../event-display.js';
+import {
+  renderEventsCalendarControlsHtml,
+  type EventsCalendarControlsLabels,
+} from '@/components/kychon/EventsCalendarBlockView';
 
 type ViewMode = 'month' | 'week' | 'agenda';
 type Density = 'glance' | 'light' | 'rich';
@@ -56,18 +60,6 @@ const REDUCED_MOTION = typeof window !== 'undefined' &&
 
 const HOVER_CAPABLE = typeof window !== 'undefined' &&
   window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
-
-// CSS injection — one stylesheet per page session.
-const CSS_HREF = '/css/block-events-calendar.css';
-function ensureCss(): void {
-  if (typeof document === 'undefined') return;
-  if (document.querySelector(`link[data-events-calendar-css]`)) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = CSS_HREF;
-  link.setAttribute('data-events-calendar-css', '');
-  document.head.appendChild(link);
-}
 
 // --- Date utilities (Intl-only, no external date lib) ---
 
@@ -331,42 +323,20 @@ function t(key: string, _locale: string): string {
 
 // --- Renderers ---
 
-function renderControls(state: State, locale: string): string {
-  const monthLabel = fmtMonthYear(state.currentMonth, locale);
-  const segView = (key: ViewMode, label: string): string =>
-    `<button type="button" class="block-events-calendar__seg-btn${state.view === key ? ' is-active' : ''}" data-view="${key}" aria-pressed="${state.view === key}">${escHtml(t(label, locale))}</button>`;
-  return `
-    <div class="block-events-calendar__controls">
-      <div class="block-events-calendar__nav">
-        <button type="button" class="block-events-calendar__arrow" data-nav="prev" aria-label="${escAttr(t('Previous month', locale))}">‹</button>
-        <h3 class="block-events-calendar__month-label" aria-live="polite">${escHtml(monthLabel)}</h3>
-        <button type="button" class="block-events-calendar__arrow" data-nav="next" aria-label="${escAttr(t('Next month', locale))}">›</button>
-        <button type="button" class="block-events-calendar__today-btn" data-nav="today">${escHtml(t('Today', locale))}</button>
-      </div>
-      <div class="block-events-calendar__seg" role="tablist" aria-label="View mode">
-        ${segView('month', 'Month')}
-        ${segView('week', 'Week')}
-        ${segView('agenda', 'Agenda')}
-      </div>
-    </div>
-  `;
-}
-
-function renderFilterChips(state: State, locale: string, isAuthed: boolean): string {
-  const chip = (key: Filter, label: string, hidden = false): string => {
-    if (hidden) return '';
-    const active = state.filter === key ? ' is-active' : '';
-    return `<button type="button" class="block-events-calendar__filter-chip${active}" data-filter="${key}" aria-pressed="${state.filter === key}">${escHtml(t(label, locale))}</button>`;
+function calendarControlLabels(locale: string): EventsCalendarControlsLabels {
+  return {
+    agenda: t('Agenda', locale),
+    all: t('All', locale),
+    members: t('Members', locale),
+    month: t('Month', locale),
+    myRsvps: t('My RSVPs', locale),
+    nextMonth: t('Next month', locale),
+    open: t('Open', locale),
+    past: t('Past', locale),
+    previousMonth: t('Previous month', locale),
+    today: t('Today', locale),
+    week: t('Week', locale),
   };
-  return `
-    <div class="block-events-calendar__chips" role="group" aria-label="Filter">
-      ${chip('all', 'All')}
-      ${chip('members', 'Members')}
-      ${chip('open', 'Open')}
-      ${chip('my_rsvps', 'My RSVPs', !isAuthed)}
-      ${chip('past', 'Past')}
-    </div>
-  `;
 }
 
 function renderEventChip(
@@ -510,8 +480,6 @@ function renderWeekView(state: State, locale: string): string {
 // --- Main entry ---
 
 export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRenderContext): void {
-  ensureCss();
-
   let cfg: Config = {};
   try {
     cfg = JSON.parse(root.getAttribute('data-config') || '{}');
@@ -554,8 +522,14 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   function shell(): string {
     return `
       ${state.peekDayKey ? '' /* peek rendered as overlay below */ : ''}
-      ${renderControls(state, ctx.locale)}
-      ${cfg.show_filter_chips !== false ? renderFilterChips(state, ctx.locale, isAuthed) : ''}
+      ${renderEventsCalendarControlsHtml({
+        activeView: state.effectiveView,
+        filter: state.filter,
+        isAuthenticated: isAuthed,
+        labels: calendarControlLabels(ctx.locale),
+        monthLabel: fmtMonthYear(state.currentMonth, ctx.locale),
+        showFilterChips: cfg.show_filter_chips !== false,
+      })}
       <div class="block-events-calendar__viewport" data-view="${state.effectiveView}"></div>
     `;
   }
