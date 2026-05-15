@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   AlertDescription,
-  Badge,
+  badgeVariants,
   Button,
   Card,
   CardContent,
@@ -213,19 +213,15 @@ export default function DirectoryPageApp() {
       {!loading && filteredMembers.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filteredMembers.map((member) => (
-            <Card
+            <Button
+              aria-label={`View ${member.display_name}`}
               key={member.id}
-              role="button"
-              tabIndex={0}
-              className="h-full cursor-pointer transition-colors hover:border-primary/60 hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              className="h-full w-full justify-start whitespace-normal rounded-lg border-border bg-card p-5 text-left text-card-foreground shadow hover:border-primary/60 hover:bg-accent/30 focus-visible:ring-offset-2"
               onClick={() => setSelectedMember(member)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                setSelectedMember(member);
-              }}
+              type="button"
+              variant="outline"
             >
-              <CardContent className="flex items-center gap-3 p-5">
+              <span className="flex min-w-0 items-center gap-3">
                 {member.avatar_url ? (
                   <img
                     src={member.avatar_url}
@@ -234,19 +230,19 @@ export default function DirectoryPageApp() {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
                     {initials(member.display_name)}
-                  </div>
+                  </span>
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-foreground">{member.display_name}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                    {member.tier_name ? <Badge variant="secondary">{member.tier_name}</Badge> : null}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-foreground">{member.display_name}</span>
+                  <span className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                    {member.tier_name ? <span className={badgeVariants({ variant: 'secondary' })}>{member.tier_name}</span> : null}
                     <span>{formatDate(member.joined_at) ? `Joined ${formatDate(member.joined_at)}` : 'Member'}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </span>
+                </span>
+              </span>
+            </Button>
           ))}
         </div>
       ) : null}

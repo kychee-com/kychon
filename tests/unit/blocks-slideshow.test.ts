@@ -1,7 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const ctx: BlockRenderContext = { admin: false, locale: 'en' };
+const slideshowViewSource = readFileSync(
+  join(import.meta.dirname, '../../src/components/kychon/SlideshowBlockView.tsx'),
+  'utf8',
+);
 
 function slideshowSection(config: Record<string, unknown> = {}): Section {
   return {
@@ -222,5 +228,12 @@ describe('slideshow block-type', () => {
     );
     expect(html).not.toContain('block-slideshow');
     expect(html).not.toContain('section-slideshow');
+  });
+
+  it('renders slideshow controls through the shared Button component', () => {
+    expect(slideshowViewSource).toContain("import { Button, Card, CardContent } from '@/components/kychon/ui'");
+    expect(slideshowViewSource).toContain('<Button');
+    expect(slideshowViewSource).not.toContain('<button');
+    expect(slideshowViewSource).not.toContain('buttonVariants');
   });
 });
