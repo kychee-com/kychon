@@ -6,6 +6,7 @@
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
 import { get } from './api.js';
 import { getSession } from './auth.js';
+import { normalizeSiteSearchConfig } from './site-search-config.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
 export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
@@ -1214,55 +1215,23 @@ const SITE_SEARCH: BlockType = {
     default_type: 'all',
   },
   render(section, ctx) {
-    const cfg = section.config || {};
-    const p = cfg.presentation || {};
-    const destination = cleanHref(cfg.destination, '/search');
-    const placeholder = cfg.placeholder || 'Search this site';
-    const submitLabel = cfg.submit_label || 'Search';
-    const mode = cfg.mode === 'header_icon' ? 'header_icon' : 'form';
-    if (mode === 'header_icon') {
-      const inner = `<a class="site-search site-search--header-icon" href="${escAttr(destination)}" aria-label="${escAttr(placeholder)}" title="${escAttr(placeholder)}"><span class="site-search__icon" aria-hidden="true"></span></a>`;
-      return adminWrap(section, ctx, inner, 'section section-site-search section-site-search--icon');
-    }
-    const defaultType = ['all', 'pages', 'resources', 'events'].includes(cfg.default_type)
-      ? cfg.default_type
-      : 'all';
-    const compact = cfg.compact !== false;
-    const sid = section.id ?? `pos-${section.position}`;
-    const inputId = `site-search-${sid}`;
-    const listId = `site-search-list-${sid}`;
+    const config = normalizeSiteSearchConfig(section.config || {});
     const cfgAttr = ` data-config="${jsonAttr({
-      destination,
-      default_type: defaultType,
-      min_chars: cfg.min_chars || 2,
+      compact: config.compact,
+      default_type: config.defaultType,
+      destination: config.destination,
+      min_chars: config.minChars,
+      mode: config.mode,
+      placeholder: config.placeholder,
+      presentation: config.presentation,
+      submit_label: config.submitLabel,
     })}"`;
-    const style = styleAttr([
-      cssVar('--site-search-max-width', p.max_width),
-      cssVar('--site-search-form-gap', p.form_gap),
-      cssVar('--site-search-form-border', p.form_border),
-      cssVar('--site-search-form-radius', p.form_radius),
-      cssVar('--site-search-form-overflow', p.form_overflow),
-      cssVar('--site-search-form-bg', p.form_bg),
-      cssVar('--site-search-input-height', p.input_height),
-      cssVar('--site-search-input-border', p.input_border),
-      cssVar('--site-search-input-radius', p.input_radius),
-      cssVar('--site-search-input-padding', p.input_padding),
-      cssVar('--site-search-submit-height', p.submit_height),
-      cssVar('--site-search-submit-border', p.submit_border),
-      cssVar('--site-search-submit-radius', p.submit_radius),
-      cssVar('--site-search-submit-padding', p.submit_padding),
-      cssVar('--site-search-submit-bg', p.submit_bg),
-      cssVar('--site-search-submit-color', p.submit_color),
-    ]);
-    const form = `<form class="site-search__form" action="${escAttr(destination)}" method="get" role="search">
-      <label class="sr-only" for="${escAttr(inputId)}">${escHtml(placeholder)}</label>
-      <input class="site-search__input" id="${escAttr(inputId)}" name="q" type="search" maxlength="300" autocomplete="off" placeholder="${escAttr(placeholder)}" aria-autocomplete="list" aria-expanded="false" aria-controls="${escAttr(listId)}">
-      <input type="hidden" name="type" value="${escAttr(defaultType)}">
-      <button class="site-search__submit" type="submit">${escHtml(submitLabel)}</button>
-      <div class="site-search__suggestions" id="${escAttr(listId)}" role="listbox" hidden></div>
-    </form>`;
-    const inner = `<div class="site-search site-search--${compact ? 'compact' : 'wide'}" data-block-hydrate="site_search"${cfgAttr}${style}>${form}</div>`;
-    return adminWrap(section, ctx, inner, 'section section-site-search');
+    const inner = `<div data-block-hydrate="site_search" data-site-search-root${cfgAttr}></div>`;
+    const headerClasses = config.mode === 'header_icon'
+      ? 'section col-[4] row-[1] flex w-9 justify-self-end py-0'
+      : 'section col-[4] row-[1] flex w-full min-w-0 max-w-md justify-self-end py-0 sm:max-w-[18rem]';
+    const classes = section.zone === 'header' ? headerClasses : 'section w-full py-1';
+    return adminWrap(section, ctx, inner, classes);
   },
   async hydrate(el, section, ctx) {
     const { hydrateSiteSearch } = await import('./block-hydrators.js');

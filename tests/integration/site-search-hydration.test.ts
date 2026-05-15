@@ -24,14 +24,7 @@ const ctx: BlockRenderContext = {
 function mount() {
   document.body.innerHTML = `
     <section>
-      <div class="site-search" data-block-hydrate="site_search" data-config='{"default_type":"pages","min_chars":2}'>
-        <form action="/search" method="get">
-          <input id="site-search-1" name="q" type="search" aria-expanded="false" aria-controls="site-search-list-1">
-          <input name="type" type="hidden" value="all">
-          <button type="submit">Search</button>
-          <div id="site-search-list-1" role="listbox" hidden></div>
-        </form>
-      </div>
+      <div data-block-hydrate="site_search" data-config='{"default_type":"pages","min_chars":2}'></div>
     </section>
   `;
   return document.querySelector('section') as HTMLElement;
@@ -72,6 +65,7 @@ describe('site_search hydration', () => {
     const host = mount();
     await hydrateSiteSearch(host, section, ctx);
 
+    await vi.waitFor(() => expect(host.querySelector('input[name="q"]')).toBeTruthy());
     const input = host.querySelector('input[name="q"]') as HTMLInputElement;
     input.value = 'mem';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -85,7 +79,6 @@ describe('site_search hydration', () => {
       input: { q: 'mem', type: 'pages' },
     });
     const list = host.querySelector('[role="listbox"]') as HTMLElement;
-    expect(list.hidden).toBe(false);
     expect(list.textContent).toContain('Membership');
     expect(input.getAttribute('aria-expanded')).toBe('true');
   });
@@ -93,17 +86,29 @@ describe('site_search hydration', () => {
   it('does not fetch below min chars and closes suggestions on Escape', async () => {
     const host = mount();
     await hydrateSiteSearch(host, section, ctx);
+    await vi.waitFor(() => expect(host.querySelector('input[name="q"]')).toBeTruthy());
     const input = host.querySelector('input[name="q"]') as HTMLInputElement;
     input.value = 'm';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(220);
     expect(fetchMock).not.toHaveBeenCalled();
 
-    const list = host.querySelector('[role="listbox"]') as HTMLElement;
-    list.hidden = false;
-    list.innerHTML = '<a id="opt" role="option" href="/x">X</a>';
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          correlationId: 'test',
+          data: { results: [{ type: 'page', title: 'Membership', url: '/page.html?slug=membership' }] },
+        }),
+    });
+    input.value = 'mem';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(220);
+    await vi.waitFor(() => expect(host.querySelector('[role="listbox"]')).toBeTruthy());
+
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(list.hidden).toBe(true);
+    await vi.waitFor(() => expect(host.querySelector('[role="listbox"]')).toBeNull());
     expect(input.getAttribute('aria-expanded')).toBe('false');
   });
 });
