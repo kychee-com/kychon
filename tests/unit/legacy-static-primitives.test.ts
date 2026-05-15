@@ -70,9 +70,13 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__controls');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__seg-btn');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__filter-chip');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__peek');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__empty');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__controls');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__seg-btn');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__filter-chip');
+    expect(eventCalendarStyles).not.toContain('block-events-calendar__peek');
+    expect(eventCalendarStyles).not.toContain('block-events-calendar__empty');
     expect(adminStyles).not.toContain('block-embed');
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');

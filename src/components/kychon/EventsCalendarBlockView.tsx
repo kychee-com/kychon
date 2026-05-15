@@ -1,8 +1,18 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-import { Button, Card, CardContent } from '@/components/kychon/ui';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
 
 export interface EventsCalendarShellProps {
@@ -37,6 +47,43 @@ export interface EventsCalendarControlsProps {
   showFilterChips: boolean;
 }
 
+export interface EventsCalendarEmptyProps {
+  message: string;
+}
+
+export interface EventsCalendarPeekAvatar {
+  avatarUrl?: string | null;
+  initial: string;
+  name: string;
+}
+
+export interface EventsCalendarPeekCapacity {
+  label: string;
+  tone: 'filling' | 'sold';
+}
+
+export interface EventsCalendarPeekItem {
+  avatarOverflow: number;
+  avatars: EventsCalendarPeekAvatar[];
+  capacity: EventsCalendarPeekCapacity | null;
+  href: string;
+  id: number;
+  isLive: boolean;
+  isMembersOnly: boolean;
+  location?: string | null;
+  time: string;
+  title: string;
+}
+
+export interface EventsCalendarPeekOverlayProps {
+  addToCalendarLabel: string;
+  closeLabel: string;
+  heading: string;
+  items: EventsCalendarPeekItem[];
+  liveNowLabel: string;
+  membersOnlyLabel: string;
+}
+
 function EventsCalendarShell({ configJson, editableHeadingPath, heading }: EventsCalendarShellProps) {
   return (
     <div className="ky-container" data-block-hydrate="events_calendar" data-config={configJson}>
@@ -53,6 +100,14 @@ function EventsCalendarShell({ configJson, editableHeadingPath, heading }: Event
         ))}
       </div>
     </div>
+  );
+}
+
+function EventsCalendarEmpty({ message }: EventsCalendarEmptyProps) {
+  return (
+    <Card className="border-dashed shadow-none" data-events-calendar-empty>
+      <CardContent className="p-8 text-center text-sm text-muted-foreground">{message}</CardContent>
+    </Card>
   );
 }
 
@@ -144,10 +199,112 @@ function EventsCalendarControls({
   );
 }
 
+function EventsCalendarAvatarStack({
+  overflow,
+  people,
+}: {
+  overflow: number;
+  people: EventsCalendarPeekAvatar[];
+}) {
+  if (!people.length) return null;
+
+  return (
+    <div className="flex items-center -space-x-2" data-events-calendar-peek-avatars>
+      {people.map((person, index) => (
+        <Avatar className="h-6 w-6 border border-background" key={`${person.name}-${index}`}>
+          {person.avatarUrl ? <AvatarImage alt={person.name} src={person.avatarUrl} /> : null}
+          <AvatarFallback className="text-[10px]">{person.initial}</AvatarFallback>
+        </Avatar>
+      ))}
+      {overflow > 0 ? (
+        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground">
+          +{overflow}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function EventsCalendarPeekOverlay({
+  addToCalendarLabel,
+  closeLabel,
+  heading,
+  items,
+  liveNowLabel,
+  membersOnlyLabel,
+}: EventsCalendarPeekOverlayProps) {
+  return (
+    <Card
+      aria-label={heading}
+      aria-modal="false"
+      className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[80vh] w-full overflow-y-auto rounded-b-none p-0 shadow-lg sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(28rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg"
+      data-events-calendar-peek
+      role="dialog"
+    >
+      <Button
+        aria-label={closeLabel}
+        className="absolute right-2 top-2"
+        data-events-calendar-peek-close
+        size="icon"
+        type="button"
+        variant="ghost"
+      >
+        <X />
+      </Button>
+      <CardHeader className="pb-3 pr-12">
+        <CardTitle className="text-base tracking-normal">{heading}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
+          {items.map((item) => (
+            <li className="border-b border-border pb-3 last:border-0 last:pb-0" key={item.id}>
+              <a className="flex items-center gap-2 font-medium text-foreground hover:underline" href={item.href}>
+                {item.isLive ? (
+                  <span aria-label={liveNowLabel} className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" role="img" />
+                ) : null}
+                <span className="shrink-0 tabular-nums text-muted-foreground">{item.time}</span>
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                {item.isMembersOnly ? (
+                  <Badge aria-label={membersOnlyLabel} className="shrink-0" variant="secondary">
+                    {membersOnlyLabel}
+                  </Badge>
+                ) : null}
+                {item.capacity ? (
+                  <Badge className="shrink-0" variant={item.capacity.tone === 'sold' ? 'destructive' : 'secondary'}>
+                    {item.capacity.label}
+                  </Badge>
+                ) : null}
+              </a>
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className="min-w-0 truncate">{item.location || ''}</span>
+                <EventsCalendarAvatarStack overflow={item.avatarOverflow} people={item.avatars} />
+              </div>
+              <div className="mt-2">
+                <Button data-event-id={item.id} data-events-calendar-peek-ics size="sm" type="button">
+                  <CalendarPlus />
+                  {addToCalendarLabel}
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function renderEventsCalendarShellHtml(props: EventsCalendarShellProps): string {
   return renderToStaticMarkup(<EventsCalendarShell {...props} />);
 }
 
 export function renderEventsCalendarControlsHtml(props: EventsCalendarControlsProps): string {
   return renderToStaticMarkup(<EventsCalendarControls {...props} />);
+}
+
+export function renderEventsCalendarEmptyHtml(props: EventsCalendarEmptyProps): string {
+  return renderToStaticMarkup(<EventsCalendarEmpty {...props} />);
+}
+
+export function renderEventsCalendarPeekOverlayHtml(props: EventsCalendarPeekOverlayProps): string {
+  return renderToStaticMarkup(<EventsCalendarPeekOverlay {...props} />);
 }
