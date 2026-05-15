@@ -3,8 +3,10 @@
 // strings. Dynamic blocks emit a skeleton at bake time and a per-type
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
-import { buttonVariants } from '@/components/kychon/ui';
+import { Button } from '@/components/kychon/ui';
 import {
   renderMarketingBlockHtml,
   renderPageBannerBlockHtml,
@@ -531,8 +533,35 @@ function sanitizeHref(href: string): string {
   return '';
 }
 
-function renderShadcnLinkButton(href: unknown, text: unknown, editable = '', extraAttrs = ''): string {
-  return `<a href="${escAttr(cleanHref(href, '#'))}" class="${escAttr(buttonVariants({ size: 'lg', className: 'mt-2' }))}"${editable}${extraAttrs}>${escHtml(text)}</a>`;
+type DataAttributes = Record<`data-${string}`, string | number | boolean | undefined>;
+type StaticAnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & DataAttributes;
+
+function renderShadcnLinkButton(
+  section: Section,
+  ctx: BlockRenderContext,
+  href: unknown,
+  text: unknown,
+  editableConfigPath: string,
+  dataAttrs: DataAttributes = {},
+): string {
+  const anchorProps: StaticAnchorProps = {
+    href: cleanHref(href, '#'),
+    ...dataAttrs,
+  };
+  const path = editablePath(section, editableConfigPath, ctx);
+  if (path) anchorProps['data-editable'] = path;
+
+  return renderToStaticMarkup(
+    React.createElement(
+      Button,
+      {
+        asChild: true,
+        className: 'mt-2',
+        size: 'lg',
+      },
+      React.createElement('a', anchorProps, String(text ?? '')),
+    ),
+  );
 }
 
 function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string {
@@ -541,7 +570,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const heading = `<h1${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h1>`;
   const sub = `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`;
   const cta = cfg.cta_text
-    ? renderShadcnLinkButton(cfg.cta_href, cfg.cta_text, editableAttr(section, 'cta_text', ctx), ' data-hero-cta')
+    ? renderShadcnLinkButton(section, ctx, cfg.cta_href, cfg.cta_text, 'cta_text', { 'data-hero-cta': true })
     : '';
   const inner = constrainedContainerHtml('', `${heading}${sub}${cta}`);
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -603,7 +632,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`
     : '';
   const cta = cfg.cta_text
-    ? renderShadcnLinkButton(cfg.cta_href, cfg.cta_text, editableAttr(section, 'cta_text', ctx), ' data-hero-cta')
+    ? renderShadcnLinkButton(section, ctx, cfg.cta_href, cfg.cta_text, 'cta_text', { 'data-hero-cta': true })
     : '';
   const headingGroup = heading || sub || cta
     ? `<div class="hero-text">${constrainedContainerHtml('', `${heading}${sub}${cta}`)}</div>`

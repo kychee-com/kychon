@@ -99,6 +99,7 @@ describe('marketing block renderers', () => {
     expect(viewSource).toContain('@/components/kychon/ui');
     expect(viewSource).toContain('Card');
     expect(viewSource).toContain('Button');
+    expect(viewSource).not.toContain('buttonVariants');
     expect(viewSource).not.toContain('innerHTML');
     expect(viewSource).not.toContain('document.createElement');
 

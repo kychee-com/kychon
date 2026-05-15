@@ -171,6 +171,10 @@ describe('social_links block rendering', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
     const renderer = readFileSync('src/lib/blocks/social-links.ts', 'utf8');
 
+    expect(renderer).toContain('@/components/kychon/ui');
+    expect(renderer).toContain('Button');
+    expect(renderer).toContain('renderToStaticMarkup');
+    expect(renderer).not.toContain('buttonVariants');
     expect(styles).not.toContain('block-social-links');
     expect(renderer).not.toContain('block-social-links');
   });
