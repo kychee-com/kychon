@@ -1,20 +1,10 @@
 ---
+import AdminAccessShellView from './kychon/AdminAccessShellView';
+
 const {
   title = 'Checking access',
   body = 'Confirming your admin session.',
 } = Astro.props;
 ---
-<div class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8" data-admin-access-checking role="status" aria-live="polite">
-  <div class="rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
-    <div class="flex items-center gap-4">
-      <div
-        class="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent"
-        aria-hidden="true"
-      ></div>
-      <div>
-        <h2 class="text-xl font-semibold tracking-normal">{title}</h2>
-        <p class="text-sm text-muted-foreground">{body}</p>
-      </div>
-    </div>
-  </div>
-</div>
+
+<AdminAccessShellView title={title} body={body} />
