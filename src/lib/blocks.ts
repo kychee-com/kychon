@@ -11,6 +11,7 @@ import {
   renderPromoCardsBlockHtml,
   renderTaglineStripBlockHtml,
 } from '@/components/kychon/MarketingBlocksView';
+import { renderSlideshowBlockHtml, type SlideshowRenderItem } from '@/components/kychon/SlideshowBlockView';
 import {
   adminNavEditButtonHtml,
   adminScopePillHtml,
@@ -1698,57 +1699,9 @@ const SLIDESHOW: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
-    const heading = cfg.heading
-      ? `<h2 class="block-slideshow__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '';
-    if (!items.length) {
-      // Empty: show a placeholder for admins, hide for visitors.
-      const empty = ctx.admin
-        ? `<div class="block-slideshow block-slideshow--empty"><p class="text-sm text-muted-foreground">No slides yet — add some via the editor.</p></div>`
-        : '';
-      const inner = `<div class="ky-container">${heading}${empty}</div>`;
-      return adminWrap(section, ctx, inner, 'section section-slideshow');
-    }
     const aspect = cfg.aspect_ratio || '16/9';
     const fit = cfg.fit === 'contain' ? 'contain' : 'cover';
     const transition = cfg.transition === 'slide' ? 'slide' : 'fade';
-    const slides = items
-      .map((it, i) => {
-        const isFirst = i === 0;
-        const loading = isFirst ? 'eager' : 'lazy';
-        const visible = isFirst ? ' is-active' : '';
-        const slideFit = it.fit === 'contain' ? 'contain' : (it.fit === 'cover' ? 'cover' : fit);
-        const imgStyle = styleAttr([
-          cssVar('--slide-fit', slideFit),
-          cssVar('--slide-position', it.object_position || cfg.object_position || 'center'),
-        ]);
-        const figcaption = it.caption
-          ? `<figcaption class="block-slideshow__caption">${escHtml(it.caption)}</figcaption>`
-          : '';
-        const img = `<img src="${escAttr(it.src || '')}" alt="${escAttr(it.alt || '')}" loading="${loading}"${imgStyle}>`;
-        const sources = [
-          it.avif_src ? `<source srcset="${escAttr(it.avif_src)}" type="image/avif">` : '',
-          it.webp_src ? `<source srcset="${escAttr(it.webp_src)}" type="image/webp">` : '',
-        ].join('');
-        const imgInner = sources ? `<picture>${sources}${img}</picture>` : img;
-        const linked = it.href
-          ? `<a href="${escAttr(cleanHref(it.href))}" class="block-slideshow__link">${imgInner}</a>`
-          : imgInner;
-        return `<figure class="block-slideshow__slide${visible}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${items.length}" data-slide-index="${i}">${linked}${figcaption}</figure>`;
-      })
-      .join('');
-    const dots = cfg.show_dots !== false
-      ? `<div class="block-slideshow__dots" role="tablist">${items
-          .map(
-            (_, i) =>
-              `<button class="block-slideshow__dot${i === 0 ? ' is-active' : ''}" type="button" data-slide-go="${i}" aria-label="Slide ${i + 1} of ${items.length}"${i === 0 ? ' aria-current="true"' : ''}></button>`,
-          )
-          .join('')}</div>`
-      : '';
-    const arrows = cfg.show_arrows !== false
-      ? `<button class="block-slideshow__arrow block-slideshow__arrow--prev" type="button" data-slide-prev aria-label="Previous slide">\u{2039}</button><button class="block-slideshow__arrow block-slideshow__arrow--next" type="button" data-slide-next aria-label="Next slide">\u{203A}</button>`
-      : '';
-    const liveRegion = `<div class="block-slideshow__live sr-only" aria-live="polite"></div>`;
     const ariaLabel = cfg.heading ? escAttr(cfg.heading) : 'Slideshow';
     const auto = Number(cfg.auto_rotate_seconds);
     const autoMs = Number.isFinite(auto) && auto > 0 ? Math.round(auto * 1000) : 0;
@@ -1756,25 +1709,57 @@ const SLIDESHOW: BlockType = {
     const safeTransitionMs = Number.isFinite(transitionMs) && transitionMs >= 0 ? Math.round(transitionMs) : 400;
     const arrowStyle = cfg.arrow_style || {};
     const dotStyle = cfg.dot_style || {};
-    const rootStyle = styleAttr([
-      cssVar('--aspect', aspect),
-      cssVar('--fit', fit),
-      cssVar('--slideshow-height', cfg.height),
-      cssVar('--slideshow-mobile-height', cfg.mobile_height),
-      `${'--slideshow-transition-ms'}:${safeTransitionMs}ms;`,
-      cssVar('--slideshow-transition-easing', cfg.transition_easing || 'ease'),
-      cssVar('--slideshow-arrow-bg', arrowStyle.background),
-      cssVar('--slideshow-arrow-color', arrowStyle.text || arrowStyle.icon),
-      cssVar('--slideshow-arrow-hover-bg', arrowStyle.hover?.background),
-      cssVar('--slideshow-arrow-hover-color', arrowStyle.hover?.text || arrowStyle.hover?.icon),
-      cssVar('--slideshow-dot-bg', dotStyle.background),
-      cssVar('--slideshow-dot-active-bg', dotStyle.active_background || dotStyle.hover?.background),
-    ]);
+    const rootStyle: Record<string, string> = {};
+    const addStyleVar = (name: string, value: any) => {
+      const safe = safeCssValue(value);
+      if (safe) rootStyle[name] = safe;
+    };
+    rootStyle['--aspect'] = safeCssValue(aspect) || '16/9';
+    rootStyle['--fit'] = fit;
+    addStyleVar('--slideshow-height', cfg.height);
+    addStyleVar('--slideshow-mobile-height', cfg.mobile_height);
+    rootStyle['--slideshow-transition-ms'] = `${safeTransitionMs}ms`;
+    addStyleVar('--slideshow-transition-easing', cfg.transition_easing || 'ease');
+    addStyleVar('--slideshow-arrow-bg', arrowStyle.background);
+    addStyleVar('--slideshow-arrow-color', arrowStyle.text || arrowStyle.icon);
+    addStyleVar('--slideshow-arrow-hover-bg', arrowStyle.hover?.background);
+    addStyleVar('--slideshow-arrow-hover-color', arrowStyle.hover?.text || arrowStyle.hover?.icon);
+    addStyleVar('--slideshow-dot-bg', dotStyle.background);
+    addStyleVar('--slideshow-dot-active-bg', dotStyle.active_background || dotStyle.hover?.background);
+    const renderItems: SlideshowRenderItem[] = items.map((it, i) => {
+      const slideFit = it.fit === 'contain' ? 'contain' : (it.fit === 'cover' ? 'cover' : fit);
+      return {
+        alt: String(it.alt || ''),
+        avifSrc: it.avif_src ? String(it.avif_src) : undefined,
+        caption: it.caption ? String(it.caption) : undefined,
+        fit: slideFit,
+        href: it.href ? cleanHref(it.href) : undefined,
+        loading: i === 0 ? 'eager' : 'lazy',
+        objectPosition: safeCssValue(it.object_position || cfg.object_position || 'center') || 'center',
+        src: String(it.src || ''),
+        webpSrc: it.webp_src ? String(it.webp_src) : undefined,
+      };
+    });
     const pauseHover = cfg.pause_on_hover === false ? 'false' : 'true';
     const pauseFocus = cfg.pause_on_focus === false ? 'false' : 'true';
     const manualPause = cfg.manual_pause === true ? 'true' : 'false';
-    const inner = `<div class="ky-container">${heading}<div class="block-slideshow block-slideshow--${escAttr(transition)}" tabindex="0" role="region" aria-roledescription="carousel" aria-label="${ariaLabel}" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-fit="${escAttr(fit)}" data-pause-hover="${pauseHover}" data-pause-focus="${pauseFocus}" data-manual-pause="${manualPause}"${rootStyle}><div class="block-slideshow__track">${slides}</div>${arrows}${dots}${liveRegion}</div></div>`;
-    return adminWrap(section, ctx, inner, 'section section-slideshow');
+    const inner = renderSlideshowBlockHtml({
+      ariaLabel,
+      autoMs,
+      editableHeadingPath: editablePath(section, 'heading', ctx),
+      fit,
+      heading: cfg.heading ? String(cfg.heading) : '',
+      items: renderItems,
+      manualPause: manualPause === 'true',
+      pauseFocus: pauseFocus === 'true',
+      pauseHover: pauseHover === 'true',
+      rootStyle,
+      showArrows: cfg.show_arrows !== false,
+      showDots: cfg.show_dots !== false,
+      showEmptyPlaceholder: ctx.admin,
+      transition,
+    });
+    return adminWrap(section, ctx, inner, 'section w-full py-4');
   },
   async hydrate(el, _section, _ctx) {
     const root = el.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement | null;

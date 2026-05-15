@@ -67,13 +67,13 @@ describe('slideshow block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('<picture>');
-    expect(html).toContain('srcset="/a.avif" type="image/avif"');
-    expect(html).toContain('srcset="/a.webp" type="image/webp"');
+    expect(html).toContain('<picture');
+    expect(html).toContain('srcSet="/a.avif" type="image/avif"');
+    expect(html).toContain('srcSet="/a.webp" type="image/webp"');
     expect(html).toContain('src="/a.jpg"');
   });
 
-  it('first slide has is-active class', () => {
+  it('marks the first slide active with data-active', () => {
     const html = renderBlock(
       slideshowSection({
         items: [
@@ -83,9 +83,9 @@ describe('slideshow block-type', () => {
       }),
       ctx,
     );
-    const slides = html.match(/block-slideshow__slide[^"]*/g) || [];
-    expect(slides[0]).toContain('is-active');
-    expect(slides[1] || '').not.toContain('is-active');
+    const slides = html.match(/<figure[^>]+data-slideshow-slide[^>]+>/g) || [];
+    expect(slides[0]).toContain('data-active="true"');
+    expect(slides[1] || '').toContain('data-active="false"');
   });
 
   it('dots are rendered as buttons with aria labels', () => {
@@ -113,7 +113,7 @@ describe('slideshow block-type', () => {
       }),
       ctx,
     );
-    expect(html).not.toContain('block-slideshow__dot ');
+    expect(html).not.toContain('data-slideshow-dot');
   });
 
   it('show_arrows=false omits arrow buttons', () => {
@@ -131,7 +131,7 @@ describe('slideshow block-type', () => {
   it('live region for slide announcements is present', () => {
     const html = renderBlock(slideshowSection({ items: [{ src: '/a.jpg', alt: 'A' }] }), ctx);
     expect(html).toContain('aria-live="polite"');
-    expect(html).toContain('block-slideshow__live');
+    expect(html).toContain('data-slideshow-live');
   });
 
   it('auto_rotate_seconds=0 disables auto rotation (data-auto-ms="0")', () => {
@@ -172,10 +172,10 @@ describe('slideshow block-type', () => {
     expect(html).toContain('--slideshow-transition-easing:ease-in-out;');
     expect(html).toContain('--slideshow-arrow-bg:#111111;');
     expect(html).toContain('--slideshow-arrow-hover-bg:#333333;');
-    expect(html).toContain('--slideshow-dot-active-bg:#ffcc00;');
+    expect(html).toContain('--slideshow-dot-active-bg:#ffcc00');
     expect(html).toContain('data-manual-pause="true"');
-    expect(html).toContain('--slide-position:30% 40%;');
-    expect(html).toContain('--slide-fit:contain;');
+    expect(html).toContain('object-position:30% 40%');
+    expect(html).toContain('object-fit:contain');
   });
 
   it('empty items hides the slideshow for visitors', () => {
@@ -183,9 +183,17 @@ describe('slideshow block-type', () => {
     expect(html).not.toContain('data-block-hydrate="slideshow"');
   });
 
+  it('renders missing slide images as placeholders instead of empty src attributes', () => {
+    const html = renderBlock(slideshowSection({ items: [{ src: '', alt: 'Missing slide' }] }), ctx);
+
+    expect(html).toContain('data-slideshow-missing-image');
+    expect(html).toContain('Missing slide');
+    expect(html).not.toContain('src=""');
+  });
+
   it('admin sees a placeholder when items are empty', () => {
     const html = renderBlock(slideshowSection({ items: [] }), { ...ctx, admin: true });
-    expect(html).toContain('block-slideshow--empty');
+    expect(html).toContain('data-slideshow-empty');
   });
 
   it('escapes user-supplied alt and caption', () => {
@@ -198,5 +206,19 @@ describe('slideshow block-type', () => {
     expect(html).not.toContain('<script>x</script>');
     expect(html).not.toContain('<img src=x>');
     expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('keeps retired slideshow classes out of source CSS and renderer output', () => {
+    const html = renderBlock(
+      slideshowSection({
+        items: [
+          { src: '/a.jpg', alt: 'A' },
+          { src: '/b.jpg', alt: 'B' },
+        ],
+      }),
+      ctx,
+    );
+    expect(html).not.toContain('block-slideshow');
+    expect(html).not.toContain('section-slideshow');
   });
 });

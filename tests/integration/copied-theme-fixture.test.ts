@@ -30,9 +30,9 @@ describe('copied-theme fidelity fixture', () => {
     expect(html).toContain('data-top-color="#ffffff"');
     expect(html).toContain('data-bottom-color="#17324d"');
 
-    expect(html).toContain('section-slideshow');
+    expect(html).toContain('data-slideshow-card');
     expect(html).toContain('--slideshow-height:440px;');
     expect(html).toContain('data-manual-pause="true"');
-    expect(html).toContain('--slide-position:50% 35%;');
+    expect(html).toContain('object-position:50% 35%');
   });
 });
