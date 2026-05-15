@@ -127,6 +127,9 @@ describe('admin action controls source', () => {
     expect(editor).toContain('data-admin-drop-indicator');
     expect(editor).not.toContain("document.createElement('div')");
     expect(editor).not.toContain("className = 'admin-drop-indicator'");
+    expect(editor).not.toContain('appendChild(indicator)');
+    expect(editor).not.toContain('?.append(indicator)');
+    expect(editor).toContain('moveIndicatorToEnd');
     expect(adminStyles).not.toContain('.admin-drop-indicator');
     expect(zoneGrid).toContain('[data-admin-drop-indicator][data-column-span="1"]');
     expect(zoneGrid).not.toContain('.admin-drop-indicator');
