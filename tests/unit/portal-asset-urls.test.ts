@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const portalSource = readFileSync(join(import.meta.dirname, '../../src/layouts/Portal.astro'), 'utf-8');
 const globalsSource = readFileSync(join(import.meta.dirname, '../../src/styles/globals.css'), 'utf-8');
+const retiredNavDropdownStylesheet = join(import.meta.dirname, '../../public/css/nav-dropdown.css');
 
 describe('Portal asset URLs', () => {
   it('keeps chrome-critical styles in the Astro/Vite import graph', () => {
@@ -15,6 +16,7 @@ describe('Portal asset URLs', () => {
       expect(portalSource).not.toContain(`/css/${file}`);
     }
     expect(globalsSource).not.toContain('@import "./nav-dropdown.css"');
+    expect(existsSync(retiredNavDropdownStylesheet)).toBe(false);
   });
 
   it('bundles owned public styles through the Astro/Tailwind entrypoint', () => {

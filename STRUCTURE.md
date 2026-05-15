@@ -65,7 +65,6 @@ kychon/
 │       ├── tokens.css      # Kychon/shadcn/Tailwind token bridge
 │       ├── theme.css       # Runtime token aliases and default theme
 │       ├── public.css      # Public chrome/block/component styles
-│       ├── nav-dropdown.css # Header dropdown chrome
 │       ├── zone-grid.css   # Block column-span grid
 │       └── a11y.css        # Accessibility styles
 ├── public/

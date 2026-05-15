@@ -16,16 +16,22 @@ function htmlFor(type: string): string {
 }
 
 describe('copied-theme visual verification hooks', () => {
-  it('keeps desktop hover/focus and mobile source-nav selectors in CSS', () => {
+  it('keeps static nav dropdown and mobile source-nav hooks in shipped sources', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
-    const navStyles = readFileSync('public/css/nav-dropdown.css', 'utf8');
+    const navComponent = readFileSync('src/components/kychon/NavBlockView.tsx', 'utf8');
     const navHtml = htmlFor('nav');
 
     expect(navHtml).toContain('data-mobile-closed-layout="hidden"');
     expect(navHtml).toContain('data-mobile-open-layout="drawer"');
+    expect(navHtml).toContain('class="nav-overflow-menu"');
+    expect(navHtml).toContain('data-nav-overflow-source-index="');
+    expect(navHtml).toContain('nav-chevron-toggle');
+    expect(navHtml).toContain('nav-dropdown absolute left-0 top-full');
     expect(styles).toContain('.nav.nav--source-mobile .nav-links.open');
-    expect(navStyles).toContain(':focus-within > .nav-dropdown');
-    expect(navStyles).toContain('.nav-chevron-toggle:focus-visible');
+    expect(styles).toContain('.nav-overflow-menu[hidden]');
+    expect(navComponent).toContain('hover:bg-accent');
+    expect(navComponent).toContain('focus:bg-accent');
+    expect(navComponent).not.toContain('nav-dropdown.css');
   });
 
   it('keeps the header brand on the utility row with a responsive subtitle', () => {
