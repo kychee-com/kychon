@@ -73,7 +73,10 @@ function decisionFor(className: TargetClass): string {
   if (className === 'text-muted') {
     return 'Retired as a Kychon helper; use `.ky-text-muted` for public/static markup or Tailwind/shadcn semantic text utilities in React code.';
   }
-  if (['btn', 'card', 'badge', 'toast', 'form-input', 'form-select', 'form-textarea'].includes(className)) {
+  if (className === 'toast') {
+    return 'Retired as a Kychon public component class; use the Sonner-backed Kychon `Toaster`/`toast` helpers instead.';
+  }
+  if (['btn', 'card', 'badge', 'form-input', 'form-select', 'form-textarea'].includes(className)) {
     return 'Owned public component class retained temporarily while call sites move to Kychon UI components.';
   }
   return 'Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities.';
@@ -139,7 +142,7 @@ function renderMarkdown(reports: ClassReport[]): string {
     }
   }
 
-  return `${lines.join('\n')}\n`;
+  return `${lines.join('\n').trimEnd()}\n`;
 }
 
 function main(): void {

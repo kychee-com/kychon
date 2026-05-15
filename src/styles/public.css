@@ -760,66 +760,6 @@ tr:hover td {
   }
 }
 
-/* Toast notifications */
-.toast-container {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 300;
-  pointer-events: none;
-}
-@keyframes toast-in {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
-@keyframes toast-out {
-  from {
-    transform: none;
-    opacity: 1;
-  }
-  to {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-}
-.toast {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-lg);
-  font-size: 0.875rem;
-  color: var(--color-text);
-  pointer-events: auto;
-  animation: toast-in 300ms ease-out;
-  max-width: 20rem;
-}
-.toast.dismissing {
-  animation: toast-out 200ms ease-in forwards;
-}
-.toast-icon {
-  font-size: 1.125rem;
-  flex-shrink: 0;
-}
-.toast-success .toast-icon {
-  color: var(--color-success);
-}
-.toast-error .toast-icon {
-  color: var(--color-danger);
-}
-.toast-info .toast-icon {
-  color: var(--color-primary);
-}
-
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .section {
