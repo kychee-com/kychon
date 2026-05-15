@@ -4,6 +4,7 @@
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
+import { renderMarketingBlockHtml } from '@/components/kychon/MarketingBlocksView';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
@@ -306,6 +307,11 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
 function editableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
   return ` data-editable="sections.${section.id}.config.${path}"`;
+}
+
+function editablePath(section: Section, path: string, ctx: BlockRenderContext): string | undefined {
+  if (!ctx.admin || section.id == null) return undefined;
+  return `sections.${section.id}.config.${path}`;
 }
 
 function richEditableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
@@ -649,25 +655,11 @@ const FEATURES: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const cols = cfg.columns || 3;
-    const items = (cfg.items || [])
-      .map(
-        (item: any, i: number) => {
-          const icon = item.icon
-            ? `<div class="feature-icon">${escHtml(featureIcon(item.icon))}</div>`
-            : '';
-          const cta = item.cta_text && item.cta_href
-            ? `<a class="btn btn-primary" href="${escAttr(cleanHref(item.cta_href))}"${editableAttr(section, `items.${i}.cta_text`, ctx)}>${escHtml(item.cta_text)}</a>`
-            : '';
-          return `<div class="feature-card">${icon}<h3${editableAttr(section, `items.${i}.title`, ctx)}>${escHtml(item.title)}</h3><p${editableAttr(section, `items.${i}.desc`, ctx)}>${escHtml(item.desc)}</p>${cta}</div>`;
-        },
-      )
-      .join('');
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container"><div class="features-grid" style="--cols:${cols}">${items}</div></div>`,
-      'section section-features',
+      renderMarketingBlockHtml('features', cfg, { editablePath: (path) => editablePath(section, path, ctx) }),
+      'w-full py-12 sm:py-16',
     );
   },
 };
@@ -686,14 +678,11 @@ const CTA: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-  const cta = cfg.cta_text
-      ? `<a href="${escAttr(cleanHref(cfg.cta_href, '#'))}" class="btn btn-primary btn-lg mt-2"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
-      : '';
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container"><h2${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2><p class="ky-text-muted mt-1"${editableAttr(section, 'text', ctx)}>${escHtml(cfg.text)}</p>${cta}</div>`,
-      'section section-cta',
+      renderMarketingBlockHtml('cta', cfg, { editablePath: (path) => editablePath(section, path, ctx) }),
+      'w-full py-12 sm:py-16',
     );
   },
 };
@@ -713,19 +702,11 @@ const STATS: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const items = (cfg.items || [])
-      .map((s: any, i: number) => {
-        const inner = `<div class="stat-value"${editableAttr(section, `items.${i}.value`, ctx)}>${escHtml(s.value)}</div><div class="stat-label"${editableAttr(section, `items.${i}.label`, ctx)}>${escHtml(s.label)}</div>`;
-        return s.href
-          ? `<a href="${escAttr(cleanHref(s.href))}" class="stat-card" style="text-decoration:none;color:inherit">${inner}</a>`
-          : `<div class="stat-card">${inner}</div>`;
-      })
-      .join('');
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container"><div class="stats-grid">${items}</div></div>`,
-      'section section-stats',
+      renderMarketingBlockHtml('stats', cfg, { editablePath: (path) => editablePath(section, path, ctx) }),
+      'w-full py-12 sm:py-16',
     );
   },
 };
@@ -741,13 +722,12 @@ const TESTIMONIALS: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const items = (cfg.items || [])
-      .map(
-        (t: any, i: number) =>
-          `<figure class="card testimonial-card"><blockquote class="testimonial-quote"${editableAttr(section, `items.${i}.quote`, ctx)}>&ldquo;${escHtml(t.quote)}&rdquo;</blockquote><figcaption class="testimonial-author"${editableAttr(section, `items.${i}.name`, ctx)}>— ${escHtml(t.name)}${t.role ? `, ${escHtml(t.role)}` : ''}</figcaption></figure>`,
-      )
-      .join('');
-    return adminWrap(section, ctx, `<div class="ky-container"><div class="card-grid">${items}</div></div>`);
+    return adminWrap(
+      section,
+      ctx,
+      renderMarketingBlockHtml('testimonials', cfg, { editablePath: (path) => editablePath(section, path, ctx) }),
+      'w-full py-12 sm:py-16',
+    );
   },
 };
 
@@ -762,13 +742,12 @@ const FAQ: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const items = (cfg.items || [])
-      .map(
-        (f: any, i: number) =>
-          `<details class="card mb-1" style="cursor:pointer"><summary style="font-weight:600"${editableAttr(section, `items.${i}.q`, ctx)}>${escHtml(f.q)}</summary><p class="ky-text-muted mt-1"${editableAttr(section, `items.${i}.a`, ctx)}>${escHtml(f.a)}</p></details>`,
-      )
-      .join('');
-    return adminWrap(section, ctx, `<div class="ky-container"><h2 class="mb-2">FAQ</h2>${items}</div>`);
+    return adminWrap(
+      section,
+      ctx,
+      renderMarketingBlockHtml('faq', cfg, { editablePath: (path) => editablePath(section, path, ctx) }),
+      'w-full py-12 sm:py-16',
+    );
   },
 };
 
