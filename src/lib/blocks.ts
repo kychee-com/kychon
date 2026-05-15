@@ -1729,6 +1729,7 @@ const SLIDESHOW: BlockType = {
         avifSrc: it.avif_src ? String(it.avif_src) : undefined,
         caption: it.caption ? String(it.caption) : undefined,
         fit: slideFit,
+        fetchPriority: i === 0 ? 'low' : undefined,
         href: it.href ? cleanHref(it.href) : undefined,
         loading: i === 0 ? 'eager' : 'lazy',
         objectPosition: safeCssValue(it.object_position || cfg.object_position || 'center') || 'center',

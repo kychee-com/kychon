@@ -11,6 +11,8 @@ const EVENT_CALENDAR_VIEW = resolve(process.cwd(), 'src/components/kychon/Events
 const GLOBAL_STYLES = resolve(process.cwd(), 'src/styles/globals.css');
 const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
+const CONFIG = resolve(process.cwd(), 'src/lib/config.ts');
+const PORTAL = resolve(process.cwd(), 'src/layouts/Portal.astro');
 const ctx: BlockRenderContext = { admin: true, locale: 'en', isFeatureEnabled: () => true };
 
 function section(sectionType: string, config: Record<string, unknown>): Section {
@@ -56,6 +58,8 @@ describe('legacy static UI primitives', () => {
     const globalStyles = await readFile(GLOBAL_STYLES, 'utf8');
     const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
+    const config = await readFile(CONFIG, 'utf8');
+    const portal = await readFile(PORTAL, 'utf8');
 
     expect(blocks).not.toContain('ky-text-muted');
     expect(blocks).not.toContain('event-skeleton-card');
@@ -89,5 +93,8 @@ describe('legacy static UI primitives', () => {
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');
+    expect(portal).toContain('id="wl-theme-vars"');
+    expect(config).not.toContain('document.createElement');
+    expect(config).not.toContain('appendChild');
   });
 });

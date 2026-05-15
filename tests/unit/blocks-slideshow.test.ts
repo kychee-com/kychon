@@ -43,7 +43,7 @@ describe('slideshow block-type', () => {
     expect(html).toContain('aria-label="2 of 2"');
   });
 
-  it('first slide is eager-loaded; subsequent slides are lazy', () => {
+  it('first slide is eager-loaded without an unused preload hint; subsequent slides are lazy', () => {
     const html = renderBlock(
       slideshowSection({
         items: [
@@ -58,6 +58,8 @@ describe('slideshow block-type', () => {
     const eager = html.match(/loading="eager"/g) || [];
     expect(eager.length).toBe(1);
     expect(lazy.length).toBe(2);
+    expect(html).toContain('fetchPriority="low"');
+    expect(html).not.toContain('rel="preload"');
   });
 
   it('emits picture sources when AVIF/WebP derivatives are provided', () => {

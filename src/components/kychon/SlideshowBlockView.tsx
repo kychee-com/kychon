@@ -11,6 +11,7 @@ export interface SlideshowRenderItem {
   avifSrc?: string;
   caption?: string;
   fit: 'cover' | 'contain';
+  fetchPriority?: 'high' | 'low' | 'auto';
   href?: string;
   loading: 'eager' | 'lazy';
   objectPosition: string;
@@ -71,6 +72,7 @@ function SlideImage({ item }: { item: SlideshowRenderItem }) {
     <img
       alt={item.alt}
       className="block h-full w-full"
+      fetchPriority={item.fetchPriority}
       loading={item.loading}
       src={item.src}
       style={{ objectFit: item.fit, objectPosition: item.objectPosition }}

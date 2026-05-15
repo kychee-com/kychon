@@ -48,13 +48,15 @@ export function clearCache(key: string): void {
   localStorage.removeItem(key);
 }
 
-// --- Hero image preload ---
+// --- Hero image warmup ---
 // The active hero section's image (background `bg_image` OR foreground
 // `image_url`) is cached to localStorage on every page render so that the
-// next visit's <link rel="preload" as="image"> can fire before the section
-// fetch completes. Both modes warm the same key — the resolution happens at
+// next visit can warm it off-DOM without injecting a late preload hint. Both
+// modes warm the same key — the resolution happens at
 // cache-write time via getHeroImageUrl().
 const WL_CACHE_HERO_IMG = 'wl_cache_hero_img';
+let heroWarmImage: HTMLImageElement | null = null;
+let heroWarmImageUrl = '';
 
 interface HeroSectionLike {
   section_type?: string;
@@ -75,13 +77,12 @@ export function getHeroImageUrl(section: HeroSectionLike | null | undefined): st
 
 export function preloadHeroImage(): void {
   const url = readCache(WL_CACHE_HERO_IMG);
-  if (url && !document.querySelector('link[rel="preload"][as="image"]')) {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = url;
-    document.head.appendChild(link);
-  }
+  if (typeof url !== 'string' || !url || heroWarmImageUrl === url || typeof Image === 'undefined') return;
+  heroWarmImageUrl = url;
+  heroWarmImage = new Image();
+  heroWarmImage.decoding = 'async';
+  heroWarmImage.src = url;
+  void heroWarmImage.decode?.().catch(() => {});
 }
 
 /** Persist the active hero image URL for the next page's preload hint.
@@ -338,16 +339,9 @@ export function applyTheme(theme: Record<string, any> | null): void {
       el.style.setProperty(prop, value);
     }
   }
-  let styleEl = document.getElementById('wl-theme-vars');
-  if (!styleEl) {
-    styleEl = document.createElement('style');
-    styleEl.id = 'wl-theme-vars';
-    const firstLink = document.querySelector('link[rel="stylesheet"]');
-    if (firstLink) firstLink.before(styleEl);
-    else document.head.appendChild(styleEl);
-  }
   const rootSelector = darkOverridable.size > 0 ? ':root:not([data-theme="dark"])' : ':root';
-  styleEl.textContent = `${rootSelector} {\n  ${rootVars.join('\n  ')}\n}`;
+  const styleEl = document.getElementById('wl-theme-vars');
+  if (styleEl) styleEl.textContent = `${rootSelector} {\n  ${rootVars.join('\n  ')}\n}`;
 }
 
 // --- Branding ---
