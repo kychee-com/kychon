@@ -19,7 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { Button, buttonVariants, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kychon/ui';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kychon/ui';
 import { canonicalizeKychonHref } from '@/lib/clean-routes';
 import { cn } from '@/lib/ui/cn';
 
@@ -396,15 +396,9 @@ function PromoCardsBlock({ config, options }: { config: Record<string, unknown>;
                 </CardHeader>
                 {ctaText && (
                   <CardContent>
-                    <span
-                      className={buttonVariants({
-                        className: 'h-auto justify-start p-0 text-left uppercase tracking-normal',
-                        variant: 'link',
-                      })}
-                      {...editableAttrs(`items.${index}.cta_text`, options)}
-                    >
-                      {ctaText}
-                    </span>
+                    <Button asChild className="h-auto justify-start p-0 text-left uppercase tracking-normal" variant="link">
+                      <span {...editableAttrs(`items.${index}.cta_text`, options)}>{ctaText}</span>
+                    </Button>
                   </CardContent>
                 )}
               </Card>
