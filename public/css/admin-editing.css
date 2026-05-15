@@ -407,17 +407,3 @@ body.admin-dragging [data-zone]:hover {
   margin-bottom: 0.5rem;
   color: var(--color-text, #111827);
 }
-
-/* External-content pill — admin-only, rendered next to iframe-provider blocks. */
-.block-embed__pill {
-  display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.15rem 0.6rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: #fbbf24;
-  color: #78350f;
-  border-radius: 999px;
-}

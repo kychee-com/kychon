@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const BLOCKS = resolve(process.cwd(), 'src/lib/blocks.ts');
+const EMBED = resolve(process.cwd(), 'src/lib/blocks/embed.ts');
 const STYLES = resolve(process.cwd(), 'src/styles/public.css');
+const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
 const ctx: BlockRenderContext = { admin: true, locale: 'en', isFeatureEnabled: () => true };
 
 function section(sectionType: string, config: Record<string, unknown>): Section {
@@ -41,13 +43,17 @@ describe('legacy static UI primitives', () => {
 
   it('keeps retired primitive CSS out of source', async () => {
     const blocks = await readFile(BLOCKS, 'utf8');
+    const embed = await readFile(EMBED, 'utf8');
     const styles = await readFile(STYLES, 'utf8');
+    const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
 
     expect(blocks).not.toContain('ky-text-muted');
     expect(blocks).not.toContain('event-skeleton-card');
     expect(blocks).not.toContain(' skeleton"></div>');
+    expect(embed).not.toContain('block-embed__pill');
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
+    expect(adminStyles).not.toContain('block-embed__pill');
   });
 });
