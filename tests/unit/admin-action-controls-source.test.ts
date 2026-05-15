@@ -36,12 +36,15 @@ function section(
 }
 
 describe('admin action controls source', () => {
-  it('renders admin action chrome through shadcn variants', async () => {
+  it('renders admin action chrome through shared shadcn components', async () => {
     const helper = await readFile(HELPER, 'utf8');
 
     expect(helper).toContain('@/components/kychon/ui');
-    expect(helper).toContain('buttonVariants');
-    expect(helper).toContain('badgeVariants');
+    expect(helper).toContain('renderToStaticMarkup');
+    expect(helper).toContain('React.createElement');
+    expect(helper).toContain('Button');
+    expect(helper).toContain('Badge');
+    expect(helper).toContain('lucide-react');
     expect(helper).toContain('[&:focus]:opacity-100');
     expect(helper).toContain('[nav:hover_&]:opacity-100');
     expect(helper).toContain('[[data-admin=true]_[data-sortable-group]>[data-sortable-id]:hover>&]:flex');
@@ -50,6 +53,9 @@ describe('admin action controls source', () => {
     expect(helper).toContain('data-section-remove');
     expect(helper).toContain('data-scope-toggle');
     expect(helper).toContain('data-admin-scope-pill');
+    expect(helper).not.toContain('<button');
+    expect(helper).not.toContain('buttonVariants');
+    expect(helper).not.toContain('badgeVariants');
   });
 
   it('keeps old admin primitive classes out of renderers, editor, and CSS', async () => {
@@ -132,15 +138,16 @@ describe('admin action controls source', () => {
     expect(styles).not.toContain('admin-zone-add-btn');
   });
 
-  it('renders drag handles through shared shadcn variants instead of inserted DOM primitives', async () => {
+  it('renders drag handles through shared shadcn components instead of inserted DOM primitives', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
     const helper = await readFile(HELPER, 'utf8');
     const styles = await readFile(ADMIN_CSS, 'utf8');
 
     expect(helper).toContain('dragHandleButtonClass');
-    expect(helper).toContain('buttonVariants');
+    expect(helper).toContain('Button');
     expect(helper).toContain('adminDragHandleHtml');
     expect(helper).toContain('data-admin-drag-handle');
+    expect(helper).not.toContain('<button');
     expect(editor).not.toContain('dragHandleButtonClass');
     expect(editor).not.toContain("document.createElement('button')");
     expect(editor).not.toContain('appendChild(handle)');
@@ -233,6 +240,10 @@ describe('admin action controls source', () => {
     expect(html).toContain('data-section-remove');
     expect(html).toContain('data-scope-toggle');
     expect(html).toContain('data-admin-scope-pill');
+    expect(html).toContain('lucide-settings');
+    expect(html).toContain('lucide-pencil');
+    expect(html).toContain('lucide-x');
+    expect(html).toContain('lucide-grip-vertical');
     expect(html).not.toContain('admin-section-btn');
     expect(html).not.toContain('admin-section-edit-btn');
     expect(html).not.toContain('admin-scope-toggle');

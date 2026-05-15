@@ -12,7 +12,9 @@ describe('legacy button primitives', () => {
     const adminActionControls = await readFile(ADMIN_ACTION_CONTROLS, 'utf8');
     const styles = await readFile(STYLES, 'utf8');
 
-    expect(adminActionControls).toContain('buttonVariants');
+    expect(adminActionControls).toContain('Button');
+    expect(adminActionControls).not.toContain('<button');
+    expect(adminActionControls).not.toContain('buttonVariants');
     expect(adminEditor).not.toContain('loadAdminCSS');
     expect(adminEditor).not.toContain("document.createElement('link')");
     expect(adminEditor).not.toContain('class="btn');
