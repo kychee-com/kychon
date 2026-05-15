@@ -542,6 +542,16 @@
     return indicator;
   }
 
+  function moveIndicatorToEnd(host: HTMLElement, indicator: HTMLElement): void {
+    if (indicator.parentElement === host && indicator === host.lastElementChild) return;
+    const last = host.lastElementChild as HTMLElement | null;
+    if (last && last !== indicator) {
+      last.after(indicator);
+      return;
+    }
+    host.replaceChildren(indicator);
+  }
+
   function findZoneContainer(el: Element | null): HTMLElement | null {
     if (!el) return null;
     return (el.closest('[data-zone]') as HTMLElement | null);
@@ -602,11 +612,11 @@
         if ((e as DragEvent).clientY < midY) overItem.before(indicator);
         else overItem.after(indicator);
       } else if (itemHost.children.length === 0 || (itemHost.children.length === 1 && itemHost.contains(indicator))) {
-        if (!itemHost.contains(indicator)) itemHost.appendChild(indicator);
+        moveIndicatorToEnd(itemHost, indicator);
       } else {
         const last = itemHost.lastElementChild as HTMLElement | null;
         if (last && last !== indicator) {
-          itemHost.appendChild(indicator);
+          last.after(indicator);
         }
       }
     });
@@ -637,7 +647,8 @@
     const indicator = getDropIndicator();
     if (indicator) {
       indicator.hidden = true;
-      indicatorHost()?.append(indicator);
+      const host = indicatorHost();
+      if (host) moveIndicatorToEnd(host, indicator);
     }
     document.body.classList.remove('admin-dragging');
     draggedEl = null;

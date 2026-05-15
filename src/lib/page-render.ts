@@ -76,6 +76,23 @@ function getRenderContext(): BlockRenderContext {
   };
 }
 
+function parsedHtmlChildren(html: string): Node[] {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  return Array.from(doc.body.childNodes).map((node) => document.importNode(node, true));
+}
+
+function childNodesEqual(host: HTMLElement, nextChildren: Node[]): boolean {
+  const currentChildren = Array.from(host.childNodes);
+  if (currentChildren.length !== nextChildren.length) return false;
+  return currentChildren.every((child, index) => child.isEqualNode(nextChildren[index] ?? null));
+}
+
+function renderHtmlChildren(host: HTMLElement, html: string): void {
+  const nextChildren = parsedHtmlChildren(html);
+  if (childNodesEqual(host, nextChildren)) return;
+  host.replaceChildren(...nextChildren);
+}
+
 function renderZoneInto(
   zone: 'header' | 'main' | 'footer',
   sections: Section[],
@@ -105,9 +122,7 @@ function renderZoneInto(
       return { container, rendered: [] };
     }
     const newHtml = filtered.map((s) => renderBlock(s, ctx)).join('');
-    if (sectionsHost.innerHTML !== newHtml) {
-      sectionsHost.innerHTML = newHtml;
-    }
+    renderHtmlChildren(sectionsHost, newHtml);
     const rendered: HTMLElement[] = [];
     sectionsHost.querySelectorAll('[data-sortable-id]').forEach((el) => rendered.push(el as HTMLElement));
     return { container: sectionsHost, rendered };
@@ -125,9 +140,7 @@ function renderZoneInto(
     else chromeBlocks.push(s);
   }
   const chromeHtml = chromeBlocks.map((s) => renderBlock(s, ctx)).join('');
-  if (container.innerHTML !== chromeHtml) {
-    container.innerHTML = chromeHtml;
-  }
+  renderHtmlChildren(container, chromeHtml);
 
   // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container.
   // Header full-bleed blocks are inserted after the sticky `.nav`, not inside it;
@@ -142,14 +155,12 @@ function renderZoneInto(
     if (fullBleedBlocks.length > 0) {
       if (bleedHost) {
         const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
-        if (bleedHost.innerHTML !== bleedHtml) {
-          bleedHost.innerHTML = bleedHtml;
-        }
+        renderHtmlChildren(bleedHost, bleedHtml);
       }
     } else if (bleedHost) {
       // No bleed blocks for this page — clear the host (don't remove it; keeps
       // DOM stable across SPA navigations).
-      if (bleedHost.innerHTML !== '') bleedHost.innerHTML = '';
+      renderHtmlChildren(bleedHost, '');
     }
   }
 
@@ -210,7 +221,7 @@ async function hydrateDynamic(sections: Section[], ctx: BlockRenderContext): Pro
 
 async function rebindAdminEditing(): Promise<void> {
   // Inform the AdminEditor that the DOM has new editable / sortable nodes.
-  // The MutationObserver inside AdminEditor reacts to the innerHTML change too,
+  // The MutationObserver inside AdminEditor reacts to content replacement too,
   // but a custom event is a cleaner contract.
   document.dispatchEvent(new CustomEvent('wl-content-rendered'));
 }
