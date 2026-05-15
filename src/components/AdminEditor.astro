@@ -4,6 +4,7 @@
 // Supports: text, rich text (Tiptap), image upload, JSONB paths, drag reorder
 ---
 <div id="admin-editor-root"></div>
+<div id="admin-inline-text-root"></div>
 <input id="admin-image-upload-input" type="file" accept="image/*" hidden aria-hidden="true" tabindex="-1" />
 <div
   id="admin-editor-drop-indicator"
@@ -39,6 +40,7 @@
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
   type AdminActionPromptModule = typeof import('./kychon/AdminActionPromptIsland');
+  type AdminInlineTextPromptModule = typeof import('./kychon/AdminInlineTextPromptIsland');
 
   function getToken(): string {
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
@@ -57,6 +59,7 @@
 
   let adminEditorControlsPromise: Promise<AdminEditorControlsModule | null> | null = null;
   let adminActionPromptPromise: Promise<AdminActionPromptModule | null> | null = null;
+  let adminInlineTextPromptPromise: Promise<AdminInlineTextPromptModule | null> | null = null;
   const adminPromptActions = new Map<string, () => Promise<void>>();
   let adminPromptActionsBound = false;
 
@@ -90,6 +93,22 @@
         return null;
       });
     return adminActionPromptPromise;
+  }
+
+  async function ensureAdminInlineTextPrompt(): Promise<AdminInlineTextPromptModule | null> {
+    const root = document.getElementById('admin-inline-text-root');
+    if (!root) return null;
+    adminInlineTextPromptPromise ??= import('./kychon/AdminInlineTextPromptIsland')
+      .then((module) => {
+        module.mountAdminInlineTextPromptIsland(root);
+        return module;
+      })
+      .catch((error) => {
+        console.error('Failed to load admin inline text prompt:', error);
+        adminInlineTextPromptPromise = null;
+        return null;
+      });
+    return adminInlineTextPromptPromise;
   }
 
   function bindAdminPromptActions() {
@@ -279,8 +298,20 @@
     }
   }
 
-  // --- Simple text editing via contenteditable ---
+  // --- Simple text editing via shared prompt island ---
   const boundText = new WeakSet();
+  const activeTextPrompts = new WeakSet<HTMLElement>();
+
+  async function promptEditableText(htmlEl: HTMLElement): Promise<string | null> {
+    const prompt = await ensureAdminInlineTextPrompt();
+    if (!prompt) {
+      showToast('Text editor unavailable', 'error');
+      return null;
+    }
+    return prompt.showAdminInlineTextPrompt({
+      value: htmlEl.textContent?.trim() || '',
+    });
+  }
 
   function initEditableText() {
     document.querySelectorAll('[data-editable]').forEach((el) => {
@@ -288,52 +319,28 @@
       boundText.add(el);
       const htmlEl = el as HTMLElement;
       htmlEl.setAttribute('data-lpignore', 'true'); // prevent LastPass interference
-      let original = '';
 
-      htmlEl.addEventListener('click', (e) => {
+      htmlEl.addEventListener('click', async (e) => {
         // Don't activate if clicking a link inside
         if ((e.target as HTMLElement).closest('a')) return;
-        if (htmlEl.contentEditable === 'true') return; // already editing
-        original = htmlEl.textContent?.trim() || '';
-        htmlEl.contentEditable = 'true';
-        htmlEl.setAttribute('data-lpignore', 'true');
-        // Place cursor — first click sets contentEditable but browser already
-        // processed the click on a non-editable element, so no cursor appears.
-        // Fix by programmatically selecting all text so the user can type.
-        requestAnimationFrame(() => {
-          htmlEl.focus();
-          const sel = window.getSelection();
-          if (sel) {
-            const range = document.createRange();
-            range.selectNodeContents(htmlEl);
-            sel.removeAllRanges();
-            sel.addRange(range);
-          }
-        });
-      });
-
-      htmlEl.addEventListener('blur', async () => {
-        htmlEl.contentEditable = 'false';
         const attr = htmlEl.dataset.editable!;
         const target = parseEditTarget(attr);
         if (!target) return;
-        const newText = htmlEl.textContent?.trim() || '';
-        if (newText === original) return; // no change
-        const ok = await saveField(htmlEl, target, newText);
-        if (!ok) htmlEl.textContent = original;
-        flashSave(htmlEl, ok);
-        if (ok) showToast('Saved');
-        else showToast('Save failed', 'error');
-      });
-
-      htmlEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          htmlEl.blur();
-        }
-        if (e.key === 'Escape') {
-          htmlEl.textContent = original;
-          htmlEl.blur();
+        if (activeTextPrompts.has(htmlEl)) return;
+        activeTextPrompts.add(htmlEl);
+        const previousText = htmlEl.textContent || '';
+        const original = previousText.trim();
+        try {
+          const newText = await promptEditableText(htmlEl);
+          if (newText === null || newText === original) return;
+          htmlEl.textContent = newText;
+          const ok = await saveField(htmlEl, target, newText);
+          if (!ok) htmlEl.textContent = previousText;
+          flashSave(htmlEl, ok);
+          if (ok) showToast('Saved');
+          else showToast('Save failed', 'error');
+        } finally {
+          activeTextPrompts.delete(htmlEl);
         }
       });
     });
@@ -890,6 +897,7 @@
     document.body.dataset.admin = 'true';
     void ensureAdminEditorControls();
     void ensureAdminActionPrompts();
+    void ensureAdminInlineTextPrompt();
     initEditableText();
     initEditableRich();
     initEditableImage();
