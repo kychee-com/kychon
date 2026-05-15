@@ -3,18 +3,18 @@
 // Regression coverage for #23: stored XSS via the local esc() helpers.
 //
 // Two distinct sinks:
-//   1. The legacy forum page and src/lib/block-hydrators.ts used a local `esc()`
+//   1. The legacy forum page and dynamic block hydrators used a local `esc()`
 //      helper based on
 //      `textContent → innerHTML`, which escapes <, >, & but NOT " or '. When
 //      the result is interpolated into a double-quoted attribute, an attacker
 //      can break out of the attribute and inject event handlers (onmouseover,
 //      onerror, ...).
-//   2. `announcement.body` is interpolated raw into innerHTML, so any HTML
+//   2. `announcement.body` was interpolated raw into rendered HTML, so any HTML
 //      payload an admin (or AI feature) writes runs in every reader's browser.
 //
 // The fix is to (a) use the shared escAttr/escHtml from src/lib/blocks.ts in
 // every attribute/text context (they escape quotes correctly), and (b)
-// sanitize announcement bodies before assigning them to innerHTML.
+// sanitize announcement bodies before rendering them.
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -29,6 +29,7 @@ const repoRoot = process.cwd();
 const FORUM_PAGE = resolve(repoRoot, 'src/pages/forum.astro');
 const FORUM_APP = resolve(repoRoot, 'src/components/kychon/ForumPageApp.tsx');
 const BLOCK_HYDRATORS = resolve(repoRoot, 'src/lib/block-hydrators.ts');
+const ANNOUNCEMENTS_FEED_ISLAND = resolve(repoRoot, 'src/components/kychon/AnnouncementsFeedIsland.tsx');
 
 // Reproduce the local `esc()` helper as defined in the affected files so the
 // test pins the legacy (broken) behavior we are removing.
@@ -78,7 +79,7 @@ describe('bug #23 — esc() quote-escape XSS in attribute contexts', () => {
   it('block-hydrators.ts must NOT redefine its own esc() helper', async () => {
     const source = await readFile(BLOCK_HYDRATORS, 'utf8');
     expect(source).not.toMatch(/function esc\s*\(/);
-    expect(source).toMatch(/escAttr|escHtml/);
+    expect(source).not.toContain('textContent');
   });
 
   it('reproduces the unsafe behavior of the legacy esc() to lock in the regression', () => {
@@ -129,11 +130,11 @@ describe('bug #23 — announcement body raw innerHTML sink', () => {
     expect(cleaned.toLowerCase()).not.toContain('javascript:');
   });
 
-  it('block-hydrators.ts must sanitize announcement bodies before innerHTML', async () => {
-    const source = await readFile(BLOCK_HYDRATORS, 'utf8');
-    // The announcement-body div must not interpolate `${a.body}` raw — it
-    // must pass through sanitizeRichHtml.
-    expect(source).not.toMatch(/data-editable-rich="announcements\.\$\{a\.id\}\.body">\$\{a\.body\}/);
+  it('AnnouncementsFeedIsland must sanitize announcement bodies before rendering', async () => {
+    const source = await readFile(ANNOUNCEMENTS_FEED_ISLAND, 'utf8');
+    // The announcement body must not render the stored body raw — it must pass
+    // through sanitizeRichHtml at the rich-text boundary.
+    expect(source).not.toMatch(/__html:\s*announcement\.body/);
     expect(source).toMatch(/sanitizeRichHtml/);
   });
 });

@@ -853,14 +853,11 @@ const ANNOUNCEMENTS_FEED: BlockType = {
   defaultConfig: { heading: 'Announcements', limit: 20 },
   render(section, ctx) {
     const cfg = section.config || {};
-    const heading = cfg.heading
-      ? `<h2 id="announcements-title"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '<h2 id="announcements-title">Announcements</h2>';
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="announcements_feed"><div class="block-content"><div id="announcement-create" class="hidden mb-2"></div>${heading}<div id="announcements-feed"><div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div></div><div class="card mb-1"><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-text"></div></div></div></div></div>`,
-      'section section-visible',
+      `<div class="ky-container" data-block-hydrate="announcements_feed" data-config="${jsonAttr(cfg)}"></div>`,
+      'section w-full py-8',
     );
   },
   async hydrate(el, section, ctx) {

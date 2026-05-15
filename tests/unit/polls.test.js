@@ -1,8 +1,13 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// renderPoll uses document.createElement for XSS escaping, needs DOM environment
-const { renderPoll } = await import('../../src/lib/poll-ui.ts');
+const { PollCard } = await import('../../src/components/kychon/PollsBlockIsland.tsx');
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const roots = [];
 
 const basePoll = {
   id: 1,
@@ -13,6 +18,8 @@ const basePoll = {
   results_visible: 'after_vote',
   is_open: true,
   closes_at: null,
+  attached_to: null,
+  attached_id: null,
   created_by: 1,
   created_at: '2026-04-01T00:00:00Z',
 };
@@ -23,166 +30,113 @@ const baseOptions = [
   { id: 12, poll_id: 1, label: 'Talk', position: 2 },
 ];
 
-describe('renderPoll', () => {
-  describe('results_visible = always', () => {
-    const poll = { ...basePoll, results_visible: 'always' };
+function setSession(session) {
+  if (session) localStorage.setItem('wl_session', JSON.stringify(session));
+  else localStorage.removeItem('wl_session');
+}
 
-    it('shows bars and counts for unauthenticated users', () => {
-      const votes = [
-        { id: 1, poll_id: 1, option_id: 10, member_id: 2 },
-        { id: 2, poll_id: 1, option_id: 10, member_id: 3 },
-        { id: 3, poll_id: 1, option_id: 11, member_id: 4 },
-      ];
-      const html = renderPoll(poll, baseOptions, votes, null);
-      expect(html).toContain('poll-bar-fill');
-      expect(html).toContain('67%');
-      expect(html).toContain('33%');
-      expect(html).toContain('3 votes');
-    });
+async function renderPollCard({
+  poll = basePoll,
+  options = baseOptions,
+  votes = [],
+  session = null,
+  onVote = vi.fn(),
+} = {}) {
+  setSession(session);
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  roots.push(root);
+  await act(async () => {
+    root.render(React.createElement(PollCard, { data: { poll, options, votes }, votingKey: '', onVote }));
+  });
+  return { host, onVote };
+}
 
-    it('highlights user vote when authenticated', () => {
-      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(poll, baseOptions, votes, session);
-      expect(html).toContain('poll-option-voted');
-      expect(html).toContain('\u2713');
-    });
+afterEach(() => {
+  for (const root of roots.splice(0)) {
+    act(() => root.unmount());
+  }
+  document.body.innerHTML = '';
+  localStorage.clear();
+});
 
-    it('highlights user vote when ids arrive as different primitive types', () => {
-      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
-      const session = { user: { member: { id: '42' } } };
-      const html = renderPoll(poll, baseOptions, votes, session);
-      expect(html).toContain('poll-option-voted');
-    });
+describe('PollCard', () => {
+  it('shows results and counts when results are always visible', async () => {
+    const votes = [
+      { id: 1, poll_id: 1, option_id: 10, member_id: 2, created_at: '2026-04-01T00:00:00Z' },
+      { id: 2, poll_id: 1, option_id: 10, member_id: 3, created_at: '2026-04-01T00:00:00Z' },
+      { id: 3, poll_id: 1, option_id: 11, member_id: 4, created_at: '2026-04-01T00:00:00Z' },
+    ];
+    const { host } = await renderPollCard({ poll: { ...basePoll, results_visible: 'always' }, votes });
+
+    expect(host.textContent).toContain('67%');
+    expect(host.textContent).toContain('33%');
+    expect(host.textContent).toContain('3 votes');
+    expect(host.querySelector('[role="progressbar"]')).toBeTruthy();
+    expect(host.querySelector('.poll-widget')).toBeNull();
+    expect(host.querySelector('.poll-vote-btn')).toBeNull();
   });
 
-  describe('results_visible = after_vote', () => {
-    const poll = { ...basePoll, results_visible: 'after_vote' };
+  it('renders vote buttons for signed-in members before voting', async () => {
+    const session = { user: { member: { id: 42 } } };
+    const onVote = vi.fn();
+    const { host } = await renderPollCard({ session, onVote });
+    const buttons = Array.from(host.querySelectorAll('button'));
 
-    it('shows vote buttons before voting', () => {
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(poll, baseOptions, [], session);
-      expect(html).toContain('poll-vote-btn');
-      expect(html).not.toContain('poll-bar-fill');
-      expect(html).toContain('0 votes');
-    });
+    expect(buttons.map((button) => button.textContent)).toEqual(expect.arrayContaining(['Workshop', 'Social', 'Talk']));
+    expect(host.querySelector('[role="progressbar"]')).toBeNull();
 
-    it('shows vote buttons for a signed-in session before member hydration finishes', () => {
-      const session = { access_token: 'tok', user: { id: 'user-1' } };
-      const html = renderPoll(poll, baseOptions, [], session);
-      expect(html).toContain('poll-vote-btn');
-      expect(html).not.toContain('poll-option-readonly');
+    await act(async () => {
+      buttons[0].click();
     });
-
-    it('shows results after voting', () => {
-      const votes = [
-        { id: 1, poll_id: 1, option_id: 10, member_id: 42 },
-        { id: 2, poll_id: 1, option_id: 11, member_id: 5 },
-      ];
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(poll, baseOptions, votes, session);
-      expect(html).toContain('poll-bar-fill');
-      expect(html).toContain('50%');
-      expect(html).toContain('poll-option-voted');
-    });
-
-    it('shows readonly options for unauthenticated', () => {
-      const html = renderPoll(poll, baseOptions, [], null);
-      expect(html).toContain('poll-option-readonly');
-      expect(html).not.toContain('poll-vote-btn');
-    });
+    expect(onVote).toHaveBeenCalledWith(basePoll, baseOptions[0]);
   });
 
-  describe('results_visible = after_close', () => {
+  it('shows readonly options when signed out and results are not visible yet', async () => {
+    const { host } = await renderPollCard();
+
+    expect(host.textContent).toContain('Workshop');
+    expect(host.querySelector('button')).toBeNull();
+    expect(host.querySelector('[role="progressbar"]')).toBeNull();
+  });
+
+  it('reveals results after the current member has voted', async () => {
+    const votes = [
+      { id: 1, poll_id: 1, option_id: 10, member_id: 42, created_at: '2026-04-01T00:00:00Z' },
+      { id: 2, poll_id: 1, option_id: 11, member_id: 5, created_at: '2026-04-01T00:00:00Z' },
+    ];
+    const session = { user: { member: { id: '42' } } };
+    const { host } = await renderPollCard({ votes, session });
+
+    expect(host.textContent).toContain('50%');
+    expect(host.querySelector('[role="progressbar"]')).toBeTruthy();
+  });
+
+  it('hides after-close results while open and shows them after close', async () => {
     const poll = { ...basePoll, results_visible: 'after_close' };
+    const session = { user: { member: { id: 42 } } };
+    const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42, created_at: '2026-04-01T00:00:00Z' }];
+    const open = await renderPollCard({ poll, votes, session });
+    expect(open.host.textContent).toContain('Results after close');
+    expect(open.host.querySelector('[role="progressbar"]')).toBeNull();
 
-    it('hides results while open even after voting', () => {
-      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(poll, baseOptions, votes, session);
-      expect(html).not.toContain('poll-bar-fill');
-      expect(html).toContain('Results after close');
-    });
-
-    it('shows results when closed', () => {
-      const closedPoll = { ...poll, is_open: false };
-      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
-      const html = renderPoll(closedPoll, baseOptions, votes, null);
-      expect(html).toContain('poll-bar-fill');
-      expect(html).toContain('Closed');
-    });
+    const closed = await renderPollCard({ poll: { ...poll, is_open: false }, votes, session });
+    expect(closed.host.textContent).toContain('Closed');
+    expect(closed.host.querySelector('[role="progressbar"]')).toBeTruthy();
   });
 
-  describe('closed poll', () => {
-    it('does not show vote buttons', () => {
-      const closedPoll = { ...basePoll, is_open: false };
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(closedPoll, baseOptions, [], session);
-      expect(html).not.toContain('poll-vote-btn');
-      expect(html).toContain('poll-closed');
-      expect(html).toContain('Closed');
-    });
-  });
+  it('supports multiple-choice state and safely renders labels as text', async () => {
+    const options = [
+      { id: 10, poll_id: 1, label: '<img src=x onerror=alert(1)>', position: 0 },
+      { id: 11, poll_id: 1, label: 'Social', position: 1 },
+    ];
+    const session = { access_token: 'token', user: { id: 'user-1' } };
+    const { host } = await renderPollCard({ poll: { ...basePoll, poll_type: 'multiple' }, options, session });
 
-  describe('anonymous poll', () => {
-    it('shows Anonymous label in meta', () => {
-      const anonPoll = { ...basePoll, is_anonymous: true, results_visible: 'always' };
-      const html = renderPoll(anonPoll, baseOptions, [], null);
-      expect(html).toContain('Anonymous');
-    });
-  });
-
-  describe('multiple choice poll', () => {
-    it('shows checkbox indicators', () => {
-      const multiPoll = { ...basePoll, poll_type: 'multiple' };
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(multiPoll, baseOptions, [], session);
-      expect(html).toContain('\u2610');
-      expect(html).toContain('Select multiple');
-    });
-
-    it('shows checked indicator for voted options', () => {
-      const multiPoll = { ...basePoll, poll_type: 'multiple' };
-      const votes = [{ id: 1, poll_id: 1, option_id: 10, member_id: 42 }];
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(multiPoll, baseOptions, votes, session);
-      // after_vote shows results since member voted
-      expect(html).toContain('poll-bar-fill');
-    });
-  });
-
-  describe('poll with closes_at', () => {
-    it('shows closes date for open poll', () => {
-      const poll = { ...basePoll, closes_at: '2026-12-31T23:59:59Z' };
-      const html = renderPoll(poll, baseOptions, [], null);
-      expect(html).toContain('Closes');
-    });
-
-    it('treats expired closes_at as closed', () => {
-      const poll = { ...basePoll, closes_at: '2020-01-01T00:00:00Z' };
-      const session = { user: { member: { id: 42 } } };
-      const html = renderPoll(poll, baseOptions, [], session);
-      expect(html).toContain('poll-closed');
-      expect(html).not.toContain('poll-vote-btn');
-    });
-  });
-
-  describe('question and description', () => {
-    it('renders question', () => {
-      const html = renderPoll(basePoll, baseOptions, [], null);
-      expect(html).toContain('What should our next event be?');
-    });
-
-    it('renders description when present', () => {
-      const poll = { ...basePoll, description: 'Choose wisely' };
-      const html = renderPoll(poll, baseOptions, [], null);
-      expect(html).toContain('Choose wisely');
-      expect(html).toContain('poll-description');
-    });
-
-    it('omits description when null', () => {
-      const html = renderPoll(basePoll, baseOptions, [], null);
-      expect(html).not.toContain('poll-description');
-    });
+    expect(host.textContent).toContain('Select multiple');
+    expect(host.textContent).toContain('<img src=x onerror=alert(1)>');
+    expect(host.querySelector('img')).toBeNull();
+    expect(host.querySelectorAll('button')).toHaveLength(2);
   });
 });

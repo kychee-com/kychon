@@ -14,7 +14,7 @@ interface PollsBlockConfig {
   poll_ids?: number[];
 }
 
-interface PollCardData {
+export interface PollCardData {
   poll: Poll;
   options: PollOption[];
   votes: PollVote[];
@@ -200,7 +200,7 @@ function PollReadonlyOptions({ options }: { options: PollOption[] }) {
   );
 }
 
-function PollCard({
+export function PollCard({
   data,
   votingKey,
   onVote,
