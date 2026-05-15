@@ -23,7 +23,11 @@ import { siteConfig } from '../config.js';
 import { eventDayKey, formatEventDateTime } from '../event-display.js';
 import {
   renderEventsCalendarControlsHtml,
+  renderEventsCalendarEmptyHtml,
+  renderEventsCalendarPeekOverlayHtml,
   type EventsCalendarControlsLabels,
+  type EventsCalendarPeekAvatar,
+  type EventsCalendarPeekCapacity,
 } from '@/components/kychon/EventsCalendarBlockView';
 
 type ViewMode = 'month' | 'week' | 'agenda';
@@ -269,6 +273,26 @@ function rsvpAvatarStack(eventId: number, rsvps: RsvpAvatar[]): string {
   return `<span class="block-events-calendar__avatars">${list.map(avatarChip).join('')}${more}</span>`;
 }
 
+function rsvpAvatarStackData(eventId: number, rsvps: RsvpAvatar[]): {
+  avatars: EventsCalendarPeekAvatar[];
+  overflow: number;
+} {
+  const matching = rsvps.filter((r) => r.event_id === eventId);
+  const avatars = matching.slice(0, 3).map((r) => {
+    const name = r.members?.display_name || '?';
+    return {
+      avatarUrl: r.members?.avatar_url || null,
+      initial: name.charAt(0).toUpperCase(),
+      name,
+    };
+  });
+
+  return {
+    avatars,
+    overflow: Math.max(0, matching.length - avatars.length),
+  };
+}
+
 function isLiveNow(evt: Event, now: Date): boolean {
   const start = new Date(evt.starts_at);
   if (start > now) return false;
@@ -277,11 +301,19 @@ function isLiveNow(evt: Event, now: Date): boolean {
   return now.getTime() - start.getTime() < 2 * 60 * 60 * 1000;
 }
 
-function capacityBadge(evt: Event, rsvps: RsvpAvatar[], locale: string): string {
-  if (!evt.capacity) return '';
+function capacityBadgeInfo(evt: Event, rsvps: RsvpAvatar[], locale: string): EventsCalendarPeekCapacity | null {
+  if (!evt.capacity) return null;
   const going = rsvps.filter((r) => r.event_id === evt.id).length;
-  if (going >= evt.capacity) return `<span class="block-events-calendar__badge block-events-calendar__badge--sold">${escHtml(t('Sold out', locale))}</span>`;
-  if (going >= evt.capacity * 0.8) return `<span class="block-events-calendar__badge block-events-calendar__badge--filling">${escHtml(t('Filling fast', locale))}</span>`;
+  if (going >= evt.capacity) return { label: t('Sold out', locale), tone: 'sold' };
+  if (going >= evt.capacity * 0.8) return { label: t('Filling fast', locale), tone: 'filling' };
+  return null;
+}
+
+function capacityBadge(evt: Event, rsvps: RsvpAvatar[], locale: string): string {
+  const status = capacityBadgeInfo(evt, rsvps, locale);
+  if (!status) return '';
+  if (status.tone === 'sold') return `<span class="block-events-calendar__badge block-events-calendar__badge--sold">${escHtml(status.label)}</span>`;
+  if (status.tone === 'filling') return `<span class="block-events-calendar__badge block-events-calendar__badge--filling">${escHtml(status.label)}</span>`;
   return '';
 }
 
@@ -308,6 +340,7 @@ const STRINGS_EN: Record<string, string> = {
   'Add to my calendar': 'Add to my calendar',
   'Subscribe in your calendar app': 'Subscribe in your calendar app',
   'Open full event': 'Open full event',
+  'Close': 'Close',
   'more': 'more',
   'Previous month': 'Previous month',
   'Next month': 'Next month',
@@ -430,7 +463,7 @@ function renderAgendaView(state: State, locale: string): string {
   const now = new Date();
   const filtered = filterEvents(state.events, state, now).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   if (!filtered.length) {
-    return `<div class="block-events-calendar__empty">${escHtml(t('No events this month.', locale))}</div>`;
+    return renderEventsCalendarEmptyHtml({ message: t('No events this month.', locale) });
   }
   // Group by day key, render header + chip list.
   const grouped = groupByDay(filtered, locale);
@@ -713,7 +746,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
 
   function renderPeekOverlay(): void {
     // Remove any existing peek.
-    root.querySelector('.block-events-calendar__peek')?.remove();
+    root.querySelector('[data-events-calendar-peek]')?.remove();
     if (!state.peekDayKey) return;
 
     const dayDate = new Date(state.peekDayKey + 'T00:00:00');
@@ -728,39 +761,34 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     const heading = fmtDateLong(dayDate, ctx.locale);
     const items = events.map((e) => {
       const time = formatEventDateTime(e, ctx.locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
-      const lock = e.is_members_only ? `<span class="block-events-calendar__lock" aria-label="${escAttr(t('Members only', ctx.locale))}">🔒</span>` : '';
-      const live = isLiveNow(e, new Date()) ? `<span class="block-events-calendar__live-dot" aria-label="${escAttr(t('Live now', ctx.locale))}"></span>` : '';
-      const cap = capacityBadge(e, state.rsvps, ctx.locale);
-      const avatars = rsvpAvatarStack(e.id, state.rsvps);
-      return `
-        <li class="block-events-calendar__peek-item">
-          <a class="block-events-calendar__peek-link" href="/event?id=${e.id}">
-            ${live}
-            <span class="block-events-calendar__peek-time">${escHtml(time)}</span>
-            <span class="block-events-calendar__peek-title">${escHtml(e.title || '')}</span>
-            ${lock}${cap}
-          </a>
-          <div class="block-events-calendar__peek-meta">${e.location ? `<span>${escHtml(e.location)}</span>` : ''}${avatars}</div>
-          <div class="block-events-calendar__peek-actions">
-            <button type="button" class="block-events-calendar__peek-ics" data-event-id="${e.id}">${escHtml(t('Add to my calendar', ctx.locale))}</button>
-          </div>
-        </li>
-      `;
-    }).join('');
+      const avatars = rsvpAvatarStackData(e.id, state.rsvps);
+      return {
+        avatarOverflow: avatars.overflow,
+        avatars: avatars.avatars,
+        capacity: capacityBadgeInfo(e, state.rsvps, ctx.locale),
+        href: `/event?id=${e.id}`,
+        id: e.id,
+        isLive: isLiveNow(e, new Date()),
+        isMembersOnly: !!e.is_members_only,
+        location: e.location || '',
+        time,
+        title: e.title || '',
+      };
+    });
 
-    const overlay = document.createElement('div');
-    overlay.className = 'block-events-calendar__peek';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'false');
-    overlay.setAttribute('aria-label', heading);
-    overlay.innerHTML = `
-      <button type="button" class="block-events-calendar__peek-close" aria-label="Close">✕</button>
-      <h4 class="block-events-calendar__peek-heading">${escHtml(heading)}</h4>
-      <ul class="block-events-calendar__peek-list">${items}</ul>
-    `;
-    root.appendChild(overlay);
+    root.insertAdjacentHTML('beforeend', renderEventsCalendarPeekOverlayHtml({
+      addToCalendarLabel: t('Add to my calendar', ctx.locale),
+      closeLabel: t('Close', ctx.locale),
+      heading,
+      items,
+      liveNowLabel: t('Live now', ctx.locale),
+      membersOnlyLabel: t('Members only', ctx.locale),
+    }));
 
-    overlay.querySelector('.block-events-calendar__peek-close')?.addEventListener('click', () => {
+    const overlay = root.querySelector<HTMLElement>('[data-events-calendar-peek]');
+    if (!overlay) return;
+
+    overlay.querySelector('[data-events-calendar-peek-close]')?.addEventListener('click', () => {
       state.peekDayKey = null;
       overlay.remove();
     });
@@ -771,7 +799,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
         overlay.remove();
       }
     });
-    overlay.querySelectorAll<HTMLElement>('[data-event-id]').forEach((btn) => {
+    overlay.querySelectorAll<HTMLElement>('[data-events-calendar-peek-ics][data-event-id]').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
@@ -790,7 +818,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     if (k === 'Escape' && state.peekDayKey) {
       ev.preventDefault();
       state.peekDayKey = null;
-      root.querySelector('.block-events-calendar__peek')?.remove();
+      root.querySelector('[data-events-calendar-peek]')?.remove();
       return;
     }
     if (k === 't' || k === 'T') {
