@@ -332,12 +332,14 @@ export default async (req) => {
   }
 
   if (envelope.phase === 'validate') {
+    const semanticError = await validateMutationSemantics(operation.name, envelope.input, actor);
+    const warnings = semanticError ? [warningFromCapabilityError(semanticError)] : [];
     return successResponse(correlationId, {
-      accepted: permission.allowed,
+      accepted: !semanticError,
       normalizedInput: envelope.input,
       requiresConfirmation: operation.confirmation === 'required',
-      permission,
-      warnings: [],
+      permission: semanticError ? { ...permission, allowed: false, reason: semanticError.message } : permission,
+      warnings,
       sideEffects: [],
       cost: operation.costClass === 'free' ? null : { class: operation.costClass },
     });
@@ -809,7 +811,41 @@ async function executeMutation(name, input, actor) {
 
 const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin']);
 
-async function changeMemberRole(input, actor) {
+async function validateMutationSemantics(operation, input, actor) {
+  try {
+    if (operation === 'members.updateProfile') {
+      idForUpdate(operation, input, actor);
+    } else if (operation === 'forum.replies.create') {
+      await validateForumReplyInput(input);
+    } else if (operation === 'pollVotes.cast') {
+      await validatePollVoteInput(input);
+    } else if (operation === 'members.changeRole') {
+      const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
+      if (!VALID_MEMBER_ROLES.has(role)) {
+        throw capabilityError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
+          role: String(input.role ?? ''),
+        });
+      }
+      await ensureActiveAdminRemains(operation, requiredId(input, operation), { role });
+    } else if (operation === 'members.suspend' || operation === 'members.reject') {
+      await ensureActiveAdminRemains(operation, requiredId(input, operation), rowForUpdate(operation, input, actor));
+    }
+    return null;
+  } catch (error) {
+    if (error?.capabilityCode) return error;
+    throw error;
+  }
+}
+
+function warningFromCapabilityError(error) {
+  return {
+    code: error.capabilityCode,
+    message: error.message,
+    ...(error.detail ? { detail: error.detail } : {}),
+  };
+}
+
+async function changeMemberRole(input, _actor) {
   // Reject anything that isn't a known role. The old fall-through path
   // (`input.role || 'member'`) silently demoted on typos and let `'admin'`,
   // `'moderator'`, or arbitrary strings reach the DB unfiltered. (#29)
@@ -829,28 +865,9 @@ async function changeMemberRole(input, actor) {
     });
   }
 
-  // Last-admin guard: refuse to demote the actor's own admin role if doing
-  // so leaves zero remaining admins. Otherwise the portal locks itself out
-  // of admin features until someone goes around the API. (#29)
-  const actorMemberId = actor.member?.id ?? null;
-  if (
-    role !== 'admin' &&
-    actorMemberId != null &&
-    String(actorMemberId) === String(targetId) &&
-    String(target.role).toLowerCase() === 'admin'
-  ) {
-    const otherAdmins = members.filter(
-      (row) =>
-        String(row.id) !== String(targetId) &&
-        String(row.role).toLowerCase() === 'admin' &&
-        String(row.status).toLowerCase() === 'active',
-    );
-    if (otherAdmins.length === 0) {
-      throw capabilityError('conflict.state', 'Cannot demote the last active admin.', {
-        object: { type: 'member', id: String(targetId) },
-      });
-    }
-  }
+  // Last-admin guard: role changes, suspension, and rejection all remove
+  // admin availability when the target is the only active admin. (#30)
+  await ensureActiveAdminRemains('members.changeRole', targetId, { role }, members, target);
 
   const row = await updateRow('members', targetId, { role });
   const object = changedObject('member', row?.id ?? targetId);
@@ -859,6 +876,43 @@ async function changeMemberRole(input, actor) {
     [object],
     verification('members.get', { id: row?.id ?? targetId }, object),
   );
+}
+
+async function ensureActiveAdminRemains(operation, targetId, patch, members, target) {
+  if (!guardsLastActiveAdmin(operation)) return target ?? null;
+  const rows = members ?? (await selectRows('members'));
+  const row = target ?? rows.find((member) => String(member.id) === String(targetId));
+  if (!row) {
+    throw capabilityError('notFound.object', 'Member not found.', {
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+  if (!memberPatchRemovesActiveAdmin(row, patch)) return row;
+
+  const hasOtherActiveAdmin = rows.some(
+    (member) => String(member.id) !== String(targetId) && isActiveAdminMember(member),
+  );
+  if (!hasOtherActiveAdmin) {
+    throw capabilityError('conflict.state', 'Cannot remove the last active admin.', {
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+  return row;
+}
+
+function guardsLastActiveAdmin(operation) {
+  return operation === 'members.changeRole' || operation === 'members.suspend' || operation === 'members.reject';
+}
+
+function memberPatchRemovesActiveAdmin(member, patch) {
+  if (!isActiveAdminMember(member)) return false;
+  const nextRole = patch.role != null ? String(patch.role).toLowerCase() : String(member.role).toLowerCase();
+  const nextStatus = patch.status != null ? String(patch.status).toLowerCase() : String(member.status).toLowerCase();
+  return nextRole !== 'admin' || nextStatus !== 'active';
+}
+
+function isActiveAdminMember(member) {
+  return String(member.role).toLowerCase() === 'admin' && String(member.status).toLowerCase() === 'active';
 }
 
 async function genericMutation(operation, input, actor) {
@@ -874,7 +928,9 @@ async function genericMutation(operation, input, actor) {
     row = await upsertConfig(input);
   } else {
     const targetId = idForUpdate(operation, input, actor);
-    row = await updateRow(spec.table, targetId, rowForUpdate(operation, input, actor));
+    const patch = rowForUpdate(operation, input, actor);
+    await ensureActiveAdminRemains(operation, targetId, patch);
+    row = await updateRow(spec.table, targetId, patch);
     if (!row) {
       throw capabilityError('notFound.object', `${objectTypeLabel(spec.objectType)} not found.`, {
         object: changedObject(spec.objectType, targetId),
@@ -945,8 +1001,12 @@ async function createForumTopic(input, actor) {
   );
 }
 
-async function createForumReply(input, actor) {
+async function validateForumReplyInput(input) {
   const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
+  await findOpenForumTopic(topicId);
+}
+
+async function findOpenForumTopic(topicId) {
   const topic = (await selectRows('forum_topics')).find((row) => String(row.id) === String(topicId));
   if (!topic)
     throw capabilityError('notFound.object', 'Forum topic not found.', {
@@ -956,6 +1016,12 @@ async function createForumReply(input, actor) {
     throw capabilityError('conflict.state', 'Forum topic is locked.', {
       object: { type: 'forum.topic', id: String(topicId) },
     });
+  return topic;
+}
+
+async function createForumReply(input, actor) {
+  const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
+  const topic = await findOpenForumTopic(topicId);
 
   // author_id / author_name come from the actor only. (#24)
   const reply = await insertRow('forum_replies', {
@@ -1008,19 +1074,25 @@ async function createPoll(input, actor) {
   return poll;
 }
 
-async function castPollVote(input, actor) {
+async function validatePollVoteInput(input) {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
   const optionIds = Array.isArray(input.optionIds)
     ? input.optionIds
     : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  await findOpenPoll(pollId);
+  await validatePollOptionIds(pollId, optionIds);
+}
+
+async function findOpenPoll(pollId) {
   const poll = (await selectRows('polls')).find((row) => String(row.id) === String(pollId));
   if (!poll)
     throw capabilityError('notFound.object', 'Poll not found.', { object: { type: 'poll', id: String(pollId) } });
   if (poll.is_open === false)
     throw capabilityError('conflict.state', 'Poll is closed.', { object: { type: 'poll', id: String(pollId) } });
+  return poll;
+}
 
-  // Each option must belong to this poll. Without this check a member can
-  // vote on poll N with an option from poll M and corrupt totals. (#24)
+async function validatePollOptionIds(pollId, optionIds) {
   const validOptionIds = new Set(
     (await selectRows('poll_options'))
       .filter((option) => String(option.poll_id) === String(pollId))
@@ -1035,6 +1107,15 @@ async function castPollVote(input, actor) {
       );
     }
   }
+}
+
+async function castPollVote(input, actor) {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = Array.isArray(input.optionIds)
+    ? input.optionIds
+    : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const poll = await findOpenPoll(pollId);
+  await validatePollOptionIds(pollId, optionIds);
 
   const member = memberId(actor);
   const existing = (await selectRows('poll_votes')).filter(
@@ -1553,14 +1634,34 @@ function sanitizeRichHtmlServer(input) {
   let html = String(input);
   // Strip executable / sandbox-escape tags and their content.
   html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
-  // Strip the same set as void / unclosed forms.
-  html = html.replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, '');
-  // Strip on*= event handlers (quoted and unquoted).
-  html = html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  // Neutralize javascript:/vbscript: URLs anywhere they appear in attributes.
+  // Strip risky tags, including slash-separated unclosed forms like <svg/onload=...>.
+  html = html.replace(/<\/?\s*(script|style|iframe|object|embed|svg|math|details|link|meta)(?:\s|\/|>)[^>]*>/gi, '');
+  // Strip event handlers and inline style payloads, including slash-separated attributes.
+  html = html.replace(/[\s/]+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // Neutralize javascript:/vbscript: URLs after decoding common HTML entities.
+  html = html.replace(/\s(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (_match, attr, rawValue) => {
+    const value = rawValue.replace(/^["']|["']$/g, '');
+    const decoded = decodeHtmlEntities(value).trim();
+    return /^(?:javascript|vbscript):/i.test(decoded) ? '' : ` ${attr}=${rawValue}`;
+  });
   html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
   html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
   return html;
+}
+
+function decodeHtmlEntities(value) {
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity) => {
+    const normalized = entity.toLowerCase();
+    if (normalized === 'amp') return '&';
+    if (normalized === 'lt') return '<';
+    if (normalized === 'gt') return '>';
+    if (normalized === 'quot') return '"';
+    if (normalized === 'apos') return "'";
+    if (normalized.startsWith('#x')) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
+    if (normalized.startsWith('#')) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+    return match;
+  });
 }
 
 function stripControlFields(input) {
