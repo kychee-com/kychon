@@ -409,75 +409,6 @@ a:hover {
   object-fit: cover;
 }
 
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-  transition:
-    background var(--transition),
-    color var(--transition),
-    border-color var(--transition),
-    box-shadow var(--transition),
-    transform var(--transition);
-}
-.btn:hover {
-  text-decoration: none;
-  transform: translateY(-1px);
-}
-.btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring, var(--color-primary)) 24%, transparent);
-}
-.btn:active {
-  transform: scale(0.98);
-}
-.btn-primary {
-  background: linear-gradient(
-    135deg,
-    var(--primary, var(--color-primary)),
-    color-mix(in srgb, var(--primary, var(--color-primary)) 78%, var(--accent, var(--color-accent)))
-  );
-  color: var(--primary-foreground, white);
-}
-.btn-primary:hover {
-  background: var(--button-hover-bg, var(--ky-color-primary-hover, var(--color-primary-hover)));
-  color: var(--button-hover-text, var(--primary-foreground, white));
-}
-.btn-secondary {
-  background: var(--secondary, var(--color-surface));
-  color: var(--secondary-foreground, var(--color-text));
-  border: 1px solid var(--border, var(--color-border));
-}
-.btn-secondary:hover {
-  background: var(--muted, var(--color-border));
-}
-.btn-danger {
-  background: var(--destructive, var(--color-danger));
-  color: var(--destructive-foreground, white);
-}
-.btn-danger:hover {
-  background: #dc2626;
-  color: white;
-}
-.btn-sm {
-  padding: 0.25rem 0.625rem;
-  font-size: 0.8125rem;
-}
-.btn-lg {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-}
-
 /* Cards */
 .card {
   background: linear-gradient(
@@ -1287,26 +1218,6 @@ mark {
   height: 1px;
   background: var(--color-border);
 }
-.btn-google {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 0.625rem 1rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  color: var(--color-text);
-  transition: background var(--transition);
-}
-.btn-google:hover {
-  background: var(--color-surface);
-}
-
 /* Table */
 .table-wrap {
   overflow-x: auto;

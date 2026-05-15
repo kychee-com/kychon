@@ -11,8 +11,10 @@
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
+  import { buttonVariants } from './kychon/ui';
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
+  const tooltipPrimaryButtonClass = buttonVariants({ size: 'sm' });
 
   function getToken(): string {
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
@@ -336,7 +338,7 @@
     tip.className = 'admin-wordmark-hint admin-promotion-tooltip';
     tip.innerHTML = `
       <span>This image looks like a wordmark (${dims.width}×${dims.height}). Move it to <code>brand_wordmark_url</code> instead?</span>
-      <button class="btn btn-sm btn-primary" type="button" data-move-to-wordmark>Move to wordmark</button>
+      <button class="${tooltipPrimaryButtonClass}" type="button" data-move-to-wordmark>Move to wordmark</button>
       <button class="admin-tooltip-close" type="button" aria-label="Keep in icon slot">&times;</button>
     `;
     document.body.appendChild(tip);
@@ -630,7 +632,7 @@
     tip.className = 'admin-promotion-tooltip';
     tip.innerHTML = `
       <span>This now appears here only.</span>
-      <button class="btn btn-sm btn-primary" type="button" data-make-global="${sectionId}">Make global</button>
+      <button class="${tooltipPrimaryButtonClass}" type="button" data-make-global="${sectionId}">Make global</button>
       <button class="admin-tooltip-close" type="button" aria-label="Dismiss">&times;</button>
     `;
     document.body.appendChild(tip);
