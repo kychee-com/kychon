@@ -57,6 +57,7 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-section-btn');
       expect(source).not.toContain('admin-section-edit-btn');
       expect(source).not.toContain('admin-scope-toggle');
+      expect(source).not.toContain('admin-toolbar');
       expect(source).not.toContain('admin-zone-add-btn');
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
