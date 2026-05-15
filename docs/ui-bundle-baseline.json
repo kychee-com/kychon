@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T22:42:09.372Z",
+  "generatedAt": "2026-05-15T22:50:39.888Z",
   "dist": "/Users/talweiss/Developer/kychon/dist",
   "note": "Local asset byte counts are uncompressed and include assets referenced directly by each HTML file.",
   "routes": [
@@ -11,12 +11,12 @@
       "htmlBytes": 16848,
       "inlineScriptBytes": 6786,
       "inlineStyleBytes": 67,
-      "localJsBytes": 29410,
+      "localJsBytes": 29007,
       "localCssBytes": 103626,
       "localJs": [
         {
-          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.CPb4b4Td.js",
-          "bytes": 16104
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.DZiH43VB.js",
+          "bytes": 15701
         },
         {
           "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BPzt9pS6.js",
@@ -27,7 +27,7 @@
           "bytes": 8736
         },
         {
-          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.HJM8eJrb.js",
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.B_P4rIfj.js",
           "bytes": 322
         },
         {
@@ -54,12 +54,12 @@
       "htmlBytes": 17713,
       "inlineScriptBytes": 6786,
       "inlineStyleBytes": 67,
-      "localJsBytes": 29410,
+      "localJsBytes": 29007,
       "localCssBytes": 103626,
       "localJs": [
         {
-          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.CPb4b4Td.js",
-          "bytes": 16104
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.DZiH43VB.js",
+          "bytes": 15701
         },
         {
           "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BPzt9pS6.js",
@@ -70,7 +70,7 @@
           "bytes": 8736
         },
         {
-          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.HJM8eJrb.js",
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.B_P4rIfj.js",
           "bytes": 322
         },
         {
@@ -97,12 +97,12 @@
       "htmlBytes": 19074,
       "inlineScriptBytes": 6786,
       "inlineStyleBytes": 67,
-      "localJsBytes": 29410,
+      "localJsBytes": 29007,
       "localCssBytes": 103626,
       "localJs": [
         {
-          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.CPb4b4Td.js",
-          "bytes": 16104
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.DZiH43VB.js",
+          "bytes": 15701
         },
         {
           "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BPzt9pS6.js",
@@ -113,7 +113,7 @@
           "bytes": 8736
         },
         {
-          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.HJM8eJrb.js",
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.B_P4rIfj.js",
           "bytes": 322
         },
         {
@@ -140,12 +140,12 @@
       "htmlBytes": 16474,
       "inlineScriptBytes": 6786,
       "inlineStyleBytes": 67,
-      "localJsBytes": 29410,
+      "localJsBytes": 29007,
       "localCssBytes": 103626,
       "localJs": [
         {
-          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.CPb4b4Td.js",
-          "bytes": 16104
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.DZiH43VB.js",
+          "bytes": 15701
         },
         {
           "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BPzt9pS6.js",
@@ -156,7 +156,7 @@
           "bytes": 8736
         },
         {
-          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.HJM8eJrb.js",
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.B_P4rIfj.js",
           "bytes": 322
         },
         {
@@ -183,12 +183,12 @@
       "htmlBytes": 42803,
       "inlineScriptBytes": 6786,
       "inlineStyleBytes": 67,
-      "localJsBytes": 29410,
+      "localJsBytes": 29007,
       "localCssBytes": 103626,
       "localJs": [
         {
-          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.CPb4b4Td.js",
-          "bytes": 16104
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.DZiH43VB.js",
+          "bytes": 15701
         },
         {
           "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BPzt9pS6.js",
@@ -199,7 +199,7 @@
           "bytes": 8736
         },
         {
-          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.HJM8eJrb.js",
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.B_P4rIfj.js",
           "bytes": 322
         },
         {
@@ -226,12 +226,12 @@
       "htmlBytes": 17227,
       "inlineScriptBytes": 6786,
       "inlineStyleBytes": 67,
-      "localJsBytes": 29410,
+      "localJsBytes": 29007,
       "localCssBytes": 103626,
       "localJs": [
         {
-          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.CPb4b4Td.js",
-          "bytes": 16104
+          "path": "/_astro/AdminEditor.astro_astro_type_script_index_0_lang.DZiH43VB.js",
+          "bytes": 15701
         },
         {
           "path": "/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BPzt9pS6.js",
@@ -242,7 +242,7 @@
           "bytes": 8736
         },
         {
-          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.HJM8eJrb.js",
+          "path": "/_astro/Portal.astro_astro_type_script_index_2_lang.B_P4rIfj.js",
           "bytes": 322
         },
         {

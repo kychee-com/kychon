@@ -195,9 +195,12 @@ describe('admin action controls source', () => {
   it('uses structured parsing for rich text editing instead of HTML assignment sinks', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
 
-    expect(editor).toContain('serializeRichTextChildren');
-    expect(editor).toContain('replaceRichTextChildren');
-    expect(editor).toContain('new DOMParser()');
+    expect(editor).toContain('../lib/dom-fragment');
+    expect(editor).toContain('serializeHtmlChildren');
+    expect(editor).toContain('renderHtmlChildren');
+    expect(editor).toContain('clearHtmlChildren');
+    expect(editor).not.toContain('new DOMParser()');
+    expect(editor).not.toContain('replaceChildren');
     expect(editor).not.toContain('htmlEl.innerHTML');
     expect(editor).not.toContain('innerHTML =');
     expect(editor).not.toContain('insertAdjacentHTML');
