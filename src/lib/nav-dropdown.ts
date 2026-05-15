@@ -342,6 +342,22 @@ function rewriteCloneIds(clone: HTMLElement, suffix: string): void {
   });
 }
 
+function clearCloneBindingFlags(clone: HTMLElement): void {
+  const attrs = [
+    'data-chevron-bound',
+    'data-nav-bound',
+    'data-nav-focus-bound',
+    'data-nav-hover-bound',
+    'data-nav-hover-wrap-bound',
+    'data-nav-keyboard-bound',
+    'data-nav-toggle-bound',
+  ];
+  for (const attr of attrs) clone.removeAttribute(attr);
+  clone.querySelectorAll<HTMLElement>(attrs.map((attr) => `[${attr}]`).join(',')).forEach((el) => {
+    for (const attr of attrs) el.removeAttribute(attr);
+  });
+}
+
 function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
   const nav = root.closest('.nav, nav') as HTMLElement | null;
   const menu = getOverflowMenu(root);
@@ -363,6 +379,7 @@ function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
   overflowItems.forEach((item, index) => {
     const clone = item.cloneNode(true) as HTMLElement;
     clone.classList.remove('nav-overflow-item');
+    clearCloneBindingFlags(clone);
     rewriteCloneIds(clone, `overflow-${index}`);
     menu.appendChild(clone);
   });

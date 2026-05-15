@@ -7,13 +7,14 @@ const globalsSource = readFileSync(join(import.meta.dirname, '../../src/styles/g
 
 describe('Portal asset URLs', () => {
   it('keeps chrome-critical styles in the Astro/Vite import graph', () => {
-    const stylesheets = ['theme.css', 'nav-dropdown.css', 'zone-grid.css', 'a11y.css'];
+    const stylesheets = ['theme.css', 'zone-grid.css', 'a11y.css'];
 
     expect(portalSource).toContain("import '../styles/globals.css'");
     for (const file of stylesheets) {
       expect(globalsSource).toContain(`@import "./${file}"`);
       expect(portalSource).not.toContain(`/css/${file}`);
     }
+    expect(globalsSource).not.toContain('@import "./nav-dropdown.css"');
   });
 
   it('bundles owned public styles through the Astro/Tailwind entrypoint', () => {
