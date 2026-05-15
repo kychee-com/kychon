@@ -499,10 +499,14 @@ export function applyA11yPrefs(): void {
   const scale = localStorage.getItem('wl_font_scale');
   if (scale) document.documentElement.style.setProperty('--wl-font-scale', scale);
   if (localStorage.getItem('wl_high_contrast') === '1') {
-    document.documentElement.classList.add('wl-high-contrast');
+    document.documentElement.dataset.highContrast = 'true';
+  } else {
+    delete document.documentElement.dataset.highContrast;
   }
   if (localStorage.getItem('wl_reduced_motion') === '1') {
-    document.documentElement.classList.add('wl-reduced-motion');
+    document.documentElement.dataset.reducedMotion = 'true';
+  } else {
+    delete document.documentElement.dataset.reducedMotion;
   }
 }
 
