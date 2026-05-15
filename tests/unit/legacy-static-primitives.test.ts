@@ -85,6 +85,7 @@ describe('legacy static UI primitives', () => {
     expect(globalStyles).not.toContain('block-events-calendar.css');
     expect(globalStyles).not.toContain('nav-dropdown.css');
     expect(adminStyles).not.toContain('block-embed');
+    expect(adminStyles).not.toContain('.admin-drop-indicator');
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');

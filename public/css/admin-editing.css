@@ -122,16 +122,6 @@
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
-.admin .admin-drop-indicator {
-  height: 3px;
-  background: var(--color-primary, #3b82f6);
-  border-radius: 2px;
-  margin: -2px 0;
-  pointer-events: none;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-  transition: opacity 150ms ease;
-}
-
 /* ═══════════════════════════════════════════════════
    5. IMAGE UPLOAD PROGRESS
    ═══════════════════════════════════════════════════ */

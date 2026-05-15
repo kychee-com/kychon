@@ -14,6 +14,7 @@ const ADMIN_EDITOR = resolve(ROOT, 'src/components/AdminEditor.astro');
 const ADMIN_ACTION_PROMPT = resolve(ROOT, 'src/components/kychon/AdminActionPromptIsland.tsx');
 const ADMIN_ZONE_ADD_BUTTON = resolve(ROOT, 'src/components/kychon/AdminZoneAddButton.tsx');
 const ADMIN_CSS = resolve(ROOT, 'public/css/admin-editing.css');
+const ZONE_GRID_CSS = resolve(ROOT, 'src/styles/zone-grid.css');
 
 const adminCtx: BlockRenderContext = { admin: true, locale: 'en', role: 'admin' };
 
@@ -115,6 +116,20 @@ describe('admin action controls source', () => {
     expect(editor).toContain('aria-label');
     expect(editor).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
     expect(styles).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
+  });
+
+  it('uses a static data-attribute drop indicator instead of creating a CSS primitive', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const adminStyles = await readFile(ADMIN_CSS, 'utf8');
+    const zoneGrid = await readFile(ZONE_GRID_CSS, 'utf8');
+
+    expect(editor).toContain('id="admin-editor-drop-indicator"');
+    expect(editor).toContain('data-admin-drop-indicator');
+    expect(editor).not.toContain("document.createElement('div')");
+    expect(editor).not.toContain("className = 'admin-drop-indicator'");
+    expect(adminStyles).not.toContain('.admin-drop-indicator');
+    expect(zoneGrid).toContain('[data-admin-drop-indicator][data-column-span="1"]');
+    expect(zoneGrid).not.toContain('.admin-drop-indicator');
   });
 
   it('keeps tooltip action buttons on shadcn variants', async () => {
