@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 import {
@@ -98,13 +100,14 @@ describe('social_links block rendering', () => {
 
     for (const provider of ['facebook', 'x', 'linkedin', 'instagram']) {
       expect(html).toContain(`data-social-provider="${provider}"`);
-      expect(html).toContain(`block-social-links__link--${provider}`);
     }
-    expect(html).toContain('class="block-social-links__icon"');
+    expect(html).toContain('data-social-link-icon');
+    expect(html).toContain('--social-link-provider-color:#1877f2');
     expect(html).toContain('aria-label="Facebook"');
     expect(html).toContain('aria-label="LinkedIn"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toContain('block-social-links');
     expect(html).not.toContain('>f</a>');
     expect(html).not.toContain('>in</a>');
     expect(html).not.toContain('>ig</a>');
@@ -159,7 +162,16 @@ describe('social_links block rendering', () => {
     );
 
     expect(html).toContain('data-social-provider="youtube"');
-    expect(html).toContain('block-social-links__icon');
-    expect(html).toContain('footer-social');
+    expect(html).toContain('data-social-link-icon');
+    expect(html).toContain('data-legacy-footer-links');
+    expect(html).not.toContain('footer-social');
+  });
+
+  it('keeps retired social link classes out of source CSS and renderer', () => {
+    const styles = readFileSync('src/styles/public.css', 'utf8');
+    const renderer = readFileSync('src/lib/blocks/social-links.ts', 'utf8');
+
+    expect(styles).not.toContain('block-social-links');
+    expect(renderer).not.toContain('block-social-links');
   });
 });

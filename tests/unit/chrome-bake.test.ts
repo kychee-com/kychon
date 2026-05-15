@@ -102,7 +102,7 @@ describe('bakeChrome', () => {
     expect(chrome.headerHtml).toContain('Social Club');
     expect(chrome.headerHtml).toContain('data-social-provider="facebook"');
     expect(chrome.headerHtml).toContain('data-social-provider="instagram"');
-    expect(chrome.headerHtml).toContain('class="block-social-links__icon"');
+    expect(chrome.headerHtml).toContain('data-social-link-icon');
     expect(chrome.headerHtml).not.toContain('>f</a>');
     expect(chrome.headerHtml).not.toContain('>ig</a>');
   });
