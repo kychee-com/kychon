@@ -411,31 +411,6 @@ mark {
   border-radius: 0.15em;
 }
 
-/* Member cards */
-.member-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-}
-.member-avatar {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--muted, var(--color-surface));
-}
-.member-info {
-  flex: 1;
-}
-.member-name {
-  font-weight: 600;
-}
-.member-meta {
-  font-size: 0.8125rem;
-  color: var(--muted-foreground, var(--color-text-muted));
-}
-
 /* Announcements */
 /* Sections (homepage) */
 .section {
