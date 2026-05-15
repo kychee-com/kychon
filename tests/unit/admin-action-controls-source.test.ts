@@ -59,6 +59,7 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-scope-toggle');
       expect(source).not.toContain('admin-zone-add-btn');
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
+      expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
     }
   });
 
@@ -81,6 +82,17 @@ describe('admin action controls source', () => {
     expect(editor).toContain('dataset.zoneAdd');
     expect(editor).not.toContain('admin-zone-add-btn');
     expect(styles).not.toContain('admin-zone-add-btn');
+  });
+
+  it('keeps tooltip action buttons on shadcn variants', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const styles = await readFile(ADMIN_CSS, 'utf8');
+
+    expect(editor).toContain('tooltipPrimaryButtonClass');
+    expect(editor).toContain('tooltipCloseButtonClass');
+    expect(editor).toContain('data-admin-tooltip-close');
+    expect(editor).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
+    expect(styles).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
   });
 
   it('renders admin actions with shared variant classes instead of legacy primitives', () => {
