@@ -755,7 +755,7 @@ Each page uses `data-editable` attributes. The `admin-editor.js` scans for these
 CSS patterns for invisible-until-hovered edit controls:
 ```css
 [contenteditable="true"] { outline: none; border: none; cursor: text; }
-.admin [contenteditable="true"]:hover { background: rgba(0,0,0,0.03); border-radius: 4px; }
+body[data-admin="true"] [contenteditable="true"]:hover { background: rgba(0,0,0,0.03); border-radius: 4px; }
 ```
 
 Rich text (announcements, descriptions): Tiptap editor initialized lazily on admin click. Floating toolbar on text selection, not permanent.

@@ -1,24 +1,24 @@
-/* admin-editing.css — Loaded only when body.admin is present
+/* admin-editing.css — Loaded only when body[data-admin="true"] is present
    Premium inline editing UX for Kychon admins */
 
 /* ═══════════════════════════════════════════════════
    1. HOVER STATES — blue glow on editable elements
    ═══════════════════════════════════════════════════ */
 
-.admin [data-editable]:hover,
-.admin [data-editable-rich]:hover {
+body[data-admin="true"] [data-editable]:hover,
+body[data-admin="true"] [data-editable-rich]:hover {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
   border-radius: 4px;
   cursor: pointer;
   transition: box-shadow 200ms ease, border-radius 200ms ease;
 }
 
-.admin [data-editable-image]:hover {
+body[data-admin="true"] [data-editable-image]:hover {
   cursor: pointer;
   position: relative;
 }
 
-.admin [data-editable-image]:hover::after {
+body[data-admin="true"] [data-editable-image]:hover::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -31,7 +31,7 @@
   pointer-events: none;
 }
 
-.admin [data-editable-image]:hover::before {
+body[data-admin="true"] [data-editable-image]:hover::before {
   content: "\1F4F7  Replace";
   position: absolute;
   top: 50%;
@@ -53,7 +53,7 @@
    2. ACTIVE EDITING — solid blue outline
    ═══════════════════════════════════════════════════ */
 
-.admin [contenteditable="true"] {
+body[data-admin="true"] [contenteditable="true"] {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
   border-radius: 4px;
   outline: none;
@@ -65,13 +65,13 @@
   transition: box-shadow 200ms ease, background 200ms ease;
 }
 
-.admin [contenteditable="true"]::selection,
-.admin [contenteditable="true"] *::selection {
+body[data-admin="true"] [contenteditable="true"]::selection,
+body[data-admin="true"] [contenteditable="true"] *::selection {
   background: rgba(59, 130, 246, 0.24);
   color: var(--color-text, #111827);
 }
 
-.admin [data-admin-tiptap-active="true"] {
+body[data-admin="true"] [data-admin-tiptap-active="true"] {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
   border-radius: 4px;
   background: rgba(59, 130, 246, 0.04);
@@ -82,16 +82,16 @@
    3. DRAG-TO-REORDER
    ═══════════════════════════════════════════════════ */
 
-.admin [data-sortable-group] > [data-sortable-id] {
+body[data-admin="true"] [data-sortable-group] > [data-sortable-id] {
   position: relative;
 }
 
-.admin [data-sortable-group] > [data-sortable-id]:hover > [data-admin-drag-handle],
-.admin [data-admin-drag-handle]:focus {
+body[data-admin="true"] [data-sortable-group] > [data-sortable-id]:hover > [data-admin-drag-handle],
+body[data-admin="true"] [data-admin-drag-handle]:focus {
   display: inline-flex;
 }
 
-.admin [data-sortable-id][data-admin-dragging="true"] {
+body[data-admin="true"] [data-sortable-id][data-admin-dragging="true"] {
   opacity: 0.4;
   transform: scale(0.98);
   transition: opacity 200ms ease, transform 200ms ease;
@@ -101,22 +101,22 @@
    4. IMAGE UPLOAD PROGRESS
    ═══════════════════════════════════════════════════ */
 
-.admin [data-editable-image][data-admin-uploading="true"] {
+body[data-admin="true"] [data-editable-image][data-admin-uploading="true"] {
   position: relative;
 }
 
-.admin [data-editable-image][data-admin-uploading="true"] > img,
-.admin [data-editable-image][data-admin-uploading="true"] > * {
+body[data-admin="true"] [data-editable-image][data-admin-uploading="true"] > img,
+body[data-admin="true"] [data-editable-image][data-admin-uploading="true"] > * {
   opacity: 0.4;
   transition: opacity 300ms ease;
 }
 
-.admin [data-editable-image][data-admin-uploading="true"]::before {
+body[data-admin="true"] [data-editable-image][data-admin-uploading="true"]::before {
   content: "";
   display: none;
 }
 
-.admin [data-editable-image][data-admin-uploading="true"]::after {
+body[data-admin="true"] [data-editable-image][data-admin-uploading="true"]::after {
   content: "";
   position: absolute;
   top: 50%;

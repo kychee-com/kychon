@@ -127,6 +127,9 @@ describe('legacy static UI primitives', () => {
     expect(adminStyles).not.toContain('.tiptap-active');
     expect(adminStyles).not.toContain('.uploading');
     expect(adminStyles).not.toContain('.dragging');
+    expect(adminStyles).not.toContain('.admin ');
+    expect(adminStyles).not.toMatch(/\.admin\b/);
+    expect(adminStyles).not.toContain('body.admin');
     expect(adminStyles).not.toContain('body.admin-dragging');
     for (const stylesheet of [a11yStyles, publicA11yStyles]) {
       expect(stylesheet).toContain('.wl-skip-nav');
