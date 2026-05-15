@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import EMBED from '../../src/lib/blocks/embed.ts';
@@ -30,8 +31,11 @@ describe('embed renderer — happy paths', () => {
     expect(html).toContain('src="https://www.youtube.com/embed/abcd1234"');
     expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-presentation"');
     expect(html).toContain('loading="lazy"');
-    expect(html).toContain('class="section block-embed block-embed--youtube"');
+    expect(html).toContain('class="section w-full"');
+    expect(html).toContain('data-embed-state="ready"');
+    expect(html).toContain('data-embed-provider="youtube"');
     expect(html).toContain('data-provider="youtube"');
+    expect(html).not.toContain('block-embed');
   });
 
   it('renders a heading when provided', () => {
@@ -43,7 +47,8 @@ describe('embed renderer — happy paths', () => {
       }),
       memberCtx,
     );
-    expect(html).toContain('<h2 class="block-embed__heading">Watch our intro</h2>');
+    expect(html).toContain('data-embed-heading');
+    expect(html).toContain('Watch our intro');
     expect(html).toContain('title="Watch our intro"');
   });
 
@@ -54,13 +59,15 @@ describe('embed renderer — happy paths', () => {
 
   it('applies aspect-ratio wrapper for responsive providers', () => {
     const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
-    expect(html).toContain('aspect-ratio:16/9');
+    expect(html).toContain('data-embed-responsive="true"');
+    expect(html).toContain('aspect-video');
   });
 
   it('uses fixed height for non-responsive providers', () => {
     const html = EMBED.render(baseSection({ provider: 'calendly', params: { username: 'jane' } }), memberCtx);
     expect(html).toContain('height:700px');
-    expect(html).not.toContain('aspect-ratio');
+    expect(html).toContain('data-embed-responsive="false"');
+    expect(html).not.toContain('aspect-video');
   });
 
   it('respects explicit config.height for non-responsive providers', () => {
@@ -75,7 +82,8 @@ describe('embed renderer — happy paths', () => {
 describe('embed renderer — trust gate (generic iframe)', () => {
   it('refuses to emit iframe without trust_acknowledged', () => {
     const html = EMBED.render(baseSection({ provider: 'iframe', params: { src: 'https://example.com' } }), adminCtx);
-    expect(html).toContain('block-embed--error');
+    expect(html).toContain('data-embed-state="error"');
+    expect(html).toContain('data-embed-error');
     expect(html).not.toContain('<iframe');
     expect(html).toContain('trust acknowledgment');
   });
@@ -105,6 +113,7 @@ describe('embed renderer — trust gate (generic iframe)', () => {
     expect(html).toContain('External content');
     expect(html).toContain('bg-secondary');
     expect(html).not.toContain('block-embed__pill');
+    expect(html).not.toContain('block-embed');
   });
 
   it('does not render the pill for non-admins', () => {
@@ -128,21 +137,21 @@ describe('embed renderer — trust gate (generic iframe)', () => {
 describe('embed renderer — error states', () => {
   it('renders error placeholder for unknown provider', () => {
     const html = EMBED.render(baseSection({ provider: 'doesnotexist', params: {} }), memberCtx);
-    expect(html).toContain('block-embed--error');
+    expect(html).toContain('data-embed-state="error"');
     expect(html).toContain('Unknown provider');
     expect(html).not.toContain('<iframe');
   });
 
   it('renders error placeholder when buildSrc throws', () => {
     const html = EMBED.render(baseSection({ provider: 'youtube', params: {} }), memberCtx);
-    expect(html).toContain('block-embed--error');
+    expect(html).toContain('data-embed-state="error"');
     expect(html).toContain('Missing required param');
     expect(html).not.toContain('<iframe');
   });
 
   it('renders error placeholder when no provider configured', () => {
     const html = EMBED.render(baseSection({}), memberCtx);
-    expect(html).toContain('block-embed--error');
+    expect(html).toContain('data-embed-state="error"');
     expect(html).toContain('No provider configured');
   });
 
@@ -164,5 +173,17 @@ describe('embed renderer — sandbox enforcement', () => {
     const html = EMBED.render(baseSection({ provider: 'calendly', params: { username: 'jane' } }), memberCtx);
     const tokens = sandboxTokens(html);
     expect(tokens).toEqual(['allow-forms', 'allow-popups', 'allow-same-origin', 'allow-scripts']);
+  });
+});
+
+describe('embed renderer — retired primitives', () => {
+  it('keeps retired embed classes out of source CSS and renderer output', () => {
+    const html = EMBED.render(baseSection({ provider: 'youtube', params: { video_id: 'abcd1234' } }), memberCtx);
+    const source = readFileSync('src/lib/blocks/embed.ts', 'utf8');
+    const adminStyles = readFileSync('public/css/admin-editing.css', 'utf8');
+
+    expect(html).not.toContain('block-embed');
+    expect(source).not.toContain('block-embed');
+    expect(adminStyles).not.toContain('block-embed');
   });
 });

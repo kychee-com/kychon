@@ -52,13 +52,13 @@ describe('legacy static UI primitives', () => {
     expect(blocks).not.toContain('ky-text-muted');
     expect(blocks).not.toContain('event-skeleton-card');
     expect(blocks).not.toContain(' skeleton"></div>');
-    expect(embed).not.toContain('block-embed__pill');
+    expect(embed).not.toContain('block-embed');
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
     expect(styles).not.toContain('admin-account-security');
     expect(styles).not.toContain('admin-checklist');
-    expect(adminStyles).not.toContain('block-embed__pill');
+    expect(adminStyles).not.toContain('block-embed');
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');
