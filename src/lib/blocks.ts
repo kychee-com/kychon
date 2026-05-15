@@ -4,6 +4,7 @@
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
+import { buttonVariants } from '@/components/kychon/ui';
 import { renderMarketingBlockHtml } from '@/components/kychon/MarketingBlocksView';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
 
@@ -536,13 +537,17 @@ function sanitizeHref(href: string): string {
   return '';
 }
 
+function renderShadcnLinkButton(href: unknown, text: unknown, editable = '', extraAttrs = ''): string {
+  return `<a href="${escAttr(cleanHref(href, '#'))}" class="${escAttr(buttonVariants({ size: 'lg', className: 'mt-2' }))}"${editable}${extraAttrs}>${escHtml(text)}</a>`;
+}
+
 function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string {
   const cfg = section.config || {};
   const sid = section.id;
   const heading = `<h1${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h1>`;
   const sub = `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`;
   const cta = cfg.cta_text
-    ? `<a href="${escAttr(cleanHref(cfg.cta_href, '#'))}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+    ? renderShadcnLinkButton(cfg.cta_href, cfg.cta_text, editableAttr(section, 'cta_text', ctx), ' data-hero-cta')
     : '';
   const inner = `<div class="ky-container">${heading}${sub}${cta}</div>`;
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -603,7 +608,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? `<p${editableAttr(section, 'subheading', ctx)}>${escHtml(cfg.subheading)}</p>`
     : '';
   const cta = cfg.cta_text
-    ? `<a href="${escAttr(cleanHref(cfg.cta_href, '#'))}" class="btn btn-primary btn-lg"${editableAttr(section, 'cta_text', ctx)}>${escHtml(cfg.cta_text)}</a>`
+    ? renderShadcnLinkButton(cfg.cta_href, cfg.cta_text, editableAttr(section, 'cta_text', ctx), ' data-hero-cta')
     : '';
   const headingGroup = heading || sub || cta
     ? `<div class="hero-text"><div class="ky-container">${heading}${sub}${cta}</div></div>`

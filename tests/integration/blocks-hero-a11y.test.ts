@@ -112,7 +112,7 @@ describe('foreground hero a11y', () => {
       cta_text: 'Join now',
       cta_href: '/join',
     });
-    const cta = root.querySelector('a.btn') as HTMLAnchorElement;
+    const cta = root.querySelector('[data-hero-cta]') as HTMLAnchorElement;
     expect(cta).toBeTruthy();
     expect(cta.getAttribute('href')).toEqual('/join');
     expect(cta.textContent).toEqual('Join now');
@@ -170,7 +170,7 @@ describe('background hero a11y (regression check)', () => {
       cta_href: '/join',
     });
     expect(root.querySelector('h1')?.textContent).toEqual('Welcome');
-    const cta = root.querySelector('a.btn') as HTMLAnchorElement;
+    const cta = root.querySelector('[data-hero-cta]') as HTMLAnchorElement;
     expect(cta).toBeTruthy();
     expect(cta.getAttribute('href')).toEqual('/join');
   });
