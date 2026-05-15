@@ -878,7 +878,7 @@ mark {
 .section-hero[style*="background-image"] p {
   color: rgba(255, 255, 255, 0.9);
 }
-.section-hero[style*="background-image"] .btn {
+.section-hero[style*="background-image"] [data-hero-cta] {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
 }
 .section-hero p {

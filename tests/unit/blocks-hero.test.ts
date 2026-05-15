@@ -41,7 +41,9 @@ describe('hero renderer — background mode (existing behavior)', () => {
     expect(html).toContain('<h1>Welcome</h1>');
     expect(html).toContain('<p>Subhead</p>');
     expect(html).toContain('href="/join"');
+    expect(html).toContain('data-hero-cta');
     expect(html).toContain('Join');
+    expect(html).not.toContain('btn btn-primary');
   });
 
   it("renders mode === 'background' identically to no-mode (no breaking change)", () => {
@@ -225,6 +227,24 @@ describe('hero renderer — foreground mode', () => {
     );
     expect(withText).toContain('hero-text');
     expect(withText).toContain('<h1');
+  });
+
+  it('uses the shared shadcn button classes for the foreground CTA', () => {
+    const html = renderBlock(
+      heroSection({
+        mode: 'foreground',
+        image_url: '/x.png',
+        image_alt: 'x',
+        heading: 'Hi',
+        cta_text: 'Join',
+        cta_href: '/join.html',
+      }),
+      baseCtx,
+    );
+    expect(html).toContain('data-hero-cta');
+    expect(html).toContain('href="/join"');
+    expect(html).toContain('inline-flex appearance-none');
+    expect(html).not.toContain('btn btn-primary');
   });
 
   it('warns to console when image_alt is missing in foreground mode (a11y nudge)', () => {
