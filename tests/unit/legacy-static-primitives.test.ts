@@ -6,6 +6,8 @@ import { type BlockRenderContext, renderBlock, type Section } from '../../src/li
 const BLOCKS = resolve(process.cwd(), 'src/lib/blocks.ts');
 const EMBED = resolve(process.cwd(), 'src/lib/blocks/embed.ts');
 const STYLES = resolve(process.cwd(), 'src/styles/public.css');
+const EVENT_CALENDAR_RUNTIME = resolve(process.cwd(), 'src/lib/blocks/events-calendar.ts');
+const EVENT_CALENDAR_STYLES = resolve(process.cwd(), 'src/styles/block-events-calendar.css');
 const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
 const ctx: BlockRenderContext = { admin: true, locale: 'en', isFeatureEnabled: () => true };
@@ -47,6 +49,8 @@ describe('legacy static UI primitives', () => {
     const blocks = await readFile(BLOCKS, 'utf8');
     const embed = await readFile(EMBED, 'utf8');
     const styles = await readFile(STYLES, 'utf8');
+    const eventCalendarRuntime = await readFile(EVENT_CALENDAR_RUNTIME, 'utf8');
+    const eventCalendarStyles = await readFile(EVENT_CALENDAR_STYLES, 'utf8');
     const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
 
@@ -63,6 +67,12 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toContain('shape-divider__');
     expect(styles).not.toContain('admin-account-security');
     expect(styles).not.toContain('admin-checklist');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__controls');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__seg-btn');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__filter-chip');
+    expect(eventCalendarStyles).not.toContain('block-events-calendar__controls');
+    expect(eventCalendarStyles).not.toContain('block-events-calendar__seg-btn');
+    expect(eventCalendarStyles).not.toContain('block-events-calendar__filter-chip');
     expect(adminStyles).not.toContain('block-embed');
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
