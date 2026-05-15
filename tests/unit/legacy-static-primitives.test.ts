@@ -132,10 +132,12 @@ describe('legacy static UI primitives', () => {
     expect(adminStyles).not.toContain('body.admin');
     expect(adminStyles).not.toContain('body.admin-dragging');
     for (const stylesheet of [a11yStyles, publicA11yStyles]) {
-      expect(stylesheet).toContain('.wl-skip-nav');
-      expect(stylesheet).toContain('.wl-high-contrast');
-      expect(stylesheet).toContain('.wl-reduced-motion');
-      expect(stylesheet).toContain('.wl-sr-live');
+      expect(stylesheet).toContain('html[data-high-contrast="true"]');
+      expect(stylesheet).toContain('html[data-reduced-motion="true"]');
+      expect(stylesheet).not.toContain('.wl-skip-nav');
+      expect(stylesheet).not.toContain('.wl-high-contrast');
+      expect(stylesheet).not.toContain('.wl-reduced-motion');
+      expect(stylesheet).not.toContain('.wl-sr-live');
       expect(stylesheet).not.toContain('wl-a11y');
       expect(stylesheet).not.toContain('.wl-toggle');
     }
@@ -145,7 +147,15 @@ describe('legacy static UI primitives', () => {
     expect(portal).toContain('data-section-visible');
     expect(portal).not.toContain("classList.add('section-visible')");
     expect(portal).not.toContain('.section-visible');
+    expect(portal).not.toContain('wl-skip-nav');
+    expect(portal).not.toContain('wl-sr-live" class="wl-sr-live');
+    expect(portal).toContain('document.documentElement.dataset.reducedMotion');
+    expect(portal).toContain('id="wl-sr-live" class="sr-only"');
     expect(portal).toContain('id="wl-theme-vars"');
+    expect(config).toContain('document.documentElement.dataset.highContrast');
+    expect(config).toContain('document.documentElement.dataset.reducedMotion');
+    expect(config).not.toContain("classList.add('wl-high-contrast')");
+    expect(config).not.toContain("classList.add('wl-reduced-motion')");
     expect(config).not.toContain('document.createElement');
     expect(config).not.toContain('appendChild');
     expect(toastIsland).toContain('Toaster');

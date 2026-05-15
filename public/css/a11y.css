@@ -1,4 +1,4 @@
-/* Accessibility — skip-nav, focus, font scaling, high contrast, reduced motion */
+/* Accessibility — focus, font scaling, high contrast, reduced motion */
 
 /* Font scaling via custom property */
 :root {
@@ -6,26 +6,6 @@
 }
 html {
   font-size: calc(1rem * var(--wl-font-scale));
-}
-
-/* Skip navigation */
-.wl-skip-nav {
-  position: absolute;
-  top: -100%;
-  left: 1rem;
-  z-index: 1000;
-  padding: 0.75rem 1.5rem;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: var(--radius);
-  font-weight: 600;
-  font-size: 0.875rem;
-  text-decoration: none;
-  transition: top 150ms ease;
-}
-.wl-skip-nav:focus {
-  top: 0.75rem;
-  color: #fff;
 }
 
 /* Focus-visible rings for all interactive elements */
@@ -39,14 +19,14 @@ html {
 }
 
 /* High contrast overrides */
-.wl-high-contrast {
+html[data-high-contrast="true"] {
   --color-text: #000000;
   --color-text-muted: #333333;
   --color-bg: #ffffff;
   --color-surface: #f0f0f0;
   --color-border: #666666;
 }
-.wl-high-contrast[data-theme="dark"] {
+html[data-high-contrast="true"][data-theme="dark"] {
   --color-text: #ffffff;
   --color-text-muted: #cccccc;
   --color-bg: #000000;
@@ -54,35 +34,22 @@ html {
   --color-border: #888888;
 }
 
-/* Reduced motion — both media query and manual class */
+/* Reduced motion — both media query and manual data attribute */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-    transition-duration: 0.01ms;
-    scroll-behavior: auto;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
-.wl-reduced-motion *,
-.wl-reduced-motion *::before,
-.wl-reduced-motion *::after {
-  animation-duration: 0.01ms;
-  animation-iteration-count: 1;
-  transition-duration: 0.01ms;
-  scroll-behavior: auto;
-}
-
-/* Live region for screen reader announcements */
-.wl-sr-live {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
