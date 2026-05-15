@@ -22,7 +22,7 @@ describe('link_list block-type', () => {
     expect(t.dynamic).toBe(true);
   });
 
-  it('manual mode renders all configured items', () => {
+  it('manual mode emits a shadcn island host with config payload', () => {
     const html = renderBlock(
       linkListSection({
         heading: 'Curated',
@@ -36,17 +36,13 @@ describe('link_list block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('block-link-list--bullets');
-    expect(html).toContain('href="/a"');
-    expect(html).toContain('href="/b"');
-    expect(html).toContain('block-link-list__badge--pdf');
-    expect(html).toContain('PDF');
-    expect(html).toContain('target="_blank"');
-    expect(html).toContain('rel="noopener noreferrer"');
-    expect(html).not.toContain('data-block-hydrate="link_list"');
+    expect(html).toContain('data-block-hydrate="link_list"');
+    expect(html).toContain('&quot;heading&quot;:&quot;Curated&quot;');
+    expect(html).toContain('&quot;label&quot;:&quot;A&quot;');
+    expect(html).not.toContain('block-link-list__');
   });
 
-  it('resources mode emits hydration skeleton with config payload', () => {
+  it('resources mode emits the same island host with config payload', () => {
     const html = renderBlock(
       linkListSection({
         heading: 'News',
@@ -57,18 +53,17 @@ describe('link_list block-type', () => {
       ctx,
     );
     expect(html).toContain('data-block-hydrate="link_list"');
-    expect(html).toContain('block-link-list__skeleton');
-    expect(html).toContain('block-link-list--rows');
     expect(html).toContain('data-config=');
     expect(html).toContain('newsletters');
+    expect(html).not.toContain('block-link-list__');
   });
 
-  it.each(['bullets', 'rows', 'compact'])('layout=%s adds modifier class', (layout) => {
+  it.each(['bullets', 'rows', 'compact'])('layout=%s is preserved for the island', (layout) => {
     const html = renderBlock(linkListSection({ source: 'manual', layout, items: [{ label: 'A', href: '/a' }] }), ctx);
-    expect(html).toContain(`block-link-list--${layout}`);
+    expect(html).toContain(`&quot;layout&quot;:&quot;${layout}&quot;`);
   });
 
-  it('rows layout shows date column when item has date', () => {
+  it('rows layout preserves item dates for the island', () => {
     const html = renderBlock(
       linkListSection({
         source: 'manual',
@@ -77,23 +72,10 @@ describe('link_list block-type', () => {
       }),
       ctx,
     );
-    expect(html).toContain('block-link-list__date');
     expect(html).toContain('2026-01-15');
   });
 
-  it('bullets layout omits date even if present (per spec)', () => {
-    const html = renderBlock(
-      linkListSection({
-        source: 'manual',
-        layout: 'bullets',
-        items: [{ label: 'Item', href: '/x', date: '2026-01-15' }],
-      }),
-      ctx,
-    );
-    expect(html).not.toContain('block-link-list__date');
-  });
-
-  it('badge variants render with pill class', () => {
+  it('badge variants are preserved for the island', () => {
     for (const badge of ['PDF', 'NEW', 'MEMBERS']) {
       const html = renderBlock(
         linkListSection({
@@ -103,7 +85,6 @@ describe('link_list block-type', () => {
         }),
         ctx,
       );
-      expect(html).toContain(`block-link-list__badge--${badge.toLowerCase()}`);
       expect(html).toContain(badge);
     }
   });
