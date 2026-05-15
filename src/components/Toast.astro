@@ -1,47 +1,7 @@
 ---
-// Toast.astro — Notification toast system
+import ToastIsland from './kychon/ToastIsland';
 ---
-<div id="toast-root" transition:persist></div>
 
-<script>
-  import { KYCHON_TOAST_EVENT, showToast, type KychonToast } from '../lib/toast-events';
-
-  interface ToastLauncherState {
-    listener?: EventListener;
-    mountPromise?: Promise<typeof import('./kychon/ToastIsland')>;
-    mounted?: boolean;
-  }
-
-  const stateKey = '__kychonToastLauncher';
-  const win = window as Window &
-    typeof globalThis & {
-      [stateKey]?: ToastLauncherState;
-      __wl_showToast?: (message: string, type?: KychonToast['type']) => void;
-    };
-  const state = (win[stateKey] ??= {});
-
-  async function emitToast(detail: KychonToast): Promise<void> {
-    const root = document.getElementById('toast-root');
-    if (!root) return;
-
-    const module = await (state.mountPromise ??= import('./kychon/ToastIsland'));
-    if (!state.mounted) {
-      module.mountToastIsland(root);
-      state.mounted = true;
-    }
-    module.emitKychonToast(detail);
-  }
-
-  if (state.listener) {
-    document.removeEventListener(KYCHON_TOAST_EVENT, state.listener);
-  }
-
-  state.listener = ((event: CustomEvent<KychonToast>) => {
-    void emitToast(event.detail);
-  }) as EventListener;
-
-  document.addEventListener(KYCHON_TOAST_EVENT, state.listener);
-
-  // Compatibility for older call sites while feature code migrates to showToast({ type, message }).
-  win.__wl_showToast = (message: string, type?: KychonToast['type']) => showToast(message, type);
-</script>
+<div transition:persist>
+  <ToastIsland client:load />
+</div>

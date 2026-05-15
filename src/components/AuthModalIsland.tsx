@@ -24,6 +24,8 @@ import {
   signInWithPasskey,
   signUp,
 } from '@/lib/auth';
+import { AUTH_OPEN_EVENT, consumePendingAuthModalOpen } from '@/lib/auth-modal-events';
+import { init } from '@/lib/config';
 
 type Mode = 'sign-in' | 'sign-up';
 type Flow = 'standard' | 'connect-google';
@@ -33,6 +35,12 @@ type OpenHandler = (detail?: AuthModalOpenDetail) => void;
 let authRoot: Root | null = null;
 let openHandler: OpenHandler | null = null;
 let pendingOpen: AuthModalOpenDetail | null = null;
+
+interface AuthModalLauncherState {
+  listener?: EventListener;
+}
+
+const launcherStateKey = '__kychonAuthModalLauncher';
 
 function GoogleIcon() {
   return (
@@ -92,7 +100,6 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
   }, [onReady, openModal]);
 
   async function refreshAfterSignIn(): Promise<void> {
-    const { init } = await import('../lib/config');
     await init();
     document.dispatchEvent(new CustomEvent('wl-auth-changed'));
   }
@@ -317,6 +324,51 @@ function AuthModalIsland({ onReady }: { onReady: (open: OpenHandler) => void }) 
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function openOrQueue(detail: AuthModalOpenDetail = {}) {
+  if (openHandler) {
+    openHandler(detail);
+    return;
+  }
+  pendingOpen = detail;
+}
+
+function bindAuthModalLauncher() {
+  const win = window as Window & typeof globalThis & { [launcherStateKey]?: AuthModalLauncherState };
+  const state = (win[launcherStateKey] ??= {});
+
+  if (state.listener) document.removeEventListener(AUTH_OPEN_EVENT, state.listener);
+
+  state.listener = ((event: CustomEvent<AuthModalOpenDetail>) => {
+    openOrQueue(consumePendingAuthModalOpen() || event.detail || {});
+  }) as EventListener;
+
+  document.addEventListener(AUTH_OPEN_EVENT, state.listener);
+  return () => {
+    if (state.listener) document.removeEventListener(AUTH_OPEN_EVENT, state.listener);
+    state.listener = undefined;
+  };
+}
+
+export default function AuthModalLauncher() {
+  React.useEffect(() => {
+    const unbind = bindAuthModalLauncher();
+    const pending = consumePendingAuthModalOpen();
+    if (pending) openOrQueue(pending);
+    return unbind;
+  }, []);
+
+  return (
+    <AuthModalIsland
+      onReady={(open) => {
+        openHandler = open;
+        const next = pendingOpen;
+        pendingOpen = null;
+        if (next) open(next);
+      }}
+    />
   );
 }
 

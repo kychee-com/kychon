@@ -1,36 +1,7 @@
 ---
-// AuthModal.astro — lazy launcher for the React auth dialog island.
+import AuthModalIsland from './AuthModalIsland';
 ---
-<div id="auth-modal-root" transition:persist></div>
 
-<script>
-  import { AUTH_OPEN_EVENT, type AuthModalOpenDetail } from '../lib/auth-modal-events';
-
-  type AuthModalModule = typeof import('./AuthModalIsland');
-
-  let loader: Promise<AuthModalModule> | null = null;
-
-  function rootEl(): HTMLElement | null {
-    return document.getElementById('auth-modal-root');
-  }
-
-  async function mountAuthModal(detail: AuthModalOpenDetail = {}): Promise<void> {
-    const root = rootEl();
-    if (!root) return;
-    loader ??= import('./AuthModalIsland');
-    const { mountAuthModalIsland } = await loader;
-    mountAuthModalIsland(root, detail);
-  }
-
-  function bindAuthModalLauncher(): void {
-    const launcherWindow = window as Window & { __kychonAuthModalLauncherBound?: boolean };
-    if (launcherWindow.__kychonAuthModalLauncherBound) return;
-    launcherWindow.__kychonAuthModalLauncherBound = true;
-    document.addEventListener(AUTH_OPEN_EVENT, (event) => {
-      const detail = event instanceof CustomEvent ? event.detail : {};
-      void mountAuthModal(detail);
-    });
-  }
-
-  bindAuthModalLauncher();
-</script>
+<div transition:persist>
+  <AuthModalIsland client:load />
+</div>
