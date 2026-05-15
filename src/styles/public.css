@@ -908,33 +908,6 @@ tr:hover td {
  * link_list, events_list.
  * ============================================================ */
 
-/* --- shape_divider --- */
-.section-shape-divider {
-  padding: 0;
-  overflow: visible;
-}
-.shape-divider {
-  width: 100%;
-}
-.shape-divider__surface {
-  width: 100%;
-  height: var(--shape-height, 96px);
-  color: var(--shape-bottom-color, var(--color-primary));
-  background: linear-gradient(to bottom, var(--shape-top-color, var(--color-bg)) 0 50%, var(--shape-bottom-color, var(--color-primary)) 50% 100%);
-  line-height: 0;
-}
-.shape-divider__svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform: var(--shape-transform, none);
-}
-.shape-divider__invalid {
-  padding: 1rem;
-  border: 1px dashed var(--color-danger);
-  color: var(--color-danger);
-}
-
 /* Search page */
 .search-page__bar {
   display: flex;
