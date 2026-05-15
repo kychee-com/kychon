@@ -3,9 +3,7 @@ import SearchPageApp from '../components/kychon/SearchPageApp';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Search" robots="noindex,follow">
-  <section class="section section-search-page section-visible">
-    <div class="ky-container">
-      <SearchPageApp client:load />
-    </div>
-  </section>
+  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <SearchPageApp client:load />
+  </div>
 </Portal>
