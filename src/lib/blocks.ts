@@ -17,6 +17,10 @@ import {
   type ImageAccordionRenderPanel,
 } from '@/components/kychon/ImageAccordionBlockView';
 import {
+  renderShapeDividerBlockHtml,
+  type ShapeDividerRenderLayer,
+} from '@/components/kychon/ShapeDividerBlockView';
+import {
   adminNavEditButtonHtml,
   adminScopePillHtml,
   adminScopeToggleHtml,
@@ -1525,17 +1529,6 @@ const SHAPE_PRESETS: Record<string, string> = {
   curve: 'M0,90 C360,0 1080,0 1440,90 L1440,120 L0,120 Z',
 };
 
-function renderShapeLayer(layer: ShapeDividerLayerConfig, fallbackPath: string, index: number): string {
-  const path = sanitizeSvgPathData(layer.path || fallbackPath);
-  if (!path) return '';
-  const fill = safeCssValue(layer.fill || 'var(--shape-bottom-color)');
-  const opacity = Number(layer.opacity);
-  const opacityAttr = Number.isFinite(opacity) ? ` opacity="${Math.max(0, Math.min(1, opacity))}"` : '';
-  const translate = safeCssValue(layer.translate_y != null ? `translate(0 ${layer.translate_y})` : '');
-  const transformAttr = translate ? ` transform="${escAttr(translate)}"` : '';
-  return `<path class="shape-divider__path shape-divider__path--${index}" d="${escAttr(path)}" fill="${escAttr(fill || 'currentColor')}"${opacityAttr}${transformAttr}></path>`;
-}
-
 const SHAPE_DIVIDER: BlockType = {
   label: 'Shape Divider',
   icon: '\u{3030}',
@@ -1564,29 +1557,51 @@ const SHAPE_DIVIDER: BlockType = {
     const path = sanitizeSvgPathData(cfg.path || presetPath);
     if (!path) {
       const placeholder = ctx.admin
-        ? '<div class="shape-divider__invalid">Invalid shape divider path</div>'
+        ? renderShapeDividerBlockHtml({
+          bottomColor: 'var(--color-primary)',
+          height: '96px',
+          invalid: true,
+          layers: [],
+          placement: 'between',
+          topColor: 'var(--color-bg)',
+          viewBox: '0 0 1440 120',
+        })
         : '';
-      return adminWrap(section, ctx, placeholder, 'section section-shape-divider shape-divider shape-divider--invalid');
+      return adminWrap(section, ctx, placeholder, 'section w-full overflow-visible p-0');
     }
-    const viewBox = safeCssValue(cfg.view_box || '0 0 1440 120');
     const layers = Array.isArray(cfg.layers) && cfg.layers.length > 0
       ? cfg.layers
       : [{ fill: 'var(--shape-bottom-color)', opacity: 1 }];
-    const paths = layers.map((layer, index) => renderShapeLayer(layer, path, index)).join('');
+    const renderLayers = layers
+      .map((layer, index): ShapeDividerRenderLayer | null => {
+        const layerPath = sanitizeSvgPathData(layer.path || path);
+        if (!layerPath) return null;
+        const opacity = Number(layer.opacity);
+        const translate = safeCssValue(layer.translate_y != null ? `translate(0 ${layer.translate_y})` : '');
+        return {
+          d: layerPath,
+          fill: safeCssValue(layer.fill || 'var(--shape-bottom-color)') || 'currentColor',
+          index,
+          opacity: Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : undefined,
+          transform: translate || undefined,
+        };
+      })
+      .filter((layer): layer is ShapeDividerRenderLayer => Boolean(layer));
     const transforms = [
       cfg.flip_x ? 'scaleX(-1)' : '',
       cfg.flip_y ? 'scaleY(-1)' : '',
     ].filter(Boolean).join(' ');
-    const style = styleAttr([
-      cssVar('--shape-height', cfg.height || '96px'),
-      cssVar('--shape-top-color', cfg.top_color || 'var(--color-bg)'),
-      cssVar('--shape-bottom-color', cfg.bottom_color || 'var(--color-primary)'),
-      transforms ? `--shape-transform:${transforms};` : '',
-    ]);
-    const placement = cfg.placement || 'between';
-    const aria = ' aria-hidden="true"';
-    const inner = `<div class="shape-divider__surface"${style} data-shape-placement="${escAttr(placement)}" data-top-color="${escAttr(cfg.top_color || 'var(--color-bg)')}" data-bottom-color="${escAttr(cfg.bottom_color || 'var(--color-primary)')}"><svg class="shape-divider__svg" viewBox="${escAttr(viewBox || '0 0 1440 120')}" preserveAspectRatio="none"${aria}>${paths}</svg></div>`;
-    return adminWrap(section, ctx, inner, 'section section-shape-divider shape-divider');
+    const inner = renderShapeDividerBlockHtml({
+      bottomColor: safeCssValue(cfg.bottom_color || 'var(--color-primary)') || 'var(--color-primary)',
+      height: safeCssValue(cfg.height || '96px') || '96px',
+      invalid: false,
+      layers: renderLayers,
+      placement: String(cfg.placement || 'between'),
+      topColor: safeCssValue(cfg.top_color || 'var(--color-bg)') || 'var(--color-bg)',
+      transform: safeCssValue(transforms) || undefined,
+      viewBox: safeCssValue(cfg.view_box || '0 0 1440 120') || '0 0 1440 120',
+    });
+    return adminWrap(section, ctx, inner, 'section w-full overflow-visible p-0');
   },
 };
 

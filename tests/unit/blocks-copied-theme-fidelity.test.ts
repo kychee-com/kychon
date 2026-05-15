@@ -109,13 +109,15 @@ describe('shape_divider block', () => {
       }),
       ctx,
     );
-    expect(html).toContain('section-shape-divider');
+    expect(html).toContain('data-shape-divider');
     expect(html).toContain('data-top-color="#ffffff"');
     expect(html).toContain('data-bottom-color="#0057b8"');
     expect(html).toContain('--shape-height:88px;');
     expect(html).toContain('--shape-transform:scaleX(-1);');
     expect(html).toContain('opacity="0.4"');
     expect(html).toContain('transform="translate(0 -12)"');
+    expect(html).not.toContain('shape-divider__');
+    expect(html).not.toContain('section-shape-divider');
   });
 
   it('rejects unsafe path data safely', () => {
@@ -123,8 +125,9 @@ describe('shape_divider block', () => {
     expect(sanitizeSvgPathData('<script>alert(1)</script>')).toBe('');
     const visitorHtml = renderBlock(section('shape_divider', { path: '<script>x</script>' }), ctx);
     expect(visitorHtml).not.toContain('<script>');
-    expect(visitorHtml).not.toContain('shape-divider__invalid');
+    expect(visitorHtml).not.toContain('data-shape-invalid');
     const adminHtml = renderBlock(section('shape_divider', { path: '<script>x</script>' }), { ...ctx, admin: true });
-    expect(adminHtml).toContain('shape-divider__invalid');
+    expect(adminHtml).toContain('data-shape-invalid');
+    expect(adminHtml).not.toContain('shape-divider__invalid');
   });
 });

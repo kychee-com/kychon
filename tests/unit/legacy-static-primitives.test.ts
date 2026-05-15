@@ -56,6 +56,8 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
+    expect(styles).not.toContain('section-shape-divider');
+    expect(styles).not.toContain('shape-divider__');
     expect(styles).not.toContain('admin-account-security');
     expect(styles).not.toContain('admin-checklist');
     expect(adminStyles).not.toContain('block-embed');

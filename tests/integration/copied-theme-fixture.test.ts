@@ -26,7 +26,7 @@ describe('copied-theme fidelity fixture', () => {
     expect(html).toContain('data-accordion-panel="0"');
     expect(html).toContain('--accordion-active:3;');
 
-    expect(html).toContain('section-shape-divider');
+    expect(html).toContain('data-shape-divider');
     expect(html).toContain('data-top-color="#ffffff"');
     expect(html).toContain('data-bottom-color="#17324d"');
 

@@ -72,5 +72,7 @@ describe('copied-theme visual verification hooks', () => {
     expect(shapeHtml).toContain('data-top-color="#ffffff"');
     expect(shapeHtml).toContain('data-bottom-color="#17324d"');
     expect(shapeHtml).toContain('--shape-transform:scaleX(-1);');
+    expect(shapeHtml).toContain('data-shape-layer="0"');
+    expect(shapeHtml).not.toContain('shape-divider__');
   });
 });
