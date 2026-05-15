@@ -56,6 +56,10 @@ function Chevron() {
   );
 }
 
+function suffixedMenuId(menuId: string, suffix?: string): string {
+  return suffix ? `${menuId}-${suffix}` : menuId;
+}
+
 function MenuButton({
   active,
   children,
@@ -88,7 +92,7 @@ function MenuButton({
   );
 }
 
-function NavMenuItem({ item, nested = false }: { item: NavBlockItem; nested?: boolean }) {
+function NavMenuItem({ idSuffix, item, nested = false }: { idSuffix?: string; item: NavBlockItem; nested?: boolean }) {
   if (!item.children.length) {
     return (
       <li role="none">
@@ -99,7 +103,8 @@ function NavMenuItem({ item, nested = false }: { item: NavBlockItem; nested?: bo
     );
   }
 
-  const menuId = item.menuId || `nav-menu-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const baseMenuId = item.menuId || `nav-menu-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const menuId = suffixedMenuId(baseMenuId, idSuffix);
   return (
     <li className="nav-dropdown-parent relative list-none" role="none">
       {item.hasHref ? (
@@ -114,34 +119,42 @@ function NavMenuItem({ item, nested = false }: { item: NavBlockItem; nested?: bo
       </MenuButton>
       <ul className={nested ? nestedMenuListClass : menuListClass} role="menu" hidden id={menuId}>
         {item.children.map((child) => (
-          <NavMenuItem item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
+          <NavMenuItem idSuffix={idSuffix} item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
         ))}
       </ul>
     </li>
   );
 }
 
-function NavTopItem({ item, index }: { item: NavBlockItem; index: number }) {
+function NavTopItem({ item, index, overflowCopy = false }: { item: NavBlockItem; index: number; overflowCopy?: boolean }) {
+  const indexAttrs = {
+    'data-nav-item-index': overflowCopy ? undefined : index,
+    'data-nav-overflow-source-index': overflowCopy ? index : undefined,
+    hidden: overflowCopy ? true : undefined,
+  };
+  const idSuffix = overflowCopy ? `overflow-${index}` : undefined;
+
   if (!item.children.length) {
-  return (
-    <a className={cn('nav-link', item.active ? 'active' : '')} href={item.href}>
+    return (
+      <a className={cn('nav-link', item.active ? 'active' : '')} href={item.href} {...indexAttrs}>
         {item.label}
       </a>
     );
   }
 
-  const menuId = item.menuId || `nav-menu-top-${index}`;
+  const baseMenuId = item.menuId || `nav-menu-top-${index}`;
+  const menuId = suffixedMenuId(baseMenuId, idSuffix);
   const childList = (
     <ul className={menuListClass} role="menu" hidden id={menuId}>
       {item.children.map((child) => (
-        <NavMenuItem item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
+        <NavMenuItem idSuffix={idSuffix} item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
       ))}
     </ul>
   );
 
   if (item.hasHref) {
     return (
-      <div className={navParentWrapClass}>
+      <div className={navParentWrapClass} {...indexAttrs}>
         <a className={cn('nav-link nav-parent border-0 bg-transparent font-[inherit]', item.active ? 'active' : '')} href={item.href}>
           {item.label}
         </a>
@@ -154,7 +167,7 @@ function NavTopItem({ item, index }: { item: NavBlockItem; index: number }) {
   }
 
   return (
-    <div className={navParentWrapClass}>
+    <div className={navParentWrapClass} {...indexAttrs}>
       <MenuButton active={item.active} className="nav-link nav-parent nav-parent-button inline-flex items-center gap-1" controls={menuId}>
         {item.label}
         <Chevron />
@@ -199,7 +212,11 @@ function NavBlock({
           <NavTopItem item={item} index={index} key={`${item.label}-${item.href}-${index}`} />
         ))}
       </div>
-      <div className="nav-overflow-menu" hidden id="nav-links-overflow-menu" />
+      <div className="nav-overflow-menu" hidden id="nav-links-overflow-menu">
+        {items.map((item, index) => (
+          <NavTopItem item={item} index={index} key={`overflow-${item.label}-${item.href}-${index}`} overflowCopy />
+        ))}
+      </div>
     </>
   );
 }

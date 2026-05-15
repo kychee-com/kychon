@@ -320,33 +320,28 @@ function getOverflowMenu(root: HTMLElement): HTMLElement | null {
   return container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
 }
 
-function rewriteCloneIds(clone: HTMLElement, suffix: string): void {
-  const idMap = new Map<string, string>();
-  clone.querySelectorAll<HTMLElement>('[id]').forEach((el) => {
-    const oldId = el.id;
-    const newId = `${oldId}-${suffix}`;
-    idMap.set(oldId, newId);
-    el.id = newId;
-  });
-  clone.querySelectorAll<HTMLElement>('[aria-controls]').forEach((el) => {
-    const controls = el.getAttribute('aria-controls');
-    if (controls && idMap.has(controls)) el.setAttribute('aria-controls', idMap.get(controls)!);
+function overflowCopies(menu: HTMLElement): HTMLElement[] {
+  return Array.from(menu.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.hasAttribute('data-nav-overflow-source-index'),
+  );
+}
+
+function hideOverflowCopy(copy: HTMLElement): void {
+  copy.setAttribute('hidden', '');
+  copy.querySelectorAll<HTMLElement>('.nav-dropdown:not([hidden])').forEach((dropdown) => closeMenu(dropdown));
+  copy.querySelectorAll<HTMLElement>('[aria-expanded="true"]').forEach((trigger) => {
+    trigger.setAttribute('aria-expanded', 'false');
   });
 }
 
-function clearCloneBindingFlags(clone: HTMLElement): void {
-  const attrs = [
-    'data-chevron-bound',
-    'data-nav-bound',
-    'data-nav-focus-bound',
-    'data-nav-hover-bound',
-    'data-nav-hover-wrap-bound',
-    'data-nav-keyboard-bound',
-    'data-nav-toggle-bound',
-  ];
-  for (const attr of attrs) clone.removeAttribute(attr);
-  clone.querySelectorAll<HTMLElement>(attrs.map((attr) => `[${attr}]`).join(',')).forEach((el) => {
-    for (const attr of attrs) el.removeAttribute(attr);
+function syncStaticOverflowCopies(menu: HTMLElement, visibleIndexes: Set<string>): void {
+  overflowCopies(menu).forEach((copy) => {
+    const sourceIndex = copy.dataset.navOverflowSourceIndex;
+    if (sourceIndex && visibleIndexes.has(sourceIndex)) {
+      copy.removeAttribute('hidden');
+    } else {
+      hideOverflowCopy(copy);
+    }
   });
 }
 
@@ -355,11 +350,15 @@ function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
   const menu = getOverflowMenu(root);
   if (!nav || !menu) return null;
   const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
-  const overflowItems = topLevelNavItems(root).filter((item) => item.classList.contains('nav-overflow-item'));
+  const items = topLevelNavItems(root);
+  const overflowItems = items.filter((item) => item.classList.contains('nav-overflow-item'));
+  const overflowIndexes = new Set(
+    overflowItems.map((item) => item.dataset.navItemIndex || String(items.indexOf(item))).filter((index) => index !== '-1'),
+  );
 
   if (!nav.classList.contains('nav--overflow') || nav.classList.contains('nav--source-mobile') || overflowItems.length === 0) {
     closeOverflowMenu(menu);
-    menu.replaceChildren();
+    syncStaticOverflowCopies(menu, new Set());
     if (toggle && root.id) toggle.setAttribute('aria-controls', root.id);
     if (toggle) toggle.setAttribute('aria-expanded', root.classList.contains('open') ? 'true' : 'false');
     return menu;
@@ -367,14 +366,7 @@ function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
 
   if (toggle) toggle.setAttribute('aria-controls', menu.id);
   const wasOpen = !menu.hasAttribute('hidden');
-  menu.replaceChildren();
-  overflowItems.forEach((item, index) => {
-    const clone = item.cloneNode(true) as HTMLElement;
-    clone.classList.remove('nav-overflow-item');
-    clearCloneBindingFlags(clone);
-    rewriteCloneIds(clone, `overflow-${index}`);
-    menu.append(clone);
-  });
+  syncStaticOverflowCopies(menu, overflowIndexes);
   if (wasOpen) menu.removeAttribute('hidden');
   bindChevronToggles(menu);
   bindKeyboard(menu);
