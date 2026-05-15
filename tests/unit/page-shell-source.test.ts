@@ -32,6 +32,7 @@ describe('React page shells', () => {
   it('keeps the admin access shell selector without legacy card/container classes', () => {
     const source = read('src/components/AdminAccessShell.astro');
     const view = read('src/components/kychon/AdminAccessShellView.tsx');
+    const styles = read('src/styles/public.css');
 
     expect(source).toContain('AdminAccessShellView');
     expect(source).not.toContain('<script>');
@@ -45,5 +46,7 @@ describe('React page shells', () => {
     expect(source).not.toContain('ky-container');
     expect(source).not.toContain('class="card');
     expect(source).not.toContain('admin-access-check__');
+    expect(styles).not.toContain('admin-access-check');
+    expect(styles).not.toContain('admin-access-spin');
   });
 });
