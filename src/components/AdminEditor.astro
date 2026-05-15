@@ -27,11 +27,6 @@
     className:
       'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing',
   });
-  const zoneAddButtonClass = buttonVariants({
-    variant: 'outline',
-    size: 'sm',
-    className: 'mx-auto my-2 border-dashed bg-background/90 text-muted-foreground shadow-sm hover:text-primary',
-  });
 
   function getToken(): string {
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
@@ -788,28 +783,6 @@
     });
   }
 
-  function ensureZoneAddButtons() {
-    document.querySelectorAll<HTMLElement>('[data-zone]').forEach((zoneEl) => {
-      const zone = zoneEl.dataset.zone;
-      if (!zone) return;
-      if (zoneEl.querySelector(':scope > [data-admin-zone-add-button]')) return;
-      const btn = document.createElement('button');
-      btn.className = zoneAddButtonClass;
-      btn.type = 'button';
-      btn.dataset.adminZoneAddButton = '';
-      btn.dataset.zoneAdd = zone;
-      btn.textContent = `+ Add to ${zone}`;
-      btn.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (zone === 'header' || zone === 'main' || zone === 'footer') {
-          void openReactZoneAdd(zone);
-        }
-      });
-      zoneEl.appendChild(btn);
-    });
-  }
-
   // --- Embed block editor trigger ---
   function initEmbedEditor() {
     if ((document.body as any).__embedEditorBound) return;
@@ -847,7 +820,6 @@
     initNavEditor();
     initEmbedEditor();
     initSectionActions();
-    ensureZoneAddButtons();
     // composable-layout: brand logo and nav are now blocks rendered with
     // their own data-editable / data-editable-image attributes — no extra
     // wiring needed here.
@@ -882,7 +854,6 @@
       initEditableRich();
       initEditableImage();
       initSortable();
-      ensureZoneAddButtons();
     }
   });
 

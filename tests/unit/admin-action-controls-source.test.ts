@@ -11,6 +11,7 @@ const BLOCK_RENDERERS = [
   resolve(ROOT, 'src/lib/blocks/social-links.ts'),
 ];
 const ADMIN_EDITOR = resolve(ROOT, 'src/components/AdminEditor.astro');
+const ADMIN_ZONE_ADD_BUTTON = resolve(ROOT, 'src/components/kychon/AdminZoneAddButton.tsx');
 const ADMIN_CSS = resolve(ROOT, 'public/css/admin-editing.css');
 
 const adminCtx: BlockRenderContext = { admin: true, locale: 'en', role: 'admin' };
@@ -74,15 +75,23 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain('badgeVariants');
   });
 
-  it('keeps dynamically inserted zone add buttons on shadcn variants', async () => {
+  it('renders zone add buttons as shadcn buttons instead of inserted DOM primitives', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const component = await readFile(ADMIN_ZONE_ADD_BUTTON, 'utf8');
     const styles = await readFile(ADMIN_CSS, 'utf8');
 
-    expect(editor).toContain('zoneAddButtonClass');
-    expect(editor).toContain('buttonVariants');
-    expect(editor).toContain('data-admin-zone-add-button');
+    expect(component).toContain('@/components/kychon/ui');
+    expect(component).toContain('<Button');
+    expect(component).toContain('data-admin-zone-add-button');
+    expect(component).toContain('data-zone-add');
+    expect(component).toContain('[body.admin_&]:!flex');
+    expect(editor).not.toContain('zoneAddButtonClass');
+    expect(editor).not.toContain('ensureZoneAddButtons');
+    expect(editor).not.toContain('data-admin-zone-add-button');
     expect(editor).toContain('dataset.zoneAdd');
+    expect(editor).not.toContain("document.querySelectorAll<HTMLElement>('[data-zone]')");
     expect(editor).not.toContain('admin-zone-add-btn');
+    expect(component).not.toContain('admin-zone-add-btn');
     expect(styles).not.toContain('admin-zone-add-btn');
   });
 
