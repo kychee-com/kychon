@@ -12,6 +12,7 @@ const BLOCK_RENDERERS = [
 ];
 const ADMIN_EDITOR = resolve(ROOT, 'src/components/AdminEditor.astro');
 const ADMIN_ACTION_PROMPT = resolve(ROOT, 'src/components/kychon/AdminActionPromptIsland.tsx');
+const ADMIN_INLINE_TEXT_PROMPT = resolve(ROOT, 'src/components/kychon/AdminInlineTextPromptIsland.tsx');
 const ADMIN_ZONE_ADD_BUTTON = resolve(ROOT, 'src/components/kychon/AdminZoneAddButton.tsx');
 const ADMIN_CSS = resolve(ROOT, 'public/css/admin-editing.css');
 const ZONE_GRID_CSS = resolve(ROOT, 'src/styles/zone-grid.css');
@@ -196,6 +197,31 @@ describe('admin action controls source', () => {
     expect(editor).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
     expect(prompt).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
     expect(styles).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
+  });
+
+  it('routes simple text edits through a shared shadcn prompt island', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const prompt = await readFile(ADMIN_INLINE_TEXT_PROMPT, 'utf8');
+
+    expect(editor).toContain('id="admin-inline-text-root"');
+    expect(editor).toContain('AdminInlineTextPromptIsland');
+    expect(editor).toContain('ensureAdminInlineTextPrompt');
+    expect(editor).toContain('showAdminInlineTextPrompt');
+    expect(editor).toContain('promptEditableText');
+    expect(editor).toContain("document.querySelectorAll('[data-editable]')");
+    expect(editor).not.toContain('contentEditable');
+    expect(editor).not.toContain('document.createRange');
+    expect(editor).not.toContain('selectNodeContents');
+    expect(editor).not.toContain('window.getSelection');
+    expect(prompt).toContain('@/components/kychon/ui');
+    expect(prompt).toContain('<Dialog');
+    expect(prompt).toContain('<Input');
+    expect(prompt).toContain('<Label');
+    expect(prompt).toContain('<Button');
+    expect(prompt).toContain('data-admin-inline-text-prompt');
+    expect(prompt).not.toContain('contentEditable');
+    expect(prompt).not.toContain('document.createElement');
+    expect(prompt).not.toContain('innerHTML');
   });
 
   it('uses a static image upload input instead of creating file inputs on click', async () => {
