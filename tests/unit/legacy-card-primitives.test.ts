@@ -18,5 +18,6 @@ describe('legacy card primitive', () => {
     expect(styles).not.toMatch(/\.form-(?:group|label|input|select|textarea)\b/);
     expect(styles).not.toMatch(/\.badge(?:[.{:#\s-]|$)/);
     expect(styles).not.toMatch(/\.member-(?:card|avatar|info|name|meta)\b/);
+    expect(styles).not.toMatch(/\.reaction-(?:bar|badge|picker|picker-btn|picker-dropdown|float-emoji)\b/);
   });
 });
