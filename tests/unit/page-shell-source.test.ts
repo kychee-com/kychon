@@ -13,9 +13,12 @@ describe('React page shells', () => {
     'src/pages/admin.astro',
     'src/pages/admin-members.astro',
     'src/pages/admin-settings.astro',
+    'src/pages/calendar.astro',
     'src/pages/directory.astro',
+    'src/pages/index.astro',
     'src/pages/join.astro',
     'src/pages/search.astro',
+    'src/pages/ui-tokens.astro',
   ])('%s uses utility layout wrappers instead of legacy page primitives', (relativePath) => {
     const source = read(relativePath);
     expect(source).not.toContain('ky-container');
@@ -23,6 +26,7 @@ describe('React page shells', () => {
     expect(source).not.toContain('class="btn');
     expect(source).not.toContain('class="form-');
     expect(source).not.toContain('style=');
+    expect(source).not.toContain('<script>');
   });
 
   it('keeps the admin access shell selector without legacy card/container classes', () => {
