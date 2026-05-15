@@ -2230,69 +2230,6 @@ tr:hover td {
   color: var(--color-danger);
 }
 
-/* --- events_list --- */
-.section-events-list { padding: 1.5rem 0; }
-.block-events-list__heading { margin: 0 0 1rem; font-size: 1.4rem; }
-.block-events-list__items--sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-.block-events-list__items--list {
-  display: flex;
-  flex-direction: column;
-}
-.block-events-list__items--grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-@media (max-width: 1024px) { .block-events-list__items--grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px) { .block-events-list__items--grid { grid-template-columns: 1fr; } }
-.event-card {
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.85rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  text-decoration: none;
-  color: var(--color-text);
-  transition: border-color var(--transition);
-}
-.event-card:hover { border-color: var(--color-primary); }
-.event-card__date {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 3.75rem;
-  text-align: center;
-  font-weight: 700;
-}
-.event-card__date-day { font-size: 0.95rem; color: var(--color-primary); }
-.event-card__date-time { font-size: 0.75rem; color: var(--color-text-muted); font-weight: 500; }
-.event-card__title { margin: 0; font-size: 1rem; line-height: 1.3; }
-.event-card__location { color: var(--color-text-muted); font-size: 0.875rem; margin-top: 0.2rem; }
-.event-card--list { border-radius: 0; border-left: 0; border-right: 0; border-top: 0; }
-.event-card--grid { flex-direction: column; }
-.event-card--grid .event-card__image {
-  aspect-ratio: 16 / 9;
-  background-size: cover;
-  background-position: center;
-  border-radius: calc(var(--radius) - 2px);
-  margin-bottom: 0.5rem;
-}
-.event-skeleton-card {
-  height: 4.5rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-}
-.block-events-list__empty {
-  margin: 0.5rem 0;
-}
-
 /* --- slideshow --- */
 .section-slideshow { padding: 1rem 0; }
 .block-slideshow {

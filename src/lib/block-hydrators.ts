@@ -5,17 +5,9 @@
 import type { Section, BlockRenderContext } from './blocks.js';
 import { del, get, patch, post } from './api.js';
 import { getSession } from './auth.js';
-import { escAttr, escHtml, safeCssUrl } from './blocks.js';
-import { isFeatureEnabled, siteConfig, translateItems } from './config.js';
-import { formatEventDateTime } from './event-display.js';
+import { escHtml } from './blocks.js';
+import { isFeatureEnabled, translateItems } from './config.js';
 import { sanitizeRichHtml } from './sanitize-html.js';
-
-// `esc()` is intentionally an alias for escAttr — every call site in this
-// module interpolates into a double-quoted attribute or HTML text, both of
-// which require the quote-escaping that escAttr provides. The previous
-// `textContent → innerHTML` helper left " and ' alone, which let attacker
-// content break out of attribute context (#23).
-const esc = escAttr;
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -237,8 +229,6 @@ export async function hydrateLinkListResources(
 
 // --- Catalog block hydrators ---
 
-const EVENTS_LIST_FILTER_DAYS = 7;
-
 export async function hydrateEventsCalendar(
   el: HTMLElement,
   section: Section,
@@ -254,8 +244,8 @@ export async function hydrateEventsCalendar(
 
 export async function hydrateEventsList(
   el: HTMLElement,
-  _section: Section,
-  _ctx: BlockRenderContext,
+  section: Section,
+  ctx: BlockRenderContext,
 ): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="events_list"]') as HTMLElement | null;
   if (!root) return;
@@ -266,85 +256,12 @@ export async function hydrateEventsList(
   } catch {
     cfg = {};
   }
-  const layout = cfg.layout || 'sidebar';
-  const count = Math.max(1, Math.min(50, Number(cfg.count) || 4));
-  const filter = cfg.filter || 'upcoming';
-  const showImage = cfg.show_image !== false && cfg.show_image === true;
-  const showLocation = cfg.show_location !== false;
-  const showTime = cfg.show_time !== false;
-
-  const nowIso = new Date().toISOString();
-  let query: string;
-  if (filter === 'past') {
-    query = `events?starts_at=lt.${nowIso}&order=starts_at.desc&limit=${count}`;
-  } else if (filter === 'this_week') {
-    const inAWeek = new Date(Date.now() + EVENTS_LIST_FILTER_DAYS * 86400 * 1000).toISOString();
-    // PostgREST concatenates duplicate column filters; use and=(...) so both
-    // bounds AND-combine instead of overwriting.
-    query = `events?and=(starts_at.gte.${nowIso},starts_at.lt.${inAWeek})&order=starts_at.asc&limit=${count}`;
-  } else {
-    query = `events?starts_at=gte.${nowIso}&order=starts_at.asc&limit=${count}`;
-  }
-
-  let events: any[] = [];
-  try {
-    events = await get(query);
-  } catch (e) {
-    console.warn('events_list hydrate failed:', e);
-    events = [];
-  }
-
-  const skeleton = root.querySelector('.block-events-list__skeleton');
-  if (skeleton) skeleton.remove();
-
-  if (!events.length) {
-    const empty = document.createElement('p');
-    empty.className = 'ky-text-muted block-events-list__empty';
-    empty.textContent = 'No upcoming events.';
-    root.appendChild(empty);
-    root.dataset.hydrated = 'true';
-    return;
-  }
-
-  const wrap = document.createElement('div');
-  wrap.className = `block-events-list__items block-events-list__items--${esc(layout)}`;
-  wrap.innerHTML = events
-    .map((evt: any) => renderEventCard(evt, layout, { showImage, showLocation, showTime }))
-    .join('');
-  root.appendChild(wrap);
+  const { mountEventsListIsland } = await import('@/components/kychon/EventsListIsland');
+  mountEventsListIsland(root, {
+    config: cfg,
+    headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
+  });
   root.dataset.hydrated = 'true';
-}
-
-function renderEventCard(
-  evt: any,
-  layout: string,
-  opts: { showImage: boolean; showLocation: boolean; showTime: boolean },
-): string {
-  const title = esc(evt.title || 'Untitled event');
-  const dateTime = formatEventDateTime(evt, undefined, siteConfig, { dateStyle: 'card' });
-  const dateLabel = dateTime.dateLabel;
-  const timeLabel = opts.showTime ? dateTime.timeRangeLabel : '';
-  const location = opts.showLocation && evt.location ? esc(evt.location) : '';
-  const href = evt.id ? `/event?id=${encodeURIComponent(evt.id)}` : '/events';
-  const imageUrl = evt.image_url || evt.cover_image_url || '';
-  const safeImageUrl = imageUrl ? safeCssUrl(imageUrl) : '';
-  const imageHtml =
-    opts.showImage && safeImageUrl
-      ? `<div class="event-card__image" style="background-image:url('${safeImageUrl}')"></div>`
-      : '';
-  const dateBlock = dateLabel
-    ? `<div class="event-card__date"><span class="event-card__date-day">${esc(dateLabel)}</span>${timeLabel ? `<span class="event-card__date-time">${esc(timeLabel)}</span>` : ''}</div>`
-    : '';
-  const locationBlock = location ? `<div class="event-card__location">${location}</div>` : '';
-  const body = `<div class="event-card__body"><h3 class="event-card__title">${title}</h3>${locationBlock}</div>`;
-  if (layout === 'list') {
-    return `<a href="${esc(href)}" class="event-card event-card--list">${dateBlock}${body}</a>`;
-  }
-  if (layout === 'grid') {
-    return `<a href="${esc(href)}" class="event-card event-card--grid">${imageHtml}${dateBlock}${body}</a>`;
-  }
-  // sidebar (default)
-  return `<a href="${esc(href)}" class="event-card event-card--sidebar">${dateBlock}${body}</a>`;
 }
 
 export async function hydrateSignInBar(

@@ -1720,19 +1720,12 @@ const EVENTS_LIST: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const heading = cfg.heading
-      ? `<h2 class="block-events-list__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '';
-    const count = Math.max(1, Number(cfg.count) || 4);
-    const layout = cfg.layout || 'sidebar';
-    const skeletons = `<div class="block-events-list__skeleton block-events-list__skeleton--${escAttr(layout)}">${'<div class="event-skeleton-card skeleton"></div>'.repeat(count)}</div>`;
-    const inner = `<div class="ky-container" data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}">${heading}${skeletons}</div>`;
-    const cls = `section section-events-list block-events-list block-events-list--${escAttr(layout)} block-events-list--${escAttr(cfg.color_scheme || 'primary')}`;
-    return adminWrap(section, ctx, inner, cls);
+    const inner = `<div class="ky-container" data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}"></div>`;
+    return adminWrap(section, ctx, inner, 'section w-full py-6');
   },
   async hydrate(el, section, ctx) {
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      el.style.display = 'none';
+      el.hidden = true;
       return;
     }
     const { hydrateEventsList } = await import('./block-hydrators.js');
