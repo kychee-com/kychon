@@ -161,23 +161,6 @@
   to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-/* ═══════════════════════════════════════════════════
-   9. ADMIN ACTION BUTTONS (section add/remove, etc.)
-   ═══════════════════════════════════════════════════ */
-
-.admin-section-actions {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  display: none;
-  gap: 4px;
-  z-index: 10;
-}
-
-.admin [data-sortable-group] > [data-sortable-id]:hover > .admin-section-actions {
-  display: flex;
-}
-
 /* composable-layout: cross-zone drag affordances --- */
 
 /* Empty-zone "drop here" placeholder appears only while admin is dragging. */

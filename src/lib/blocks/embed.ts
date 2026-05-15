@@ -8,6 +8,7 @@
 import {
   adminDragHandleHtml,
   adminEmbedEditButtonHtml,
+  adminSectionActionsHtml,
   adminScopePillHtml,
   adminScopeToggleHtml,
   adminSectionRemoveButtonHtml,
@@ -57,12 +58,8 @@ function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
   const pill = isGlobal ? adminScopePillHtml() : '';
   const toggleLabel = isGlobal ? 'Make page-only' : 'Make global';
   const toggleNext = isGlobal ? 'page' : 'global';
-  return (
-    `<div class="admin-section-actions">${pill}` +
-    adminEmbedEditButtonHtml(sid) +
-    adminScopeToggleHtml(sid, toggleNext, toggleLabel) +
-    adminSectionRemoveButtonHtml(sid) +
-    `</div>`
+  return adminSectionActionsHtml(
+    `${pill}${adminEmbedEditButtonHtml(sid)}${adminScopeToggleHtml(sid, toggleNext, toggleLabel)}${adminSectionRemoveButtonHtml(sid)}`,
   );
 }
 

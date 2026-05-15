@@ -115,6 +115,7 @@ describe('legacy static UI primitives', () => {
     expect(adminStyles).not.toContain('.admin-drop-indicator');
     expect(adminStyles).not.toContain('admin-nav-edit-btn');
     expect(adminStyles).not.toContain('admin-toast');
+    expect(adminStyles).not.toContain('admin-section-actions');
     for (const stylesheet of [a11yStyles, publicA11yStyles]) {
       expect(stylesheet).toContain('.wl-skip-nav');
       expect(stylesheet).toContain('.wl-high-contrast');
