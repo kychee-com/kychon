@@ -21,6 +21,12 @@
     size: 'icon',
     className: 'h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground',
   });
+  const dragHandleButtonClass = buttonVariants({
+    variant: 'outline',
+    size: 'icon',
+    className:
+      'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing',
+  });
   const zoneAddButtonClass = buttonVariants({
     variant: 'outline',
     size: 'sm',
@@ -497,10 +503,14 @@
   }
 
   function ensureDragHandle(el: HTMLElement) {
-    if (el.querySelector(':scope > .admin-drag-handle')) return;
-    const handle = document.createElement('div');
-    handle.className = 'admin-drag-handle';
+    if (el.querySelector(':scope > [data-admin-drag-handle]')) return;
+    const handle = document.createElement('button');
+    handle.className = dragHandleButtonClass;
+    handle.type = 'button';
     handle.draggable = true;
+    handle.dataset.adminDragHandle = '';
+    handle.setAttribute('aria-label', 'Drag to reorder');
+    handle.textContent = '☰';
     handle.addEventListener('dragstart', (e) => {
       draggedEl = el;
       const zone = findZoneContainer(el);
