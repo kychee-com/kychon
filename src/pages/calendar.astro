@@ -1,9 +1,7 @@
 ---
 import CalendarPageApp from '../components/kychon/CalendarPageApp';
-import CalendarPageHydrator from '../components/kychon/CalendarPageHydrator';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Calendar">
-  <CalendarPageApp />
-  <CalendarPageHydrator client:load />
+  <CalendarPageApp client:load />
 </Portal>
