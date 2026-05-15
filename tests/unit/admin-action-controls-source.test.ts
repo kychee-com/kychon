@@ -59,6 +59,7 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-scope-toggle');
       expect(source).not.toContain('admin-toolbar');
       expect(source).not.toContain('admin-zone-add-btn');
+      expect(source).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
     }
@@ -83,6 +84,17 @@ describe('admin action controls source', () => {
     expect(editor).toContain('dataset.zoneAdd');
     expect(editor).not.toContain('admin-zone-add-btn');
     expect(styles).not.toContain('admin-zone-add-btn');
+  });
+
+  it('keeps dynamically inserted drag handles on shadcn variants', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const styles = await readFile(ADMIN_CSS, 'utf8');
+
+    expect(editor).toContain('dragHandleButtonClass');
+    expect(editor).toContain('data-admin-drag-handle');
+    expect(editor).toContain('aria-label');
+    expect(editor).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
+    expect(styles).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
   });
 
   it('keeps tooltip action buttons on shadcn variants', async () => {
