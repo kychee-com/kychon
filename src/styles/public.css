@@ -404,35 +404,6 @@ a:hover {
   color: var(--foreground, var(--color-text));
   z-index: 2;
 }
-/* Badges */
-.badge {
-  display: inline-block;
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-.badge-primary {
-  background: color-mix(in srgb, var(--primary, var(--color-primary)) 15%, var(--background, var(--color-bg)));
-  color: var(--foreground, var(--color-text));
-}
-.badge-success {
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--ky-color-success, var(--color-success));
-}
-.badge-warning {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--ky-color-warning, var(--color-warning));
-}
-.badge-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--destructive, var(--color-danger));
-}
-.badge-accent {
-  background: color-mix(in srgb, var(--accent, var(--color-accent)) 15%, var(--background, var(--color-bg)));
-  color: var(--accent-foreground, var(--color-text));
-  border: 1px solid color-mix(in srgb, var(--accent, var(--color-accent)) 35%, transparent);
-}
 mark {
   background: color-mix(in srgb, var(--accent, var(--color-accent)) 30%, transparent);
   color: inherit;
