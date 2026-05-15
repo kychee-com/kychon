@@ -11,9 +11,9 @@ import {
   adminScopeToggleHtml,
   adminSectionRemoveButtonHtml,
 } from '../admin-action-controls.js';
-import { badgeVariants } from '@/components/kychon/ui';
+import { renderEmbedBlockContentHtml, renderEmbedErrorContentHtml } from '@/components/kychon/EmbedBlockView';
 import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
-import { escAttr, escHtml } from '../blocks.js';
+import { escAttr, safeCssValue } from '../blocks.js';
 import { getProvider, type EmbedProvider } from './embed-providers.js';
 
 interface EmbedConfig {
@@ -25,10 +25,7 @@ interface EmbedConfig {
   trust_acknowledged?: boolean;
 }
 
-const externalContentBadgeClass = badgeVariants({
-  variant: 'secondary',
-  className: 'mt-2 uppercase tracking-wide',
-});
+const embedSectionClass = 'section w-full';
 
 function jsonAttr(value: unknown): string {
   return JSON.stringify(value)
@@ -79,42 +76,29 @@ export function renderEmbedError(
   const attrs = buildSectionAttrs(section, ctx, cfg);
   const adminCtrls = buildAdminControls(section, ctx);
   return (
-    `<section class="section block-embed block-embed--error"${attrs}>` +
+    `<section class="${embedSectionClass}" data-embed data-embed-state="error"${attrs}>` +
     adminCtrls +
-    `<div class="ky-container"><div class="block-embed__error" role="alert">` +
-    `<strong>Embed unavailable</strong>` +
-    `<p>${escHtml(message)}</p>` +
-    `</div></div>` +
+    renderEmbedErrorContentHtml(message) +
     `</section>`
   );
 }
 
-/** Construct the iframe element from a provider + resolved src. */
-function renderIframe(
-  provider: EmbedProvider,
-  src: string,
-  cfg: EmbedConfig,
-): string {
+function embedContentHtml(provider: EmbedProvider, src: string, cfg: EmbedConfig, ctx: BlockRenderContext): string {
   const sandbox = provider.sandbox.join(' ');
   const title = cfg.heading ? cfg.heading : provider.label;
   const isResponsive = cfg.responsive !== false && provider.responsive;
-  const height = cfg.height || provider.defaultHeight;
+  const height = safeCssValue(cfg.height || provider.defaultHeight) || provider.defaultHeight;
 
-  const iframeStyle = isResponsive
-    ? 'width:100%; height:100%; border:0;'
-    : `width:100%; height:${escAttr(height)}; border:0;`;
-
-  const wrapperStyle = isResponsive
-    ? 'position:relative; aspect-ratio:16/9; width:100%;'
-    : '';
-
-  const iframe =
-    `<iframe src="${escAttr(src)}" sandbox="${escAttr(sandbox)}" loading="lazy" ` +
-    `title="${escAttr(title)}" allowfullscreen style="${iframeStyle}"></iframe>`;
-
-  return isResponsive
-    ? `<div class="block-embed__frame" style="${wrapperStyle}">${iframe}</div>`
-    : `<div class="block-embed__frame">${iframe}</div>`;
+  return renderEmbedBlockContentHtml({
+    heading: cfg.heading || '',
+    height,
+    providerId: provider.id,
+    responsive: isResponsive,
+    sandbox,
+    showExternalBadge: provider.trustLevel === 'generic' && ctx.admin,
+    src,
+    title,
+  });
 }
 
 const EMBED: BlockType = {
@@ -158,21 +142,15 @@ const EMBED: BlockType = {
       return renderEmbedError(message, section, ctx, cfg);
     }
 
-    const heading = cfg.heading
-      ? `<h2 class="block-embed__heading">${escHtml(cfg.heading)}</h2>`
-      : '';
-    const pill = provider.trustLevel === 'generic' && ctx.admin
-      ? `<small class="${escAttr(externalContentBadgeClass)}" title="Generic iframe — bypasses provider allowlist">External content</small>`
-      : '';
     const attrs = buildSectionAttrs(section, ctx, cfg);
     const adminCtrls = buildAdminControls(section, ctx);
-    const iframe = renderIframe(provider, src, cfg);
+    const content = embedContentHtml(provider, src, cfg, ctx);
 
     return (
-      `<section class="section block-embed block-embed--${escAttr(provider.id)}" ` +
-      `data-provider="${escAttr(provider.id)}"${attrs}>` +
+      `<section class="${embedSectionClass}" data-embed data-embed-state="ready" ` +
+      `data-embed-provider="${escAttr(provider.id)}" data-provider="${escAttr(provider.id)}"${attrs}>` +
       adminCtrls +
-      `<div class="ky-container">${heading}${iframe}${pill}</div>` +
+      content +
       `</section>`
     );
   },
