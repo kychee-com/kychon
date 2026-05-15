@@ -22,6 +22,10 @@ describe('Portal asset URLs', () => {
     expect(portalSource).not.toContain('/css/styles.css?b=');
   });
 
+  it('declares admin editing styles in the shell instead of injecting a link at runtime', () => {
+    expect(portalSource).toContain('href="/css/admin-editing.css"');
+  });
+
   it('loads env.js from its stable runtime config URL', () => {
     expect(portalSource).toContain('src="/js/env.js"');
     expect(portalSource).not.toContain('/js/env.js?b=');

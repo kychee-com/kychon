@@ -11,6 +11,8 @@ describe('legacy button primitives', () => {
     const styles = await readFile(STYLES, 'utf8');
 
     expect(adminEditor).toContain('buttonVariants');
+    expect(adminEditor).not.toContain('loadAdminCSS');
+    expect(adminEditor).not.toContain("document.createElement('link')");
     expect(adminEditor).not.toContain('class="btn');
     expect(styles).not.toMatch(/\.btn(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('.btn-google');
