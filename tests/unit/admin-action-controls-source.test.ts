@@ -88,6 +88,24 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain('badgeVariants');
   });
 
+  it('uses data attributes rather than transient editor state classes', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const styles = await readFile(ADMIN_CSS, 'utf8');
+
+    expect(editor).toContain('dataset.adminTiptapActive');
+    expect(editor).toContain('dataset.adminUploading');
+    expect(editor).toContain('dataset.adminDragging');
+    expect(editor).not.toContain("classList.add('uploading')");
+    expect(editor).not.toContain("classList.add('dragging')");
+    expect(styles).toContain('[data-admin-tiptap-active="true"]');
+    expect(styles).toContain('[data-admin-uploading="true"]');
+    expect(styles).toContain('[data-admin-dragging="true"]');
+    expect(styles).not.toContain('.tiptap-active');
+    expect(styles).not.toContain('.uploading');
+    expect(styles).not.toContain('.dragging');
+    expect(styles).not.toContain('body.admin-dragging');
+  });
+
   it('renders zone add buttons as shadcn buttons instead of inserted DOM primitives', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
     const component = await readFile(ADMIN_ZONE_ADD_BUTTON, 'utf8');

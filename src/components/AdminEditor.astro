@@ -377,7 +377,7 @@
         await loadTiptap();
         if (!Editor) return;
         const originalContent = serializeRichTextChildren(htmlEl);
-        htmlEl.classList.add('tiptap-active');
+        htmlEl.dataset.adminTiptapActive = 'true';
         htmlEl.setAttribute('data-lpignore', 'true');
         // Clear original content — Tiptap will render its own editable copy
         htmlEl.replaceChildren();
@@ -393,7 +393,7 @@
             const html = editor.getHTML();
             editor.destroy();
             editor = null;
-            htmlEl.classList.remove('tiptap-active');
+            delete htmlEl.dataset.adminTiptapActive;
             // Restore rendered content (either saved or original)
             replaceRichTextChildren(htmlEl, html);
             const ok = await saveField(htmlEl, target, html);
@@ -489,7 +489,7 @@
 
   async function uploadEditableImage(htmlEl: HTMLElement, file: File) {
     // Show upload state
-    htmlEl.classList.add('uploading');
+    htmlEl.dataset.adminUploading = 'true';
 
     try {
       const attr = htmlEl.dataset.editableImage!;
@@ -533,7 +533,7 @@
       console.error('Image upload error:', e);
       showToast('Upload failed', 'error');
     } finally {
-      htmlEl.classList.remove('uploading');
+      delete htmlEl.dataset.adminUploading;
     }
   }
 
@@ -563,7 +563,7 @@
   // composable-layout: one document-level handler. Source zone is determined
   // from `closest('[data-zone]')`; target zone the same. Cross-zone drops PATCH
   // both `zone` and `position` together. Empty zones acquire a "Drop here"
-  // placeholder via the body.admin-dragging class (CSS rule below).
+  // placeholder via the body data-admin-dragging state (CSS rule below).
   let draggedEl: HTMLElement | null = null;
   let dropIndicator: HTMLElement | null = null;
   let sourceZone: string | null = null;
@@ -625,8 +625,8 @@
       draggedEl = el;
       const zone = findZoneContainer(el);
       sourceZone = zone?.dataset.zone || null;
-      document.body.classList.add('admin-dragging');
-      el.classList.add('dragging');
+      document.body.dataset.adminDragging = 'true';
+      el.dataset.adminDragging = 'true';
       e.dataTransfer!.effectAllowed = 'move';
       e.dataTransfer!.setData('text/plain', el.dataset.sortableId || '');
     });
@@ -690,14 +690,14 @@
   }
 
   function cleanupDrag() {
-    if (draggedEl) draggedEl.classList.remove('dragging');
+    if (draggedEl) delete draggedEl.dataset.adminDragging;
     const indicator = getDropIndicator();
     if (indicator) {
       indicator.hidden = true;
       const host = indicatorHost();
       if (host) moveIndicatorToEnd(host, indicator);
     }
-    document.body.classList.remove('admin-dragging');
+    delete document.body.dataset.adminDragging;
     draggedEl = null;
     sourceZone = null;
   }

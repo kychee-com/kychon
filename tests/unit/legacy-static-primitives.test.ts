@@ -119,6 +119,10 @@ describe('legacy static UI primitives', () => {
     expect(adminStyles).not.toContain('admin-save-success');
     expect(adminStyles).not.toContain('admin-save-error');
     expect(adminStyles).not.toContain('admin-save-pulse');
+    expect(adminStyles).not.toContain('.tiptap-active');
+    expect(adminStyles).not.toContain('.uploading');
+    expect(adminStyles).not.toContain('.dragging');
+    expect(adminStyles).not.toContain('body.admin-dragging');
     for (const stylesheet of [a11yStyles, publicA11yStyles]) {
       expect(stylesheet).toContain('.wl-skip-nav');
       expect(stylesheet).toContain('.wl-high-contrast');
