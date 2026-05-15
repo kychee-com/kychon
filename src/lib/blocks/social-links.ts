@@ -4,6 +4,7 @@ import {
   adminSectionEditButtonHtml,
   adminSectionRemoveButtonHtml,
 } from '../admin-action-controls.js';
+import { buttonVariants } from '@/components/kychon/ui';
 import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
 import { escAttr, escHtml, safeCssValue } from '../blocks.js';
 
@@ -88,6 +89,22 @@ const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, string> = {
   website: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />',
   unknown: '<path d="M10 5H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4h-2v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4V5zm4 0v2h3.6l-8.3 8.3 1.4 1.4L19 8.4V12h2V5h-7z" />',
 };
+
+const SOCIAL_PROVIDER_COLORS: Record<SocialProvider, string> = {
+  facebook: '#1877f2',
+  x: '#000',
+  linkedin: '#0a66c2',
+  instagram: '#c13584',
+  youtube: '#ff0000',
+  email: 'var(--color-accent)',
+  website: 'var(--color-primary-hover)',
+  unknown: 'var(--color-primary-hover)',
+};
+
+const socialListClass = 'flex flex-wrap items-center gap-[var(--social-link-gap,0.375rem)] justify-[var(--social-link-justify,flex-start)]';
+const socialIconClass = 'block h-[var(--social-link-icon-size,1rem)] w-[var(--social-link-icon-size,1rem)] fill-current';
+const socialLabelClass = 'ml-1.5 text-sm leading-none';
+const socialLinkBaseClass = 'rounded-[var(--social-link-radius,var(--radius))] border border-[color:var(--social-link-border,var(--border))] bg-[var(--social-link-bg,var(--background))] text-[var(--social-link-color,var(--primary))] no-underline hover:-translate-y-px hover:border-[color:var(--social-link-hover-border,var(--social-link-provider-color,var(--primary)))] hover:bg-[var(--social-link-hover-bg,var(--social-link-provider-color,var(--primary)))] hover:text-[var(--social-link-hover-color,var(--primary-foreground))] focus-visible:ring-ring';
 
 function jsonAttr(value: unknown): string {
   return JSON.stringify(value)
@@ -221,7 +238,11 @@ export function normalizeSocialLinkItems(config: Record<string, unknown>): Norma
 
 function renderSocialIcon(provider: SocialProvider): string {
   const icon = SOCIAL_PROVIDER_ICONS[provider] || SOCIAL_PROVIDER_ICONS.unknown;
-  return `<svg class="block-social-links__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${icon}</svg>`;
+  return `<svg class="${escAttr(socialIconClass)}" data-social-link-icon viewBox="0 0 24 24" aria-hidden="true" focusable="false">${icon}</svg>`;
+}
+
+function socialProviderStyleAttr(provider: SocialProvider): string {
+  return ` style="${escAttr(`--social-link-provider-color:${SOCIAL_PROVIDER_COLORS[provider]};`)}"`;
 }
 
 function renderSocialAnchor(item: NormalizedSocialLinkItem): string {
@@ -239,11 +260,19 @@ function renderSocialAnchor(item: NormalizedSocialLinkItem): string {
   }
   const relAttr = relTokens.size > 0 ? ` rel="${escAttr(Array.from(relTokens).join(' '))}"` : '';
   const labelText = item.showLabel
-    ? `<span class="block-social-links__label">${escHtml(item.label)}</span>`
+    ? `<span class="${escAttr(socialLabelClass)}">${escHtml(item.label)}</span>`
     : '';
+  const sizeClass = item.showLabel
+    ? 'h-[var(--social-link-size,1.75rem)] w-auto min-w-[var(--social-link-size,1.75rem)] px-3'
+    : 'h-[var(--social-link-size,1.75rem)] w-[var(--social-link-size,1.75rem)] flex-[0_0_var(--social-link-size,1.75rem)] p-0';
+  const className = buttonVariants({
+    className: `${socialLinkBaseClass} ${sizeClass}`,
+    size: 'icon',
+    variant: 'ghost',
+  });
   return (
-    `<a class="block-social-links__link block-social-links__link--${escAttr(item.provider)}" ` +
-    `data-social-provider="${escAttr(item.provider)}" href="${escAttr(item.href)}" aria-label="${escAttr(item.label)}"${targetAttr}${relAttr}>` +
+    `<a class="${escAttr(className)}" data-social-provider="${escAttr(item.provider)}" ` +
+    `href="${escAttr(item.href)}" aria-label="${escAttr(item.label)}"${targetAttr}${relAttr}${socialProviderStyleAttr(item.provider)}>` +
     `${renderSocialIcon(item.provider)}${labelText}</a>`
   );
 }
@@ -263,16 +292,15 @@ export function renderSocialLinksBlock(
   const p = (cfg.presentation || {}) as Record<string, unknown>;
   const zone = section.zone;
   const layout = String(cfg.layout || (zone === 'header' ? 'compact' : 'icons')).toLowerCase();
-  const baseClass = options.className || 'section section-social-links';
+  const baseClass = options.className || 'section w-full p-0 opacity-100';
   const classes = [
     baseClass,
-    'block-social-links',
-    `block-social-links--${zone}`,
-    `block-social-links--${layout}`,
-    options.legacyFooter ? 'footer-social' : '',
+    zone === 'header' ? 'ml-auto' : '',
   ].filter(Boolean).join(' ');
   const attrs = buildSectionAttrs(section, ctx, cfg);
   const style = styleAttr([
+    zone === 'footer' ? '--social-link-size:2rem;' : '',
+    zone === 'header' && layout === 'compact' ? '--social-link-size:1.75rem;--social-link-icon-size:0.95rem;' : '',
     cssVar('--social-link-size', p.size),
     cssVar('--social-link-icon-size', p.icon_size),
     cssVar('--social-link-radius', p.radius),
@@ -284,7 +312,9 @@ export function renderSocialLinksBlock(
   ]);
   const adminControls = buildAdminControls(section, ctx);
   const links = items.map(renderSocialAnchor).join('');
-  return `<section class="${classes}" data-social-links${attrs}${style}>${adminControls}<div class="block-social-links__list">${links}</div></section>`;
+  const layoutAttr = ` data-social-links-zone="${escAttr(zone)}" data-social-links-layout="${escAttr(layout)}"`;
+  const legacyAttr = options.legacyFooter ? ' data-legacy-footer-links' : '';
+  return `<section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
 }
 
 const SOCIAL_LINKS: BlockType = {
