@@ -92,20 +92,6 @@
   gap: 0.125rem;
 }
 
-/* --- "+N more" overflow link --- */
-
-.block-events-calendar__more {
-  font-size: 0.6875rem;
-  background: transparent;
-  border: 0;
-  padding: 0.125rem 0.375rem;
-  color: var(--color-primary, #2563eb);
-  cursor: pointer;
-  text-align: left;
-  text-decoration: underline;
-}
-.block-events-calendar__more:hover { text-decoration: none; }
-
 /* --- Agenda view --- */
 
 .block-events-calendar__agenda {
