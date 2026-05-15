@@ -22,7 +22,7 @@ describe('copied-theme fidelity fixture', () => {
     expect(html).toContain('data-mobile-open-layout="drawer"');
     expect(html).toContain('--nav-dropdown-width:18rem;');
 
-    expect(html).toContain('section-image-accordion');
+    expect(html).toContain('data-accordion="true"');
     expect(html).toContain('data-accordion-panel="0"');
     expect(html).toContain('--accordion-active:3;');
 

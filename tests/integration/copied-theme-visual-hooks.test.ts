@@ -52,9 +52,10 @@ describe('copied-theme visual verification hooks', () => {
 
     expect(accordionHtml).toContain('data-accordion-panel="0"');
     expect(accordionHtml).toContain('href="/junior.html"');
-    expect(styles).toContain('.image-accordion__panel:hover');
-    expect(styles).toContain('.image-accordion__panel:focus-within');
-    expect(styles).toContain('.image-accordion__panel:focus-visible');
+    expect(accordionHtml).toContain('md:hover:flex-[var(--accordion-active,2.5)_1_0]');
+    expect(accordionHtml).toContain('group-focus-within:translate-y-0');
+    expect(accordionHtml).toContain('focus-visible:ring-[var(--accordion-panel-focus-color)]');
+    expect(styles).not.toContain('image-accordion');
   });
 
   it('keeps carousel control and orientation hooks visible to browser checks', () => {

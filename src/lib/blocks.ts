@@ -13,6 +13,10 @@ import {
 } from '@/components/kychon/MarketingBlocksView';
 import { renderSlideshowBlockHtml, type SlideshowRenderItem } from '@/components/kychon/SlideshowBlockView';
 import {
+  renderImageAccordionBlockHtml,
+  type ImageAccordionRenderPanel,
+} from '@/components/kychon/ImageAccordionBlockView';
+import {
   adminNavEditButtonHtml,
   adminScopePillHtml,
   adminScopeToggleHtml,
@@ -241,11 +245,6 @@ function cssVar(name: string, value: any): string {
 function styleAttr(vars: string[]): string {
   const style = vars.filter(Boolean).join('');
   return style ? ` style="${escAttr(style)}"` : '';
-}
-
-function numberCssVar(name: string, value: any): string {
-  const n = Number(value);
-  return Number.isFinite(n) ? `${name}:${n};` : '';
 }
 
 export function sanitizeSvgPathData(path: any): string {
@@ -1442,44 +1441,6 @@ const PROMO_CARDS: BlockType = {
   },
 };
 
-function renderImageAccordionPanel(
-  panel: ImageAccordionPanelConfig,
-  section: Section,
-  ctx: BlockRenderContext,
-  index: number,
-): string {
-  const fit = panel.fit === 'contain' ? 'contain' : 'cover';
-  const panelStyle = styleAttr([
-    cssVar('--accordion-panel-fit', fit),
-    cssVar('--accordion-panel-position', panel.object_position || 'center'),
-    cssVar('--accordion-panel-hover-bg', panel.interactions?.hover?.background),
-    cssVar('--accordion-panel-hover-color', panel.interactions?.hover?.text),
-    cssVar('--accordion-panel-focus-color', panel.interactions?.focus?.border || panel.interactions?.focus?.text),
-  ]);
-  const imageEdit = ctx.admin && section.id != null
-    ? ` data-editable-image="sections.${section.id}.config.panels.${index}.image_url"`
-    : '';
-  const titleEdit = editableAttr(section, `panels.${index}.title`, ctx);
-  const descEdit = editableAttr(section, `panels.${index}.description`, ctx);
-  const ctaEdit = editableAttr(section, `panels.${index}.cta_label`, ctx);
-  const img = panel.image_url
-    ? `<img class="image-accordion__image" src="${escAttr(panel.image_url)}" alt="${escAttr(panel.image_alt || '')}" loading="${index === 0 ? 'eager' : 'lazy'}"${imageEdit}>`
-    : `<span class="image-accordion__placeholder"${imageEdit}></span>`;
-  const description = panel.description
-    ? `<p class="image-accordion__description"${descEdit}>${escHtml(panel.description)}</p>`
-    : '';
-  const cta = panel.cta_label
-    ? `<span class="image-accordion__cta"${ctaEdit}>${escHtml(panel.cta_label)}</span>`
-    : '';
-  const content = `<span class="image-accordion__overlay" aria-hidden="true"></span><span class="image-accordion__content"><span class="image-accordion__title"${titleEdit}>${escHtml(panel.title || '')}</span>${description}${cta}</span>`;
-  const body = `${img}${content}`;
-  const common = `class="image-accordion__panel" data-accordion-panel="${index}"${panelStyle}`;
-  if (panel.href) {
-    return `<a ${common} href="${escAttr(cleanHref(panel.href))}">${body}</a>`;
-  }
-  return `<div ${common} tabindex="0" role="group" aria-label="${escAttr(panel.title || `Panel ${index + 1}`)}">${body}</div>`;
-}
-
 const IMAGE_ACCORDION: BlockType = {
   label: 'Image Accordion',
   icon: '\u{1F5BC}',
@@ -1503,28 +1464,58 @@ const IMAGE_ACCORDION: BlockType = {
   render(section, ctx) {
     const cfg: ImageAccordionConfig = section.config || {};
     const panels = Array.isArray(cfg.panels) ? cfg.panels : [];
-    const heading = cfg.heading
-      ? `<h2 class="image-accordion__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '';
     const mobileFallback = cfg.mobile_fallback === 'cards' ? 'cards' : 'stack';
-    const style = styleAttr([
-      numberCssVar('--accordion-active', cfg.active_ratio ?? 2.5),
-      numberCssVar('--accordion-idle', cfg.idle_ratio ?? 1),
-      cssVar('--accordion-overlay-color', cfg.overlay_color || 'rgba(0,0,0,0.55)'),
-      numberCssVar('--accordion-overlay-opacity', cfg.overlay_opacity ?? 1),
-      cssVar('--accordion-reveal-duration', cfg.reveal_duration || '260ms'),
-      cssVar('--accordion-hover-bg', cfg.interactions?.hover?.background),
-      cssVar('--accordion-hover-color', cfg.interactions?.hover?.text),
-      cssVar('--accordion-focus-color', cfg.interactions?.focus?.border || cfg.interactions?.focus?.text),
-    ]);
-    const renderedPanels = panels
-      .map((panel, index) => renderImageAccordionPanel(panel, section, ctx, index))
-      .join('');
-    const empty = ctx.admin && panels.length === 0
-      ? '<p class="text-sm text-muted-foreground">No accordion panels yet — add panels via the editor.</p>'
-      : '';
-    const inner = `<div class="ky-container">${heading}<div class="image-accordion image-accordion--mobile-${escAttr(mobileFallback)}"${style}>${renderedPanels}${empty}</div></div>`;
-    return adminWrap(section, ctx, inner, 'section section-image-accordion');
+    const numericStyle = (fallback: number, value: any) => {
+      const n = Number(value ?? fallback);
+      return Number.isFinite(n) ? String(n) : String(fallback);
+    };
+    const rootStyle: Record<string, string> = {
+      '--accordion-active': numericStyle(2.5, cfg.active_ratio),
+      '--accordion-idle': numericStyle(1, cfg.idle_ratio),
+      '--accordion-overlay-color': safeCssValue(cfg.overlay_color || 'rgba(0,0,0,0.55)') || 'rgba(0,0,0,0.55)',
+      '--accordion-overlay-opacity': numericStyle(1, cfg.overlay_opacity),
+      '--accordion-reveal-duration': safeCssValue(cfg.reveal_duration || '260ms') || '260ms',
+      '--accordion-hover-color': safeCssValue(cfg.interactions?.hover?.text) || '#fff',
+      '--accordion-focus-color': safeCssValue(cfg.interactions?.focus?.border || cfg.interactions?.focus?.text)
+        || 'var(--interaction-focus-color,var(--color-primary))',
+    };
+    const renderPanels: ImageAccordionRenderPanel[] = panels.map((panel, index) => {
+      const objectFit = panel.fit === 'contain' ? 'contain' : 'cover';
+      const hoverColor = safeCssValue(panel.interactions?.hover?.text) || rootStyle['--accordion-hover-color'];
+      const focusColor = safeCssValue(panel.interactions?.focus?.border || panel.interactions?.focus?.text)
+        || rootStyle['--accordion-focus-color'];
+      return {
+        ctaEditablePath: editablePath(section, `panels.${index}.cta_label`, ctx),
+        ctaLabel: panel.cta_label ? String(panel.cta_label) : '',
+        description: panel.description ? String(panel.description) : '',
+        descriptionEditablePath: editablePath(section, `panels.${index}.description`, ctx),
+        href: panel.href ? cleanHref(panel.href) : undefined,
+        imageAlt: String(panel.image_alt || ''),
+        imageEditablePath: ctx.admin && section.id != null
+          ? `sections.${section.id}.config.panels.${index}.image_url`
+          : undefined,
+        imageUrl: panel.image_url ? String(panel.image_url) : '',
+        objectFit,
+        objectPosition: safeCssValue(panel.object_position || 'center') || 'center',
+        panelStyle: {
+          '--accordion-panel-hover-color': hoverColor,
+          '--accordion-panel-focus-color': focusColor,
+          '--accordion-panel-position': safeCssValue(panel.object_position || 'center') || 'center',
+          '--accordion-panel-fit': objectFit,
+        },
+        title: panel.title ? String(panel.title) : '',
+        titleEditablePath: editablePath(section, `panels.${index}.title`, ctx),
+      };
+    });
+    const inner = renderImageAccordionBlockHtml({
+      editableHeadingPath: editablePath(section, 'heading', ctx),
+      heading: cfg.heading ? String(cfg.heading) : '',
+      mobileFallback,
+      panels: renderPanels,
+      rootStyle,
+      showEmptyPlaceholder: ctx.admin,
+    });
+    return adminWrap(section, ctx, inner, 'section w-full py-8');
   },
 };
 
