@@ -67,12 +67,12 @@ describe('admin action controls source', () => {
     }
   });
 
-  it('updates dynamic scope pills through the shared shadcn class', async () => {
+  it('lets rerendered sections update scope pills instead of hand-building them', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
 
-    expect(editor).toContain("from '../lib/admin-action-controls'");
-    expect(editor).toContain('adminScopePillClass');
-    expect(editor).toContain('[data-admin-scope-pill]');
+    expect(editor).not.toContain("from '../lib/admin-action-controls'");
+    expect(editor).not.toContain('adminScopePillClass');
+    expect(editor).not.toContain("document.createElement('span')");
     expect(editor).not.toContain('badgeVariants');
   });
 
