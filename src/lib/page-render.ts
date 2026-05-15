@@ -135,27 +135,16 @@ function renderZoneInto(
   // Footer full-bleed blocks can remain inside the footer wrapper.
   if (containerWrapper) {
     const headerBleedSelector = '[data-fullbleed-host][data-zone-fullbleed="header"]';
-    let bleedHost =
+    const bleedHost =
       zone === 'header'
         ? (document.querySelector(headerBleedSelector) as HTMLElement | null)
         : containerWrapper.querySelector<HTMLElement>('[data-fullbleed-host]');
     if (fullBleedBlocks.length > 0) {
-      if (!bleedHost) {
-        bleedHost = document.createElement('div');
-        bleedHost.setAttribute('data-fullbleed-host', '');
-        if (zone === 'header') {
-          bleedHost.setAttribute('data-zone-fullbleed', 'header');
+      if (bleedHost) {
+        const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
+        if (bleedHost.innerHTML !== bleedHtml) {
+          bleedHost.innerHTML = bleedHtml;
         }
-        bleedHost.style.width = '100%';
-      }
-      if (zone === 'header' && bleedHost.previousElementSibling !== containerWrapper) {
-        containerWrapper.insertAdjacentElement('afterend', bleedHost);
-      } else if (zone !== 'header' && bleedHost.parentElement !== containerWrapper) {
-        containerWrapper.appendChild(bleedHost);
-      }
-      const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
-      if (bleedHost.innerHTML !== bleedHtml) {
-        bleedHost.innerHTML = bleedHtml;
       }
     } else if (bleedHost) {
       // No bleed blocks for this page — clear the host (don't remove it; keeps
