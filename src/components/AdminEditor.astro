@@ -9,17 +9,19 @@
 <script>
   import { del, get, patch } from '../lib/api';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
+  import {
+    ADMIN_ACTION_PROMPT_ACTIVATE,
+    ADMIN_ACTION_PROMPT_DISMISS,
+    ADMIN_ACTION_PROMPT_SHOW,
+    type AdminActionPromptDetail,
+    type AdminActionPromptIdDetail,
+  } from '../lib/admin-action-prompts';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
   import { buttonVariants } from './kychon/ui';
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
-  const tooltipPrimaryButtonClass = buttonVariants({ size: 'sm' });
-  const tooltipCloseButtonClass = buttonVariants({
-    variant: 'ghost',
-    size: 'icon',
-    className: 'h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground',
-  });
+  type AdminActionPromptModule = typeof import('./kychon/AdminActionPromptIsland');
   const dragHandleButtonClass = buttonVariants({
     variant: 'outline',
     size: 'icon',
@@ -43,6 +45,9 @@
   }
 
   let adminEditorControlsPromise: Promise<AdminEditorControlsModule | null> | null = null;
+  let adminActionPromptPromise: Promise<AdminActionPromptModule | null> | null = null;
+  const adminPromptActions = new Map<string, () => Promise<void>>();
+  let adminPromptActionsBound = false;
 
   async function ensureAdminEditorControls(): Promise<AdminEditorControlsModule | null> {
     const root = document.getElementById('admin-editor-controls-root');
@@ -58,6 +63,60 @@
         return null;
       });
     return adminEditorControlsPromise;
+  }
+
+  async function ensureAdminActionPrompts(): Promise<AdminActionPromptModule | null> {
+    const root = document.getElementById('admin-editor-root');
+    if (!root) return null;
+    adminActionPromptPromise ??= import('./kychon/AdminActionPromptIsland')
+      .then((module) => {
+        module.mountAdminActionPromptIsland(root);
+        return module;
+      })
+      .catch((error) => {
+        console.error('Failed to load admin action prompts:', error);
+        adminActionPromptPromise = null;
+        return null;
+      });
+    return adminActionPromptPromise;
+  }
+
+  function bindAdminPromptActions() {
+    if (adminPromptActionsBound) return;
+    adminPromptActionsBound = true;
+    window.addEventListener(ADMIN_ACTION_PROMPT_ACTIVATE, ((event: CustomEvent<AdminActionPromptIdDetail>) => {
+      const action = adminPromptActions.get(event.detail.id);
+      if (!action) return;
+      void action().finally(() => adminPromptActions.delete(event.detail.id));
+    }) as EventListener);
+    window.addEventListener(ADMIN_ACTION_PROMPT_DISMISS, ((event: CustomEvent<AdminActionPromptIdDetail>) => {
+      adminPromptActions.delete(event.detail.id);
+    }) as EventListener);
+  }
+
+  function promptPosition(rect: DOMRect, placement: 'above' | 'below'): Pick<AdminActionPromptDetail, 'top' | 'left'> {
+    const width = 352;
+    const height = 96;
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+    const rawTop = placement === 'above' ? rect.top - 56 : rect.bottom + 8;
+    const top = Math.min(Math.max(8, rawTop), Math.max(8, window.innerHeight - height - 8));
+    return { top, left };
+  }
+
+  async function showAdminActionPrompt(detail: AdminActionPromptDetail, action: () => Promise<void>) {
+    bindAdminPromptActions();
+    adminPromptActions.set(detail.id, action);
+    const prompts = await ensureAdminActionPrompts();
+    if (!prompts) {
+      adminPromptActions.delete(detail.id);
+      showToast('Editor prompt unavailable', 'error');
+      return;
+    }
+    window.dispatchEvent(new CustomEvent<AdminActionPromptDetail>(ADMIN_ACTION_PROMPT_SHOW, { detail }));
+  }
+
+  function nextPromptId(prefix: string): string {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
   async function openReactSectionSettings(sectionId: number) {
@@ -333,24 +392,14 @@
   }
 
   function showWordmarkHint(htmlEl: HTMLElement, savedUrl: string, dims: { width: number; height: number }) {
-    document.querySelector('.admin-wordmark-hint')?.remove();
-    const tip = document.createElement('div');
-    tip.className = 'admin-wordmark-hint admin-promotion-tooltip';
-    tip.innerHTML = `
-      <span>This image looks like a wordmark (${dims.width}×${dims.height}). Move it to <code>brand_wordmark_url</code> instead?</span>
-      <button class="${tooltipPrimaryButtonClass}" type="button" data-move-to-wordmark>Move to wordmark</button>
-      <button class="${tooltipCloseButtonClass}" type="button" data-admin-tooltip-close aria-label="Keep in icon slot">&times;</button>
-    `;
-    document.body.appendChild(tip);
-    const rect = htmlEl.getBoundingClientRect();
-    tip.style.position = 'fixed';
-    tip.style.top = `${Math.max(8, rect.bottom + 8)}px`;
-    tip.style.left = `${Math.max(8, rect.left)}px`;
-    tip.style.zIndex = '9999';
-    const dismiss = () => tip.remove();
-    setTimeout(dismiss, 12000);
-    tip.querySelector('[data-admin-tooltip-close]')?.addEventListener('click', dismiss);
-    tip.querySelector('[data-move-to-wordmark]')?.addEventListener('click', async () => {
+    void showAdminActionPrompt({
+      id: nextPromptId('wordmark'),
+      message: `This image looks like a wordmark (${dims.width}x${dims.height}). Move it to brand_wordmark_url instead?`,
+      actionLabel: 'Move to wordmark',
+      dismissLabel: 'Keep in icon slot',
+      duration: 12000,
+      ...promptPosition(htmlEl.getBoundingClientRect(), 'below'),
+    }, async () => {
       try {
         // Reroute: clear the icon slot, set the wordmark slot.
         await Promise.all([
@@ -367,8 +416,6 @@
       } catch (e) {
         console.error('Reroute to wordmark failed:', e);
         showToast('Reroute failed', 'error');
-      } finally {
-        dismiss();
       }
     });
   }
@@ -626,23 +673,13 @@
   }
 
   function showPromotionTooltip(target: HTMLElement, sectionId: number) {
-    document.querySelector('.admin-promotion-tooltip')?.remove();
-    const tip = document.createElement('div');
-    tip.className = 'admin-promotion-tooltip';
-    tip.innerHTML = `
-      <span>This now appears here only.</span>
-      <button class="${tooltipPrimaryButtonClass}" type="button" data-make-global="${sectionId}">Make global</button>
-      <button class="${tooltipCloseButtonClass}" type="button" data-admin-tooltip-close aria-label="Dismiss">&times;</button>
-    `;
-    document.body.appendChild(tip);
-    const rect = target.getBoundingClientRect();
-    tip.style.position = 'fixed';
-    tip.style.top = `${Math.max(8, rect.top - 56)}px`;
-    tip.style.left = `${Math.max(8, rect.left)}px`;
-    const dismiss = () => tip.remove();
-    setTimeout(dismiss, 5000);
-    tip.querySelector('[data-admin-tooltip-close]')?.addEventListener('click', dismiss);
-    tip.querySelector('[data-make-global]')?.addEventListener('click', async () => {
+    void showAdminActionPrompt({
+      id: nextPromptId('promote'),
+      message: 'This now appears here only.',
+      actionLabel: 'Make global',
+      duration: 5000,
+      ...promptPosition(target.getBoundingClientRect(), 'above'),
+    }, async () => {
       try {
         await patch(`sections?id=eq.${sectionId}`, { scope: 'global' });
         Object.keys(localStorage)
@@ -653,8 +690,6 @@
       } catch (e) {
         console.error('Promotion failed:', e);
         showToast('Save failed', 'error');
-      } finally {
-        dismiss();
       }
     });
   }
@@ -776,6 +811,7 @@
     if (session?.user?.member?.role !== 'admin') return;
     document.body.classList.add('admin');
     void ensureAdminEditorControls();
+    void ensureAdminActionPrompts();
     initEditableText();
     initEditableRich();
     initEditableImage();
