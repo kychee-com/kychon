@@ -55,7 +55,12 @@ export function adminEmbedEditButtonHtml(sectionId: number): string {
 }
 
 export function adminNavEditButtonHtml(sectionId: number): string {
-  return `<button class="admin-nav-edit-btn ${attr(iconButtonClass)}" data-nav-edit="${sectionId}" title="Edit navigation" aria-label="Edit navigation"><span aria-hidden="true">✎</span></button>`;
+  const navEditButtonClass = buttonVariants({
+    variant: 'outline',
+    size: 'icon',
+    className: 'ml-2 h-7 w-7 bg-background/90 text-foreground opacity-0 shadow-sm transition-opacity [&:focus]:opacity-100 [nav:hover_&]:opacity-100',
+  });
+  return `<button class="${attr(navEditButtonClass)}" data-nav-edit="${sectionId}" title="Edit navigation" aria-label="Edit navigation"><span aria-hidden="true">✎</span></button>`;
 }
 
 export function adminSectionRemoveButtonHtml(sectionId: number): string {

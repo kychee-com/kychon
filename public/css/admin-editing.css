@@ -178,68 +178,6 @@
   display: flex;
 }
 
-/* ═══════════════════════════════════════════════════
-   10. NAV EDIT PENCIL BUTTON
-   ═══════════════════════════════════════════════════ */
-
-.admin .admin-nav-edit-btn {
-  margin-left: 0.5rem;
-  opacity: 0;
-  transition: opacity 200ms ease;
-}
-
-.admin nav:hover .admin-nav-edit-btn,
-.admin .admin-nav-edit-btn:focus {
-  opacity: 1;
-}
-
-/* ═══════════════════════════════════════════════════
-   11. TOAST NOTIFICATION (save confirmation)
-   ═══════════════════════════════════════════════════ */
-
-.admin-toast {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  background: #1e293b;
-  color: white;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  animation: admin-toast-in 250ms ease;
-}
-
-.admin-toast.success::before {
-  content: "\2713";
-  color: #22c55e;
-  font-weight: bold;
-}
-
-.admin-toast.error::before {
-  content: "\2717";
-  color: #ef4444;
-  font-weight: bold;
-}
-
-@keyframes admin-toast-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.admin-toast.out {
-  animation: admin-toast-out 200ms ease forwards;
-}
-
-@keyframes admin-toast-out {
-  to { opacity: 0; transform: translateY(8px); }
-}
-
 /* composable-layout: cross-zone drag affordances --- */
 
 /* Empty-zone "drop here" placeholder appears only while admin is dragging. */

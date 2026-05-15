@@ -42,6 +42,8 @@ describe('admin action controls source', () => {
     expect(helper).toContain('@/components/kychon/ui');
     expect(helper).toContain('buttonVariants');
     expect(helper).toContain('badgeVariants');
+    expect(helper).toContain('[&:focus]:opacity-100');
+    expect(helper).toContain('[nav:hover_&]:opacity-100');
     expect(helper).toContain('data-section-edit');
     expect(helper).toContain('data-embed-edit');
     expect(helper).toContain('data-section-remove');
@@ -62,6 +64,8 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-scope-toggle');
       expect(source).not.toContain('admin-toolbar');
       expect(source).not.toContain('admin-zone-add-btn');
+      expect(source).not.toContain('admin-nav-edit-btn');
+      expect(source).not.toContain('admin-toast');
       expect(source).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);

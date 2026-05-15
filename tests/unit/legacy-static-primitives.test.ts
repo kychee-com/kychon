@@ -113,6 +113,8 @@ describe('legacy static UI primitives', () => {
     expect(globalStyles).not.toContain('nav-dropdown.css');
     expect(adminStyles).not.toContain('block-embed');
     expect(adminStyles).not.toContain('.admin-drop-indicator');
+    expect(adminStyles).not.toContain('admin-nav-edit-btn');
+    expect(adminStyles).not.toContain('admin-toast');
     for (const stylesheet of [a11yStyles, publicA11yStyles]) {
       expect(stylesheet).toContain('.wl-skip-nav');
       expect(stylesheet).toContain('.wl-high-contrast');
