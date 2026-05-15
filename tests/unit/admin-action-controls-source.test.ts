@@ -11,6 +11,7 @@ const BLOCK_RENDERERS = [
   resolve(ROOT, 'src/lib/blocks/social-links.ts'),
 ];
 const ADMIN_EDITOR = resolve(ROOT, 'src/components/AdminEditor.astro');
+const ADMIN_ACTION_PROMPT = resolve(ROOT, 'src/components/kychon/AdminActionPromptIsland.tsx');
 const ADMIN_ZONE_ADD_BUTTON = resolve(ROOT, 'src/components/kychon/AdminZoneAddButton.tsx');
 const ADMIN_CSS = resolve(ROOT, 'public/css/admin-editing.css');
 
@@ -64,6 +65,8 @@ describe('admin action controls source', () => {
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-upload-spinner\b/);
+      expect(source).not.toContain('admin-promotion-tooltip');
+      expect(source).not.toContain('admin-wordmark-hint');
     }
   });
 
@@ -109,12 +112,18 @@ describe('admin action controls source', () => {
 
   it('keeps tooltip action buttons on shadcn variants', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const prompt = await readFile(ADMIN_ACTION_PROMPT, 'utf8');
     const styles = await readFile(ADMIN_CSS, 'utf8');
 
-    expect(editor).toContain('tooltipPrimaryButtonClass');
-    expect(editor).toContain('tooltipCloseButtonClass');
-    expect(editor).toContain('data-admin-tooltip-close');
+    expect(prompt).toContain('@/components/kychon/ui');
+    expect(prompt).toContain('<Card');
+    expect(prompt).toContain('<Button');
+    expect(editor).toContain('showAdminActionPrompt');
+    expect(editor).not.toContain('tip.innerHTML');
+    expect(editor).not.toContain('document.body.appendChild(tip)');
+    expect(editor).not.toContain('data-admin-tooltip-close');
     expect(editor).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
+    expect(prompt).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
     expect(styles).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
   });
 
