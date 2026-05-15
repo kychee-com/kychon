@@ -71,7 +71,7 @@
   color: var(--color-text, #111827);
 }
 
-.admin .tiptap-active {
+.admin [data-admin-tiptap-active="true"] {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
   border-radius: 4px;
   background: rgba(59, 130, 246, 0.04);
@@ -91,7 +91,7 @@
   display: inline-flex;
 }
 
-.admin [data-sortable-id].dragging {
+.admin [data-sortable-id][data-admin-dragging="true"] {
   opacity: 0.4;
   transform: scale(0.98);
   transition: opacity 200ms ease, transform 200ms ease;
@@ -101,22 +101,22 @@
    4. IMAGE UPLOAD PROGRESS
    ═══════════════════════════════════════════════════ */
 
-.admin [data-editable-image].uploading {
+.admin [data-editable-image][data-admin-uploading="true"] {
   position: relative;
 }
 
-.admin [data-editable-image].uploading > img,
-.admin [data-editable-image].uploading > * {
+.admin [data-editable-image][data-admin-uploading="true"] > img,
+.admin [data-editable-image][data-admin-uploading="true"] > * {
   opacity: 0.4;
   transition: opacity 300ms ease;
 }
 
-.admin [data-editable-image].uploading::before {
+.admin [data-editable-image][data-admin-uploading="true"]::before {
   content: "";
   display: none;
 }
 
-.admin [data-editable-image].uploading::after {
+.admin [data-editable-image][data-admin-uploading="true"]::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -139,10 +139,10 @@
 /* composable-layout: cross-zone drag affordances --- */
 
 /* Empty-zone "drop here" placeholder appears only while admin is dragging. */
-body.admin-dragging [data-zone] .ky-container:empty::before,
-body.admin-dragging #zone-header > .ky-container:empty::before,
-body.admin-dragging #zone-footer > .ky-container:empty::before,
-body.admin-dragging #sections:empty::before {
+body[data-admin-dragging="true"] [data-zone] .ky-container:empty::before,
+body[data-admin-dragging="true"] #zone-header > .ky-container:empty::before,
+body[data-admin-dragging="true"] #zone-footer > .ky-container:empty::before,
+body[data-admin-dragging="true"] #sections:empty::before {
   content: 'Drop a block here';
   display: block;
   padding: 1.5rem;
@@ -154,10 +154,10 @@ body.admin-dragging #sections:empty::before {
 }
 
 /* Highlight zones during drag for clarity. */
-body.admin-dragging [data-zone] {
+body[data-admin-dragging="true"] [data-zone] {
   outline: 1px dashed transparent;
   transition: outline-color 120ms ease;
 }
-body.admin-dragging [data-zone]:hover {
+body[data-admin-dragging="true"] [data-zone]:hover {
   outline-color: var(--color-primary, #6366f1);
 }
