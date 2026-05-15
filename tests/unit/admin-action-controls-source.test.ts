@@ -44,6 +44,7 @@ describe('admin action controls source', () => {
     expect(helper).toContain('badgeVariants');
     expect(helper).toContain('[&:focus]:opacity-100');
     expect(helper).toContain('[nav:hover_&]:opacity-100');
+    expect(helper).toContain('[body.admin_[data-sortable-group]>[data-sortable-id]:hover>&]:flex');
     expect(helper).toContain('data-section-edit');
     expect(helper).toContain('data-embed-edit');
     expect(helper).toContain('data-section-remove');
@@ -66,6 +67,7 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-zone-add-btn');
       expect(source).not.toContain('admin-nav-edit-btn');
       expect(source).not.toContain('admin-toast');
+      expect(source).not.toContain('admin-section-actions');
       expect(source).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);

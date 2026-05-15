@@ -157,7 +157,7 @@ describe('embed renderer — error states', () => {
 
   it('error placeholder still emits the section wrapper for admin controls', () => {
     const html = EMBED.render(baseSection({ provider: 'unknown' }), adminCtx);
-    expect(html).toContain('admin-section-actions');
+    expect(html).not.toContain('admin-section-actions');
     expect(html).toContain('data-section-remove');
   });
 });

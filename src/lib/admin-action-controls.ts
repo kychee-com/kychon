@@ -34,6 +34,8 @@ const dragHandleButtonClass = buttonVariants({
     'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing',
 });
 
+const sectionActionsClass = 'absolute left-2 top-2 z-10 hidden gap-1 [body.admin_[data-sortable-group]>[data-sortable-id]:hover>&]:flex';
+
 export const adminScopePillClass = badgeVariants({
   className: 'h-7 rounded-full uppercase tracking-wide shadow-sm',
 });
@@ -65,6 +67,10 @@ export function adminNavEditButtonHtml(sectionId: number): string {
 
 export function adminSectionRemoveButtonHtml(sectionId: number): string {
   return `<button class="${attr(destructiveIconButtonClass)}" data-section-remove="${sectionId}" title="Remove section" aria-label="Remove section"><span aria-hidden="true">&times;</span></button>`;
+}
+
+export function adminSectionActionsHtml(content: string): string {
+  return `<div class="${attr(sectionActionsClass)}">${content}</div>`;
 }
 
 export function adminDragHandleHtml(): string {
