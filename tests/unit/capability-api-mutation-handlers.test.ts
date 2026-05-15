@@ -64,10 +64,15 @@ const adminActor: CapabilityActor = {
   authority: { projectAdmin: false, activeMemberAdmin: true },
 };
 
+function requireMember(actor: CapabilityActor) {
+  if (!actor.member) throw new Error(`Expected ${actor.state} actor to have a member`);
+  return actor.member;
+}
+
 const memberActor: CapabilityActor = {
   ...adminActor,
   state: 'active_member',
-  member: { ...adminActor.member!, role: 'member' },
+  member: { ...requireMember(adminActor), role: 'member' },
   authority: { projectAdmin: false, activeMemberAdmin: false },
 };
 
@@ -151,6 +156,19 @@ describe('Capability API mutation handlers', () => {
     expect(db.tables.members[0].status).toBe('active');
     expect(db.tables.membership_tiers.some((row) => row.name === 'Premium')).toBe(true);
     expect(db.tables.member_custom_fields[0].position).toBe(2);
+  });
+
+  it('throws notFound.object when member state mutations target a missing member', async () => {
+    const db = makeDb();
+
+    await expect(
+      executeCapabilityMutation('members.approve', { id: 99999999 }, { actor: adminActor, db }),
+    ).rejects.toMatchObject({
+      code: 'notFound.object',
+      detail: { object: { type: 'member', id: '99999999' } },
+    });
+
+    expect(db.tables.members).toEqual([{ id: 2, display_name: 'Pending', status: 'pending', role: 'member' }]);
   });
 
   it('scopes members.updateProfile to the active member and strips admin-only fields', async () => {

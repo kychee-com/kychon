@@ -41,16 +41,21 @@ const memberActor: CapabilityActor = {
   authority: { projectAdmin: false, activeMemberAdmin: false },
 };
 
+function requireMember(actor: CapabilityActor) {
+  if (!actor.member) throw new Error(`Expected ${actor.state} actor to have a member`);
+  return actor.member;
+}
+
 const moderatorActor: CapabilityActor = {
   ...memberActor,
   state: 'moderator',
-  member: { ...memberActor.member!, role: 'moderator' },
+  member: { ...requireMember(memberActor), role: 'moderator' },
 };
 
 const adminActor: CapabilityActor = {
   ...memberActor,
   state: 'admin',
-  member: { ...memberActor.member!, role: 'admin' },
+  member: { ...requireMember(memberActor), role: 'admin' },
   authority: { projectAdmin: false, activeMemberAdmin: true },
 };
 

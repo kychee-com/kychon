@@ -41,11 +41,11 @@ describe('site_search hydration', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     fetchMock.mockReset();
-    (globalThis as any).fetch = fetchMock;
-    (window as any).__KYCHON_API = 'https://api.test';
-    (window as any).__KYCHON_ANON_KEY = 'anon';
+    vi.stubGlobal('fetch', fetchMock);
+    window.__KYCHON_API = 'https://api.test';
+    window.__KYCHON_ANON_KEY = 'anon';
     const store: Record<string, string> = {};
-    (globalThis as any).localStorage = {
+    vi.stubGlobal('localStorage', {
       getItem: (key: string) => store[key] ?? null,
       setItem: (key: string, value: string) => {
         store[key] = String(value);
@@ -56,7 +56,7 @@ describe('site_search hydration', () => {
       clear: () => {
         for (const key of Object.keys(store)) delete store[key];
       },
-    };
+    });
   });
 
   it('fetches title-only suggestions after debounce and renders visible options', async () => {

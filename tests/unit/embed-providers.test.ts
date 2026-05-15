@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { getProvider, getProviderHosts, PROVIDERS } from '../../src/lib/blocks/embed-providers.ts';
 
+function provider(id: keyof typeof PROVIDERS) {
+  const resolved = PROVIDERS[id];
+  if (!resolved) throw new Error(`Missing provider: ${id}`);
+  return resolved;
+}
+
 describe('PROVIDERS registry shape', () => {
   it('includes the seven v1 providers', () => {
     const ids = Object.keys(PROVIDERS).sort();
@@ -24,9 +30,9 @@ describe('PROVIDERS registry shape', () => {
   });
 
   it('only the iframe provider is generic', () => {
-    expect(PROVIDERS.iframe!.trustLevel).toBe('generic');
-    for (const id of ['youtube', 'vimeo', 'calendly', 'map', 'weather', 'tide_chart']) {
-      expect(PROVIDERS[id]!.trustLevel, id).toBe('verified');
+    expect(provider('iframe').trustLevel).toBe('generic');
+    for (const id of ['youtube', 'vimeo', 'calendly', 'map', 'weather', 'tide_chart'] as const) {
+      expect(provider(id).trustLevel, id).toBe('verified');
     }
   });
 
@@ -44,7 +50,7 @@ describe('PROVIDERS registry shape', () => {
 });
 
 describe('youtube buildSrc', () => {
-  const { buildSrc } = PROVIDERS.youtube!;
+  const { buildSrc } = provider('youtube');
 
   it('produces the embed URL from a clean video_id', () => {
     expect(buildSrc({ video_id: 'abcd1234' })).toBe('https://www.youtube.com/embed/abcd1234');
@@ -74,7 +80,7 @@ describe('youtube buildSrc', () => {
 });
 
 describe('vimeo buildSrc', () => {
-  const { buildSrc } = PROVIDERS.vimeo!;
+  const { buildSrc } = provider('vimeo');
 
   it('produces the embed URL', () => {
     expect(buildSrc({ video_id: '76979871' })).toBe('https://player.vimeo.com/video/76979871');
@@ -87,7 +93,7 @@ describe('vimeo buildSrc', () => {
 });
 
 describe('calendly buildSrc', () => {
-  const { buildSrc } = PROVIDERS.calendly!;
+  const { buildSrc } = provider('calendly');
 
   it('produces a username-only URL', () => {
     expect(buildSrc({ username: 'jane-smith' })).toBe('https://calendly.com/jane-smith');
@@ -108,7 +114,7 @@ describe('calendly buildSrc', () => {
 });
 
 describe('map buildSrc', () => {
-  const { buildSrc } = PROVIDERS.map!;
+  const { buildSrc } = provider('map');
 
   it('builds with address', () => {
     const url = new URL(buildSrc({ address: 'Times Square' }));
@@ -135,7 +141,7 @@ describe('map buildSrc', () => {
 });
 
 describe('weather buildSrc', () => {
-  const { buildSrc } = PROVIDERS.weather!;
+  const { buildSrc } = provider('weather');
 
   it('builds with lat+lon', () => {
     const url = new URL(buildSrc({ lat: 38.8, lon: -77.0 }));
@@ -161,7 +167,7 @@ describe('weather buildSrc', () => {
 });
 
 describe('tide_chart buildSrc', () => {
-  const { buildSrc } = PROVIDERS.tide_chart!;
+  const { buildSrc } = provider('tide_chart');
 
   it('builds the predictions URL', () => {
     const url = new URL(buildSrc({ station_id: '8594900' }));
@@ -177,7 +183,7 @@ describe('tide_chart buildSrc', () => {
 });
 
 describe('iframe (generic) buildSrc', () => {
-  const { buildSrc } = PROVIDERS.iframe!;
+  const { buildSrc } = provider('iframe');
 
   it('passes through valid HTTPS URLs', () => {
     expect(buildSrc({ src: 'https://example.com/widget' })).toBe('https://example.com/widget');
@@ -211,22 +217,22 @@ describe('iframe (generic) buildSrc', () => {
 
 describe('sandbox tokens are exact and minimal', () => {
   it('youtube and vimeo permit presentation but not popups or forms', () => {
-    expect(PROVIDERS.youtube!.sandbox).toContain('allow-presentation');
-    expect(PROVIDERS.youtube!.sandbox).not.toContain('allow-popups');
-    expect(PROVIDERS.youtube!.sandbox).not.toContain('allow-forms');
-    expect(PROVIDERS.vimeo!.sandbox).toContain('allow-presentation');
+    expect(provider('youtube').sandbox).toContain('allow-presentation');
+    expect(provider('youtube').sandbox).not.toContain('allow-popups');
+    expect(provider('youtube').sandbox).not.toContain('allow-forms');
+    expect(provider('vimeo').sandbox).toContain('allow-presentation');
   });
 
   it('calendly permits popups and forms (booking flow)', () => {
-    expect(PROVIDERS.calendly!.sandbox).toContain('allow-popups');
-    expect(PROVIDERS.calendly!.sandbox).toContain('allow-forms');
+    expect(provider('calendly').sandbox).toContain('allow-popups');
+    expect(provider('calendly').sandbox).toContain('allow-forms');
   });
 
   it('weather has the strictest verified-provider sandbox', () => {
-    expect(PROVIDERS.weather!.sandbox).toEqual(['allow-scripts', 'allow-same-origin']);
+    expect(provider('weather').sandbox).toEqual(['allow-scripts', 'allow-same-origin']);
   });
 
   it('iframe (generic) has the strict default', () => {
-    expect(PROVIDERS.iframe!.sandbox).toEqual(['allow-scripts', 'allow-same-origin']);
+    expect(provider('iframe').sandbox).toEqual(['allow-scripts', 'allow-same-origin']);
   });
 });

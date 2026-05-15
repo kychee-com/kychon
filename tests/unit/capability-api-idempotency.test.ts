@@ -55,13 +55,19 @@ const adminActor: CapabilityActor = {
   },
 };
 
+function operationName(name: string) {
+  const operation = getOperation(name);
+  if (!operation) throw new Error(`Missing test operation: ${name}`);
+  return operation.name;
+}
+
 describe('Capability API idempotency helpers', () => {
   it('creates a durable execution record for first execution', async () => {
     const store = new MemoryExecutionStore();
     const decision = await beginCapabilityExecution({
       store,
       apiVersion: KYCHON_API_VERSION,
-      operation: getOperation('events.create')!.name,
+      operation: operationName('events.create'),
       idempotencyKey: 'create-event-1',
       actor: adminActor,
       input: { title: 'Meetup' },
@@ -86,7 +92,7 @@ describe('Capability API idempotency helpers', () => {
     const started = await beginCapabilityExecution({
       store,
       apiVersion: KYCHON_API_VERSION,
-      operation: getOperation('events.create')!.name,
+      operation: operationName('events.create'),
       idempotencyKey: 'create-event-2',
       actor: adminActor,
       input: { startsAt: '2026-06-01', title: 'Meetup' },
@@ -99,7 +105,7 @@ describe('Capability API idempotency helpers', () => {
     const retry = await beginCapabilityExecution({
       store,
       apiVersion: KYCHON_API_VERSION,
-      operation: getOperation('events.create')!.name,
+      operation: operationName('events.create'),
       idempotencyKey: 'create-event-2',
       actor: adminActor,
       input: { title: 'Meetup', startsAt: '2026-06-01' },
@@ -115,7 +121,7 @@ describe('Capability API idempotency helpers', () => {
     const started = await beginCapabilityExecution({
       store,
       apiVersion: KYCHON_API_VERSION,
-      operation: getOperation('announcements.publish')!.name,
+      operation: operationName('announcements.publish'),
       idempotencyKey: 'publish-1',
       actor: adminActor,
       input: { title: 'News' },
@@ -127,7 +133,7 @@ describe('Capability API idempotency helpers', () => {
     const retry = await beginCapabilityExecution({
       store,
       apiVersion: KYCHON_API_VERSION,
-      operation: getOperation('announcements.publish')!.name,
+      operation: operationName('announcements.publish'),
       idempotencyKey: 'publish-1',
       actor: adminActor,
       input: { title: 'News' },
@@ -144,7 +150,7 @@ describe('Capability API idempotency helpers', () => {
     await beginCapabilityExecution({
       store,
       apiVersion: KYCHON_API_VERSION,
-      operation: getOperation('events.create')!.name,
+      operation: operationName('events.create'),
       idempotencyKey: 'conflict-key',
       actor: adminActor,
       input: { title: 'Meetup' },
@@ -155,7 +161,7 @@ describe('Capability API idempotency helpers', () => {
       beginCapabilityExecution({
         store,
         apiVersion: KYCHON_API_VERSION,
-        operation: getOperation('events.update')!.name,
+        operation: operationName('events.update'),
         idempotencyKey: 'conflict-key',
         actor: adminActor,
         input: { title: 'Meetup' },
@@ -167,7 +173,7 @@ describe('Capability API idempotency helpers', () => {
       beginCapabilityExecution({
         store,
         apiVersion: KYCHON_API_VERSION,
-        operation: getOperation('events.create')!.name,
+        operation: operationName('events.create'),
         idempotencyKey: 'conflict-key',
         actor: adminActor,
         input: { title: 'Different' },
@@ -179,7 +185,7 @@ describe('Capability API idempotency helpers', () => {
   it('exposes changed object, audit, verification, and action result helpers', () => {
     const event = changedObject('event', 42, { label: 'Meetup' });
     const audit = auditReference(99, 'events.create', '2026-05-08T10:00:00Z');
-    const verify = verificationQuery(getOperation('events.get')!.name, { id: 42 }, event);
+    const verify = verificationQuery(operationName('events.get'), { id: 42 }, event);
 
     expect(actionResult({ id: 42 }, [event], verify, audit)).toEqual({
       result: { id: 42 },

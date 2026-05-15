@@ -113,7 +113,7 @@ describe('@kychon/sdk client', () => {
   });
 
   it('auto-resolves the Run402 function endpoint and public key from portal discovery', async () => {
-    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+    const mockFetch = vi.fn(async (url: string, _init?: RequestInit) => {
       if (url.endsWith('/.well-known/kychon.json')) {
         return jsonResponse({ api: { endpoint: 'https://api.run402.com/functions/v1/kychon-api' } });
       }

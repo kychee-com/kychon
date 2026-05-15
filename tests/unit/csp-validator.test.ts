@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { PROVIDERS } from '../../src/lib/blocks/embed-providers.ts';
 import { generateHeadersContent, validateCsp } from '../../src/lib/csp.ts';
 
+function requireMatch(match: RegExpMatchArray | null, label: string) {
+  if (!match) throw new Error(`Missing ${label}`);
+  return match;
+}
+
+function requireProvider(id: keyof typeof PROVIDERS) {
+  const provider = PROVIDERS[id];
+  if (!provider) throw new Error(`Missing provider: ${id}`);
+  return provider;
+}
+
 describe('validateCsp — happy path', () => {
   it('accepts the generated headers content', () => {
     expect(() => validateCsp(generateHeadersContent())).not.toThrow();
@@ -38,7 +49,10 @@ describe('validateCsp — missing pieces', () => {
   });
 
   it('throws when CSP is missing entirely', () => {
-    const csp = generateHeadersContent().match(/Content-Security-Policy: [^\n]+/)![0];
+    const csp = requireMatch(
+      generateHeadersContent().match(/Content-Security-Policy: [^\n]+/),
+      'Content-Security-Policy header',
+    )[0];
     const headers = generateHeadersContent().replace(csp, '');
     expect(() => validateCsp(headers)).toThrow(/Content-Security-Policy/);
   });
@@ -78,7 +92,7 @@ describe('validateCsp — dangerous patterns', () => {
 
 describe('validateCsp — provider host coverage', () => {
   it('throws when a provider host is removed from frame-src', () => {
-    const youtubeHost = PROVIDERS.youtube!.frameAncestor;
+    const youtubeHost = requireProvider('youtube').frameAncestor;
     const headers = generateHeadersContent().replace(youtubeHost, '');
     expect(() => validateCsp(headers)).toThrow(/youtube.*frame-src/);
   });

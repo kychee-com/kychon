@@ -15,7 +15,11 @@ const baseCtx: BlockRenderContext = {
   currentPath: '/',
 };
 
-function makeSection(items: any[], extraConfig: Record<string, unknown> = {}): Section {
+interface NavDropdownTestWindow extends Window {
+  __navDropdownClickBound?: boolean;
+}
+
+function makeSection(items: Array<Record<string, unknown>>, extraConfig: Record<string, unknown> = {}): Section {
   return {
     page_slug: '*',
     zone: 'header',
@@ -316,7 +320,7 @@ describe('nav block — runtime keyboard + click', () => {
 
   beforeEach(() => {
     document.body.innerHTML = '';
-    (window as any).__navDropdownClickBound = false;
+    (window as NavDropdownTestWindow).__navDropdownClickBound = false;
     const section = makeSection([
       { label: 'Home', href: '/', public: true },
       {
@@ -336,7 +340,7 @@ describe('nav block — runtime keyboard + click', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
-    delete (window as any).__navDropdownClickBound;
+    delete (window as NavDropdownTestWindow).__navDropdownClickBound;
   });
 
   it('clicking the chevron opens the dropdown (sets aria-expanded=true, removes [hidden])', () => {

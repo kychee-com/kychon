@@ -1,6 +1,9 @@
+import type { createKychonClient } from '@kychon/sdk';
 import { describe, expect, it, vi } from 'vitest';
 
 import { runKychonCli } from '../../src/cli/index.ts';
+
+type KychonClient = ReturnType<typeof createKychonClient>;
 
 function io(env: Record<string, string | undefined> = { KYCHON_PORTAL_URL: 'https://portal.test' }) {
   return {
@@ -10,7 +13,7 @@ function io(env: Record<string, string | undefined> = { KYCHON_PORTAL_URL: 'http
   };
 }
 
-function fakeClient() {
+function fakeClient(): KychonClient {
   const mutation = (name: string) => ({
     validate: vi.fn(async (input = {}) => ({ op: name, phase: 'validate', input })),
     execute: vi.fn(async (input = {}, options = {}) => ({ op: name, phase: 'execute', input, options })),
@@ -31,13 +34,13 @@ function fakeClient() {
       eventsCsv: mutation('exports.eventsCsv'),
       portalData: mutation('exports.portalData'),
     },
-  };
+  } as unknown as KychonClient;
 }
 
 describe('kychon CLI thin SDK wrapper', () => {
   it('implements api discover, capabilities, and versions through the SDK', async () => {
     const client = fakeClient();
-    const factory = vi.fn(() => client as any);
+    const factory = vi.fn(() => client);
     const out = io();
 
     await expect(runKychonCli(['api', 'discover'], out, factory)).resolves.toBe(0);
@@ -57,7 +60,7 @@ describe('kychon CLI thin SDK wrapper', () => {
       runKychonCli(
         ['api', 'call', '--json', JSON.stringify({ operation: 'search.query', phase: 'query', input: { q: 'dues' } })],
         out,
-        () => client as any,
+        () => client,
       ),
     ).resolves.toBe(0);
 
@@ -67,20 +70,12 @@ describe('kychon CLI thin SDK wrapper', () => {
   it('dry-runs friendly mutation commands with validate', async () => {
     const client = fakeClient();
 
-    await runKychonCli(['event', 'create', '--dry-run', '--json', '{"title":"Meet"}'], io(), () => client as any);
-    await runKychonCli(['member', 'approve', '--dry-run', '--json', '{"id":7}'], io(), () => client as any);
-    await runKychonCli(
-      ['announcement', 'publish', '--dry-run', '--json', '{"title":"News"}'],
-      io(),
-      () => client as any,
-    );
-    await runKychonCli(
-      ['forum', 'topic', 'create', '--dry-run', '--json', '{"title":"Topic"}'],
-      io(),
-      () => client as any,
-    );
-    await runKychonCli(['poll', 'vote', '--dry-run', '--json', '{"pollId":1,"optionId":2}'], io(), () => client as any);
-    await runKychonCli(['exports', 'membersCsv', '--dry-run'], io(), () => client as any);
+    await runKychonCli(['event', 'create', '--dry-run', '--json', '{"title":"Meet"}'], io(), () => client);
+    await runKychonCli(['member', 'approve', '--dry-run', '--json', '{"id":7}'], io(), () => client);
+    await runKychonCli(['announcement', 'publish', '--dry-run', '--json', '{"title":"News"}'], io(), () => client);
+    await runKychonCli(['forum', 'topic', 'create', '--dry-run', '--json', '{"title":"Topic"}'], io(), () => client);
+    await runKychonCli(['poll', 'vote', '--dry-run', '--json', '{"pollId":1,"optionId":2}'], io(), () => client);
+    await runKychonCli(['exports', 'membersCsv', '--dry-run'], io(), () => client);
 
     expect(client.events.create.validate).toHaveBeenCalledWith({ title: 'Meet' });
     expect(client.members.approve.validate).toHaveBeenCalledWith({ id: 7 });
@@ -93,8 +88,8 @@ describe('kychon CLI thin SDK wrapper', () => {
   it('executes friendly mutation commands only with --yes', async () => {
     const client = fakeClient();
 
-    await runKychonCli(['event', 'create', '--yes', '--json', '{"title":"Meet"}'], io(), () => client as any);
-    await runKychonCli(['moderation', 'queue'], io(), () => client as any);
+    await runKychonCli(['event', 'create', '--yes', '--json', '{"title":"Meet"}'], io(), () => client);
+    await runKychonCli(['moderation', 'queue'], io(), () => client);
 
     expect(client.events.create.execute).toHaveBeenCalledWith({ title: 'Meet' }, { confirmed: true });
     expect(client.moderation.queue).toHaveBeenCalledWith({});
@@ -103,7 +98,7 @@ describe('kychon CLI thin SDK wrapper', () => {
   it('returns non-zero when portal configuration is missing', async () => {
     const out = io({});
 
-    await expect(runKychonCli(['api', 'discover'], out, () => fakeClient() as any)).resolves.toBe(1);
+    await expect(runKychonCli(['api', 'discover'], out, () => fakeClient())).resolves.toBe(1);
     expect(out.stderr.write).toHaveBeenCalledWith(expect.stringContaining('Missing --portal'));
   });
 });

@@ -11,7 +11,7 @@ const configRows = [
 
 function installLocalStorage(): Record<string, string> {
   const store: Record<string, string> = {};
-  vi.stubGlobal('localStorage', {
+  const storage = {
     getItem: (k: string) => (k in store ? store[k] : null),
     setItem: (k: string, v: string) => {
       store[k] = String(v);
@@ -22,12 +22,27 @@ function installLocalStorage(): Record<string, string> {
     clear: () => {
       for (const k of Object.keys(store)) delete store[k];
     },
-  });
+  };
+  vi.stubGlobal('localStorage', storage);
+  Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true });
+  Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
   return store;
 }
 
 function writeCache(store: Record<string, string>, key: string, data: unknown, ts = Date.now()): void {
   store[key] = JSON.stringify({ data, ts });
+}
+
+function capabilityResponse(data: unknown) {
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ ok: true, correlationId: 'test', data }),
+  };
+}
+
+function envelopeFrom(init?: RequestInit) {
+  return JSON.parse(String(init?.body || '{}'));
 }
 
 function mountPortalShell(): void {
@@ -83,19 +98,53 @@ async function hydrateFromCachedSections(sections: Section[], session?: unknown)
   writeCache(store, 'wl_cache_sections_index', sections, Date.now() - 10 * 60 * 1000);
   mountPortalShell();
 
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(JSON.stringify(sections)),
-      json: () => Promise.resolve(sections),
-    }),
-  );
-
   const testWindow = window as Window & { __KYCHON_API: string; __KYCHON_ANON_KEY: string };
   testWindow.__KYCHON_API = 'https://api.test';
   testWindow.__KYCHON_ANON_KEY = 'test_key';
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url: string, init?: RequestInit) => {
+      const envelope = envelopeFrom(init);
+      if (envelope.operation === 'sections.list') return capabilityResponse({ rows: sections, count: sections.length });
+      if (envelope.operation === 'auth.whoami') {
+        return capabilityResponse({
+          actor: {
+            state: session ? 'active_member' : 'anonymous',
+            authenticated: Boolean(session),
+            user: session ? { id: 'session-user', email: 'demo@example.test' } : null,
+            member: session
+              ? {
+                  id: '7',
+                  userId: 'session-user',
+                  email: 'demo@example.test',
+                  displayName: 'Demo Member',
+                  role: 'member',
+                  status: 'active',
+                }
+              : null,
+            authority: { projectAdmin: false, activeMemberAdmin: false },
+          },
+        });
+      }
+      if (envelope.operation === 'members.list') {
+        return capabilityResponse({
+          rows: [
+            {
+              id: 7,
+              user_id: 'session-user',
+              email: 'demo@example.test',
+              display_name: 'Demo Member',
+              role: 'member',
+              status: 'active',
+            },
+          ],
+          count: 1,
+        });
+      }
+      return capabilityResponse({ rows: [], count: 0 });
+    }),
+  );
 
   const { init } = await import('../../src/lib/config');
   const { hydratePage } = await import('../../src/lib/page-render');

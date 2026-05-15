@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // happy-dom env from vitest project config provides document/window/localStorage.
 // We mock window globals required by api.ts.
 beforeEach(() => {
-  (globalThis as any).window.__KYCHON_API = 'https://api.test';
-  (globalThis as any).window.__KYCHON_ANON_KEY = 'test_key';
+  window.__KYCHON_API = 'https://api.test';
+  window.__KYCHON_ANON_KEY = 'test_key';
   // happy-dom's localStorage isn't always wired in time — provide a shim.
   const store: Record<string, string> = {};
   vi.stubGlobal('localStorage', {

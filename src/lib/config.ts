@@ -438,15 +438,20 @@ async function findMemberForSession(session: any): Promise<any | null> {
   }
 
   if (member && userId && member.user_id !== userId && member.role === 'admin') {
-    patchMemberUserId(member.id, userId).catch(() => {});
+    try {
+      await patchMemberUserId(member.id, userId, session);
+      member = { ...member, user_id: userId };
+    } catch {
+      // Keep the existing session usable; linking can be retried on a later load.
+    }
   }
   return member;
 }
 
-async function patchMemberUserId(memberId: unknown, userId: string): Promise<void> {
+async function patchMemberUserId(memberId: unknown, userId: string, session: any): Promise<void> {
   if (!memberId || !userId) return;
   const { patch } = await import('./api.js');
-  await patch(`members?id=eq.${memberId}`, { user_id: userId });
+  await patch(`members?id=eq.${memberId}`, { user_id: userId }, session);
 }
 
 export async function refreshMemberRecord(): Promise<void> {
