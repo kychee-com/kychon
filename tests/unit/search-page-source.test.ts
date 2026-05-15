@@ -25,12 +25,19 @@ describe('search results page source', () => {
     expect(app).toContain('dangerouslySetInnerHTML');
     expect(app).toContain('Search pagination');
     expect(app).toContain('Card');
+    expect(app).toContain('Button');
+    expect(app).toContain('Badge');
+    expect(app).toContain('[&_mark]:bg-primary/20');
   });
 
-  it('has mobile-safe styles for filters and results', () => {
-    expect(css).toContain('.search-page__filters');
-    expect(css).toContain('.search-result__snippet mark');
-    expect(css).toContain('@media (max-width: 640px)');
-    expect(css).toContain('.search-page__bar');
+  it('keeps retired search-page CSS primitives out of source', () => {
+    expect(app).toContain('flex flex-col gap-2 sm:flex-row');
+    expect(app).toContain('flex flex-wrap gap-2');
+    expect(app).not.toContain('search-page__');
+    expect(app).not.toContain('search-result__');
+    expect(css).not.toContain('.search-page__');
+    expect(css).not.toContain('.search-result');
+    expect(css).not.toContain('.search-filter');
+    expect(css).not.toContain('.search-state');
   });
 });
