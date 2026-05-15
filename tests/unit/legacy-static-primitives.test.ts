@@ -10,6 +10,8 @@ const EVENT_CALENDAR_RUNTIME = resolve(process.cwd(), 'src/lib/blocks/events-cal
 const EVENT_CALENDAR_VIEW = resolve(process.cwd(), 'src/components/kychon/EventsCalendarBlockView.tsx');
 const GLOBAL_STYLES = resolve(process.cwd(), 'src/styles/globals.css');
 const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
+const A11Y_STYLES = resolve(process.cwd(), 'src/styles/a11y.css');
+const PUBLIC_A11Y_STYLES = resolve(process.cwd(), 'public/css/a11y.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
 const CONFIG = resolve(process.cwd(), 'src/lib/config.ts');
 const PORTAL = resolve(process.cwd(), 'src/layouts/Portal.astro');
@@ -61,6 +63,8 @@ describe('legacy static UI primitives', () => {
     const eventCalendarView = await readFile(EVENT_CALENDAR_VIEW, 'utf8');
     const globalStyles = await readFile(GLOBAL_STYLES, 'utf8');
     const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
+    const a11yStyles = await readFile(A11Y_STYLES, 'utf8');
+    const publicA11yStyles = await readFile(PUBLIC_A11Y_STYLES, 'utf8');
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
     const config = await readFile(CONFIG, 'utf8');
     const portal = await readFile(PORTAL, 'utf8');
@@ -102,6 +106,14 @@ describe('legacy static UI primitives', () => {
     expect(globalStyles).not.toContain('nav-dropdown.css');
     expect(adminStyles).not.toContain('block-embed');
     expect(adminStyles).not.toContain('.admin-drop-indicator');
+    for (const stylesheet of [a11yStyles, publicA11yStyles]) {
+      expect(stylesheet).toContain('.wl-skip-nav');
+      expect(stylesheet).toContain('.wl-high-contrast');
+      expect(stylesheet).toContain('.wl-reduced-motion');
+      expect(stylesheet).toContain('.wl-sr-live');
+      expect(stylesheet).not.toContain('wl-a11y');
+      expect(stylesheet).not.toContain('.wl-toggle');
+    }
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');
