@@ -4,6 +4,7 @@
 // Supports: text, rich text (Tiptap), image upload, JSONB paths, drag reorder
 ---
 <div id="admin-editor-root"></div>
+<input id="admin-image-upload-input" type="file" accept="image/*" hidden aria-hidden="true" tabindex="-1" />
 <div id="admin-editor-controls-root" transition:persist></div>
 
 <script>
@@ -360,6 +361,8 @@
 
   // --- Image editing via click-to-upload (base64 JSON) ---
   const boundImage = new WeakSet();
+  let pendingImageTarget: HTMLElement | null = null;
+  let boundImageUploadInput: HTMLInputElement | null = null;
 
   // brand-identity-fields: client-side aspect-ratio check for brand_icon_url
   // uploads. Mirrors functions/upload-asset.js's server-side heuristic. When
@@ -420,6 +423,73 @@
     });
   }
 
+  function imageUploadInput(): HTMLInputElement | null {
+    const input = document.getElementById('admin-image-upload-input') as HTMLInputElement | null;
+    if (!input) return null;
+    if (boundImageUploadInput !== input) {
+      input.addEventListener('change', async () => {
+        const file = input.files?.[0] || null;
+        const htmlEl = pendingImageTarget;
+        pendingImageTarget = null;
+        input.value = '';
+        if (!file || !htmlEl) return;
+        await uploadEditableImage(htmlEl, file);
+      });
+      boundImageUploadInput = input;
+    }
+    return input;
+  }
+
+  async function uploadEditableImage(htmlEl: HTMLElement, file: File) {
+    // Show upload state
+    htmlEl.classList.add('uploading');
+
+    try {
+      const attr = htmlEl.dataset.editableImage!;
+      const target = parseEditTarget(attr);
+
+      // Read dimensions in parallel with the upload — it's a hint, so we
+      // don't block the upload on it. (Failures are silent.)
+      const dimsPromise = isBrandIconTarget(target)
+        ? readImageDimensions(file).catch(() => null)
+        : Promise.resolve(null);
+
+      // Upload via Run402's content-addressed flow.
+      const { url } = await uploadFileContentAddressed(file, {
+        keyPrefix: 'assets',
+        authToken: getToken(),
+      });
+
+      // Update the image element
+      const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
+      if (img) img.src = url;
+
+      // Save URL to database
+      if (target) {
+        await saveField(htmlEl, target, url);
+      }
+      showToast('Image uploaded');
+
+      // brand_icon_url aspect-ratio hint (client-side mirror of the
+      // server-side check in functions/upload-asset.js). Surfaces only
+      // when uploading to the icon slot AND the image is much wider
+      // than tall.
+      const dims = await dimsPromise;
+      if (
+        isBrandIconTarget(target) &&
+        dims &&
+        dims.width > WORDMARK_ASPECT_THRESHOLD * dims.height
+      ) {
+        showWordmarkHint(htmlEl, url, dims);
+      }
+    } catch (e) {
+      console.error('Image upload error:', e);
+      showToast('Upload failed', 'error');
+    } finally {
+      htmlEl.classList.remove('uploading');
+    }
+  }
+
   function initEditableImage() {
     document.querySelectorAll('[data-editable-image]').forEach((el) => {
       if (boundImage.has(el)) return;
@@ -430,61 +500,13 @@
         // Don't trigger image upload if clicking a child text-editable element
         const target = e.target as HTMLElement;
         if (target.closest('[data-editable]') || target.closest('[data-editable-rich]')) return;
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.addEventListener('change', async () => {
-          const file = input.files?.[0];
-          if (!file) return;
-
-          // Show upload state
-          htmlEl.classList.add('uploading');
-
-          try {
-            const attr = htmlEl.dataset.editableImage!;
-            const target = parseEditTarget(attr);
-
-            // Read dimensions in parallel with the upload — it's a hint, so we
-            // don't block the upload on it. (Failures are silent.)
-            const dimsPromise = isBrandIconTarget(target)
-              ? readImageDimensions(file).catch(() => null)
-              : Promise.resolve(null);
-
-            // Upload via Run402's content-addressed flow.
-            const { url } = await uploadFileContentAddressed(file, {
-              keyPrefix: 'assets',
-              authToken: getToken(),
-            });
-
-            // Update the image element
-            const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
-            if (img) img.src = url;
-
-            // Save URL to database
-            if (target) {
-              await saveField(htmlEl, target, url);
-            }
-            showToast('Image uploaded');
-
-            // brand_icon_url aspect-ratio hint (client-side mirror of the
-            // server-side check in functions/upload-asset.js). Surfaces only
-            // when uploading to the icon slot AND the image is much wider
-            // than tall.
-            const dims = await dimsPromise;
-            if (
-              isBrandIconTarget(target) &&
-              dims &&
-              dims.width > WORDMARK_ASPECT_THRESHOLD * dims.height
-            ) {
-              showWordmarkHint(htmlEl, url, dims);
-            }
-          } catch (e) {
-            console.error('Image upload error:', e);
-            showToast('Upload failed', 'error');
-          } finally {
-            htmlEl.classList.remove('uploading');
-          }
-        });
+        const input = imageUploadInput();
+        if (!input) {
+          showToast('Image upload unavailable', 'error');
+          return;
+        }
+        pendingImageTarget = htmlEl;
+        input.value = '';
         input.click();
       });
     });

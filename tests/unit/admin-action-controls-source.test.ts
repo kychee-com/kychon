@@ -127,6 +127,14 @@ describe('admin action controls source', () => {
     expect(styles).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
   });
 
+  it('uses a static image upload input instead of creating file inputs on click', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+
+    expect(editor).toContain('id="admin-image-upload-input"');
+    expect(editor).toContain('imageUploadInput');
+    expect(editor).not.toContain("document.createElement('input')");
+  });
+
   it('renders admin actions with shared variant classes instead of legacy primitives', () => {
     const html = [
       renderBlock(section('custom', { html: '<p>Custom</p>' }), adminCtx),
