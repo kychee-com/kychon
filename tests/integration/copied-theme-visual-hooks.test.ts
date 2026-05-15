@@ -65,7 +65,8 @@ describe('copied-theme visual verification hooks', () => {
     expect(carouselHtml).toContain('data-block-hydrate="slideshow"');
     expect(carouselHtml).toContain('data-auto-ms="4000"');
     expect(carouselHtml).toContain('data-slide-next');
-    expect(styles).toContain('.block-slideshow__arrow:hover');
+    expect(carouselHtml).toContain('hover:bg-[var(--slideshow-arrow-hover-bg');
+    expect(styles).not.toContain('block-slideshow');
 
     expect(shapeHtml).toContain('data-top-color="#ffffff"');
     expect(shapeHtml).toContain('data-bottom-color="#17324d"');

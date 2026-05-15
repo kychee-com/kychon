@@ -28,10 +28,10 @@ const STATES = new WeakMap<HTMLElement, SlideshowState>();
 
 export function initSlideshow(root: HTMLElement): void {
   if (root.dataset.hydrated === 'true') return;
-  const slides = Array.from(root.querySelectorAll<HTMLElement>('.block-slideshow__slide'));
+  const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-slideshow-slide]'));
   if (slides.length <= 0) return;
-  const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('.block-slideshow__dot'));
-  const live = root.querySelector<HTMLElement>('.block-slideshow__live');
+  const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-slideshow-dot]'));
+  const live = root.querySelector<HTMLElement>('[data-slideshow-live]');
   const reduced =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -175,27 +175,27 @@ function setActive(state: SlideshowState, raw: number, announce: boolean): void 
   const total = state.slides.length;
   if (total === 0) return;
   const next = ((raw % total) + total) % total;
-  if (next === state.index && state.slides[next]?.classList.contains('is-active')) {
+  if (next === state.index && state.slides[next]?.dataset.active === 'true') {
     // Already correct (initial paint); nothing to do.
   }
   for (let i = 0; i < total; i++) {
     const slide = state.slides[i];
     if (!slide) continue;
     const isActive = i === next;
-    slide.classList.toggle('is-active', isActive);
+    slide.dataset.active = isActive ? 'true' : 'false';
   }
   for (let i = 0; i < state.dots.length; i++) {
     const dot = state.dots[i];
     if (!dot) continue;
     const isActive = i === next;
-    dot.classList.toggle('is-active', isActive);
+    dot.dataset.active = isActive ? 'true' : 'false';
     if (isActive) dot.setAttribute('aria-current', 'true');
     else dot.removeAttribute('aria-current');
   }
   state.index = next;
   if (announce && state.live) {
     const nextSlide = state.slides[next];
-    const cap = nextSlide?.querySelector<HTMLElement>('.block-slideshow__caption');
+    const cap = nextSlide?.querySelector<HTMLElement>('[data-slideshow-caption]');
     state.live.textContent = cap?.textContent?.trim() || `Slide ${next + 1} of ${total}`;
   }
 }
