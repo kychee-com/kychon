@@ -1,71 +1,10 @@
 ---
+import CustomPageApp from '../components/kychon/CustomPageApp';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Page">
-  <div class="ky-container">
-    <h1 id="page-title"></h1>
-    <div id="page-content" class="mt-2"></div>
+  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <CustomPageApp client:load />
   </div>
-  <div id="sections" class="mt-2" data-sortable-group="page-sections" data-zone="main"></div>
+  <div id="sections" class="mt-8" data-sortable-group="page-sections" data-zone="main"></div>
 </Portal>
-
-<script>
-  import { get } from '../lib/api';
-  import { isAdmin, isAuthenticated } from '../lib/auth';
-  import { resolveCustomPageSlugFromLocation } from '../lib/clean-routes';
-  import { translateItems } from '../lib/config';
-
-  async function initPage() {
-    const titleEl = document.getElementById('page-title');
-    const contentEl = document.getElementById('page-content');
-    const sectionsContainer = document.getElementById('sections');
-    if (!titleEl || !contentEl || !sectionsContainer) return;
-
-    titleEl.textContent = '';
-    contentEl.innerHTML = '';
-    sectionsContainer.innerHTML = '';
-
-    const slug = resolveCustomPageSlugFromLocation(window.location.pathname, window.location.search);
-    if (!slug) {
-      titleEl.textContent = 'Page not found';
-      return;
-    }
-
-    try {
-      const pages = await get(`pages?slug=eq.${encodeURIComponent(slug)}&published=eq.true&limit=1`);
-      if (pages.length === 0) {
-        titleEl.textContent = 'Page not found';
-        return;
-      }
-
-      const page = pages[0];
-      await translateItems('page', [page], ['title', 'content']);
-
-      if (page.requires_auth && !isAuthenticated()) {
-        const { navigate } = await import('astro:transitions/client');
-        navigate('/');
-        return;
-      }
-
-      document.title = page.title;
-      titleEl.textContent = page.title;
-      if (isAdmin()) {
-        titleEl.setAttribute('data-editable', `pages.${page.id}.title`);
-      }
-      if (page.content) {
-        contentEl.innerHTML = page.content;
-        if (isAdmin()) {
-          contentEl.setAttribute('data-editable-rich', `pages.${page.id}.content`);
-        }
-      }
-    } catch (_e) {
-      titleEl.textContent = 'Error loading page';
-      return;
-    }
-  }
-
-  initPage();
-  document.addEventListener('astro:after-swap', initPage);
-  document.addEventListener('wl-locale-changed', initPage);
-  document.addEventListener('wl-auth-changed', initPage);
-</script>

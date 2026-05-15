@@ -52,6 +52,8 @@ const ALLOWED_TAGS = new Set([
   'td',
 ]);
 
+const DROP_WITH_CONTENT_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed']);
+
 const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
   a: new Set(['href', 'title', 'target', 'rel']),
   img: new Set(['src', 'alt', 'title', 'width', 'height']),
@@ -120,6 +122,10 @@ function walk(node: Node): void {
       const el = child as Element;
       const tag = el.tagName.toLowerCase();
       if (!ALLOWED_TAGS.has(tag)) {
+        if (DROP_WITH_CONTENT_TAGS.has(tag)) {
+          el.remove();
+          continue;
+        }
         // Drop the element but keep its (recursively sanitized) children.
         const parent = el.parentNode!;
         for (const grand of Array.from(el.childNodes)) parent.insertBefore(grand, el);
