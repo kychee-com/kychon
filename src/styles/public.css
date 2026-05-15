@@ -410,93 +410,6 @@ a:hover {
   color: var(--foreground, var(--color-text));
   z-index: 2;
 }
-.nav-avatar {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  object-fit: cover;
-  aspect-ratio: 1;
-}
-.nav-utility-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  padding: 0;
-}
-.nav-sign-in {
-  min-width: 4.75rem;
-  white-space: nowrap;
-}
-.nav-account {
-  position: relative;
-}
-.nav-account summary {
-  list-style: none;
-}
-.nav-account summary::-webkit-details-marker {
-  display: none;
-}
-.nav-avatar-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  cursor: pointer;
-}
-.nav-avatar-button:focus-visible {
-  outline: 2px solid var(--ring, var(--color-primary));
-  outline-offset: 2px;
-}
-.nav-avatar-fallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 0.875rem;
-  font-weight: 700;
-}
-.nav-account-menu {
-  position: absolute;
-  top: calc(100% + 0.45rem);
-  right: 0;
-  z-index: 80;
-  display: grid;
-  min-width: 10rem;
-  padding: 0.35rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-bg);
-  box-shadow: var(--shadow-md);
-}
-.nav-account:not([open]) .nav-account-menu {
-  display: none;
-}
-.nav-account-menu__item {
-  display: block;
-  width: 100%;
-  padding: 0.55rem 0.7rem;
-  border: 0;
-  border-radius: calc(var(--radius) * 0.75);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  font-size: 0.875rem;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-.nav-account-menu__item:hover,
-.nav-account-menu__item:focus {
-  background: var(--color-surface);
-  color: var(--color-primary);
-  outline: none;
-}
 .card img {
   aspect-ratio: 8 / 3;
   object-fit: cover;
@@ -2933,38 +2846,11 @@ tr:hover td {
   .nav {
     --nav-header-gap: 0.5rem;
   }
-  .nav-sign-in {
-    min-width: 0;
-    padding-inline: 0.75rem;
-  }
   .brand-header .brand-text--full,
   .brand-header .brand-text--short {
     white-space: nowrap;
   }
   .brand-header .brand-subtitle {
     display: none;
-  }
-}
-@media (max-width: 430px) {
-  .nav-sign-in {
-    max-width: 4.8rem;
-    padding-block: 0.25rem;
-    padding-inline: 0.55rem;
-    line-height: 1.05;
-    white-space: normal;
-  }
-}
-@media (max-width: 360px) {
-  .nav-sign-in {
-    width: 2.25rem;
-    min-width: 2.25rem;
-    max-width: 2.25rem;
-    padding: 0;
-    font-size: 0;
-  }
-  .nav-sign-in::before {
-    content: "In";
-    font-size: 0.75rem;
-    line-height: 1;
   }
 }
