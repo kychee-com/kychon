@@ -25,6 +25,7 @@ import {
   renderEventsCalendarChipHtml,
   renderEventsCalendarControlsHtml,
   renderEventsCalendarEmptyHtml,
+  renderEventsCalendarMoreButtonHtml,
   renderEventsCalendarPeekOverlayHtml,
   type EventsCalendarControlsLabels,
   type EventsCalendarPeekAvatar,
@@ -405,7 +406,10 @@ function renderMonthView(state: State, locale: string, _ctx: BlockRenderContext)
       const visible = events.slice(0, 3);
       const overflow = events.length - visible.length;
       const overflowHtml = overflow > 0
-        ? `<button type="button" class="block-events-calendar__more" data-day-peek="${escAttr(dayKey(cellDate))}">+${overflow} ${escHtml(t('more', locale))}</button>`
+        ? renderEventsCalendarMoreButtonHtml({
+          day: dayKey(cellDate),
+          label: `+${overflow} ${t('more', locale)}`,
+        })
         : '';
       const chipsHtml = visible.map((e) => renderEventChip(e, state, locale, now, state.density)).join('');
       const ariaLabel = `${fmtDateLong(cellDate, locale)}, ${events.length} ${events.length === 1 ? 'event' : 'events'}`;

@@ -80,6 +80,11 @@ export interface EventsCalendarChipProps {
   title: string;
 }
 
+export interface EventsCalendarMoreButtonProps {
+  day: string;
+  label: string;
+}
+
 export interface EventsCalendarPeekItem {
   avatarOverflow: number;
   avatars: EventsCalendarPeekAvatar[];
@@ -313,6 +318,20 @@ function EventsCalendarChip({
   );
 }
 
+function EventsCalendarMoreButton({ day, label }: EventsCalendarMoreButtonProps) {
+  return (
+    <Button
+      className="h-auto justify-start px-1 py-0 text-xs"
+      data-day-peek={day}
+      size="sm"
+      type="button"
+      variant="link"
+    >
+      {label}
+    </Button>
+  );
+}
+
 function EventsCalendarPeekOverlay({
   addToCalendarLabel,
   closeLabel,
@@ -391,6 +410,10 @@ export function renderEventsCalendarControlsHtml(props: EventsCalendarControlsPr
 
 export function renderEventsCalendarChipHtml(props: EventsCalendarChipProps): string {
   return renderToStaticMarkup(<EventsCalendarChip {...props} />);
+}
+
+export function renderEventsCalendarMoreButtonHtml(props: EventsCalendarMoreButtonProps): string {
+  return renderToStaticMarkup(<EventsCalendarMoreButton {...props} />);
 }
 
 export function renderEventsCalendarEmptyHtml(props: EventsCalendarEmptyProps): string {

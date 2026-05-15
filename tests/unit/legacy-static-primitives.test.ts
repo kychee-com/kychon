@@ -75,6 +75,7 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__chip');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__avatar');
     expect(eventCalendarRuntime).not.toContain('block-events-calendar__badge');
+    expect(eventCalendarRuntime).not.toContain('block-events-calendar__more');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__controls');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__seg-btn');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__filter-chip');
@@ -83,6 +84,7 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarStyles).not.toContain('block-events-calendar__chip');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__avatar');
     expect(eventCalendarStyles).not.toContain('block-events-calendar__badge');
+    expect(eventCalendarStyles).not.toContain('block-events-calendar__more');
     expect(adminStyles).not.toContain('block-embed');
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
