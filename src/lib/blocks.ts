@@ -4,7 +4,6 @@
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
-import { get } from './api.js';
 import { getSession } from './auth.js';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
 
@@ -836,45 +835,30 @@ const EVENT_COUNTDOWN: BlockType = {
   defaultConfig: { heading: 'Next Event' },
   render(section, ctx) {
     const cfg = section.config || {};
-    const heading = cfg.heading ? `<h2 class="mb-2">${escHtml(cfg.heading)}</h2>` : '';
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="event_countdown">${heading}<div class="skeleton skeleton-card"></div></div>`,
-      'section section-event-countdown',
+      `<div class="ky-container" data-block-hydrate="event_countdown" data-config="${jsonAttr(cfg)}"></div>`,
+      'section w-full py-8',
     );
   },
-  async hydrate(el, _section, ctx) {
+  async hydrate(el, section, ctx) {
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      el.style.display = 'none';
+      el.hidden = true;
       return;
     }
     const container = el.querySelector('[data-block-hydrate="event_countdown"]') as HTMLElement | null;
     if (!container) return;
+    let cfg: Record<string, unknown> = section.config || {};
     try {
-      const events = await get('events?starts_at=gte.now()&order=starts_at.asc&limit=1');
-      const skeleton = container.querySelector('.skeleton');
-      if (skeleton) skeleton.remove();
-      if (!events.length) {
-        container.innerHTML += '<p class="ky-text-muted">No upcoming events.</p>';
-        return;
-      }
-      const evt = events[0];
-      const startsAt = new Date(evt.starts_at).getTime();
-      const update = () => {
-        const now = Date.now();
-        const diff = Math.max(0, startsAt - now);
-        const days = Math.floor(diff / 86400000);
-        const hours = Math.floor((diff % 86400000) / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        container.querySelector('[data-countdown]')!.textContent = `${days}d ${hours}h ${mins}m`;
-      };
-      container.innerHTML += `<div class="card"><h3>${escHtml(evt.title)}</h3><p data-countdown></p></div>`;
-      update();
-      setInterval(update, 60000);
-    } catch (e) {
-      console.warn('event_countdown hydrate failed:', e);
-    }
+      cfg = { ...cfg, ...JSON.parse(container.getAttribute('data-config') || '{}') };
+    } catch {}
+    const { mountEventCountdownIsland } = await import('@/components/kychon/EventCountdownIsland');
+    mountEventCountdownIsland(container, {
+      config: cfg,
+      headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
+    });
+    container.dataset.hydrated = 'true';
   },
 };
 

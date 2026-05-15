@@ -1655,51 +1655,6 @@ tr:hover td {
   color: var(--color-primary);
 }
 
-/* Event countdown */
-.section-event-countdown {
-  text-align: center;
-  background: var(--color-surface);
-  border-radius: var(--radius);
-  padding: 3rem 2rem;
-}
-.section-event-countdown h3 {
-  margin-bottom: 0.5rem;
-}
-.countdown-digits {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  margin: 1.5rem 0;
-}
-.countdown-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.countdown-value {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: var(--color-primary);
-  line-height: 1;
-}
-.countdown-label {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 0.25rem;
-}
-.countdown-event-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-.countdown-event-title a {
-  color: var(--color-text);
-}
-.countdown-event-title a:hover {
-  color: var(--color-primary);
-}
-
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .section {
