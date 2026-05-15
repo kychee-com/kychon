@@ -63,6 +63,7 @@ describe('admin action controls source', () => {
       expect(source).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
       expect(source).not.toMatch(/(?:\.|["' ])admin-tooltip-close\b/);
+      expect(source).not.toMatch(/(?:\.|["' ])admin-upload-spinner\b/);
     }
   });
 

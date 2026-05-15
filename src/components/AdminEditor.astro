@@ -404,10 +404,6 @@
 
           // Show upload state
           htmlEl.classList.add('uploading');
-          const spinner = document.createElement('div');
-          spinner.className = 'admin-upload-spinner';
-          htmlEl.style.position = 'relative';
-          htmlEl.appendChild(spinner);
 
           try {
             const attr = htmlEl.dataset.editableImage!;
@@ -452,7 +448,6 @@
             showToast('Upload failed', 'error');
           } finally {
             htmlEl.classList.remove('uploading');
-            spinner.remove();
           }
         });
         input.click();
