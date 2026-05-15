@@ -21,18 +21,6 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function timeAgo(iso: string): string {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
 function canReadMemberOnlyCapabilities(session: any, role: string | null | undefined): boolean {
   const member = session?.user?.member;
   return (
@@ -194,43 +182,11 @@ export async function hydrateActivityFeed(
 ): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="activity_feed"]') as HTMLElement | null;
   if (!root) return;
-  const feed = root.querySelector('#activity-feed') as HTMLElement | null;
-  if (!feed) return;
-
-  const cfg = section.config || {};
-  const limit = cfg.limit || 15;
-  const session = getSession();
-
-  if (!canReadMemberOnlyCapabilities(session, ctx.role)) {
-    feed.innerHTML = '<p class="ky-text-muted">Sign in as a member to see recent activity.</p>';
-    return;
-  }
-
-  try {
-    const entries = await get(`activity_log?order=created_at.desc&limit=${limit}`);
-    if (entries.length === 0) {
-      feed.innerHTML = '<p class="ky-text-muted">No recent activity yet.</p>';
-      return;
-    }
-    const memberIds = [...new Set(entries.map((e: any) => e.member_id).filter(Boolean))];
-    const membersMap: Record<number, any> = {};
-    if (memberIds.length > 0) {
-      const members = await get(`members?id=in.(${memberIds.join(',')})`);
-      for (const m of members) membersMap[m.id] = m;
-    }
-    feed.innerHTML = entries
-      .map((e: any) => {
-        const member = membersMap[e.member_id];
-        const name = member ? member.display_name : 'Former member';
-        const avatar = member?.avatar_url
-          ? `<img class="activity-avatar" src="${esc(member.avatar_url)}" alt="">`
-          : `<div class="activity-avatar activity-avatar-fallback">${(name[0] || '?').toUpperCase()}</div>`;
-        return `<div class="activity-entry">${avatar}<div class="activity-entry-content"><div class="activity-entry-text"><strong>${esc(name)}</strong> was active</div><div class="activity-entry-time">${timeAgo(e.created_at)}</div></div></div>`;
-      })
-      .join('');
-  } catch {
-    feed.innerHTML = '<p class="ky-text-muted">Could not load activity.</p>';
-  }
+  const { mountActivityFeedIsland } = await import('@/components/kychon/ActivityFeedIsland');
+  mountActivityFeedIsland(root, {
+    limit: Number(section.config?.limit || 15),
+    role: ctx.role || null,
+  });
 }
 
 export async function hydrateSiteSearch(
