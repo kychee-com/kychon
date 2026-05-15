@@ -23,44 +23,31 @@ describe('events_list block-type', () => {
     expect(t.zoneHints).toContain('main');
   });
 
-  it('emits hydration skeleton with config payload', () => {
+  it('emits shadcn island host with config payload', () => {
     const html = renderBlock(
       eventsSection({ heading: 'Upcoming', count: 4, filter: 'upcoming', layout: 'sidebar' }),
       ctx,
     );
     expect(html).toContain('data-block-hydrate="events_list"');
-    expect(html).toContain('block-events-list--sidebar');
-    expect(html).toContain('block-events-list__skeleton');
-    expect(html).toContain('Upcoming');
+    expect(html).toContain('&quot;heading&quot;:&quot;Upcoming&quot;');
     expect(html).toContain('data-config=');
+    expect(html).not.toContain('block-events-list__');
+    expect(html).not.toContain('event-skeleton-card');
   });
 
-  it('skeleton card count matches config.count', () => {
+  it('count is preserved in the island config', () => {
     const html = renderBlock(eventsSection({ heading: '', count: 6, filter: 'upcoming', layout: 'list' }), ctx);
-    const cards = html.match(/event-skeleton-card/g) || [];
-    expect(cards.length).toBe(6);
+    expect(html).toContain('&quot;count&quot;:6');
   });
 
-  it.each(['sidebar', 'grid', 'list'])('layout=%s emits modifier class', (layout) => {
+  it.each(['sidebar', 'grid', 'list'])('layout=%s is preserved for the island', (layout) => {
     const html = renderBlock(eventsSection({ heading: '', count: 1, filter: 'upcoming', layout }), ctx);
-    expect(html).toContain(`block-events-list--${layout}`);
+    expect(html).toContain(`&quot;layout&quot;:&quot;${layout}&quot;`);
   });
 
-  it('count clamps to a minimum of 1 for negative input', () => {
-    const html = renderBlock(eventsSection({ count: -3, layout: 'sidebar' }), ctx);
-    const cards = html.match(/event-skeleton-card/g) || [];
-    expect(cards.length).toBe(1);
-  });
-
-  it('count=0 falls back to default 4', () => {
-    const html = renderBlock(eventsSection({ count: 0, layout: 'sidebar' }), ctx);
-    const cards = html.match(/event-skeleton-card/g) || [];
-    expect(cards.length).toBe(4);
-  });
-
-  it('color_scheme adds modifier class', () => {
+  it('color_scheme is preserved for the island', () => {
     const html = renderBlock(eventsSection({ count: 1, layout: 'sidebar', color_scheme: 'accent' }), ctx);
-    expect(html).toContain('block-events-list--accent');
+    expect(html).toContain('&quot;color_scheme&quot;:&quot;accent&quot;');
   });
 
   it('default config has filter=upcoming, layout=sidebar', () => {

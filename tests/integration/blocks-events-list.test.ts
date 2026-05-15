@@ -27,11 +27,7 @@ afterEach(() => {
 function makeWrapper(cfg: Record<string, unknown>): HTMLElement {
   const wrapper = document.createElement('section');
   wrapper.innerHTML = `
-    <div class="ky-container" data-block-hydrate="events_list" data-config='${JSON.stringify(cfg)}'>
-      <div class="block-events-list__skeleton">
-        <div class="event-skeleton-card"></div>
-      </div>
-    </div>
+    <div class="ky-container" data-block-hydrate="events_list" data-config='${JSON.stringify(cfg)}'></div>
   `;
   document.body.appendChild(wrapper);
   return wrapper;
@@ -50,7 +46,7 @@ function envelope(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe('hydrateEventsList', () => {
   it('upcoming filter hits gte.now', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(capabilityResponse([]));
+    const fetchMock = vi.fn().mockResolvedValue(capabilityResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = makeWrapper({ count: 3, filter: 'upcoming', layout: 'sidebar' });
@@ -61,6 +57,7 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = envelope(fetchMock);
     expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/kychon-api');
     expect(body).toMatchObject({ operation: 'events.list', phase: 'query', input: { limit: 3 } });
@@ -73,7 +70,7 @@ describe('hydrateEventsList', () => {
   });
 
   it('past filter inverts ordering', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(capabilityResponse([]));
+    const fetchMock = vi.fn().mockResolvedValue(capabilityResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = makeWrapper({ count: 4, filter: 'past', layout: 'list' });
@@ -84,6 +81,7 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = envelope(fetchMock);
     expect(body.input.filters).toEqual(
       expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]),
@@ -94,7 +92,7 @@ describe('hydrateEventsList', () => {
   });
 
   it('this_week filter window has both gte and lt bounds', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(capabilityResponse([]));
+    const fetchMock = vi.fn().mockResolvedValue(capabilityResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = makeWrapper({ count: 5, filter: 'this_week', layout: 'sidebar' });
@@ -105,13 +103,14 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const filters = envelope(fetchMock).input.filters;
     expect(filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]));
     expect(filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]));
   });
 
   it('empty result shows placeholder', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(capabilityResponse([])));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(capabilityResponse([])));
     const wrapper = makeWrapper({ count: 2, filter: 'upcoming', layout: 'sidebar' });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
@@ -119,7 +118,9 @@ describe('hydrateEventsList', () => {
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
-    expect(wrapper.querySelector('.block-events-list__empty')?.textContent).toContain('No upcoming events');
+    await vi.waitFor(() => {
+      expect(wrapper.querySelector('[data-events-list-empty]')?.textContent).toContain('No upcoming events');
+    });
   });
 
   it('hides when feature is disabled', async () => {
@@ -132,16 +133,14 @@ describe('hydrateEventsList', () => {
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: (flag) => flag !== 'feature_events' },
     );
-    expect(wrapper.style.display).toBe('none');
+    expect(wrapper.hidden).toBe(true);
   });
 
   it('renders cards with localized date strings', async () => {
     const future = new Date(Date.now() + 86400000 * 3).toISOString();
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce(capabilityResponse([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
+      vi.fn().mockResolvedValue(capabilityResponse([{ id: 1, title: 'Picnic', location: 'Park', starts_at: future }])),
     );
 
     const wrapper = makeWrapper({
@@ -158,8 +157,9 @@ describe('hydrateEventsList', () => {
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
 
-    expect(wrapper.querySelectorAll('.event-card').length).toBe(1);
-    expect(wrapper.querySelector('.event-card__title')?.textContent).toBe('Picnic');
-    expect(wrapper.querySelector('.event-card__location')?.textContent).toBe('Park');
+    await vi.waitFor(() => expect(wrapper.querySelectorAll('[data-event-card]').length).toBe(1));
+    expect(wrapper.textContent).toContain('Picnic');
+    expect(wrapper.textContent).toContain('Park');
+    expect(wrapper.querySelector('.event-card')).toBeNull();
   });
 });
