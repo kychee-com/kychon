@@ -1,4 +1,8 @@
-import { badgeVariants, buttonVariants } from '@/components/kychon/ui';
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { GripVertical, Pencil, Settings, X } from 'lucide-react';
+
+import { Badge, Button } from '@/components/kychon/ui';
 
 function attr(value: unknown): string {
   return String(value ?? '')
@@ -9,64 +13,119 @@ function attr(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-const iconButtonClass = buttonVariants({
-  variant: 'outline',
-  size: 'icon',
-  className: 'h-7 w-7 bg-background/90 text-foreground shadow-sm',
-});
-
-const destructiveIconButtonClass = buttonVariants({
-  variant: 'outline',
-  size: 'icon',
-  className: 'h-7 w-7 bg-background/90 text-destructive shadow-sm hover:text-destructive',
-});
-
-const scopeButtonClass = buttonVariants({
-  variant: 'outline',
-  size: 'sm',
-  className: 'h-7 rounded-full bg-background/90 px-2 text-[0.6875rem] shadow-sm',
-});
-
-const dragHandleButtonClass = buttonVariants({
-  variant: 'outline',
-  size: 'icon',
-  className:
-    'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing',
-});
+const iconButtonClass = 'h-7 w-7 bg-background/90 text-foreground shadow-sm';
+const destructiveIconButtonClass = 'h-7 w-7 bg-background/90 text-destructive shadow-sm hover:text-destructive';
+const scopeButtonClass = 'h-7 rounded-full bg-background/90 px-2 text-[0.6875rem] shadow-sm';
+const dragHandleButtonClass =
+  'absolute right-2 top-2 z-10 hidden h-7 w-7 cursor-grab bg-background/90 text-muted-foreground shadow-sm transition-transform hover:scale-105 active:cursor-grabbing';
+const navEditButtonClass =
+  'ml-2 h-7 w-7 bg-background/90 text-foreground opacity-0 shadow-sm transition-opacity [&:focus]:opacity-100 [nav:hover_&]:opacity-100';
 
 const sectionActionsClass = 'absolute left-2 top-2 z-10 hidden gap-1 [[data-admin=true]_[data-sortable-group]>[data-sortable-id]:hover>&]:flex';
 
-export const adminScopePillClass = badgeVariants({
-  className: 'h-7 rounded-full uppercase tracking-wide shadow-sm',
-});
+type IconComponent = React.ComponentType<{
+  'aria-hidden'?: boolean;
+  className?: string;
+}>;
+type DataAttributes = Record<`data-${string}`, string | number | boolean | undefined>;
+type StaticButtonProps = React.ComponentProps<typeof Button> & DataAttributes;
+type StaticBadgeProps = React.ComponentProps<typeof Badge> & DataAttributes;
+
+function icon(Icon: IconComponent): React.ReactElement {
+  return React.createElement(Icon, { 'aria-hidden': true, className: 'h-4 w-4' });
+}
+
+function buttonHtml(props: StaticButtonProps, ...children: React.ReactNode[]): string {
+  return renderToStaticMarkup(React.createElement(Button, props, ...children));
+}
+
+function badgeHtml(props: StaticBadgeProps, ...children: React.ReactNode[]): string {
+  return renderToStaticMarkup(React.createElement(Badge, props, ...children));
+}
 
 export function adminScopePillHtml(): string {
-  return `<span class="${attr(adminScopePillClass)}" data-admin-scope-pill>Global</span>`;
+  return badgeHtml(
+    {
+      className: 'h-7 rounded-full uppercase tracking-wide shadow-sm',
+      'data-admin-scope-pill': true,
+    },
+    'Global',
+  );
 }
 
 export function adminScopeToggleHtml(sectionId: number, nextScope: 'global' | 'page', label: string): string {
-  return `<button class="${attr(scopeButtonClass)}" data-scope-toggle="${sectionId}" data-scope-next="${nextScope}" title="${attr(label)}">${attr(label)}</button>`;
+  return buttonHtml(
+    {
+      className: scopeButtonClass,
+      'data-scope-toggle': sectionId,
+      'data-scope-next': nextScope,
+      size: 'sm',
+      title: label,
+      type: 'button',
+      variant: 'outline',
+    },
+    label,
+  );
 }
 
 export function adminSectionEditButtonHtml(sectionId: number): string {
-  return `<button class="${attr(iconButtonClass)}" data-section-edit="${sectionId}" title="Edit block" aria-label="Edit block"><span aria-hidden="true">⚙</span></button>`;
+  return buttonHtml(
+    {
+      'aria-label': 'Edit block',
+      className: iconButtonClass,
+      'data-section-edit': sectionId,
+      size: 'icon',
+      title: 'Edit block',
+      type: 'button',
+      variant: 'outline',
+    },
+    icon(Settings),
+  );
 }
 
 export function adminEmbedEditButtonHtml(sectionId: number): string {
-  return `<button class="${attr(iconButtonClass)}" data-embed-edit="${sectionId}" title="Edit embed" aria-label="Edit embed"><span aria-hidden="true">✎</span></button>`;
+  return buttonHtml(
+    {
+      'aria-label': 'Edit embed',
+      className: iconButtonClass,
+      'data-embed-edit': sectionId,
+      size: 'icon',
+      title: 'Edit embed',
+      type: 'button',
+      variant: 'outline',
+    },
+    icon(Pencil),
+  );
 }
 
 export function adminNavEditButtonHtml(sectionId: number): string {
-  const navEditButtonClass = buttonVariants({
-    variant: 'outline',
-    size: 'icon',
-    className: 'ml-2 h-7 w-7 bg-background/90 text-foreground opacity-0 shadow-sm transition-opacity [&:focus]:opacity-100 [nav:hover_&]:opacity-100',
-  });
-  return `<button class="${attr(navEditButtonClass)}" data-nav-edit="${sectionId}" title="Edit navigation" aria-label="Edit navigation"><span aria-hidden="true">✎</span></button>`;
+  return buttonHtml(
+    {
+      'aria-label': 'Edit navigation',
+      className: navEditButtonClass,
+      'data-nav-edit': sectionId,
+      size: 'icon',
+      title: 'Edit navigation',
+      type: 'button',
+      variant: 'outline',
+    },
+    icon(Pencil),
+  );
 }
 
 export function adminSectionRemoveButtonHtml(sectionId: number): string {
-  return `<button class="${attr(destructiveIconButtonClass)}" data-section-remove="${sectionId}" title="Remove section" aria-label="Remove section"><span aria-hidden="true">&times;</span></button>`;
+  return buttonHtml(
+    {
+      'aria-label': 'Remove section',
+      className: destructiveIconButtonClass,
+      'data-section-remove': sectionId,
+      size: 'icon',
+      title: 'Remove section',
+      type: 'button',
+      variant: 'outline',
+    },
+    icon(X),
+  );
 }
 
 export function adminSectionActionsHtml(content: string): string {
@@ -74,5 +133,16 @@ export function adminSectionActionsHtml(content: string): string {
 }
 
 export function adminDragHandleHtml(): string {
-  return `<button class="${attr(dragHandleButtonClass)}" type="button" draggable="true" data-admin-drag-handle aria-label="Drag to reorder"><span aria-hidden="true">☰</span></button>`;
+  return buttonHtml(
+    {
+      'aria-label': 'Drag to reorder',
+      className: dragHandleButtonClass,
+      'data-admin-drag-handle': true,
+      draggable: true,
+      size: 'icon',
+      type: 'button',
+      variant: 'outline',
+    },
+    icon(GripVertical),
+  );
 }
