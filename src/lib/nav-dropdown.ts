@@ -519,9 +519,9 @@ export function rebindNavDropdowns(): void {
   // freshly-rendered nav block picks up the bindings.
   const root = document.getElementById('nav-links') as HTMLElement | null;
   if (!root) return;
-  // The root-level flags persist (the listeners are on the root element which
-  // doesn't get replaced — only innerHTML changes). For inner triggers we
-  // already rely on per-element `dataset.chevronBound` to gate.
+  // The root-level flags persist because the root element stays mounted while
+  // its children are reconciled. For inner triggers we already rely on
+  // per-element `dataset.chevronBound` to gate.
   bindNavToggle(root);
   bindChevronToggles(root);
   bindHoverSync(root);

@@ -17,6 +17,7 @@ import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
 import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
+import { renderHtmlChildren } from './dom-fragment';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -74,23 +75,6 @@ function getRenderContext(): BlockRenderContext {
     brandIconUrl: siteConfig.brand_icon_url ? String(siteConfig.brand_icon_url) : undefined,
     brandWordmarkUrl: siteConfig.brand_wordmark_url ? String(siteConfig.brand_wordmark_url) : undefined,
   };
-}
-
-function parsedHtmlChildren(html: string): Node[] {
-  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
-  return Array.from(doc.body.childNodes).map((node) => document.importNode(node, true));
-}
-
-function childNodesEqual(host: HTMLElement, nextChildren: Node[]): boolean {
-  const currentChildren = Array.from(host.childNodes);
-  if (currentChildren.length !== nextChildren.length) return false;
-  return currentChildren.every((child, index) => child.isEqualNode(nextChildren[index] ?? null));
-}
-
-function renderHtmlChildren(host: HTMLElement, html: string): void {
-  const nextChildren = parsedHtmlChildren(html);
-  if (childNodesEqual(host, nextChildren)) return;
-  host.replaceChildren(...nextChildren);
 }
 
 function renderZoneInto(

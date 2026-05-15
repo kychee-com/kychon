@@ -1,12 +1,14 @@
 // Tiny dependency-free HTML sanitizer for rich-text fields stored by admins
-// (announcement bodies, etc.) and re-rendered into innerHTML on every member's
+// (announcement bodies, etc.) and rendered back onto every member's
 // page. Strips on*= event handlers, <script>, javascript: hrefs, and any tag
 // not on the Tiptap-compatible allowlist.
 //
 // Two execution contexts:
-//   - Browser: uses native DOMParser.
-//   - Node tests: relies on happy-dom (or jsdom) to provide DOMParser globally.
+//   - Browser: uses the shared fragment parser.
+//   - Node tests: relies on happy-dom (or jsdom) to provide parser globals.
 // Both are tested in tests/unit/security-bug-23-esc-xss.test.ts.
+
+import { parseHtmlBody, serializeHtmlChildren } from './dom-fragment';
 
 const ALLOWED_TAGS = new Set([
   'p',
@@ -144,12 +146,8 @@ function walk(node: Node): void {
 export function sanitizeRichHtml(input: string | null | undefined): string {
   const raw = String(input ?? '');
   if (!raw) return '';
-  // DOMParser is provided by the browser at runtime and by happy-dom in tests.
-  const parserCtor: typeof DOMParser | undefined =
-    typeof DOMParser !== 'undefined'
-      ? DOMParser
-      : (globalThis as unknown as { DOMParser?: typeof DOMParser }).DOMParser;
-  if (!parserCtor) {
+  const body = parseHtmlBody(raw);
+  if (!body) {
     // Server-side build context with no DOM — fail closed by escaping.
     return raw
       .replace(/&/g, '&amp;')
@@ -158,9 +156,6 @@ export function sanitizeRichHtml(input: string | null | undefined): string {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-  const doc = new parserCtor().parseFromString(`<body>${raw}</body>`, 'text/html');
-  const body = doc.body;
-  if (!body) return '';
   walk(body);
-  return body.innerHTML;
+  return serializeHtmlChildren(body);
 }
