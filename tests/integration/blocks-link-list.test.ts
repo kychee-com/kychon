@@ -33,7 +33,7 @@ async function loadHydrator() {
 
 describe('hydrateLinkListResources', () => {
   it('replaces skeleton with fetched items and tags hydrated', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -57,14 +57,12 @@ describe('hydrateLinkListResources', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = document.createElement('section');
-    wrapper.className = 'section section-link-list block-link-list block-link-list--rows';
     wrapper.innerHTML = `
       <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
         layout: 'rows',
         source: 'resources',
         filter: { category: 'newsletters', limit: 3, order: 'newest' },
       })}'>
-        <ul class="block-link-list__skeleton"><li class="skeleton"></li></ul>
       </div>
     `;
     document.body.appendChild(wrapper);
@@ -83,7 +81,7 @@ describe('hydrateLinkListResources', () => {
       { admin: false, locale: 'en' },
     );
 
-    expect(fetchMock).toHaveBeenCalled();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const [calledUrl, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(calledUrl).toContain('/functions/v1/kychon-api');
     const envelope = JSON.parse(String(calledInit.body));
@@ -95,20 +93,19 @@ describe('hydrateLinkListResources', () => {
 
     const root = wrapper.querySelector('[data-block-hydrate="link_list"]') as HTMLElement;
     expect(root.dataset.hydrated).toBe('true');
-    // Skeleton removed
-    expect(wrapper.querySelector('.block-link-list__skeleton')).toBeNull();
-    // Items rendered
-    const items = wrapper.querySelectorAll('.block-link-list__item');
+    await vi.waitFor(() => expect(wrapper.querySelector('[data-link-list-item]')).toBeTruthy());
+    const items = wrapper.querySelectorAll('[data-link-list-item]');
     expect(items.length).toBe(2);
-    expect(wrapper.innerHTML).toContain('A doc');
-    expect(wrapper.innerHTML).toContain('block-link-list__badge--pdf');
-    expect(wrapper.innerHTML).toContain('target="_blank"');
+    expect(wrapper.textContent).toContain('A doc');
+    expect(wrapper.textContent).toContain('PDF');
+    expect(wrapper.querySelector('a[target="_blank"]')).toBeTruthy();
+    expect(wrapper.querySelector('.block-link-list__item')).toBeNull();
   });
 
   it('hides the section when no resources match', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValueOnce({
+      vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ ok: true, correlationId: 'test', data: { rows: [], count: 0 } }),
       }),
@@ -121,7 +118,6 @@ describe('hydrateLinkListResources', () => {
         source: 'resources',
         filter: { category: 'nope', limit: 5, order: 'newest' },
       })}'>
-        <ul class="block-link-list__skeleton"></ul>
       </div>
     `;
     document.body.appendChild(wrapper);
@@ -140,6 +136,46 @@ describe('hydrateLinkListResources', () => {
       { admin: false, locale: 'en' },
     );
 
-    expect(wrapper.style.display).toBe('none');
+    await vi.waitFor(() => expect(wrapper.hidden).toBe(true));
+  });
+
+  it('hydrates manual links through the same island without fetching', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = document.createElement('section');
+    wrapper.innerHTML = `
+      <div class="ky-container" data-block-hydrate="link_list" data-config='${JSON.stringify({
+        heading: 'Curated',
+        layout: 'compact',
+        source: 'manual',
+        items: [
+          { label: 'A', href: '/a' },
+          { label: 'PDF', href: '/b.pdf', badge: 'PDF' },
+          { label: 'External', href: 'https://www.example.com', external: true },
+        ],
+      })}'></div>
+    `;
+    document.body.appendChild(wrapper);
+
+    const { hydrateLinkListResources } = await loadHydrator();
+    await hydrateLinkListResources(
+      wrapper as HTMLElement,
+      {
+        page_slug: 'index',
+        zone: 'main',
+        scope: 'page',
+        section_type: 'link_list',
+        config: {},
+        position: 1,
+      },
+      { admin: false, locale: 'en' },
+    );
+
+    await vi.waitFor(() => expect(wrapper.querySelectorAll('[data-link-list-item]').length).toBe(3));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(wrapper.textContent).toContain('Curated');
+    expect(wrapper.textContent).toContain('PDF');
+    expect(wrapper.querySelector('a[target="_blank"]')).toBeTruthy();
   });
 });

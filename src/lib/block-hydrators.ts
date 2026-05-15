@@ -210,14 +210,10 @@ export async function hydrateSiteSearch(
   root.dataset.hydrated = 'true';
 }
 
-// --- Catalog block hydrators ---
-
-const ALLOWED_LINK_LIST_ORDER = new Set(['newest', 'oldest', 'title']);
-
 export async function hydrateLinkListResources(
   el: HTMLElement,
-  _section: Section,
-  _ctx: BlockRenderContext,
+  section: Section,
+  ctx: BlockRenderContext,
 ): Promise<void> {
   const root = el.querySelector('[data-block-hydrate="link_list"]') as HTMLElement | null;
   if (!root) return;
@@ -228,69 +224,18 @@ export async function hydrateLinkListResources(
   } catch {
     cfg = {};
   }
-  const filter = cfg.filter || {};
-  const layout = cfg.layout || 'bullets';
-  const category = String(filter.category || '').trim();
-  const limit = Math.max(1, Math.min(50, Number(filter.limit) || 6));
-  const order = ALLOWED_LINK_LIST_ORDER.has(filter.order) ? filter.order : 'newest';
-  const orderParam =
-    order === 'title'
-      ? 'title.asc'
-      : order === 'oldest'
-        ? 'created_at.asc'
-        : 'created_at.desc';
-
-  let items: any[] = [];
-  try {
-    const params: string[] = [];
-    if (category) params.push(`category=eq.${encodeURIComponent(category)}`);
-    params.push(`order=${orderParam}`);
-    params.push(`limit=${limit}`);
-    items = await get(`resources?${params.join('&')}`);
-  } catch (e) {
-    console.warn('link_list hydrate failed:', e);
-    items = [];
-  }
-
-  if (!items.length) {
-    // Hide the entire section.
-    const wrapper = el as HTMLElement;
-    wrapper.style.display = 'none';
-    root.dataset.hydrated = 'true';
-    return;
-  }
-
-  const skeleton = root.querySelector('.block-link-list__skeleton');
-  if (skeleton) skeleton.remove();
-  const list = document.createElement('ul');
-  list.className = 'block-link-list__list';
-  list.innerHTML = items
-    .map((r: any) => {
-      const url = r.file_url || r.url || '';
-      const fileType = (r.file_type || '').toLowerCase();
-      const date = r.created_at ? formatDate(r.created_at) : '';
-      const isPdf =
-        fileType === 'pdf' || (typeof url === 'string' && /\.pdf(\?|$)/i.test(url));
-      const isExternal = /^https?:\/\//i.test(url) && !url.startsWith(location.origin);
-      const badge = isPdf ? 'PDF' : r.is_members_only ? 'MEMBERS' : '';
-      const externalAttrs = isExternal
-        ? ` target="_blank" rel="noopener noreferrer"`
-        : '';
-      const externalIcon = isExternal
-        ? `<span class="block-link-list__ext" aria-hidden="true">↗</span>`
-        : '';
-      const badgeHtml = badge
-        ? `<span class="block-link-list__badge block-link-list__badge--${esc(badge.toLowerCase())}">${esc(badge)}</span>`
-        : '';
-      const showDate = (layout === 'rows' || layout === 'compact') && date;
-      const dateHtml = showDate ? `<span class="block-link-list__date">${esc(date)}</span>` : '';
-      const label = `<span class="block-link-list__label">${esc(r.title || url)}</span>`;
-      return `<li class="block-link-list__item"><a href="${esc(url || '#')}" class="block-link-list__link"${externalAttrs}>${dateHtml}${badgeHtml}${label}${externalIcon}</a></li>`;
-    })
-    .join('');
-  root.appendChild(list);
+  const { mountLinkListIsland } = await import('@/components/kychon/LinkListIsland');
+  mountLinkListIsland(root, {
+    config: cfg,
+    headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
+    onEmptyChange(empty) {
+      el.hidden = empty;
+    },
+  });
   root.dataset.hydrated = 'true';
 }
+
+// --- Catalog block hydrators ---
 
 const EVENTS_LIST_FILTER_DAYS = 7;
 

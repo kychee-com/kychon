@@ -1473,27 +1473,6 @@ const PAGE_BANNER: BlockType = {
   },
 };
 
-// link_list — both modes share the renderer. Manual mode emits all items.
-// Resources mode emits a hydration skeleton; runtime fetches & re-renders.
-function renderLinkListItem(item: any, layout: string): string {
-  const href = cleanHref(item.href, '#');
-  const externalAttrs = item.external
-    ? ` target="_blank" rel="noopener noreferrer"`
-    : '';
-  const externalIcon = item.external
-    ? `<span class="block-link-list__ext" aria-hidden="true">\u{2197}</span>`
-    : '';
-  const badge = item.badge
-    ? `<span class="block-link-list__badge block-link-list__badge--${escAttr(String(item.badge).toLowerCase())}">${escHtml(item.badge)}</span>`
-    : '';
-  const showDate = (layout === 'rows' || layout === 'compact') && item.date;
-  const dateHtml = showDate
-    ? `<span class="block-link-list__date">${escHtml(item.date)}</span>`
-    : '';
-  const label = `<span class="block-link-list__label">${escHtml(item.label || item.title || href)}</span>`;
-  return `<li class="block-link-list__item"><a href="${escAttr(href)}" class="block-link-list__link"${externalAttrs}>${dateHtml}${badge}${label}${externalIcon}</a></li>`;
-}
-
 const LINK_LIST: BlockType = {
   label: 'Link List',
   icon: '\u{1F4DC}', // 📜
@@ -1508,24 +1487,10 @@ const LINK_LIST: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const layout = cfg.layout || 'bullets';
-    const heading = cfg.heading
-      ? `<h2 class="block-link-list__heading"${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
-      : '';
-    const cls = `section section-link-list block-link-list block-link-list--${escAttr(layout)}`;
-    const source = cfg.source || 'manual';
-    if (source === 'resources') {
-      const skeleton = `<ul class="block-link-list__list block-link-list__skeleton">${'<li class="skeleton skeleton-text"></li>'.repeat(Math.max(1, cfg.filter?.limit || 6))}</ul>`;
-      const inner = `<div class="ky-container" data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}">${heading}${skeleton}</div>`;
-      return adminWrap(section, ctx, inner, cls);
-    }
-    const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
-    const itemsHtml = items.map((item) => renderLinkListItem(item, layout)).join('');
-    const inner = `<div class="ky-container">${heading}<ul class="block-link-list__list">${itemsHtml}</ul></div>`;
-    return adminWrap(section, ctx, inner, cls);
+    const inner = `<div class="ky-container" data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}"></div>`;
+    return adminWrap(section, ctx, inner, 'section w-full py-8 has-[[data-link-list-empty=true]]:hidden');
   },
   async hydrate(el, section, ctx) {
-    if ((section.config?.source || 'manual') !== 'resources') return;
     const { hydrateLinkListResources } = await import('./block-hydrators.js');
     await hydrateLinkListResources(el, section, ctx);
   },
