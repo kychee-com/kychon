@@ -1,11 +1,14 @@
 import { defineConfig } from 'vitest/config';
 
+const alias = {
+  '@': new URL('./src/', import.meta.url).pathname,
+  '../lib/': new URL('./src/lib/', import.meta.url).pathname,
+  '../schemas/': new URL('./src/schemas/', import.meta.url).pathname,
+};
+
 export default defineConfig({
   resolve: {
-    alias: {
-      '../lib/': new URL('./src/lib/', import.meta.url).pathname,
-      '../schemas/': new URL('./src/schemas/', import.meta.url).pathname,
-    },
+    alias,
   },
   test: {
     include: ['tests/**/*.test.{js,ts}'],
@@ -21,12 +24,14 @@ export default defineConfig({
     },
     projects: [
       {
+        resolve: { alias },
         test: {
           name: 'unit',
           include: ['tests/unit/**/*.test.{js,ts}'],
         },
       },
       {
+        resolve: { alias },
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.{js,ts}'],

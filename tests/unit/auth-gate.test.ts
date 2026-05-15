@@ -18,7 +18,9 @@ describe('auth gate', () => {
   it('shows a sign-in action for admin access denial', () => {
     showAuthGate('#main-content', 'admin');
 
-    const signIn = document.querySelector<HTMLButtonElement>('[data-auth-gate-action="sign-in"]');
+    const signIn = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.includes('auth.gate.signIn'),
+    );
     expect(signIn?.textContent).toBe('auth.gate.signIn');
 
     signIn?.click();
