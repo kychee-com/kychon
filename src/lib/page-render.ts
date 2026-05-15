@@ -104,7 +104,7 @@ function renderZoneInto(
   const container =
     zone === 'main'
       ? (document.getElementById('main-content') as HTMLElement | null)
-      : (containerWrapper?.querySelector('.ky-container') as HTMLElement | null);
+      : (containerWrapper?.querySelector('[data-layout-container]') as HTMLElement | null);
   if (!container) return { container: null, rendered: [] };
 
   const filtered = sections
@@ -129,7 +129,7 @@ function renderZoneInto(
   }
 
   // Header / footer zones split into "chrome" blocks (rendered inside the
-  // existing .ky-container — brand_header, nav, sign_in_bar, footer_address,
+  // existing constrained container — brand_header, nav, sign_in_bar, footer_address,
   // etc.) and "full-bleed" blocks (page_banner today; rendered outside the
   // constrained chrome container so they span the viewport).
   const chromeBlocks: Section[] = [];

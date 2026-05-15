@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
+import { constrainedContainerClass } from '@/lib/ui/container';
 
 export interface EventsCalendarShellProps {
   configJson: string;
@@ -151,7 +152,7 @@ export interface EventsCalendarPeekOverlayProps {
 
 function EventsCalendarShell({ configJson, editableHeadingPath, heading }: EventsCalendarShellProps) {
   return (
-    <div className="ky-container" data-block-hydrate="events_calendar" data-config={configJson}>
+    <div className={constrainedContainerClass} data-block-hydrate="events_calendar" data-config={configJson} data-layout-container>
       {heading ? (
         <h2 className="mb-4 text-2xl font-semibold tracking-normal" data-editable={editableHeadingPath} data-events-calendar-heading>
           {heading}

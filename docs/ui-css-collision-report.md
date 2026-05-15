@@ -1,6 +1,6 @@
 # UI CSS Collision Report
 
-Generated: 2026-05-15T20:51:24.476Z
+Generated: 2026-05-15T22:28:57.872Z
 
 This report tracks legacy unprefixed classes that collide with Tailwind utilities or shadcn/Kychon component names. New UI code should not add fresh usages of these classes unless it is explicitly part of the compatibility layer.
 
@@ -8,7 +8,7 @@ This report tracks legacy unprefixed classes that collide with Tailwind utilitie
 |---|---:|---:|---|
 | `.hidden` | 0 | 3 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.flex` | 0 | 186 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
-| `.flex-col` | 0 | 45 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
+| `.flex-col` | 0 | 46 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.gap-1` | 0 | 9 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.mt-1` | 0 | 7 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.mt-2` | 0 | 5 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
@@ -16,10 +16,10 @@ This report tracks legacy unprefixed classes that collide with Tailwind utilitie
 | `.mb-2` | 0 | 3 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.items-center` | 0 | 118 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.justify-between` | 0 | 14 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
-| `.text-sm` | 0 | 137 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
+| `.text-sm` | 0 | 138 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.text-center` | 0 | 33 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
-| `.text-muted` | 0 | 0 | Retired as a Kychon helper; use `.ky-text-muted` for public/static markup or Tailwind/shadcn semantic text utilities in React code. |
-| `.container` | 0 | 0 | Retired as a Kychon layout class; use `.ky-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed. |
+| `.text-muted` | 0 | 0 | Retired as a Kychon helper; use Tailwind/shadcn semantic text utilities in generated markup and React code. |
+| `.container` | 0 | 0 | Retired as a Kychon layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed. |
 | `.btn` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
 | `.card` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
 | `.badge` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
@@ -102,16 +102,16 @@ Usages:
 - `src/components/kychon/EventDetailPageApp.tsx:319` <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 - `src/components/kychon/EventDetailPageApp.tsx:447` <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 - `src/components/kychon/EventDetailPageApp.tsx:577` <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-- `src/components/kychon/EventsCalendarBlockView.tsx:212` <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-- `src/components/kychon/EventsCalendarBlockView.tsx:439` <div className="flex flex-col gap-4" data-events-calendar-agenda>
-- `src/components/kychon/EventsCalendarBlockView.tsx:450` <div className="flex flex-col gap-2">
-- `src/components/kychon/EventsCalendarBlockView.tsx:473` <CardContent className="flex flex-col gap-1.5 p-2">
-- `src/components/kychon/EventsCalendarBlockView.tsx:514` <ul className="m-0 flex list-none flex-col gap-3 p-0">
+- `src/components/kychon/EventsCalendarBlockView.tsx:213` <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+- `src/components/kychon/EventsCalendarBlockView.tsx:440` <div className="flex flex-col gap-4" data-events-calendar-agenda>
+- `src/components/kychon/EventsCalendarBlockView.tsx:451` <div className="flex flex-col gap-2">
+- `src/components/kychon/EventsCalendarBlockView.tsx:474` <CardContent className="flex flex-col gap-1.5 p-2">
+- `src/components/kychon/EventsCalendarBlockView.tsx:515` <ul className="m-0 flex list-none flex-col gap-3 p-0">
 - `src/components/kychon/EventsListIsland.tsx:201` <div className="flex w-24 shrink-0 flex-col rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
 - `src/components/kychon/EventsPageApp.tsx:326` <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 - `src/components/kychon/EventsPageApp.tsx:331` <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 - `src/components/kychon/ForumPageApp.tsx:259` <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-- ... 15 more usages
+- ... 16 more usages
 
 ### .gap-1
 
@@ -148,8 +148,8 @@ Kychon must not define this class; exact class-token usages should resolve to Ta
 Usages:
 - `src/components/kychon/AdminEditorControlsIsland.tsx:1907` <div className="mt-2 flex gap-2">
 - `src/components/kychon/EventCountdownIsland.tsx:121` <div className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-- `src/components/kychon/EventsCalendarBlockView.tsx:534` <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-- `src/components/kychon/EventsCalendarBlockView.tsx:538` <div className="mt-2">
+- `src/components/kychon/EventsCalendarBlockView.tsx:535` <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+- `src/components/kychon/EventsCalendarBlockView.tsx:539` <div className="mt-2">
 - `src/components/kychon/ForumPageApp.tsx:712` <div className="mt-2 text-xs text-muted-foreground">Translated by AI</div>
 
 ### .mb-1
@@ -218,7 +218,7 @@ Usages:
 - `src/components/kychon/AnnouncementsFeedIsland.tsx:216` <div className="flex items-center justify-between gap-3">
 - `src/components/kychon/CalendarPageApp.tsx:198` <div className="flex items-center justify-between gap-2">
 - `src/components/kychon/CalendarPageApp.tsx:341` <div className="flex items-center justify-between gap-3">
-- `src/components/kychon/EventsCalendarBlockView.tsx:534` <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+- `src/components/kychon/EventsCalendarBlockView.tsx:535` <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
 - `src/components/kychon/ForumPageApp.tsx:353` <div className="flex min-w-0 items-center justify-between gap-3">
 - `src/components/kychon/ForumPageApp.tsx:620` <div className="flex items-center justify-between gap-3">
 - `src/components/kychon/PollsBlockIsland.tsx:114` <div className="flex min-w-0 items-center justify-between gap-3">
@@ -260,7 +260,7 @@ Usages:
 - `src/components/kychon/AdminEditorControlsIsland.tsx:1825` <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
 - `src/components/kychon/AdminEditorControlsIsland.tsx:1869` <div className="flex items-center gap-2 text-sm text-muted-foreground">
 - `src/components/kychon/AdminEditorControlsIsland.tsx:1936` <p className="text-sm text-muted-foreground">No provider params.</p>
-- ... 107 more usages
+- ... 108 more usages
 
 ### .text-center
 
@@ -270,7 +270,7 @@ Usages:
 - `src/components/kychon/AdminMembersApp.tsx:310` <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
 - `src/components/kychon/AnnouncementsFeedIsland.tsx:531` <CardContent className="py-8 text-center text-sm text-muted-foreground">{state.message}</CardContent>
 - `src/components/kychon/AnnouncementsFeedIsland.tsx:537` <CardContent className="py-8 text-center text-sm text-muted-foreground" data-announcements-empty>
-- `src/components/kychon/AuthGateIsland.tsx:48` <Card className="w-full max-w-lg text-center" role="status" aria-live="polite">
+- `src/components/kychon/AuthGateIsland.tsx:49` <Card className="w-full max-w-lg text-center" role="status" aria-live="polite">
 - `src/components/kychon/CalendarPageApp.tsx:184` <div className="grid grid-cols-7 border-b border-border bg-muted/40 text-center text-xs font-medium text-muted-foreground">
 - `src/components/kychon/CalendarPageApp.tsx:355` <CardContent className="py-8 text-center text-sm text-muted-foreground">No events match this filter.</CardContent>
 - `src/components/kychon/CommitteesPageApp.tsx:89` <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
@@ -281,8 +281,8 @@ Usages:
 - `src/components/kychon/DirectoryPageApp.tsx:209` <CardContent className="p-6 text-center text-sm text-muted-foreground">No members found.</CardContent>
 - `src/components/kychon/DirectoryPageApp.tsx:258` <DialogHeader className="items-center text-center">
 - `src/components/kychon/EventCountdownIsland.tsx:74` <div className="mx-auto max-w-3xl text-center" data-event-countdown>
-- `src/components/kychon/EventsCalendarBlockView.tsx:179` <CardContent className="p-8 text-center text-sm text-muted-foreground">{message}</CardContent>
-- `src/components/kychon/EventsCalendarBlockView.tsx:388` <div className="px-2 py-2 text-center text-xs font-semibold uppercase text-muted-foreground" key={`${weekday}-${index}`} role="columnheader">
+- `src/components/kychon/EventsCalendarBlockView.tsx:180` <CardContent className="p-8 text-center text-sm text-muted-foreground">{message}</CardContent>
+- `src/components/kychon/EventsCalendarBlockView.tsx:389` <div className="px-2 py-2 text-center text-xs font-semibold uppercase text-muted-foreground" key={`${weekday}-${index}`} role="columnheader">
 - `src/components/kychon/EventsPageApp.tsx:364` <CardContent className="py-8 text-center text-sm text-muted-foreground">No events yet.</CardContent>
 - `src/components/kychon/ForumPageApp.tsx:259` <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
 - `src/components/kychon/ForumPageApp.tsx:753` <CardContent className="py-8 text-center text-sm text-muted-foreground">No categories yet.</CardContent>
@@ -290,7 +290,7 @@ Usages:
 - `src/components/kychon/ForumPageApp.tsx:903` <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
 - `src/components/kychon/ForumPageApp.tsx:1084` <CardContent className="py-8 text-center text-sm text-muted-foreground">No replies yet.</CardContent>
 - `src/components/kychon/ForumPageApp.tsx:1120` <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
-- `src/components/kychon/ImageAccordionBlockView.tsx:170` <CardContent className="py-6 text-center text-sm text-muted-foreground">
+- `src/components/kychon/ImageAccordionBlockView.tsx:171` <CardContent className="py-6 text-center text-sm text-muted-foreground">
 - `src/components/kychon/MarketingBlocksView.tsx:238` <MarketingContainer className="max-w-4xl text-center">
 - `src/components/kychon/MarketingBlocksView.tsx:473` className="relative z-10 w-full max-w-6xl px-4 py-8 text-center text-xl font-semibold tracking-normal drop-shadow [&_a]:text-inherit [&_a]:underline"
 - `src/components/kychon/PollsBlockIsland.tsx:341` <CardContent className="py-8 text-center text-sm text-muted-foreground" data-polls-empty>
@@ -301,11 +301,11 @@ Usages:
 
 ### .text-muted
 
-Retired as a Kychon helper; use `.ky-text-muted` for public/static markup or Tailwind/shadcn semantic text utilities in React code.
+Retired as a Kychon helper; use Tailwind/shadcn semantic text utilities in generated markup and React code.
 
 ### .container
 
-Retired as a Kychon layout class; use `.ky-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed.
+Retired as a Kychon layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed.
 
 ### .btn
 

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Alert, AlertDescription, AlertTitle, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
+import { constrainedContainerClass } from '@/lib/ui/container';
 
 interface EmbedBlockContentProps {
   heading?: string;
@@ -59,7 +60,7 @@ function EmbedBlockContent({
   title,
 }: EmbedBlockContentProps) {
   return (
-    <div className="ky-container" data-embed-content>
+    <div className={constrainedContainerClass} data-embed-content data-layout-container>
       <Card className="overflow-hidden shadow-none" data-embed-card>
         {heading ? (
           <CardHeader className="p-4 pb-2">
@@ -95,7 +96,7 @@ export function renderEmbedBlockContentHtml(props: EmbedBlockContentProps): stri
 
 export function renderEmbedErrorContentHtml(message: string): string {
   return renderToStaticMarkup(
-    <div className="ky-container" data-embed-content>
+    <div className={constrainedContainerClass} data-embed-content data-layout-container>
       <Alert className="border-dashed" data-embed-error role="alert" variant="destructive">
         <AlertTitle>Embed unavailable</AlertTitle>
         <AlertDescription>{message}</AlertDescription>

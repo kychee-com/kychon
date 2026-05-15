@@ -76,13 +76,6 @@ a:hover {
   color: var(--ky-color-primary-hover, var(--color-primary-hover));
 }
 
-/* Layout */
-.ky-container {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
 /* Nav */
 .nav {
   background: var(--nav-header-bg, var(--background, var(--color-bg)));
@@ -93,7 +86,7 @@ a:hover {
   top: var(--demo-banner-height, 0px);
   z-index: 100;
 }
-.nav .ky-container {
+.nav [data-layout-container] {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   grid-template-rows: auto auto;
@@ -103,7 +96,7 @@ a:hover {
   min-height: var(--nav-header-min-height, 3.5rem);
   position: relative;
 }
-.nav .ky-container:has(.brand-header--icon) {
+.nav [data-layout-container]:has(.brand-header--icon) {
   grid-template-columns: max(var(--nav-logo-max-height, 2rem), 4rem) minmax(0, 1fr) auto auto;
 }
 .nav-brand {
@@ -362,7 +355,7 @@ mark {
     color-mix(in srgb, var(--primary, var(--color-primary)) 40%, transparent) 100%
   );
 }
-.section-hero[style*="background-image"] .ky-container {
+.section-hero[style*="background-image"] [data-layout-container] {
   position: relative;
   z-index: 1;
 }
@@ -574,7 +567,7 @@ mark {
   text-align: center;
   pointer-events: none;
 }
-.section-hero.hero-foreground[data-text-position="over_image"] .hero-text .ky-container {
+.section-hero.hero-foreground[data-text-position="over_image"] .hero-text [data-layout-container] {
   pointer-events: auto;
 }
 .section-hero.hero-foreground[data-text-position="over_image"] .hero-text h1 {

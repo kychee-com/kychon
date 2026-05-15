@@ -37,7 +37,7 @@ describe('copied-theme visual verification hooks', () => {
   it('keeps the header brand on the utility row with a responsive subtitle', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
 
-    expect(styles).toContain('.nav .ky-container:has(.brand-header--icon)');
+    expect(styles).toContain('.nav [data-layout-container]:has(.brand-header--icon)');
     expect(styles).toContain('.brand-header--icon.nav-brand');
     expect(styles).toContain('grid-row: 1 / 3;');
     expect(styles).toContain('grid-column: 1 / 3;');

@@ -22,6 +22,7 @@ import {
   renderShapeDividerBlockHtml,
   type ShapeDividerRenderLayer,
 } from '@/components/kychon/ShapeDividerBlockView';
+import { constrainedContainerClass } from './ui/container.js';
 import {
   adminDragHandleHtml,
   adminNavEditButtonHtml,
@@ -80,10 +81,10 @@ export interface BlockType {
   /** column-span-rows: spans this block accepts; omit for "all four". */
   supportedSpans?: ColumnSpan[];
   /**
-   * When true, the block opts out of the zone's `.ky-container` (max-width
-   * constrained) wrapper and renders as a full-bleed sibling below it.
+   * When true, the block opts out of the zone's constrained wrapper and
+   * renders as a full-bleed sibling below it.
    * Used for blocks like `page_banner` that need 100% viewport width and
-   * their own intrinsic vertical space — putting them inside `.ky-container`
+   * their own intrinsic vertical space — putting them inside the container
    * forces the chrome row (brand / nav / sign-in) to absorb the banner's
    * height, which is exactly the wrong layout.
    */
@@ -105,6 +106,10 @@ export interface InteractionConfig {
   default?: InteractionStateConfig;
   hover?: InteractionStateConfig;
   focus?: InteractionStateConfig;
+}
+
+function constrainedContainerHtml(attrs = '', content = ''): string {
+  return `<div class="${constrainedContainerClass}" data-layout-container${attrs}>${content}</div>`;
 }
 
 export interface NavPresentationConfig {
@@ -538,7 +543,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const cta = cfg.cta_text
     ? renderShadcnLinkButton(cfg.cta_href, cfg.cta_text, editableAttr(section, 'cta_text', ctx), ' data-hero-cta')
     : '';
-  const inner = `<div class="ky-container">${heading}${sub}${cta}</div>`;
+  const inner = constrainedContainerHtml('', `${heading}${sub}${cta}`);
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
@@ -601,7 +606,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? renderShadcnLinkButton(cfg.cta_href, cfg.cta_text, editableAttr(section, 'cta_text', ctx), ' data-hero-cta')
     : '';
   const headingGroup = heading || sub || cta
-    ? `<div class="hero-text"><div class="ky-container">${heading}${sub}${cta}</div></div>`
+    ? `<div class="hero-text">${constrainedContainerHtml('', `${heading}${sub}${cta}`)}</div>`
     : '';
 
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -759,7 +764,7 @@ const POLLS: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="polls" data-config="${jsonAttr(cfg)}"></div>`,
+      constrainedContainerHtml(` data-block-hydrate="polls" data-config="${jsonAttr(cfg)}"`),
       'section w-full py-8',
     );
   },
@@ -795,7 +800,7 @@ const EVENT_COUNTDOWN: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="event_countdown" data-config="${jsonAttr(cfg)}"></div>`,
+      constrainedContainerHtml(` data-block-hydrate="event_countdown" data-config="${jsonAttr(cfg)}"`),
       'section w-full py-8',
     );
   },
@@ -831,7 +836,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="announcements_feed" data-config="${jsonAttr(cfg)}"></div>`,
+      constrainedContainerHtml(` data-block-hydrate="announcements_feed" data-config="${jsonAttr(cfg)}"`),
       'section w-full py-8',
     );
   },
@@ -857,7 +862,7 @@ const ACTIVITY_FEED: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="activity_feed">${heading}</div>`,
+      constrainedContainerHtml(' data-block-hydrate="activity_feed"', heading),
       'section section-activity',
     );
   },
@@ -1322,7 +1327,7 @@ const CUSTOM: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const richEdit = richEditableAttr(section, 'html', ctx);
-    const inner = `<div class="ky-container"${richEdit}>${cfg.html || ''}</div>`;
+    const inner = constrainedContainerHtml(richEdit, cfg.html || '');
     return adminWrap(section, ctx, inner);
   },
 };
@@ -1396,7 +1401,7 @@ const LINK_LIST: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const inner = `<div class="ky-container" data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}"></div>`;
+    const inner = constrainedContainerHtml(` data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}"`);
     return adminWrap(section, ctx, inner, 'section w-full py-8 has-[[data-link-list-empty=true]]:hidden');
   },
   async hydrate(el, section, ctx) {
@@ -1615,7 +1620,7 @@ const EVENTS_LIST: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const inner = `<div class="ky-container" data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}"></div>`;
+    const inner = constrainedContainerHtml(` data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}"`);
     return adminWrap(section, ctx, inner, 'section w-full py-6');
   },
   async hydrate(el, section, ctx) {

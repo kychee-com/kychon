@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Badge, Card, CardContent } from '@/components/kychon/ui';
 import { cn } from '@/lib/ui/cn';
+import { constrainedContainerClass } from '@/lib/ui/container';
 
 export interface ImageAccordionRenderPanel {
   ctaEditablePath?: string;
@@ -154,7 +155,7 @@ function ImageAccordionBlock({
   showEmptyPlaceholder,
 }: ImageAccordionRenderProps) {
   return (
-    <div className="ky-container" data-accordion-content-root>
+    <div className={constrainedContainerClass} data-accordion-content-root data-layout-container>
       <ImageAccordionHeading editableHeadingPath={editableHeadingPath} heading={heading} />
       <div
         className="flex min-h-[22rem] gap-2 max-md:min-h-0 max-md:flex-col"

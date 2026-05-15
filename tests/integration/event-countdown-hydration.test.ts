@@ -21,7 +21,7 @@ const ctx: BlockRenderContext = {
 function mount(): HTMLElement {
   document.body.innerHTML = `
     <section>
-      <div class="ky-container" data-block-hydrate="event_countdown" data-config='{"heading":"Next Event"}'></div>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="event_countdown" data-config='{"heading":"Next Event"}'></div>
     </section>
   `;
   return document.querySelector('section') as HTMLElement;

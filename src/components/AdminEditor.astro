@@ -605,9 +605,9 @@
   }
 
   function findZoneItemHost(zone: HTMLElement): HTMLElement {
-    // Header / footer: the inner .ky-container holds blocks. Main: the #sections
+    // Header / footer: the inner constrained container holds blocks. Main: the #sections
     // child or the page <main> itself.
-    const inner = zone.querySelector(':scope > .ky-container') as HTMLElement | null;
+    const inner = zone.querySelector(':scope > [data-layout-container]') as HTMLElement | null;
     if (inner) return inner;
     const sections = zone.querySelector('#sections') as HTMLElement | null;
     if (sections) return sections;

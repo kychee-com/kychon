@@ -16,6 +16,7 @@ import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
 import { buildCspValue } from '../lib/csp';
 import { isDemoModeSeed } from '../lib/demo-mode';
+import { constrainedContainerClass } from '../lib/ui/container';
 
 interface Props {
   title: string;
@@ -89,7 +90,7 @@ const cspValue = buildCspValue();
   {renderDemoBanner && <DemoBanner />}
   <div class="flex min-h-screen flex-col">
     <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
-      <div class="ky-container" set:html={chrome.headerHtml}></div>
+      <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>
       <AdminZoneAddButton zone="header" />
     </nav>
     <div data-fullbleed-host data-zone-fullbleed="header" transition:persist></div>
@@ -99,7 +100,7 @@ const cspValue = buildCspValue();
     </main>
 
     <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
-      <div class="ky-container" set:html={chrome.footerHtml}></div>
+      <div class={constrainedContainerClass} data-layout-container set:html={chrome.footerHtml}></div>
       <div data-fullbleed-host></div>
       <AdminZoneAddButton zone="footer" />
     </footer>

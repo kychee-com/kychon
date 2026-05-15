@@ -4,12 +4,12 @@
  * Each block carries `data-column-span` set by `renderBlock`'s
  * post-process. Span values map to `grid-column: span N`.
  *
- * Header zone is intentionally exempt — its existing `.nav .ky-container`
- * flex layout gives chrome (brand+nav+sign-in-bar) its horizontal flow.
+ * Header zone is intentionally exempt — its existing `.nav [data-layout-container]`
+ * grid layout gives chrome (brand+nav+sign-in-bar) its horizontal flow.
  */
 
 #sections,
-[data-zone="footer"] > .ky-container {
+[data-zone="footer"] > [data-layout-container] {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 1.5rem;
@@ -17,38 +17,38 @@
 
 /* Default span mapping (desktop). */
 #sections > [data-column-span="1"],
-[data-zone="footer"] > .ky-container > [data-column-span="1"]   { grid-column: span 6; }
+[data-zone="footer"] > [data-layout-container] > [data-column-span="1"]   { grid-column: span 6; }
 #sections > [data-column-span="1/2"],
-[data-zone="footer"] > .ky-container > [data-column-span="1/2"] { grid-column: span 3; }
+[data-zone="footer"] > [data-layout-container] > [data-column-span="1/2"] { grid-column: span 3; }
 #sections > [data-column-span="1/3"],
-[data-zone="footer"] > .ky-container > [data-column-span="1/3"] { grid-column: span 2; }
+[data-zone="footer"] > [data-layout-container] > [data-column-span="1/3"] { grid-column: span 2; }
 #sections > [data-column-span="2/3"],
-[data-zone="footer"] > .ky-container > [data-column-span="2/3"] { grid-column: span 4; }
+[data-zone="footer"] > [data-layout-container] > [data-column-span="2/3"] { grid-column: span 4; }
 
 /* Tablet — drop to 4 cols so halves stay halves and thirds become full. */
 @media (max-width: 900px) {
   #sections,
-  [data-zone="footer"] > .ky-container {
+  [data-zone="footer"] > [data-layout-container] {
     grid-template-columns: repeat(4, 1fr);
   }
   #sections > [data-column-span="1"],
-  [data-zone="footer"] > .ky-container > [data-column-span="1"]   { grid-column: span 4; }
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="1"]   { grid-column: span 4; }
   #sections > [data-column-span="1/2"],
-  [data-zone="footer"] > .ky-container > [data-column-span="1/2"] { grid-column: span 2; }
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="1/2"] { grid-column: span 2; }
   #sections > [data-column-span="1/3"],
-  [data-zone="footer"] > .ky-container > [data-column-span="1/3"] { grid-column: span 4; }
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="1/3"] { grid-column: span 4; }
   #sections > [data-column-span="2/3"],
-  [data-zone="footer"] > .ky-container > [data-column-span="2/3"] { grid-column: span 4; }
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="2/3"] { grid-column: span 4; }
 }
 
 /* Mobile — single column, every block stacks. */
 @media (max-width: 600px) {
   #sections,
-  [data-zone="footer"] > .ky-container {
+  [data-zone="footer"] > [data-layout-container] {
     grid-template-columns: 1fr;
   }
   #sections > [data-column-span],
-  [data-zone="footer"] > .ky-container > [data-column-span]       { grid-column: span 1; }
+  [data-zone="footer"] > [data-layout-container] > [data-column-span]       { grid-column: span 1; }
 }
 
 /* Drag indicator span-aware width — set by the dragstart handler in

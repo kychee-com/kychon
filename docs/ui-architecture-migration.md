@@ -122,7 +122,7 @@ Tailwind/public CSS ownership:
 - `src/styles/globals.css` imports Tailwind theme, Kychon's token bridge, bundled chrome CSS (`theme.css`, `zone-grid.css`, `a11y.css`), Kychon's owned public CSS, and Tailwind utilities. Preflight is still not imported, so DB-rendered prose and copied block HTML keep the current reset assumptions.
 - `src/styles/public.css` replaced the old static `/css/styles.css` file. Public layout/block styles are now bundled through Astro/Vite next to Tailwind instead of loaded as a separate legacy stylesheet.
 - Tailwind-generated utility rules remain in the `utilities` cascade layer after Kychon's public CSS, so feature code can use unprefixed Tailwind utilities without an old utility layer winning by accident.
-- Kychon's layout container is `.ky-container`; `.container` is no longer a Kychon class. Kychon's muted text helper is `.ky-text-muted`; `text-muted-*` remains available for Tailwind/shadcn utilities.
+- Kychon layout uses Tailwind utilities with `data-layout-container`; `.container` is no longer a Kychon class. Muted public/static markup now uses Tailwind/shadcn semantic text utilities instead of a Kychon helper class.
 - Remaining static `public/css/*.css` files are lazy admin/block adjuncts plus compatibility copies for local tooling; portal chrome CSS is bundled from `src/styles/` and should not be linked from shared HTML.
 
 Public CSS token bridge:
