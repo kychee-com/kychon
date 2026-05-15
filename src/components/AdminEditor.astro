@@ -16,6 +16,11 @@
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
   const tooltipPrimaryButtonClass = buttonVariants({ size: 'sm' });
+  const zoneAddButtonClass = buttonVariants({
+    variant: 'outline',
+    size: 'sm',
+    className: 'mx-auto my-2 border-dashed bg-background/90 text-muted-foreground shadow-sm hover:text-primary',
+  });
 
   function getToken(): string {
     const session = JSON.parse(localStorage.getItem('wl_session') || '{}');
@@ -772,10 +777,11 @@
     document.querySelectorAll<HTMLElement>('[data-zone]').forEach((zoneEl) => {
       const zone = zoneEl.dataset.zone;
       if (!zone) return;
-      if (zoneEl.querySelector(':scope > .admin-zone-add-btn')) return;
+      if (zoneEl.querySelector(':scope > [data-admin-zone-add-button]')) return;
       const btn = document.createElement('button');
-      btn.className = 'admin-zone-add-btn';
+      btn.className = zoneAddButtonClass;
       btn.type = 'button';
+      btn.dataset.adminZoneAddButton = '';
       btn.dataset.zoneAdd = zone;
       btn.textContent = `+ Add to ${zone}`;
       btn.addEventListener('click', (event) => {
