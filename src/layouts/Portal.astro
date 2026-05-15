@@ -87,14 +87,14 @@ const cspValue = buildCspValue();
     class="absolute -top-full left-4 z-[1000] rounded-[var(--radius)] bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-white no-underline transition-[top] duration-150 focus:top-3 focus:text-white"
   >Skip to main content</a>
   {renderDemoBanner && <DemoBanner />}
-  <div class="page">
+  <div class="flex min-h-screen flex-col">
     <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
       <div class="ky-container" set:html={chrome.headerHtml}></div>
       <AdminZoneAddButton zone="header" />
     </nav>
     <div data-fullbleed-host data-zone-fullbleed="header" transition:persist></div>
 
-    <main class="page-content" id="main-content">
+    <main class="flex-1 py-8" id="main-content">
       <slot />
     </main>
 

@@ -82,15 +82,6 @@ a:hover {
   margin: 0 auto;
   padding: 0 1.5rem;
 }
-.page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-.page-content {
-  flex: 1;
-  padding: 2rem 0;
-}
 
 /* Nav */
 .nav {
