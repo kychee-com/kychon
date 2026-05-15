@@ -50,12 +50,12 @@ describe('image_accordion block', () => {
       }),
       ctx,
     );
-    expect(html).toContain('section-image-accordion');
+    expect(html).toContain('data-accordion');
     expect(html).toContain('Our Choirs');
     expect(html).toContain('data-accordion-panel="0"');
     expect(html).toContain('data-accordion-panel="1"');
     expect(html).toContain('href="/a"');
-    expect(html).toContain('--accordion-panel-position:40% 50%');
+    expect(html).toContain('object-position:40% 50%');
     expect(html).toContain('&lt;Alpha&gt;');
     expect(html).not.toContain('<script>x</script>');
   });
@@ -71,11 +71,25 @@ describe('image_accordion block', () => {
       }),
       ctx,
     );
-    expect(html).toContain('image-accordion--mobile-cards');
+    expect(html).toContain('data-mobile-fallback="cards"');
     expect(html).toContain('--accordion-active:3;');
     expect(html).toContain('--accordion-idle:1;');
-    expect(html).toContain('--accordion-focus-color:#ffcc00;');
+    expect(html).toContain('--accordion-focus-color:#ffcc00');
     expect(html).toContain('tabindex="0"');
+    expect(html).toContain('md:hover:flex-[var(--accordion-active,2.5)_1_0]');
+    expect(html).toContain('focus-visible:ring-[var(--accordion-panel-focus-color)]');
+  });
+
+  it('keeps retired image accordion classes out of renderer output', () => {
+    const html = renderBlock(
+      section('image_accordion', {
+        panels: [{ image_url: '/a.jpg', image_alt: 'A', title: 'Alpha' }],
+      }),
+      ctx,
+    );
+
+    expect(html).not.toContain('image-accordion');
+    expect(html).not.toContain('section-image-accordion');
   });
 });
 
