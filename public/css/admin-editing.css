@@ -375,26 +375,6 @@ body.admin-dragging [data-zone]:hover {
   padding: 0 0.25rem;
 }
 
-/* Add-section button in each zone. */
-.admin-zone-add-btn {
-  display: none;
-  margin: 0.5rem auto;
-  padding: 0.4rem 0.9rem;
-  border: 1px dashed var(--color-border, #d1d5db);
-  border-radius: var(--radius, 0.5rem);
-  background: var(--color-surface, #f8fafc);
-  color: var(--color-text-muted, #6b7280);
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-body.admin .admin-zone-add-btn {
-  display: inline-flex;
-}
-.admin-zone-add-btn:hover {
-  border-color: var(--color-primary, #6366f1);
-  color: var(--color-primary, #6366f1);
-}
-
 /* ═══════════════════════════════════════════════════
    9. EMBED BLOCK
    ═══════════════════════════════════════════════════ */

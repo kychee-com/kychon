@@ -57,6 +57,7 @@ describe('admin action controls source', () => {
       expect(source).not.toContain('admin-section-btn');
       expect(source).not.toContain('admin-section-edit-btn');
       expect(source).not.toContain('admin-scope-toggle');
+      expect(source).not.toContain('admin-zone-add-btn');
       expect(source).not.toMatch(/(?:\.|["' ])admin-scope-pill\b/);
     }
   });
@@ -68,6 +69,18 @@ describe('admin action controls source', () => {
     expect(editor).toContain('adminScopePillClass');
     expect(editor).toContain('[data-admin-scope-pill]');
     expect(editor).not.toContain('badgeVariants');
+  });
+
+  it('keeps dynamically inserted zone add buttons on shadcn variants', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const styles = await readFile(ADMIN_CSS, 'utf8');
+
+    expect(editor).toContain('zoneAddButtonClass');
+    expect(editor).toContain('buttonVariants');
+    expect(editor).toContain('data-admin-zone-add-button');
+    expect(editor).toContain('dataset.zoneAdd');
+    expect(editor).not.toContain('admin-zone-add-btn');
+    expect(styles).not.toContain('admin-zone-add-btn');
   });
 
   it('renders admin actions with shared variant classes instead of legacy primitives', () => {
