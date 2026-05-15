@@ -34,6 +34,14 @@ interface PromoCardsRenderOptions extends MarketingRenderOptions {
   sanitizeCssValue?: (value: unknown) => string;
 }
 
+interface TaglineStripConfig {
+  text?: string;
+  color_scheme?: string;
+  size?: string;
+  alignment?: string;
+  icon?: string;
+}
+
 interface FeatureItem {
   icon?: string;
   title?: string;
@@ -122,6 +130,28 @@ function columnClass(value: unknown): string {
   return 'grid-cols-[repeat(auto-fit,minmax(min(15rem,100%),1fr))]';
 }
 
+function taglineSchemeClass(value: unknown): string {
+  const scheme = String(value || 'primary');
+  if (scheme === 'accent') return 'border-y border-border bg-accent text-accent-foreground';
+  if (scheme === 'dark') return 'bg-foreground text-background dark:bg-black dark:text-white';
+  if (scheme === 'light') return 'border-y border-border bg-muted text-foreground';
+  return 'bg-primary text-primary-foreground';
+}
+
+function taglineSizeClass(value: unknown): string {
+  const size = String(value || 'medium');
+  if (size === 'small') return 'py-3 text-sm sm:text-base';
+  if (size === 'large') return 'py-10 text-lg sm:text-xl';
+  return 'py-6 text-base sm:text-lg';
+}
+
+function taglineAlignmentClass(value: unknown): string {
+  const alignment = String(value || 'center');
+  if (alignment === 'left') return 'justify-start text-left';
+  if (alignment === 'right') return 'justify-end text-right';
+  return 'justify-center text-center';
+}
+
 function FeatureIcon({ name }: { name: string }) {
   const Icon = FEATURE_ICONS[name] || Sparkles;
   return (
@@ -129,6 +159,11 @@ function FeatureIcon({ name }: { name: string }) {
       <Icon className="h-5 w-5" />
     </span>
   );
+}
+
+function TaglineIcon({ name }: { name: string }) {
+  const Icon = FEATURE_ICONS[name] || Sparkles;
+  return <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />;
 }
 
 function MarketingContainer({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -361,6 +396,35 @@ function PromoCardsBlock({ config, options }: { config: Record<string, unknown>;
   );
 }
 
+function TaglineStripBlock({ config, options }: { config: TaglineStripConfig; options: MarketingRenderOptions }) {
+  const scheme = String(config.color_scheme || 'primary');
+  const size = String(config.size || 'medium');
+  const alignment = String(config.alignment || 'center');
+  const icon = String(config.icon || '').trim();
+
+  return (
+    <div
+      className={cn('w-full', taglineSchemeClass(scheme), taglineSizeClass(size))}
+      data-alignment={alignment}
+      data-color-scheme={scheme}
+      data-size={size}
+      data-tagline-strip=""
+    >
+      <div
+        className={cn(
+          'mx-auto flex w-full max-w-6xl items-center gap-2 px-4 sm:px-6 lg:px-8',
+          taglineAlignmentClass(alignment),
+        )}
+      >
+        {icon && <TaglineIcon name={icon} />}
+        <p className="m-0 font-medium tracking-normal" {...editableAttrs('text', options)}>
+          {config.text || ''}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function MarketingBlock({ kind, config, options }: { kind: MarketingBlockKind; config: Record<string, unknown>; options: MarketingRenderOptions }) {
   if (kind === 'features') return <FeaturesBlock config={config} options={options} />;
   if (kind === 'cta') return <CtaBlock config={config} options={options} />;
@@ -382,4 +446,11 @@ export function renderPromoCardsBlockHtml(
   options: PromoCardsRenderOptions = {},
 ): string {
   return renderToStaticMarkup(<PromoCardsBlock config={config || {}} options={options} />);
+}
+
+export function renderTaglineStripBlockHtml(
+  config: TaglineStripConfig,
+  options: MarketingRenderOptions = {},
+): string {
+  return renderToStaticMarkup(<TaglineStripBlock config={config || {}} options={options} />);
 }

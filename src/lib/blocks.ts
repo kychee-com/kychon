@@ -5,7 +5,11 @@
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
 import { buttonVariants } from '@/components/kychon/ui';
-import { renderMarketingBlockHtml, renderPromoCardsBlockHtml } from '@/components/kychon/MarketingBlocksView';
+import {
+  renderMarketingBlockHtml,
+  renderPromoCardsBlockHtml,
+  renderTaglineStripBlockHtml,
+} from '@/components/kychon/MarketingBlocksView';
 import {
   adminNavEditButtonHtml,
   adminScopePillHtml,
@@ -184,24 +188,6 @@ export interface SlideshowItemConfig {
 
 // --- Helpers ---
 
-const FEATURE_ICONS: Record<string, string> = {
-  users: '\u{1F465}',
-  calendar: '\u{1F4C5}',
-  'book-open': '\u{1F4D6}',
-  'message-circle': '\u{1F4AC}',
-  home: '\u{1F3E0}',
-  settings: '⚙️',
-  'bar-chart-2': '\u{1F4CA}',
-  'bar-chart': '\u{1F4CA}',
-  shield: '\u{1F6E1}',
-  heart: '❤️',
-  info: 'ℹ️',
-  briefcase: '\u{1F4BC}',
-  star: '⭐',
-  award: '\u{1F3C5}',
-  zap: '⚡',
-};
-
 export function escHtml(s: any): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -325,10 +311,6 @@ function editablePath(section: Section, path: string, ctx: BlockRenderContext): 
 function richEditableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
   if (!ctx.admin || section.id == null) return '';
   return ` data-editable-rich="sections.${section.id}.config.${path}"`;
-}
-
-function featureIcon(name: string): string {
-  return FEATURE_ICONS[name] || '✦';
 }
 
 export function isPageActive(href: string, current?: string): boolean {
@@ -1363,16 +1345,12 @@ const TAGLINE_STRIP: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
-    const scheme = cfg.color_scheme || 'primary';
-    const size = cfg.size || 'medium';
-    const alignment = cfg.alignment || 'center';
-    const cls = `block-tagline-strip block-tagline-strip--${escAttr(scheme)} block-tagline-strip--${escAttr(size)} block-tagline-strip--align-${escAttr(alignment)}`;
-    const iconHtml = cfg.icon
-      ? `<span class="block-tagline-strip__icon" aria-hidden="true">${escHtml(featureIcon(String(cfg.icon)))}</span>`
-      : '';
-    const textHtml = `<p class="block-tagline-strip__text"${editableAttr(section, 'text', ctx)}>${escHtml(cfg.text || '')}</p>`;
-    const inner = `<div class="ky-container">${iconHtml}${textHtml}</div>`;
-    return adminWrap(section, ctx, inner, cls);
+    const inner = renderTaglineStripBlockHtml(cfg, {
+      editablePath(path) {
+        return editablePath(section, path, ctx);
+      },
+    });
+    return adminWrap(section, ctx, inner, 'section w-full p-0');
   },
 };
 
