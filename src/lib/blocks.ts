@@ -910,6 +910,7 @@ const ACTIVITY_FEED: BlockType = {
   supportedSpans: ['1', '1/3', '2/3'],
   defaultConfig: { heading: 'Recent Activity', limit: 15 },
   render(section, ctx) {
+    if (!ctx.isFeatureEnabled?.('feature_activity_feed')) return '';
     const cfg = section.config || {};
     const heading = cfg.heading
       ? `<h2${editableAttr(section, 'heading', ctx)}>${escHtml(cfg.heading)}</h2>`
@@ -917,15 +918,11 @@ const ACTIVITY_FEED: BlockType = {
     return adminWrap(
       section,
       ctx,
-      `<div class="ky-container" data-block-hydrate="activity_feed">${heading}<div id="activity-feed"><div class="skeleton skeleton-card"></div></div></div>`,
+      `<div class="ky-container" data-block-hydrate="activity_feed">${heading}</div>`,
       'section section-activity',
     );
   },
   async hydrate(el, section, ctx) {
-    if (!ctx.isFeatureEnabled?.('feature_activity_feed')) {
-      el.style.display = 'none';
-      return;
-    }
     const { hydrateActivityFeed } = await import('./block-hydrators.js');
     await hydrateActivityFeed(el, section, ctx);
   },

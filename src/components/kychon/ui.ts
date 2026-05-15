@@ -1,4 +1,5 @@
 export { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+export { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 export { Badge, badgeVariants } from '@/components/ui/badge';
 export { Button, buttonVariants, type ButtonProps } from '@/components/ui/button';
 export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
