@@ -79,9 +79,34 @@ function readNavProps(host: HTMLElement): NavBlockProps | null {
   };
 }
 
+function isNavHost(el: HTMLElement | null): boolean {
+  return el?.getAttribute('data-block-hydrate') === 'nav';
+}
+
+function findNavHostAncestor(el: HTMLElement | null): HTMLElement | null {
+  let current = el?.parentElement ?? null;
+  while (current) {
+    if (isNavHost(current)) return current;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function findNavHostDescendant(el: HTMLElement | null): HTMLElement | null {
+  if (!el) return null;
+  for (const child of Array.from(el.children)) {
+    if (!(child instanceof HTMLElement)) continue;
+    if (isNavHost(child)) return child;
+    const nested = findNavHostDescendant(child);
+    if (nested) return nested;
+  }
+  return null;
+}
+
 function navHostFrom(target?: HTMLElement | null): HTMLElement | null {
-  if (target?.matches('[data-block-hydrate="nav"]')) return target;
-  return target?.closest('[data-block-hydrate="nav"]') ?? document.querySelector<HTMLElement>('[data-block-hydrate="nav"]');
+  if (isNavHost(target ?? null)) return target ?? null;
+  if (target) return findNavHostAncestor(target) ?? findNavHostDescendant(target);
+  return findNavHostDescendant(document.body);
 }
 
 export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
