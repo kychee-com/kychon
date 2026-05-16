@@ -226,6 +226,8 @@ describe('legacy static UI primitives', () => {
     expect(slideshowRuntime).not.toContain('data-slideshow-dot');
     expect(slideshowRuntime).not.toContain('data-slideshow-live');
     expect(slideshowRuntime).toContain('SlideshowCarousel');
+    expect(slideshowRuntime).toContain('initSlideshows');
+    expect(slideshowRuntime).toContain('collectDescendantElements');
     expect(navDropdown).toContain('NavBlockContent');
     expect(navDropdown).toContain('createRoot');
     expect(navDropdown).not.toContain('chevronBound');
@@ -401,7 +403,11 @@ describe('legacy static UI primitives', () => {
     expect(showcaseRender).toContain('data-layout-container');
     expect(showcaseRender).toContain('data-nav-shell');
     expect(showcaseRender).not.toContain('class="nav"');
+    expect(showcaseRender).not.toContain('.preview-label');
     expect(showcaseRender).not.toContain('data-section-visible');
+    expect(showcaseRender).toContain('inlineModuleExports');
+    expect(showcaseRender).toContain('initSlideshows();');
+    expect(showcaseRender).not.toContain('document.querySelectorAll');
     expect(showcaseRender).not.toContain("document.querySelectorAll('main [data-section]')");
     expect(showcaseRender).not.toContain("document.querySelectorAll('[data-section]')");
     expect(showcaseRender).not.toContain('ky-container');

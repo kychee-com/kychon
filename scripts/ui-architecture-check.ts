@@ -13,6 +13,7 @@ const ROOT_SCAN_FILES = [
   '_odbc-port-deploy.ts',
   '_odbc-port.seed.sql',
 ];
+export const GIT_SCAN_FILE_ARGS = ['ls-files', '-z', '--cached', '--others', '--exclude-standard'] as const;
 const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.html', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
@@ -79,7 +80,7 @@ export function isScannedSourcePath(path: string): boolean {
 }
 
 export function listScanFiles(): string[] {
-  const output = execFileSync('git', ['ls-files', '-z', '--', ...SCAN_DIRS, ...ROOT_SCAN_FILES], {
+  const output = execFileSync('git', [...GIT_SCAN_FILE_ARGS, '--', ...SCAN_DIRS, ...ROOT_SCAN_FILES], {
     cwd: ROOT,
     encoding: 'utf-8',
   });

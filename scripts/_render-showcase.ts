@@ -37,6 +37,20 @@ function readAstroCssBundle(): string {
   return readFileSync(join(ROOT, 'src/styles/public.css'), 'utf-8');
 }
 
+function inlineModuleExports(source: string): string {
+  return source.replace(/export\s*\{([^}]*)\}\s*;?/g, (_match, rawSpecifiers: string) => {
+    const aliases = rawSpecifiers
+      .split(',')
+      .map((specifier) => specifier.trim())
+      .filter(Boolean)
+      .map((specifier) => {
+        const [local, exported = local] = specifier.split(/\s+as\s+/).map((part) => part.trim());
+        return `const ${exported} = ${local};`;
+      });
+    return aliases.length ? `\n${aliases.join('\n')}\n` : '';
+  });
+}
+
 const ctx: BlockRenderContext = {
   admin: false,
   locale: 'en',
@@ -110,16 +124,6 @@ async function main(): Promise<void> {
   <style>
     /* Local-preview shims */
     body { margin: 0; }
-    .preview-label {
-      max-width: var(--max-width);
-      margin: 1.5rem auto 0.5rem;
-      padding: 0 1rem;
-      color: var(--color-text-muted);
-      font-size: 0.875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .preview-label code { font-family: ui-monospace, monospace; color: var(--color-primary); font-weight: 600; }
     [data-layout-container] {
       box-sizing: border-box;
       width: 100%;
@@ -148,8 +152,8 @@ async function main(): Promise<void> {
     <div ${layoutContainerAttrs}>${footerHtml}</div>
   </footer>
   <script type="module">
-    ${slideshowBundled.replace(/export\s*\{[^}]*\}\s*;?/g, '')}
-    document.querySelectorAll('[data-block-hydrate="slideshow"]').forEach((el) => initSlideshow(el));
+    ${inlineModuleExports(slideshowBundled)}
+    initSlideshows();
   </script>
 </body>
 </html>
