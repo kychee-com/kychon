@@ -128,7 +128,7 @@ Tailwind/public CSS ownership:
 Public CSS token bridge:
 
 - `src/styles/theme.css` now defines `--ky-*` runtime tokens first, maps shadcn/Tailwind semantic tokens from them, then exposes the old `--color-*` aliases as compatibility shims. The public copy is retained only for compatibility tooling.
-- Public blocks remain Astro/static, but shared public classes such as `.btn`, `.card`, `.form-input`, `.badge`, `.feature-card`, and `.section-cta` now read semantic tokens where practical; nav and hero presentation have moved to semantic `data-*` hooks.
+- Public blocks remain Astro/static, but shared public classes such as `.btn`, `.card`, `.form-input`, `.badge`, and `.feature-card` now read semantic tokens where practical; nav, hero, and section visibility have moved to semantic `data-*` hooks.
 - Demo seeds and copied-site themes should set runtime values through `site_config.theme`, not dynamic Tailwind classes or one-off generated CSS utility names.
 
 ## Browser Support Floor

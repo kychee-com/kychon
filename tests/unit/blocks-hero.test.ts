@@ -45,7 +45,8 @@ describe('hero renderer — background mode (existing behavior)', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('class="section" data-hero data-hero-mode="background"');
+    expect(html).toContain('data-section data-hero data-hero-mode="background"');
+    expect(html).not.toContain('class="section"');
     expect(html).not.toContain('data-hero-mode="foreground"');
     expect(html).toContain("background-image:url('/img/hero.jpg')");
     expect(html).toContain('<h1>Welcome</h1>');

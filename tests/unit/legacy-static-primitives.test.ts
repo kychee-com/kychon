@@ -100,10 +100,16 @@ describe('legacy static UI primitives', () => {
     expect(blocks).not.toContain('class="ky-container"');
     expect(blocks).not.toContain('ky-container');
     expect(blocks).not.toContain('ky-text-muted');
+    expect(blocks).not.toMatch(/class="[^"]*\bsection\b/);
+    expect(blocks).not.toContain('section-events-calendar');
+    expect(blocks).not.toContain('section-activity');
+    expect(embed).not.toMatch(/class="[^"]*\bsection\b/);
     expect(blocks).not.toContain('event-skeleton-card');
     expect(blocks).not.toContain('block-events-calendar__skeleton');
     expect(blocks).not.toContain(' skeleton"></div>');
     expect(embed).not.toContain('block-embed');
+    expect(styles).toContain('[data-section]');
+    expect(styles).not.toMatch(/\.section(?:[.{:#\s-]|$)/);
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
@@ -189,6 +195,10 @@ describe('legacy static UI primitives', () => {
     expect(portal).not.toContain('ky-container');
     expect(portal).not.toContain('class="page"');
     expect(portal).not.toContain('class="page-content"');
+    expect(portal).toContain("document.querySelectorAll('[data-section]')");
+    expect(portal).toContain("document.querySelectorAll('main [data-section]')");
+    expect(portal).not.toContain("document.querySelectorAll('.section')");
+    expect(portal).not.toContain("classList?.contains('section')");
     expect(portal).not.toContain("classList.add('section-visible')");
     expect(portal).not.toContain('.section-visible');
     expect(portal).not.toContain('wl-skip-nav');

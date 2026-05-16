@@ -364,7 +364,7 @@ export function renderSocialLinksBlock(
   const p = (cfg.presentation || {}) as Record<string, unknown>;
   const zone = section.zone;
   const layout = String(cfg.layout || (zone === 'header' ? 'compact' : 'icons')).toLowerCase();
-  const baseClass = options.className || 'section w-full p-0 opacity-100';
+  const baseClass = options.className || 'w-full p-0 opacity-100';
   const classes = [
     baseClass,
     zone === 'header' ? 'ml-auto' : '',
@@ -387,7 +387,7 @@ export function renderSocialLinksBlock(
   const links = items.map(renderSocialAnchor).join('');
   const layoutAttr = ` data-social-links-zone="${escAttr(zone)}" data-social-links-layout="${escAttr(layout)}"`;
   const legacyAttr = options.legacyFooter ? ' data-legacy-footer-links' : '';
-  return `<section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${dragHandle}${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
+  return `<section data-section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${dragHandle}${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
 }
 
 const SOCIAL_LINKS: BlockType = {

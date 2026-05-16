@@ -579,7 +579,7 @@ async function waitForRouteReady(page: any, route: CaptureRoute): Promise<void> 
   await page.waitForLoadState('networkidle');
   switch (route.id) {
     case 'home':
-      await page.waitForSelector('#sections .section', { timeout: 5000 });
+      await page.waitForSelector('#sections [data-section]', { timeout: 5000 });
       break;
     case 'events':
       await page.waitForSelector('#events-list .card', { timeout: 5000 });
@@ -615,10 +615,10 @@ async function assertNoErrorText(page: any, routeId: string): Promise<void> {
 async function prepareFullPageScreenshot(page: any): Promise<void> {
   await page.addStyleTag({
     content: `
-      .section { opacity: 1 !important; }
+      [data-section] { opacity: 1 !important; }
       #sections-skeleton { display: none !important; }
       #announcements-section,
-      .section-activity-feed {
+      [data-block-hydrate="activity_feed"] {
         content-visibility: visible !important;
         contain-intrinsic-size: auto !important;
       }

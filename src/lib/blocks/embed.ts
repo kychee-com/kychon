@@ -27,7 +27,7 @@ interface EmbedConfig {
   trust_acknowledged?: boolean;
 }
 
-const embedSectionClass = 'section w-full';
+const embedSectionClass = 'w-full';
 
 function jsonAttr(value: unknown): string {
   return JSON.stringify(value)
@@ -78,7 +78,7 @@ export function renderEmbedError(
   const attrs = buildSectionAttrs(section, ctx, cfg);
   const adminCtrls = buildAdminControls(section, ctx);
   return (
-    `<section class="${embedSectionClass}" data-embed data-embed-state="error"${attrs}>` +
+    `<section data-section class="${embedSectionClass}" data-embed data-embed-state="error"${attrs}>` +
     buildAdminDragHandle(section, ctx) +
     adminCtrls +
     renderEmbedErrorContentHtml(message) +
@@ -150,7 +150,7 @@ const EMBED: BlockType = {
     const content = embedContentHtml(provider, src, cfg, ctx);
 
     return (
-      `<section class="${embedSectionClass}" data-embed data-embed-state="ready" ` +
+      `<section data-section class="${embedSectionClass}" data-embed data-embed-state="ready" ` +
       `data-embed-provider="${escAttr(provider.id)}" data-provider="${escAttr(provider.id)}"${attrs}>` +
       buildAdminDragHandle(section, ctx) +
       adminCtrls +
