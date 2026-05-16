@@ -45,6 +45,26 @@ describe('ui architecture check', () => {
     expect(messages('public/js/env.js', "window.__KYCHON_API = 'https://api.run402.com';")).toEqual([]);
   });
 
+  it('rejects selector-based DOM lookup in product source', () => {
+    const selectorLookups = [
+      "document.getElementById('root');",
+      "document.querySelector('[data-root]');",
+      "document.querySelectorAll('[data-item]');",
+      "target?.closest('[data-action]');",
+      "target.matches('[data-action]');",
+      "root.querySelector('[data-child]');",
+    ].join('\n');
+
+    expect(messages('src/lib/bad-selector-runtime.ts', selectorLookups)).toEqual([
+      'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
+      'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
+      'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
+      'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
+      'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
+      'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
+    ]);
+  });
+
   it('keeps feature UI on Kychon/shadcn controls while allowing hidden plumbing inputs', () => {
     const nativeButtonHtml = ['<but', 'ton type="button">Save</but', 'ton>'].join('');
     const nativeSelectHtml = ['<sel', 'ect></sel', 'ect>'].join('');
