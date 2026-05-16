@@ -615,21 +615,19 @@ async function waitForRouteReady(page: any, route: CaptureRoute): Promise<void> 
       await page.waitForSelector('[data-forum-page] [data-forum-category-card]', { timeout: 5000 });
       break;
     case 'admin-settings':
-      await page.waitForFunction(
-        () => Array.from(document.querySelectorAll('h2')).some((heading) => heading.textContent?.trim() === 'Site Settings'),
-        { timeout: 8000 },
-      );
+      await page.getByRole('heading', { name: 'Site Settings', level: 2 }).waitFor({ timeout: 8000 });
       break;
     case 'baked-chrome-page':
-      await page.waitForFunction(
-        (expectedTitle: string) => {
-          const pageTitle = document.querySelector('main h1')?.textContent?.trim();
-          const renderedSectionCount = document.querySelectorAll('#sections [data-section]').length;
-          return pageTitle === expectedTitle || renderedSectionCount > 0;
-        },
-        route.expectedTitle || '',
-        { timeout: 5000 },
-      );
+      if (route.expectedTitle) {
+        try {
+          await page.getByRole('heading', { name: route.expectedTitle, level: 1 }).waitFor({ timeout: 2500 });
+          break;
+        } catch {
+          // Some copied sites render a decorative first heading; rendered sections
+          // still prove first-byte chrome/page content is present.
+        }
+      }
+      await page.locator('#sections [data-section]').first().waitFor({ timeout: 2500 });
       break;
   }
   await assertNoErrorText(page, route.id);
