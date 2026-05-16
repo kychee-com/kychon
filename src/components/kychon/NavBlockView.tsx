@@ -578,7 +578,14 @@ function useNavRuntime(
     let nextOverflow = false;
 
     if (!nextSourceMobile) {
-      const available = links.getBoundingClientRect().width;
+      const linksWidth = links.getBoundingClientRect().width;
+      let available = linksWidth;
+      let container = links.parentElement;
+      while (container) {
+        const width = container.getBoundingClientRect().width;
+        if (width > 0) available = Math.min(available, width);
+        container = container.parentElement;
+      }
       const orderedItems = items.map((_, index) => topItemRefs.current.get(index)).filter((item): item is HTMLElement => !!item);
       if (available > 0 && orderedItems.length) {
         const gap = readGap(links);

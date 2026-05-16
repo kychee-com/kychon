@@ -790,6 +790,12 @@ tr:hover td {
   [data-nav-shell] {
     --nav-header-gap: 0.5rem;
   }
+  [data-nav-links]:not([data-nav-source-mobile="true"]) {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+  }
   [data-nav-brand] [data-brand-text-full],
   [data-nav-brand] [data-brand-text-short] {
     white-space: nowrap;

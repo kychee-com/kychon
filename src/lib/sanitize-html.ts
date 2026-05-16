@@ -1,14 +1,15 @@
-// Tiny dependency-free HTML sanitizer for rich-text fields stored by admins
-// (announcement bodies, etc.) and rendered back onto every member's
-// page. Strips on*= event handlers, <script>, javascript: hrefs, and any tag
-// not on the Tiptap-compatible allowlist.
-//
-// Two execution contexts:
-//   - Browser: uses the shared fragment parser.
-//   - Node tests: relies on happy-dom (or jsdom) to provide parser globals.
-// Both are tested in tests/unit/security-bug-23-esc-xss.test.ts.
+// HTML sanitizer for rich-text fields stored by admins (announcement bodies,
+// event descriptions, custom blocks, etc.) and rendered back onto member pages.
+// It uses an AST pass so browser and server contexts share the same policy.
 
-import { parseHtmlBody, removeNode, serializeHtmlChildren, snapshotChildNodes, unwrapElement } from './dom-fragment';
+import {
+  DOCUMENT_NODE,
+  ELEMENT_NODE,
+  TEXT_NODE,
+  parse,
+  type ElementNode,
+  type Node as HtmlNode,
+} from 'ultrahtml';
 
 const ALLOWED_TAGS = new Set([
   'p',
@@ -54,8 +55,11 @@ const ALLOWED_TAGS = new Set([
   'td',
 ]);
 
+const VOID_TAGS = new Set(['br', 'hr', 'img']);
 const DROP_WITH_CONTENT_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed']);
 const DROP_ELEMENT_TAGS = new Set(['input', 'select', 'textarea', 'option']);
+const DANGEROUS_TEXT_TAG_FRAGMENT_RE =
+  /<\s*\/?\s*(?:script|style|iframe|object|embed|svg|math|details|link|meta)(?:[\s/>]|$)[^>]*>/gi;
 
 const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
   a: new Set(['href', 'title', 'target', 'rel']),
@@ -64,122 +68,31 @@ const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
 };
 
 const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'mailto:'];
+const EMPTY_ATTR_SET: ReadonlySet<string> = new Set();
+const ENTITY_PATTERN = '(?:#\\d+|#x[0-9a-f]+|[a-z][a-z0-9]+);';
+const RAW_AMPERSAND_RE = new RegExp(`&(?!(?:${ENTITY_PATTERN}))`, 'gi');
+
+type SanitizableParent = { children: HtmlNode[] };
 
 function isSafeUrl(value: string, allowDataImage = false): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
-  // Allow protocol-relative or absolute paths.
-  if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
-  // URLs with no colon are relative and safe.
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return true;
-  const colon = trimmed.indexOf(':');
-  const protocol = trimmed.slice(0, colon + 1).toLowerCase();
+  const compact = trimmed.replace(/[\u0000-\u001f\u007f\s]+/g, '');
+  if (compact.startsWith('/') || compact.startsWith('#')) return true;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(compact)) return true;
+  const colon = compact.indexOf(':');
+  const protocol = compact.slice(0, colon + 1).toLowerCase();
   if (SAFE_URL_PROTOCOLS.includes(protocol)) return true;
-  if (allowDataImage && protocol === 'data:' && /^data:image\/(png|jpe?g|gif|webp|svg\+xml)/i.test(trimmed)) {
+  if (allowDataImage && protocol === 'data:' && /^data:image\/(png|jpe?g|gif|webp|svg\+xml)/i.test(compact)) {
     return true;
   }
   return false;
 }
 
-const EMPTY_ATTR_SET: ReadonlySet<string> = new Set();
-
-function sanitizeAttributes(el: Element): void {
-  const tag = el.tagName.toLowerCase();
-  const allowed = ALLOWED_ATTRS_BY_TAG[tag] ?? EMPTY_ATTR_SET;
-  const allowedGlobal = ALLOWED_ATTRS_BY_TAG['*'] ?? EMPTY_ATTR_SET;
-  const toRemove: string[] = [];
-  for (const attr of Array.from(el.attributes)) {
-    const name = attr.name.toLowerCase();
-    if (name.startsWith('on')) {
-      toRemove.push(attr.name);
-      continue;
-    }
-    if (!allowed.has(name) && !allowedGlobal.has(name)) {
-      toRemove.push(attr.name);
-      continue;
-    }
-    if (name === 'href' && !isSafeUrl(attr.value)) {
-      toRemove.push(attr.name);
-      continue;
-    }
-    if (name === 'src' && !isSafeUrl(attr.value, true)) {
-      toRemove.push(attr.name);
-      continue;
-    }
-    if (name === 'target' && attr.value && attr.value.toLowerCase() === '_blank') {
-      // _blank without rel=noopener leaks window.opener — force a safe rel.
-      const existingRel = el.getAttribute('rel') || '';
-      if (!/noopener/i.test(existingRel)) {
-        el.setAttribute('rel', `${existingRel} noopener noreferrer`.trim());
-      }
-    }
-  }
-  for (const name of toRemove) el.removeAttribute(name);
-}
-
-function walk(node: Node): void {
-  // Iterate over a snapshot since we mutate as we go.
-  const children = snapshotChildNodes(node);
-  for (const child of children) {
-    if (child.nodeType === 1 /* ELEMENT_NODE */) {
-      const el = child as Element;
-      const tag = el.tagName.toLowerCase();
-      if (!ALLOWED_TAGS.has(tag)) {
-        if (DROP_ELEMENT_TAGS.has(tag)) {
-          removeNode(el);
-          continue;
-        }
-        if (DROP_WITH_CONTENT_TAGS.has(tag)) {
-          removeNode(el);
-          continue;
-        }
-        // Drop the element but keep its (recursively sanitized) children.
-        unwrapElement(el);
-        continue;
-      }
-      sanitizeAttributes(el);
-      walk(el);
-    } else if (child.nodeType !== 3 /* TEXT_NODE */ && child.nodeType !== 4 /* CDATA */) {
-      // Strip comments, processing instructions, etc.
-      removeNode(child);
-    }
-  }
-}
-
-export function sanitizeRichHtml(input: string | null | undefined): string {
-  const raw = String(input ?? '');
-  if (!raw) return '';
-  const body = parseHtmlBody(raw);
-  if (!body) {
-    // Server-side build context with no DOM — fail closed by escaping.
-    return raw
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-  walk(body);
-  return serializeHtmlChildren(body);
-}
-
-export function sanitizeRichHtmlServer(input: unknown): string {
-  if (input == null) return '';
-  let html = String(input);
-  html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
-  html = html.replace(/<\s*(input|select|textarea|option)\b[^>]*>(?:[\s\S]*?<\/\s*\1\s*>)?/gi, '');
-  html = html.replace(/<\/?\s*(script|style|iframe|object|embed|svg|math|details|link|meta)(?:\s|\/|>)[^>]*>/gi, '');
-  html = html.replace(/<\/?\s*(button|form|label)\b[^>]*>/gi, '');
-  html = html.replace(/[\s/]+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  html = html.replace(/\s(?:class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  html = html.replace(/\s(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (_match, attr: string, rawValue: string) => {
-    const value = rawValue.replace(/^['"]|['"]$/g, '');
-    const decoded = decodeHtmlEntities(value).trim();
-    return /^(?:javascript|vbscript):/i.test(decoded) ? '' : ` ${attr}=${rawValue}`;
-  });
-  html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
-  html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
-  return html;
+function decodeCodePointEntity(match: string, rawCodePoint: string, radix: 10 | 16): string {
+  const codePoint = Number.parseInt(rawCodePoint, radix);
+  if (!Number.isFinite(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return match;
+  return String.fromCodePoint(codePoint);
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -190,8 +103,116 @@ function decodeHtmlEntities(value: string): string {
     if (normalized === 'gt') return '>';
     if (normalized === 'quot') return '"';
     if (normalized === 'apos') return "'";
-    if (normalized.startsWith('#x')) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
-    if (normalized.startsWith('#')) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+    if (normalized === 'colon') return ':';
+    if (normalized === 'tab') return '\t';
+    if (normalized === 'newline') return '\n';
+    if (normalized.startsWith('#x')) return decodeCodePointEntity(match, normalized.slice(2), 16);
+    if (normalized.startsWith('#')) return decodeCodePointEntity(match, normalized.slice(1), 10);
     return match;
   });
+}
+
+function escapeText(value: string): string {
+  return value.replace(RAW_AMPERSAND_RE, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeAttribute(value: string): string {
+  return escapeText(value).replace(/"/g, '&quot;');
+}
+
+function stripDangerousTextFragments(value: string): string {
+  return value.replace(DANGEROUS_TEXT_TAG_FRAGMENT_RE, '');
+}
+
+function safeRelForBlankTarget(existingRel: string): string {
+  const tokens = existingRel.split(/\s+/).filter(Boolean);
+  const lowerTokens = new Set(tokens.map((token) => token.toLowerCase()));
+  if (!lowerTokens.has('noopener')) tokens.push('noopener');
+  if (!lowerTokens.has('noreferrer')) tokens.push('noreferrer');
+  return tokens.join(' ');
+}
+
+function sanitizeAttributes(node: ElementNode): Record<string, string> {
+  const tag = node.name.toLowerCase();
+  const allowed = ALLOWED_ATTRS_BY_TAG[tag] ?? EMPTY_ATTR_SET;
+  const allowedGlobal = ALLOWED_ATTRS_BY_TAG['*'] ?? EMPTY_ATTR_SET;
+  const nextAttributes: Record<string, string> = {};
+
+  for (const [rawName, rawValue] of Object.entries(node.attributes ?? {})) {
+    const name = rawName.toLowerCase();
+    const value = String(rawValue ?? '');
+    if (name.startsWith('on')) continue;
+    if (!allowed.has(name) && !allowedGlobal.has(name)) continue;
+
+    const decodedValue = decodeHtmlEntities(value);
+    if (name === 'href' && !isSafeUrl(decodedValue)) continue;
+    if (name === 'src' && !isSafeUrl(decodedValue, true)) continue;
+
+    nextAttributes[name] = value;
+  }
+
+  if (nextAttributes.target?.toLowerCase() === '_blank') {
+    nextAttributes.rel = safeRelForBlankTarget(nextAttributes.rel || '');
+  }
+
+  return nextAttributes;
+}
+
+function sanitizeChildren(parent: SanitizableParent): HtmlNode[] {
+  const sanitized: HtmlNode[] = [];
+  for (const child of parent.children) sanitized.push(...sanitizeNode(child));
+  return sanitized;
+}
+
+function sanitizeNode(node: HtmlNode): HtmlNode[] {
+  if (node.type === TEXT_NODE) return [node];
+  if (node.type === DOCUMENT_NODE) return sanitizeChildren(node as unknown as SanitizableParent);
+  if (node.type !== ELEMENT_NODE) return [];
+
+  const tag = node.name.toLowerCase();
+  if (DROP_WITH_CONTENT_TAGS.has(tag) || DROP_ELEMENT_TAGS.has(tag)) return [];
+
+  const children = sanitizeChildren(node);
+  if (!ALLOWED_TAGS.has(tag)) return children;
+
+  node.name = tag;
+  node.attributes = sanitizeAttributes(node);
+  node.children = children;
+  return [node];
+}
+
+function renderAttributes(attributes: Record<string, string>): string {
+  return Object.entries(attributes)
+    .map(([name, value]) => ` ${name}="${escapeAttribute(value)}"`)
+    .join('');
+}
+
+function renderSanitizedNode(node: HtmlNode): string {
+  if (node.type === TEXT_NODE) return escapeText(stripDangerousTextFragments(node.value));
+  if (node.type === DOCUMENT_NODE) return node.children.map(renderSanitizedNode).join('');
+  if (node.type !== ELEMENT_NODE) return '';
+
+  const openTag = `<${node.name}${renderAttributes(node.attributes ?? {})}>`;
+  if (VOID_TAGS.has(node.name)) return openTag;
+  return `${openTag}${node.children.map(renderSanitizedNode).join('')}</${node.name}>`;
+}
+
+function sanitizeRichHtmlAst(input: string): string {
+  const root = parse(input) as SanitizableParent;
+  return sanitizeChildren(root).map(renderSanitizedNode).join('');
+}
+
+export function sanitizeRichHtml(input: string | null | undefined): string {
+  const raw = String(input ?? '');
+  if (!raw) return '';
+  try {
+    return sanitizeRichHtmlAst(raw);
+  } catch {
+    return escapeText(raw);
+  }
+}
+
+export function sanitizeRichHtmlServer(input: unknown): string {
+  if (input == null) return '';
+  return sanitizeRichHtml(String(input));
 }

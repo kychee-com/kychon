@@ -8,34 +8,23 @@ import { Input } from './kychon/ui';
 <div id="admin-editor-root"></div>
 <div id="admin-inline-text-root"></div>
 <Input id="admin-image-upload-input" type="file" accept="image/*" hidden aria-hidden="true" tabIndex={-1} />
-<div
-  id="admin-editor-drop-indicator"
-  class="pointer-events-none my-[-2px] h-[3px] rounded-full bg-primary shadow-sm transition-opacity"
-  data-admin-drop-indicator
-  data-column-span="1"
-  hidden
-></div>
 <div id="admin-editor-controls-root" transition:persist></div>
 
 <script>
   import { del, get, patch } from '../lib/api';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
   import {
-    clearHtmlChildren,
-    moveNodeAfter,
-    moveNodeBefore,
-    moveNodeToEnd,
-    removeNode,
-    renderHtmlChildren,
-    replaceNodeWith,
-    serializeHtmlChildren,
-  } from '../lib/dom-fragment';
-  import {
+    collectDescendantElements,
     directElementChildren,
     findDescendantElementById,
     nearestElementWithAttribute,
     nearestElementWithTagName,
   } from '../lib/dom-structure';
+  import {
+    REACT_HTML_CHILDREN_ATTR,
+    renderReactHtmlChildren,
+    serializeReactHtmlChildren,
+  } from '../lib/react-html-children';
   import {
     ADMIN_ACTION_PROMPT_ACTIVATE,
     ADMIN_ACTION_PROMPT_DISMISS,
@@ -375,11 +364,10 @@ import { Input } from './kychon/ui';
     if (activeRichEditors.has(htmlEl)) return;
     await loadTiptap();
     if (!Editor) return;
-    const originalContent = serializeHtmlChildren(htmlEl);
+    const originalContent = serializeReactHtmlChildren(htmlEl);
     htmlEl.dataset.adminTiptapActive = 'true';
     htmlEl.setAttribute('data-lpignore', 'true');
-    // Clear original content — Tiptap will render its own editable copy
-    clearHtmlChildren(htmlEl);
+    renderReactHtmlChildren(htmlEl, '');
 
     const editor = new Editor({
       element: htmlEl,
@@ -393,8 +381,7 @@ import { Input } from './kychon/ui';
         editor.destroy();
         activeRichEditors.delete(htmlEl);
         delete htmlEl.dataset.adminTiptapActive;
-        // Restore rendered content (either saved or original)
-        renderHtmlChildren(htmlEl, html);
+        renderReactHtmlChildren(htmlEl, html);
         if (!target) return;
         const ok = await saveField(htmlEl, target, html);
         flashSave(htmlEl, ok);
@@ -592,145 +579,113 @@ import { Input } from './kychon/ui';
   }
 
   // --- Drag-to-reorder (document-level, supports cross-zone) ---
-  // composable-layout: one document-level handler. Source zone is determined
-  // from the nearest structural data-zone ancestor; target zone the same. Cross-zone drops PATCH
-  // both `zone` and `position` together. Empty zones acquire a "Drop here"
-  // placeholder via the body data-admin-dragging state (CSS rule below).
+  // composable-layout: SortableJS owns drag DOM moves while this module only
+  // persists the resulting order through the capability API.
   let draggedEl: HTMLElement | null = null;
-  let dropIndicator: HTMLElement | null = null;
   let sourceZone: string | null = null;
   let sourceItemHost: HTMLElement | null = null;
-
-  function indicatorHost(): HTMLElement | null {
-    return adminElementById('admin-editor-root');
-  }
-
-  function getDropIndicator(): HTMLElement | null {
-    dropIndicator ??= adminElementById('admin-editor-drop-indicator');
-    return dropIndicator;
-  }
-
-  function ensureIndicator(): HTMLElement | null {
-    const indicator = getDropIndicator();
-    if (!indicator) return null;
-    // column-span-rows: indicator width tracks the dragged block's span so the
-    // preview matches what'll actually land. Default to '1' when nothing is
-    // being dragged or the dragged block has no span attribute.
-    const span = draggedEl?.getAttribute('data-column-span') || '1';
-    indicator.setAttribute('data-column-span', span);
-    indicator.hidden = false;
-    return indicator;
-  }
-
-  function moveIndicatorToEnd(host: HTMLElement, indicator: HTMLElement): void {
-    moveNodeToEnd(host, indicator);
-  }
+  let sortablePromise: Promise<any | null> | null = null;
+  const sortableInstances = new WeakMap<HTMLElement, any>();
 
   function findZoneContainer(el: Element | null): HTMLElement | null {
     return nearestElementWithAttribute(el, 'data-zone');
+  }
+
+  function renderedChildrenHost(host: HTMLElement): HTMLElement {
+    for (const child of directElementChildren(host)) {
+      if (child.hasAttribute(REACT_HTML_CHILDREN_ATTR)) return child;
+    }
+    return host;
   }
 
   function findZoneItemHost(zone: HTMLElement): HTMLElement {
     // Header / footer: the inner constrained container holds blocks. Main: the #sections
     // child or the page <main> itself.
     for (const child of directElementChildren(zone)) {
-      if (child.hasAttribute('data-layout-container') || child.id === 'sections') return child;
+      if (child.hasAttribute('data-layout-container') || child.id === 'sections') return renderedChildrenHost(child);
     }
-    return zone;
+    return renderedChildrenHost(zone);
   }
 
   function sortableItemChildren(host: HTMLElement): HTMLElement[] {
     return directElementChildren(host).filter((child) => child.hasAttribute('data-sortable-id'));
   }
 
-  function startDragFromHandle(handle: HTMLElement, event: DragEvent) {
-    const el = nearestElementWithAttribute(handle, 'data-sortable-id');
-    if (!el) return;
-    if (!event.dataTransfer) return;
-    draggedEl = el;
-    const zone = findZoneContainer(el);
-    sourceZone = zone?.dataset.zone || null;
-    sourceItemHost = zone ? findZoneItemHost(zone) : null;
-    document.body.dataset.adminDragging = 'true';
-    el.dataset.adminDragging = 'true';
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', el.dataset.sortableId || '');
+  async function loadSortable(): Promise<any | null> {
+    sortablePromise ??= import('sortablejs')
+      .then((module: any) => module.default || module)
+      .catch((error) => {
+        console.error('Failed to load admin drag reorder:', error);
+        sortablePromise = null;
+        return null;
+      });
+    return sortablePromise;
   }
 
-  function initSortable() {
-    if ((document as any).__sortableDocBound) return;
-    (document as any).__sortableDocBound = true;
+  function sortableHosts(): HTMLElement[] {
+    const hosts: HTMLElement[] = [];
+    for (const zone of collectDescendantElements(document.body, (child) => child.hasAttribute('data-zone'))) {
+      const host = findZoneItemHost(zone);
+      if (!hosts.includes(host)) hosts.push(host);
+    }
+    return hosts;
+  }
 
-    document.addEventListener('dragstart', (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const handle = nearestElementWithAttribute(target, 'data-admin-drag-handle');
-      if (!handle) return;
-      startDragFromHandle(handle, event);
-    });
+  function startSortableDrag(event: any) {
+    const item = event.item;
+    if (!(item instanceof HTMLElement)) return;
+    draggedEl = item;
+    const zone = findZoneContainer(item);
+    sourceZone = zone?.dataset.zone || null;
+    sourceItemHost = event.from instanceof HTMLElement ? event.from : zone ? findZoneItemHost(zone) : null;
+    document.body.dataset.adminDragging = 'true';
+    item.dataset.adminDragging = 'true';
+  }
 
-    document.addEventListener('dragover', (e) => {
-      if (!draggedEl) return;
-      const target = e.target instanceof Element ? e.target : null;
-      const zone = findZoneContainer(target);
-      if (!zone) return;
-      e.preventDefault();
-      (e as DragEvent).dataTransfer!.dropEffect = 'move';
-
-      const indicator = ensureIndicator();
-      if (!indicator) return;
-      const itemHost = findZoneItemHost(zone);
-      const overItem = nearestElementWithAttribute(target, 'data-sortable-id');
-      if (overItem && overItem !== draggedEl && itemHost.contains(overItem)) {
-        const rect = overItem.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        if ((e as DragEvent).clientY < midY) moveNodeBefore(overItem, indicator);
-        else moveNodeAfter(overItem, indicator);
-      } else if (itemHost.children.length === 0 || (itemHost.children.length === 1 && itemHost.contains(indicator))) {
-        moveIndicatorToEnd(itemHost, indicator);
-      } else {
-        const last = itemHost.lastElementChild as HTMLElement | null;
-        if (last && last !== indicator) {
-          moveNodeAfter(last, indicator);
-        }
-      }
-    });
-
-    document.addEventListener('drop', async (e) => {
-      if (!draggedEl) return;
-      const targetZoneEl = findZoneContainer(e.target instanceof Element ? e.target : null);
-      const indicator = dropIndicator;
-      if (!targetZoneEl || !indicator || !indicator.parentElement) {
-        cleanupDrag();
-        return;
-      }
-      e.preventDefault();
-      const targetZone = targetZoneEl.dataset.zone!;
-      replaceNodeWith(indicator, draggedEl);
-      const moved = draggedEl;
-      const fromZone = sourceZone || 'main';
-      const fromHost = sourceItemHost;
-      const wasCrossZone = fromZone !== targetZone;
+  async function finishSortableDrag(event: any) {
+    const moved = event.item instanceof HTMLElement ? event.item : draggedEl;
+    const movedZone = moved ? findZoneContainer(moved) : null;
+    const targetHost = event.to instanceof HTMLElement ? event.to : movedZone ? findZoneItemHost(movedZone) : null;
+    const targetZoneEl = targetHost ? findZoneContainer(targetHost) : movedZone;
+    if (!moved || !targetZoneEl) {
       cleanupDrag();
-      await persistOrder(moved, fromZone, targetZone, fromHost);
-      if (wasCrossZone) maybeOfferGlobalPromotion(moved, targetZone as 'header' | 'main' | 'footer');
-    });
-
-    document.addEventListener('dragend', cleanupDrag);
+      return;
+    }
+    const targetZone = targetZoneEl.dataset.zone || 'main';
+    const fromZone = sourceZone || 'main';
+    const fromHost = event.from instanceof HTMLElement ? event.from : sourceItemHost;
+    const wasCrossZone = fromZone !== targetZone;
+    cleanupDrag();
+    await persistOrder(moved, fromZone, targetZone, fromHost);
+    if (wasCrossZone) maybeOfferGlobalPromotion(moved, targetZone as 'header' | 'main' | 'footer');
   }
 
   function cleanupDrag() {
     if (draggedEl) delete draggedEl.dataset.adminDragging;
-    const indicator = getDropIndicator();
-    if (indicator) {
-      indicator.hidden = true;
-      const host = indicatorHost();
-      if (host) moveIndicatorToEnd(host, indicator);
-    }
     delete document.body.dataset.adminDragging;
     draggedEl = null;
     sourceZone = null;
     sourceItemHost = null;
+  }
+
+  async function initSortable() {
+    const Sortable = await loadSortable();
+    if (!Sortable) return;
+    for (const host of sortableHosts()) {
+      if (sortableInstances.has(host)) continue;
+      sortableInstances.set(host, Sortable.create(host, {
+        animation: 150,
+        chosenClass: 'ring-2',
+        draggable: '[data-sortable-id]',
+        ghostClass: 'opacity-60',
+        group: 'admin-sections',
+        handle: '[data-admin-drag-handle]',
+        onEnd: (event: any) => {
+          void finishSortableDrag(event);
+        },
+        onStart: startSortableDrag,
+      }));
+    }
   }
 
   async function persistOrder(moved: HTMLElement, fromZone: string, toZone: string, fromHost: HTMLElement | null) {
@@ -818,7 +773,7 @@ import { Input } from './kychon/ui';
         .filter((k) => k.startsWith('wl_cache_sections_'))
         .forEach((k) => localStorage.removeItem(k));
       const section = nearestElementWithAttribute(removeBtn, 'data-sortable-id');
-      if (section) removeNode(section);
+      if (section) section.hidden = true;
       showToast('Section removed');
       emitSectionsChanged();
     } catch (err) {
@@ -923,7 +878,7 @@ import { Input } from './kychon/ui';
     void ensureAdminActionPrompts();
     void ensureAdminInlineTextPrompt();
     initEditableDelegates();
-    initSortable();
+    void initSortable();
     initAdminActionDelegates();
     // composable-layout: brand logo and nav are now blocks rendered with
     // their own data-editable / data-editable-image attributes — no extra
@@ -933,7 +888,7 @@ import { Input } from './kychon/ui';
   function rebindAdminEditableContent() {
     if (document.body.dataset.admin !== 'true') return;
     initEditableDelegates();
-    initSortable();
+    void initSortable();
   }
 
   initAdminEditor();

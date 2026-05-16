@@ -3,12 +3,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const pageRenderSource = readFileSync(join(import.meta.dirname, '../../src/lib/page-render.ts'), 'utf8');
-const domFragmentSource = readFileSync(join(import.meta.dirname, '../../src/lib/dom-fragment.ts'), 'utf8');
 
 describe('page-render source', () => {
-  it('delegates runtime section replacement to the shared DOM fragment helper', () => {
-    expect(pageRenderSource).toContain("import { renderHtmlChildren } from './dom-fragment'");
-    expect(pageRenderSource).toContain('renderHtmlChildren(sectionsHost, newHtml)');
+  it('delegates runtime section replacement to the React HTML child renderer', () => {
+    expect(pageRenderSource).toContain("import { renderReactHtmlChildren } from './react-html-children'");
+    expect(pageRenderSource).toContain('renderReactHtmlChildren(sectionsHost, newHtml)');
+    expect(pageRenderSource).not.toContain("from './dom-fragment'");
     expect(pageRenderSource).not.toContain('new DOMParser()');
     expect(pageRenderSource).not.toContain('replaceChildren');
     expect(pageRenderSource).not.toContain('innerHTML');
@@ -19,8 +19,5 @@ describe('page-render source', () => {
     expect(pageRenderSource).not.toContain('getElementById');
     expect(pageRenderSource).not.toContain('.closest(');
     expect(pageRenderSource).toContain('nearestElementWithAttribute');
-    expect(domFragmentSource).toContain('function domParserCtor');
-    expect(domFragmentSource).toContain('new parserCtor()');
-    expect(domFragmentSource).toContain('replaceChildren');
   });
 });

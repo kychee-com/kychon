@@ -16,6 +16,7 @@ const ADMIN_INLINE_TEXT_PROMPT = resolve(ROOT, 'src/components/kychon/AdminInlin
 const ADMIN_ZONE_ADD_BUTTON = resolve(ROOT, 'src/components/kychon/AdminZoneAddButton.tsx');
 const ADMIN_CSS = resolve(ROOT, 'public/css/admin-editing.css');
 const ZONE_GRID_CSS = resolve(ROOT, 'src/styles/zone-grid.css');
+const UI_INPUT = resolve(ROOT, 'src/components/ui/input.tsx');
 
 const adminCtx: BlockRenderContext = { admin: true, locale: 'en', role: 'admin' };
 
@@ -158,12 +159,12 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain("document.createElement('button')");
     expect(editor).not.toContain('appendChild(handle)');
     expect(editor).toContain('data-admin-drag-handle');
-    expect(editor).toContain("document.addEventListener('dragstart'");
-    expect(editor).toContain('startDragFromHandle');
+    expect(editor).toContain("handle: '[data-admin-drag-handle]'");
+    expect(editor).toContain('startSortableDrag');
     expect(editor).toContain('sortableItemChildren');
     expect(editor).toContain('sourceItemHost');
     expect(editor).toContain("const fromZone = sourceZone || 'main'");
-    expect(editor).toContain('const fromHost = sourceItemHost');
+    expect(editor).toContain('const fromHost = event.from instanceof HTMLElement ? event.from : sourceItemHost');
     expect(editor).toContain('await persistOrder(moved, fromZone, targetZone, fromHost)');
     expect(editor).not.toContain("setAttribute('aria-label'");
     expect(editor).not.toContain('bindDragHandle');
@@ -177,13 +178,15 @@ describe('admin action controls source', () => {
     expect(styles).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
   });
 
-  it('uses a static data-attribute drop indicator instead of creating a CSS primitive', async () => {
+  it('delegates drag sorting to SortableJS instead of hand-moving DOM nodes', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
     const adminStyles = await readFile(ADMIN_CSS, 'utf8');
     const zoneGrid = await readFile(ZONE_GRID_CSS, 'utf8');
 
-    expect(editor).toContain('id="admin-editor-drop-indicator"');
-    expect(editor).toContain('data-admin-drop-indicator');
+    expect(editor).toContain("import('sortablejs')");
+    expect(editor).toContain('Sortable.create');
+    expect(editor).toContain('function finishSortableDrag');
+    expect(editor).toContain('function persistOrder');
     expect(editor).not.toContain("document.createElement('div')");
     expect(editor).not.toContain("className = 'admin-drop-indicator'");
     expect(editor).not.toContain('appendChild(indicator)');
@@ -191,13 +194,13 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain('.before(indicator)');
     expect(editor).not.toContain('.after(indicator)');
     expect(editor).not.toContain('replaceWith(draggedEl)');
-    expect(editor).toContain('moveIndicatorToEnd');
-    expect(editor).toContain('moveNodeBefore');
-    expect(editor).toContain('moveNodeAfter');
-    expect(editor).toContain('replaceNodeWith');
-    expect(editor).toContain('removeNode');
+    expect(editor).not.toContain('moveIndicatorToEnd');
+    expect(editor).not.toContain('moveNodeBefore');
+    expect(editor).not.toContain('moveNodeAfter');
+    expect(editor).not.toContain('replaceNodeWith');
+    expect(editor).not.toContain('removeNode');
     expect(adminStyles).not.toContain('.admin-drop-indicator');
-    expect(zoneGrid).toContain('[data-admin-drop-indicator][data-column-span="1"]');
+    expect(zoneGrid).not.toContain('[data-admin-drop-indicator]');
     expect(zoneGrid).not.toContain('.admin-drop-indicator');
   });
 
@@ -258,6 +261,7 @@ describe('admin action controls source', () => {
 
   it('uses a static image upload input instead of creating file inputs on click', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
+    const input = await readFile(UI_INPUT, 'utf8');
 
     expect(editor).toContain("import { Input } from './kychon/ui'");
     expect(editor).toContain('<Input id="admin-image-upload-input"');
@@ -267,15 +271,22 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain('<input id="admin-image-upload-input"');
     expect(editor).not.toContain("querySelector('img')");
     expect(editor).not.toContain("document.createElement('input')");
+    expect(input).toContain('props.hidden || type === "hidden"');
+    expect(input).toContain('isHidden && "hidden"');
   });
 
   it('uses structured parsing for rich text editing instead of HTML assignment sinks', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
 
-    expect(editor).toContain('../lib/dom-fragment');
-    expect(editor).toContain('serializeHtmlChildren');
-    expect(editor).toContain('renderHtmlChildren');
-    expect(editor).toContain('clearHtmlChildren');
+    expect(editor).toContain('../lib/react-html-children');
+    expect(editor).toContain('function renderedChildrenHost');
+    expect(editor).toContain('REACT_HTML_CHILDREN_ATTR');
+    expect(editor).toContain('serializeReactHtmlChildren');
+    expect(editor).toContain('renderReactHtmlChildren');
+    expect(editor).not.toContain('../lib/dom-fragment');
+    expect(editor).not.toContain('serializeHtmlChildren');
+    expect(editor).not.toContain('renderHtmlChildren');
+    expect(editor).not.toContain('clearHtmlChildren');
     expect(editor).not.toContain('new DOMParser()');
     expect(editor).not.toContain('replaceChildren');
     expect(editor).not.toContain('htmlEl.innerHTML');

@@ -22,8 +22,11 @@ interface CaptureRoute {
 }
 
 const VIEWPORTS = [
-  { id: 'desktop', context: { viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' } },
-  { id: 'mobile', context: { viewport: { width: 390, height: 844 }, isMobile: true, reducedMotion: 'reduce' } },
+  { id: 'desktop', context: { viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, reducedMotion: 'reduce' } },
+  {
+    id: 'mobile',
+    context: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, reducedMotion: 'reduce' },
+  },
 ] as const;
 
 const ERROR_TEXT = [
@@ -641,6 +644,52 @@ async function assertNoErrorText(page: any, routeId: string): Promise<void> {
   }
 }
 
+async function assertNoHorizontalOverflow(page: any, routeId: string, viewportId: string): Promise<void> {
+  const metrics = await page.evaluate(`
+    (() => {
+      const root = document.documentElement;
+      const body = document.body;
+      const wide = [];
+      function visit(element) {
+        const rect = element.getBoundingClientRect();
+        if (rect.right > root.clientWidth + 1 || element.scrollWidth > root.clientWidth + 1) {
+          const data = Array.from(element.attributes)
+            .filter((attr) => attr.name.startsWith('data-nav'))
+            .map((attr) => attr.value ? attr.name + '=' + attr.value : attr.name)
+            .join(',');
+          wide.push({
+            tag: element.tagName.toLowerCase(),
+            id: element.id,
+            data,
+            className: String(element.getAttribute('class') || '').slice(0, 80),
+            text: String(element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 80),
+            right: Math.round(rect.right),
+            scrollWidth: element.scrollWidth,
+          });
+        }
+        for (const child of Array.from(element.children)) visit(child);
+      }
+      if (body) visit(body);
+      wide.sort((a, b) => Math.max(b.right, b.scrollWidth) - Math.max(a.right, a.scrollWidth));
+      return {
+        clientWidth: root.clientWidth,
+        scrollWidth: Math.max(root.scrollWidth, body?.scrollWidth ?? 0),
+        widest: wide.slice(0, 8),
+      };
+    })()
+  `);
+  if (metrics.scrollWidth > metrics.clientWidth + 1) {
+    const details = metrics.widest
+      .map((item: { tag: string; id: string; data: string; className: string; text: string; right: number; scrollWidth: number }) =>
+        `${item.tag}${item.id ? `#${item.id}` : ''} right=${item.right} scrollWidth=${item.scrollWidth} data="${item.data}" class="${item.className}" text="${item.text}"`,
+      )
+      .join('; ');
+    throw new Error(
+      `Screenshot route "${routeId}" overflows ${viewportId} viewport horizontally: ${metrics.scrollWidth}px > ${metrics.clientWidth}px${details ? ` (${details})` : ''}`,
+    );
+  }
+}
+
 async function prepareFullPageScreenshot(page: any): Promise<void> {
   await page.addStyleTag({
     content: `
@@ -689,6 +738,7 @@ async function main(): Promise<void> {
           await page.goto(`${options.base}${route.path}`, { waitUntil: 'networkidle' });
           await waitForRouteReady(page, route);
           await prepareFullPageScreenshot(page);
+          await assertNoHorizontalOverflow(page, route.id, viewport.id);
           await page.screenshot({ path: join(outDir, `${route.id}-${viewport.id}.png`), fullPage: true });
         } finally {
           await context.close();
