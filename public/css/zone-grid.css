@@ -4,8 +4,8 @@
  * Each block carries `data-column-span` set by `renderBlock`'s
  * post-process. Span values map to `grid-column: span N`.
  *
- * Header zone is intentionally exempt — its existing `.nav [data-layout-container]`
- * grid layout gives chrome (brand+nav+sign-in-bar) its horizontal flow.
+ * Header zone is intentionally exempt; its data-hook grid layout gives chrome
+ * (brand+nav+sign-in-bar) its horizontal flow.
  */
 
 #sections,

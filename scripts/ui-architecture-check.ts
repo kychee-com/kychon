@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
 const SCAN_DIRS = ['src', 'scripts', 'tests'];
@@ -9,6 +9,7 @@ const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
 const PRIMITIVE_IMPORT_RE = /from\s+['"](@radix-ui\/[^'"]+|@base-ui-components\/[^'"]+)['"]/g;
 const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
+const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const DYNAMIC_TAILWIND_RE =
   /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|accent|caret|shadow|rounded|gap|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|w|h|min-w|min-h|max-w|max-h|grid-cols|col-span|row-span)-\$\{/;
 
@@ -57,6 +58,10 @@ function isAllowedUiFacadeImport(file: string): boolean {
   );
 }
 
+function relativeImportTarget(file: string, specifier: string): string {
+  return relative(ROOT, join(dirname(file), specifier)).replaceAll('\\', '/');
+}
+
 function checkFile(file: string): Violation[] {
   const source = readFileSync(file, 'utf-8');
   const rel = relative(ROOT, file).replaceAll('\\', '/');
@@ -81,6 +86,18 @@ function checkFile(file: string): Violation[] {
         file: rel,
         line,
         message: `Feature code must import Kychon UI through @/components/kychon/ui, not ${match[1]}`,
+        excerpt: lineAt(source, line),
+      });
+    }
+
+    for (const match of source.matchAll(RELATIVE_IMPORT_RE)) {
+      const target = relativeImportTarget(file, match[1]);
+      if (!target.startsWith('src/components/ui/')) continue;
+      const line = lineNumber(source, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: `Feature code must import Kychon UI through @/components/kychon/ui, not relative base UI import ${match[1]}`,
         excerpt: lineAt(source, line),
       });
     }
