@@ -1,205 +1,112 @@
-// slideshow.ts — runtime controller for the `slideshow` block-type.
-//
-// Targets ≤ 4 kB minified. Pauses on hover, focus-within, and tab-hidden.
-// Disables auto-rotation entirely under prefers-reduced-motion. Wires up
-// arrow buttons, dots, arrow keys, and a polite live region for slide
-// changes.
+// slideshow.ts - React owner for the `slideshow` block runtime.
 
-interface SlideshowState {
-  root: HTMLElement;
-  slides: HTMLElement[];
-  dots: HTMLButtonElement[];
-  live: HTMLElement | null;
-  index: number;
-  autoMs: number;
-  reduced: boolean;
-  intervalId: number | null;
-  pauseOnHover: boolean;
-  pauseOnFocus: boolean;
-  manualPauseAfterInteraction: boolean;
-  paused: { hover: boolean; focus: boolean; hidden: boolean; manual: boolean };
-  onVis: () => void;
+import { createElement } from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot, type Root } from 'react-dom/client';
+
+import {
+  SlideshowCarousel,
+  type SlideshowCarouselProps,
+  type SlideshowRenderItem,
+} from '@/components/kychon/SlideshowBlockView';
+
+interface MountedSlideshow {
   onSwap: () => void;
+  root: Root;
 }
 
-const STATES = new WeakMap<HTMLElement, SlideshowState>();
+const MOUNTED_SLIDESHOWS = new WeakMap<HTMLElement, MountedSlideshow>();
 
-export function initSlideshow(root: HTMLElement): void {
-  if (root.dataset.hydrated === 'true') return;
-  const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-slideshow-slide]'));
-  if (slides.length <= 0) return;
-  const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-slideshow-dot]'));
-  const live = root.querySelector<HTMLElement>('[data-slideshow-live]');
-  const reduced =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const autoMs = Math.max(0, Number(root.dataset.autoMs) || 0);
-  const pauseOnHover = root.dataset.pauseHover !== 'false';
-  const pauseOnFocus = root.dataset.pauseFocus !== 'false';
-  const manualPauseAfterInteraction = root.dataset.manualPause === 'true';
+function stringOr(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
+}
 
-  const state: SlideshowState = {
-    root,
-    slides,
-    dots,
-    live,
-    index: 0,
-    autoMs,
-    reduced,
-    intervalId: null,
-    pauseOnHover,
-    pauseOnFocus,
-    manualPauseAfterInteraction,
-    paused: { hover: false, focus: false, hidden: false, manual: false },
-    onVis: () => {
-      state.paused.hidden = document.visibilityState !== 'visible';
-      reschedule(state);
-    },
-    onSwap: () => destroySlideshow(root),
+function booleanOr(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function numberOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function readItems(value: unknown): SlideshowRenderItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item): SlideshowRenderItem => {
+    const record = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+    return {
+      alt: stringOr(record.alt, ''),
+      avifSrc: typeof record.avifSrc === 'string' ? record.avifSrc : undefined,
+      caption: typeof record.caption === 'string' ? record.caption : undefined,
+      fetchPriority: record.fetchPriority === 'high' || record.fetchPriority === 'low' || record.fetchPriority === 'auto'
+        ? record.fetchPriority
+        : undefined,
+      fit: record.fit === 'contain' ? 'contain' : 'cover',
+      href: typeof record.href === 'string' ? record.href : undefined,
+      loading: record.loading === 'lazy' ? 'lazy' : 'eager',
+      objectPosition: stringOr(record.objectPosition, 'center'),
+      src: stringOr(record.src, ''),
+      webpSrc: typeof record.webpSrc === 'string' ? record.webpSrc : undefined,
+    };
+  });
+}
+
+function readRootStyle(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+}
+
+function readSlideshowProps(host: HTMLElement): SlideshowCarouselProps | null {
+  const raw = host.getAttribute('data-slideshow-props');
+  if (!raw) return null;
+  let parsed: Record<string, unknown>;
+  try {
+    const value = JSON.parse(raw);
+    parsed = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return null;
+  }
+  const items = readItems(parsed.items);
+  if (!items.length) return null;
+  return {
+    ariaLabel: stringOr(parsed.ariaLabel, 'Slideshow'),
+    autoMs: Math.max(0, numberOr(parsed.autoMs, 0)),
+    fit: parsed.fit === 'contain' ? 'contain' : 'cover',
+    items,
+    manualPause: booleanOr(parsed.manualPause, false),
+    pauseFocus: booleanOr(parsed.pauseFocus, true),
+    pauseHover: booleanOr(parsed.pauseHover, true),
+    rootStyle: readRootStyle(parsed.rootStyle),
+    showArrows: booleanOr(parsed.showArrows, true),
+    showDots: booleanOr(parsed.showDots, true),
+    transition: parsed.transition === 'slide' ? 'slide' : 'fade',
   };
-  STATES.set(root, state);
-
-  // Initial active state.
-  setActive(state, 0, /*announce*/ false);
-
-  // Arrow buttons.
-  root.querySelector('[data-slide-prev]')?.addEventListener('click', () => {
-    setActive(state, state.index - 1, true);
-    pauseManual(state);
-    reschedule(state);
-  });
-  root.querySelector('[data-slide-next]')?.addEventListener('click', () => {
-    setActive(state, state.index + 1, true);
-    pauseManual(state);
-    reschedule(state);
-  });
-
-  // Dots.
-  for (const dot of dots) {
-    dot.addEventListener('click', () => {
-      const target = Number(dot.dataset.slideGo) || 0;
-      setActive(state, target, true);
-      pauseManual(state);
-      reschedule(state);
-    });
-  }
-
-  // Keyboard arrows when slideshow has focus.
-  root.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      setActive(state, state.index + 1, true);
-      pauseManual(state);
-      reschedule(state);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      setActive(state, state.index - 1, true);
-      pauseManual(state);
-      reschedule(state);
-    }
-  });
-
-  // Pause on hover / focus.
-  root.addEventListener('mouseenter', () => {
-    if (!state.pauseOnHover) return;
-    state.paused.hover = true;
-    reschedule(state);
-  });
-  root.addEventListener('mouseleave', () => {
-    if (!state.pauseOnHover) return;
-    state.paused.hover = false;
-    reschedule(state);
-  });
-  root.addEventListener('focusin', () => {
-    if (!state.pauseOnFocus) return;
-    state.paused.focus = true;
-    reschedule(state);
-  });
-  root.addEventListener('focusout', () => {
-    // Defer so :focus-within transitions out before we resume.
-    setTimeout(() => {
-      if (!root.contains(document.activeElement)) {
-        state.paused.focus = false;
-        reschedule(state);
-      }
-    }, 0);
-  });
-
-  // Tab visibility.
-  document.addEventListener('visibilitychange', state.onVis);
-  // SPA cleanup hook. Runtime page hydration emits `wl-content-rendered` after
-  // dynamic blocks bind; treating that event as teardown immediately disables
-  // the carousel on normal page loads.
-  document.addEventListener('astro:before-swap', state.onSwap);
-
-  root.dataset.hydrated = 'true';
-
-  // Start auto-rotation unless reduced motion or no auto.
-  if (!state.reduced && state.autoMs > 0) {
-    reschedule(state);
-  }
 }
 
-function pauseManual(state: SlideshowState): void {
-  if (!state.manualPauseAfterInteraction) return;
-  state.paused.manual = true;
+export function initSlideshow(host: HTMLElement): void {
+  if (host.dataset.hydrated === 'true') return;
+  const props = readSlideshowProps(host);
+  if (!props) return;
+
+  const reactRoot = createRoot(host);
+  const onSwap = () => destroySlideshow(host);
+  MOUNTED_SLIDESHOWS.set(host, { onSwap, root: reactRoot });
+  document.addEventListener('astro:before-swap', onSwap, { once: true });
+  flushSync(() => {
+    reactRoot.render(createElement(SlideshowCarousel, props));
+  });
+  host.dataset.hydrated = 'true';
 }
 
-function setActive(state: SlideshowState, raw: number, announce: boolean): void {
-  const total = state.slides.length;
-  if (total === 0) return;
-  const next = ((raw % total) + total) % total;
-  if (next === state.index && state.slides[next]?.dataset.active === 'true') {
-    // Already correct (initial paint); nothing to do.
-  }
-  for (let i = 0; i < total; i++) {
-    const slide = state.slides[i];
-    if (!slide) continue;
-    const isActive = i === next;
-    slide.dataset.active = isActive ? 'true' : 'false';
-  }
-  for (let i = 0; i < state.dots.length; i++) {
-    const dot = state.dots[i];
-    if (!dot) continue;
-    const isActive = i === next;
-    dot.dataset.active = isActive ? 'true' : 'false';
-    if (isActive) dot.setAttribute('aria-current', 'true');
-    else dot.removeAttribute('aria-current');
-  }
-  state.index = next;
-  if (announce && state.live) {
-    const nextSlide = state.slides[next];
-    const cap = nextSlide?.querySelector<HTMLElement>('[data-slideshow-caption]');
-    state.live.textContent = cap?.textContent?.trim() || `Slide ${next + 1} of ${total}`;
-  }
-}
-
-function reschedule(state: SlideshowState): void {
-  // Always clear the existing interval; if any pause flag is set, leave it cleared.
-  if (state.intervalId != null) {
-    clearInterval(state.intervalId);
-    state.intervalId = null;
-  }
-  if (state.reduced) return;
-  if (state.autoMs <= 0) return;
-  const { hover, focus, hidden, manual } = state.paused;
-  if (hover || focus || hidden || manual) return;
-  state.intervalId = window.setInterval(() => {
-    setActive(state, state.index + 1, true);
-  }, state.autoMs);
-}
-
-export function destroySlideshow(root: HTMLElement): void {
-  const state = STATES.get(root);
-  if (!state) return;
-  if (state.intervalId != null) {
-    clearInterval(state.intervalId);
-    state.intervalId = null;
-  }
-  document.removeEventListener('visibilitychange', state.onVis);
-  document.removeEventListener('astro:before-swap', state.onSwap);
-  STATES.delete(root);
-  // Allow re-init if the same node is re-rendered.
-  delete root.dataset.hydrated;
+export function destroySlideshow(host: HTMLElement): void {
+  const mounted = MOUNTED_SLIDESHOWS.get(host);
+  if (!mounted) return;
+  document.removeEventListener('astro:before-swap', mounted.onSwap);
+  flushSync(() => {
+    mounted.root.unmount();
+  });
+  MOUNTED_SLIDESHOWS.delete(host);
+  delete host.dataset.hydrated;
 }

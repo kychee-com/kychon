@@ -189,6 +189,13 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarView).toContain('data-events-calendar-peek-host');
     expect(eventCalendarView).not.toContain('block-events-calendar__');
     expect(slideshowRuntime).not.toContain('IntersectionObserver');
+    expect(slideshowRuntime).not.toContain('querySelector');
+    expect(slideshowRuntime).not.toContain('data-slide-next');
+    expect(slideshowRuntime).not.toContain('data-slide-prev');
+    expect(slideshowRuntime).not.toContain('data-slideshow-slide');
+    expect(slideshowRuntime).not.toContain('data-slideshow-dot');
+    expect(slideshowRuntime).not.toContain('data-slideshow-live');
+    expect(slideshowRuntime).toContain('SlideshowCarousel');
     expect(globalStyles).not.toContain('block-events-calendar.css');
     expect(globalStyles).not.toContain('nav-dropdown.css');
     expect(adminStyles).not.toContain('block-embed');

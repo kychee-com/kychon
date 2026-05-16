@@ -37,6 +37,21 @@ export interface SlideshowRenderProps {
   transition: 'fade' | 'slide';
 }
 
+export type SlideshowCarouselProps = Pick<
+  SlideshowRenderProps,
+  | 'ariaLabel'
+  | 'autoMs'
+  | 'fit'
+  | 'items'
+  | 'manualPause'
+  | 'pauseFocus'
+  | 'pauseHover'
+  | 'rootStyle'
+  | 'showArrows'
+  | 'showDots'
+  | 'transition'
+>;
+
 const arrowButtonClass =
   'absolute top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border-0 bg-[var(--slideshow-arrow-bg,rgba(0,0,0,0.55))] p-0 text-[var(--slideshow-arrow-color,#fff)] shadow-sm hover:bg-[var(--slideshow-arrow-hover-bg,rgba(0,0,0,0.75))] hover:text-[var(--slideshow-arrow-hover-color,var(--slideshow-arrow-color,#fff))] focus-visible:ring-ring';
 
@@ -88,11 +103,13 @@ function SlideImage({ item }: { item: SlideshowRenderItem }) {
 }
 
 function SlideshowSlide({
+  active,
   index,
   item,
   total,
   transition,
 }: {
+  active: boolean;
   index: number;
   item: SlideshowRenderItem;
   total: number;
@@ -116,7 +133,7 @@ function SlideshowSlide({
         transition === 'slide' &&
           'translate-x-5 transition-[opacity,transform] data-[active=true]:translate-x-0',
       )}
-      data-active={index === 0 ? 'true' : 'false'}
+      data-active={active ? 'true' : 'false'}
       data-slide-index={index}
       data-slideshow-slide
       role="group"
@@ -134,29 +151,48 @@ function SlideshowSlide({
   );
 }
 
-function SlideshowDots({ items, showDots }: Pick<SlideshowRenderProps, 'items' | 'showDots'>) {
+function SlideshowDots({
+  activeIndex,
+  items,
+  onSelect,
+  showDots,
+}: Pick<SlideshowRenderProps, 'items' | 'showDots'> & {
+  activeIndex: number;
+  onSelect?: (index: number) => void;
+}) {
   if (!showDots) return null;
   return (
     <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1.5" data-slideshow-dots role="tablist">
-      {items.map((_, index) => (
-        <Button
-          aria-current={index === 0 ? 'true' : undefined}
-          aria-label={`Slide ${index + 1} of ${items.length}`}
-          className="h-2.5 w-2.5 rounded-full border border-white/85 bg-[var(--slideshow-dot-bg,rgba(255,255,255,0.45))] p-0 data-[active=true]:bg-[var(--slideshow-dot-active-bg,#fff)]"
-          data-active={index === 0 ? 'true' : 'false'}
-          data-slide-go={index}
-          data-slideshow-dot
-          key={`dot-${index}`}
-          size="icon"
-          type="button"
-          variant="ghost"
-        />
-      ))}
+      {items.map((_, index) => {
+        const active = index === activeIndex;
+        return (
+          <Button
+            aria-current={active ? 'true' : undefined}
+            aria-label={`Slide ${index + 1} of ${items.length}`}
+            className="h-2.5 w-2.5 rounded-full border border-white/85 bg-[var(--slideshow-dot-bg,rgba(255,255,255,0.45))] p-0 data-[active=true]:bg-[var(--slideshow-dot-active-bg,#fff)]"
+            data-active={active ? 'true' : 'false'}
+            data-slide-go={index}
+            data-slideshow-dot
+            key={`dot-${index}`}
+            onClick={() => onSelect?.(index)}
+            size="icon"
+            type="button"
+            variant="ghost"
+          />
+        );
+      })}
     </div>
   );
 }
 
-function SlideshowArrows({ showArrows }: Pick<SlideshowRenderProps, 'showArrows'>) {
+function SlideshowArrows({
+  onNext,
+  onPrevious,
+  showArrows,
+}: Pick<SlideshowRenderProps, 'showArrows'> & {
+  onNext?: () => void;
+  onPrevious?: () => void;
+}) {
   if (!showArrows) return null;
   return (
     <>
@@ -164,6 +200,7 @@ function SlideshowArrows({ showArrows }: Pick<SlideshowRenderProps, 'showArrows'
         aria-label="Previous slide"
         className={cn(arrowButtonClass, 'left-2')}
         data-slide-prev
+        onClick={onPrevious}
         size="icon"
         type="button"
         variant="ghost"
@@ -174,6 +211,7 @@ function SlideshowArrows({ showArrows }: Pick<SlideshowRenderProps, 'showArrows'
         aria-label="Next slide"
         className={cn(arrowButtonClass, 'right-2')}
         data-slide-next
+        onClick={onNext}
         size="icon"
         type="button"
         variant="ghost"
@@ -181,6 +219,156 @@ function SlideshowArrows({ showArrows }: Pick<SlideshowRenderProps, 'showArrows'
         <ChevronRight aria-hidden="true" className="h-5 w-5" />
       </Button>
     </>
+  );
+}
+
+function normalizeSlideIndex(index: number, total: number): number {
+  if (total <= 0) return 0;
+  return ((index % total) + total) % total;
+}
+
+function slideAnnouncement(items: SlideshowRenderItem[], index: number): string {
+  const item = items[index];
+  return item?.caption?.trim() || `Slide ${index + 1} of ${items.length}`;
+}
+
+export function SlideshowCarousel({
+  ariaLabel,
+  autoMs,
+  fit,
+  items,
+  manualPause,
+  pauseFocus,
+  pauseHover,
+  rootStyle,
+  showArrows,
+  showDots,
+  transition,
+}: SlideshowCarouselProps) {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [liveText, setLiveText] = React.useState('');
+  const [reducedMotion, setReducedMotion] = React.useState(false);
+  const [paused, setPaused] = React.useState({ hover: false, focus: false, hidden: false, manual: false });
+  const total = items.length;
+
+  const setPausedFlag = React.useCallback((flag: keyof typeof paused, value: boolean) => {
+    setPaused((current) => current[flag] === value ? current : { ...current, [flag]: value });
+  }, []);
+
+  const announce = React.useCallback((index: number) => {
+    setLiveText(slideAnnouncement(items, index));
+  }, [items]);
+
+  const activate = React.useCallback((rawIndex: number, options: { announce: boolean; manual: boolean }) => {
+    const next = normalizeSlideIndex(rawIndex, total);
+    setActiveIndex(next);
+    if (options.announce) announce(next);
+    if (options.manual && manualPause) setPausedFlag('manual', true);
+  }, [announce, manualPause, setPausedFlag, total]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReducedMotion(media.matches);
+    sync();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', sync);
+      return () => media.removeEventListener('change', sync);
+    }
+    const legacyMedia = media as unknown as {
+      addListener?: (listener: () => void) => void;
+      removeListener?: (listener: () => void) => void;
+    };
+    legacyMedia.addListener?.(sync);
+    return () => legacyMedia.removeListener?.(sync);
+  }, []);
+
+  React.useEffect(() => {
+    const syncVisibility = () => setPausedFlag('hidden', document.visibilityState !== 'visible');
+    syncVisibility();
+    document.addEventListener('visibilitychange', syncVisibility);
+    return () => document.removeEventListener('visibilitychange', syncVisibility);
+  }, [setPausedFlag]);
+
+  React.useEffect(() => {
+    if (reducedMotion || autoMs <= 0 || total <= 1) return;
+    if (paused.hover || paused.focus || paused.hidden || paused.manual) return;
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => {
+        const next = normalizeSlideIndex(current + 1, total);
+        announce(next);
+        return next;
+      });
+    }, autoMs);
+    return () => window.clearInterval(interval);
+  }, [announce, autoMs, paused.focus, paused.hidden, paused.hover, paused.manual, reducedMotion, total]);
+
+  const handleKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      activate(activeIndex + 1, { announce: true, manual: true });
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      activate(activeIndex - 1, { announce: true, manual: true });
+    }
+  }, [activate, activeIndex]);
+
+  const handleBlur = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    if (!pauseFocus) return;
+    const nextTarget = event.relatedTarget;
+    if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+      setPausedFlag('focus', false);
+    }
+  }, [pauseFocus, setPausedFlag]);
+
+  return (
+    <div
+      aria-label={ariaLabel}
+      aria-roledescription="carousel"
+      className="relative aspect-[var(--aspect)] h-[var(--slideshow-mobile-height,var(--slideshow-height,auto))] overflow-hidden rounded-md bg-card outline-none md:h-[var(--slideshow-height,auto)]"
+      data-auto-ms={autoMs}
+      data-fit={fit}
+      data-manual-pause={manualPause ? 'true' : 'false'}
+      data-pause-focus={pauseFocus ? 'true' : 'false'}
+      data-pause-hover={pauseHover ? 'true' : 'false'}
+      data-slideshow
+      data-transition={transition}
+      onBlurCapture={handleBlur}
+      onFocusCapture={pauseFocus ? () => setPausedFlag('focus', true) : undefined}
+      onKeyDown={handleKeyDown}
+      onMouseEnter={pauseHover ? () => setPausedFlag('hover', true) : undefined}
+      onMouseLeave={pauseHover ? () => setPausedFlag('hover', false) : undefined}
+      role="region"
+      style={rootStyle as CSSProperties}
+      tabIndex={0}
+    >
+      <div className="relative h-full w-full" data-slideshow-track>
+        {items.map((item, index) => (
+          <SlideshowSlide
+            active={index === activeIndex}
+            index={index}
+            item={item}
+            key={`${item.src}-${index}`}
+            total={items.length}
+            transition={transition}
+          />
+        ))}
+      </div>
+      <SlideshowArrows
+        onNext={() => activate(activeIndex + 1, { announce: true, manual: true })}
+        onPrevious={() => activate(activeIndex - 1, { announce: true, manual: true })}
+        showArrows={showArrows}
+      />
+      <SlideshowDots
+        activeIndex={activeIndex}
+        items={items}
+        onSelect={(index) => activate(index, { announce: true, manual: true })}
+        showDots={showDots}
+      />
+      <div aria-live="polite" className="sr-only" data-slideshow-live>
+        {liveText}
+      </div>
+    </div>
   );
 }
 
@@ -215,35 +403,27 @@ function SlideshowBlock({
     );
   }
 
+  const carouselProps: SlideshowCarouselProps = {
+    ariaLabel,
+    autoMs,
+    fit,
+    items,
+    manualPause,
+    pauseFocus,
+    pauseHover,
+    rootStyle,
+    showArrows,
+    showDots,
+    transition,
+  };
+
   return (
     <div className={constrainedContainerClass} data-layout-container>
       <SlideshowHeading editableHeadingPath={editableHeadingPath} heading={heading} />
       <Card className="overflow-hidden p-0 shadow-none" data-slideshow-card>
         <CardContent className="p-0">
-          <div
-            aria-label={ariaLabel}
-            aria-roledescription="carousel"
-            className="relative aspect-[var(--aspect)] h-[var(--slideshow-mobile-height,var(--slideshow-height,auto))] overflow-hidden rounded-md bg-card outline-none md:h-[var(--slideshow-height,auto)]"
-            data-auto-ms={autoMs}
-            data-block-hydrate="slideshow"
-            data-fit={fit}
-            data-manual-pause={manualPause ? 'true' : 'false'}
-            data-pause-focus={pauseFocus ? 'true' : 'false'}
-            data-pause-hover={pauseHover ? 'true' : 'false'}
-            data-slideshow
-            data-transition={transition}
-            role="region"
-            style={rootStyle as CSSProperties}
-            tabIndex={0}
-          >
-            <div className="relative h-full w-full" data-slideshow-track>
-              {items.map((item, index) => (
-                <SlideshowSlide index={index} item={item} key={`${item.src}-${index}`} total={items.length} transition={transition} />
-              ))}
-            </div>
-            <SlideshowArrows showArrows={showArrows} />
-            <SlideshowDots items={items} showDots={showDots} />
-            <div aria-live="polite" className="sr-only" data-slideshow-live />
+          <div data-block-hydrate="slideshow" data-slideshow-props={JSON.stringify(carouselProps)}>
+            <SlideshowCarousel {...carouselProps} />
           </div>
         </CardContent>
       </Card>
