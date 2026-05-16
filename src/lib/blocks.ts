@@ -582,7 +582,8 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
     ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-  return `<section class="section section-hero"${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
+  const bgImageAttr = safeBgImage ? ' data-hero-bg-image="true"' : '';
+  return `<section class="section" data-hero data-hero-mode="background"${bgImageAttr}${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
 }
 
 function renderForegroundHero(section: Section, ctx: BlockRenderContext): string {
@@ -613,16 +614,16 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? ` data-editable-image="sections.${sid}.config.image_url"`
     : '';
   const pictureMarkup = imageUrl
-    ? `<picture class="hero-picture" data-aspect="${escAttr(aspect)}"${imgAttr}><img src="${escAttr(imageUrl)}" alt="${escAttr(imageAlt)}" loading="eager" decoding="async" /></picture>`
-    : `<picture class="hero-picture" data-aspect="${escAttr(aspect)}"${imgAttr}></picture>`;
+    ? `<picture data-hero-picture data-hero-aspect="${escAttr(aspect)}"${imgAttr}><img src="${escAttr(imageUrl)}" alt="${escAttr(imageAlt)}" loading="eager" decoding="async" /></picture>`
+    : `<picture data-hero-picture data-hero-aspect="${escAttr(aspect)}"${imgAttr}></picture>`;
 
   const logoMarkup = cfg.logo_overlay_url
-    ? `<div class="hero-logo-overlay" data-position="${escAttr(logoPosition)}"><img src="${escAttr(cfg.logo_overlay_url)}" alt="" style="max-height:${escAttr(logoMaxHeight)}" /></div>`
+    ? `<div data-hero-logo-overlay data-hero-position="${escAttr(logoPosition)}"><img src="${escAttr(cfg.logo_overlay_url)}" alt="" style="max-height:${escAttr(logoMaxHeight)}" /></div>`
     : '';
 
   const safeCaption = cfg.caption_html ? sanitizeCaptionHtml(cfg.caption_html) : '';
   const captionMarkup = safeCaption
-    ? `<div class="hero-caption" data-position="${escAttr(captionPosition)}">${safeCaption}</div>`
+    ? `<div data-hero-caption data-hero-position="${escAttr(captionPosition)}">${safeCaption}</div>`
     : '';
 
   const heading = cfg.heading
@@ -635,7 +636,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
     ? renderShadcnLinkButton(section, ctx, cfg.cta_href, cfg.cta_text, 'cta_text', { 'data-hero-cta': true })
     : '';
   const headingGroup = heading || sub || cta
-    ? `<div class="hero-text">${constrainedContainerHtml('', `${heading}${sub}${cta}`)}</div>`
+    ? `<div data-hero-text>${constrainedContainerHtml('', `${heading}${sub}${cta}`)}</div>`
     : '';
 
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
@@ -649,7 +650,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   // For below_image, headingGroup falls below the picture in document order.
   const body = `${pictureMarkup}${logoMarkup}${captionMarkup}${headingGroup}`;
 
-  return `<section class="section section-hero hero-foreground" data-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${dragHandle}${adminCtrls}${body}</section>`;
+  return `<section class="section" data-hero data-hero-mode="foreground" data-hero-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${dragHandle}${adminCtrls}${body}</section>`;
 }
 
 const HERO: BlockType = {

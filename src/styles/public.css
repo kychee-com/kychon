@@ -318,7 +318,7 @@ mark {
   content-visibility: auto;
   contain-intrinsic-size: auto 800px;
 }
-.section-hero {
+[data-hero] {
   text-align: center;
   padding: 8rem 0;
   background: linear-gradient(135deg, var(--muted, var(--color-surface)) 0%, var(--background, var(--color-bg)) 100%);
@@ -336,7 +336,7 @@ mark {
 #sections-skeleton {
   min-height: 200vh;
 }
-.section-hero h1 {
+[data-hero] h1 {
   margin-bottom: 1rem;
   font-size: 3rem;
   background: linear-gradient(135deg, var(--primary, var(--color-primary)), var(--ky-color-primary-hover, var(--color-primary-hover)));
@@ -344,11 +344,11 @@ mark {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.section-hero[style*="background-image"] {
+[data-hero][data-hero-bg-image="true"] {
   min-height: 60vh;
   background-blend-mode: normal;
 }
-.section-hero[style*="background-image"]::before {
+[data-hero][data-hero-bg-image="true"]::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -358,11 +358,11 @@ mark {
     color-mix(in srgb, var(--primary, var(--color-primary)) 40%, transparent) 100%
   );
 }
-.section-hero[style*="background-image"] [data-layout-container] {
+[data-hero][data-hero-bg-image="true"] [data-layout-container] {
   position: relative;
   z-index: 1;
 }
-.section-hero[style*="background-image"] h1 {
+[data-hero][data-hero-bg-image="true"] h1 {
   color: #fff;
   -webkit-text-fill-color: #fff;
   background: none;
@@ -370,13 +370,13 @@ mark {
   background-clip: unset;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
-.section-hero[style*="background-image"] p {
+[data-hero][data-hero-bg-image="true"] p {
   color: rgba(255, 255, 255, 0.9);
 }
-.section-hero[style*="background-image"] [data-hero-cta] {
+[data-hero][data-hero-bg-image="true"] [data-hero-cta] {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
 }
-.section-hero p {
+[data-hero] p {
   font-size: 1.25rem;
   color: var(--muted-foreground, var(--color-text-muted));
   margin-bottom: 2rem;
@@ -390,7 +390,7 @@ mark {
    and corner caption are absolutely positioned; heading group can render over
    the image (default) or below it in normal flow. */
 
-.section-hero.hero-foreground {
+[data-hero][data-hero-mode="foreground"] {
   padding: 0;
   text-align: center;
   background: none;
@@ -398,17 +398,17 @@ mark {
   min-height: 0;
   overflow: hidden;
 }
-.section-hero.hero-foreground::before {
+[data-hero][data-hero-mode="foreground"]::before {
   display: none;
 }
-.section-hero.hero-foreground .hero-picture {
+[data-hero][data-hero-mode="foreground"] [data-hero-picture] {
   display: block;
   position: relative;
   width: 100%;
   margin: 0;
   line-height: 0;
 }
-.section-hero.hero-foreground[data-text-position="over_image"] .hero-picture::after {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-picture]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -417,26 +417,26 @@ mark {
     linear-gradient(90deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.08) 44%, rgba(0, 0, 0, 0.28)),
     linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.4));
 }
-.section-hero.hero-foreground .hero-picture > img {
+[data-hero][data-hero-mode="foreground"] [data-hero-picture] > img {
   display: block;
   width: 100%;
   height: auto;
   max-width: 100%;
 }
-.section-hero.hero-foreground .hero-picture[data-aspect="auto"] > img {
+[data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="auto"] > img {
   aspect-ratio: auto;
 }
-.section-hero.hero-foreground .hero-picture[data-aspect="16/9"] > img {
+[data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="16/9"] > img {
   aspect-ratio: 16 / 9;
   height: auto;
   object-fit: cover;
 }
-.section-hero.hero-foreground .hero-picture[data-aspect="4/3"] > img {
+[data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="4/3"] > img {
   aspect-ratio: 4 / 3;
   height: auto;
   object-fit: cover;
 }
-.section-hero.hero-foreground .hero-picture[data-aspect="21/9"] > img {
+[data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="21/9"] > img {
   aspect-ratio: 21 / 9;
   height: auto;
   object-fit: cover;
@@ -446,23 +446,23 @@ mark {
    padding-bottom ratio trick on the <picture> wrapper so the <img> can be
    absolutely positioned to fill it. */
 @supports not (aspect-ratio: 16 / 9) {
-  .section-hero.hero-foreground .hero-picture[data-aspect="16/9"],
-  .section-hero.hero-foreground .hero-picture[data-aspect="4/3"],
-  .section-hero.hero-foreground .hero-picture[data-aspect="21/9"] {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="16/9"],
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="4/3"],
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="21/9"] {
     height: 0;
   }
-  .section-hero.hero-foreground .hero-picture[data-aspect="16/9"] {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="16/9"] {
     padding-bottom: 56.25%;
   }
-  .section-hero.hero-foreground .hero-picture[data-aspect="4/3"] {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="4/3"] {
     padding-bottom: 75%;
   }
-  .section-hero.hero-foreground .hero-picture[data-aspect="21/9"] {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="21/9"] {
     padding-bottom: 42.857%;
   }
-  .section-hero.hero-foreground .hero-picture[data-aspect="16/9"] > img,
-  .section-hero.hero-foreground .hero-picture[data-aspect="4/3"] > img,
-  .section-hero.hero-foreground .hero-picture[data-aspect="21/9"] > img {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="16/9"] > img,
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="4/3"] > img,
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="21/9"] > img {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -472,33 +472,33 @@ mark {
 }
 
 /* Logo overlay — absolutely positioned over the picture. */
-.section-hero.hero-foreground .hero-logo-overlay {
+[data-hero][data-hero-mode="foreground"] [data-hero-logo-overlay] {
   position: absolute;
   z-index: 2;
   pointer-events: none;
 }
-.section-hero.hero-foreground .hero-logo-overlay > img {
+[data-hero][data-hero-mode="foreground"] [data-hero-logo-overlay] > img {
   display: block;
   width: auto;
 }
-.section-hero.hero-foreground .hero-logo-overlay[data-position="left"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-logo-overlay][data-hero-position="left"] {
   left: 2rem;
   top: 50%;
   transform: translateY(-50%);
 }
-.section-hero.hero-foreground .hero-logo-overlay[data-position="center"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-logo-overlay][data-hero-position="center"] {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
 }
-.section-hero.hero-foreground .hero-logo-overlay[data-position="right"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-logo-overlay][data-hero-position="right"] {
   right: 2rem;
   top: 50%;
   transform: translateY(-50%);
 }
 
 /* Caption — absolutely positioned in one of 8 positions. */
-.section-hero.hero-foreground .hero-caption {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption] {
   position: absolute;
   z-index: 2;
   color: #fff;
@@ -508,49 +508,49 @@ mark {
   padding: 0.5rem 1rem;
   max-width: 60%;
 }
-.section-hero.hero-foreground .hero-caption a {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption] a {
   color: inherit;
   text-decoration: underline;
 }
-.section-hero.hero-foreground .hero-caption[data-position="top-left"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="top-left"] {
   top: 1rem;
   left: 1rem;
   text-align: left;
 }
-.section-hero.hero-foreground .hero-caption[data-position="top-center"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="top-center"] {
   top: 1rem;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
 }
-.section-hero.hero-foreground .hero-caption[data-position="top-right"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="top-right"] {
   top: 1rem;
   right: 1rem;
   text-align: right;
 }
-.section-hero.hero-foreground .hero-caption[data-position="right-middle"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="right-middle"] {
   top: 50%;
   right: 1rem;
   transform: translateY(-50%);
   text-align: right;
 }
-.section-hero.hero-foreground .hero-caption[data-position="bottom-right"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="bottom-right"] {
   bottom: 1rem;
   right: 1rem;
   text-align: right;
 }
-.section-hero.hero-foreground .hero-caption[data-position="bottom-center"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="bottom-center"] {
   bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
 }
-.section-hero.hero-foreground .hero-caption[data-position="bottom-left"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="bottom-left"] {
   bottom: 1rem;
   left: 1rem;
   text-align: left;
 }
-.section-hero.hero-foreground .hero-caption[data-position="left-middle"] {
+[data-hero][data-hero-mode="foreground"] [data-hero-caption][data-hero-position="left-middle"] {
   top: 50%;
   left: 1rem;
   transform: translateY(-50%);
@@ -558,10 +558,10 @@ mark {
 }
 
 /* Heading group — over (absolute, with text-shadow) or below (normal flow). */
-.section-hero.hero-foreground .hero-text {
+[data-hero][data-hero-mode="foreground"] [data-hero-text] {
   z-index: 1;
 }
-.section-hero.hero-foreground[data-text-position="over_image"] .hero-text {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] {
   position: absolute;
   inset: 0;
   display: flex;
@@ -570,10 +570,10 @@ mark {
   text-align: center;
   pointer-events: none;
 }
-.section-hero.hero-foreground[data-text-position="over_image"] .hero-text [data-layout-container] {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] [data-layout-container] {
   pointer-events: auto;
 }
-.section-hero.hero-foreground[data-text-position="over_image"] .hero-text h1 {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] h1 {
   color: #fff;
   -webkit-text-fill-color: #fff;
   background: none;
@@ -581,31 +581,31 @@ mark {
   background-clip: unset;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
-.section-hero.hero-foreground[data-text-position="over_image"] .hero-text p {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] p {
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
-.section-hero.hero-foreground[data-text-position="below_image"] .hero-text {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="below_image"] [data-hero-text] {
   position: relative;
   padding: 2rem 0 3rem;
 }
-.section-hero.hero-foreground[data-text-position="below_image"] .hero-text h1 {
+[data-hero][data-hero-mode="foreground"][data-hero-text-position="below_image"] [data-hero-text] h1 {
   /* Inherit the gradient-text treatment from the default hero h1 — set in
-     `.section-hero h1` above — no override needed. */
+     `[data-hero] h1` above — no override needed. */
 }
 
 @media (max-width: 640px) {
-  .section-hero.hero-foreground {
+  [data-hero][data-hero-mode="foreground"] {
     margin: 0;
   }
-  .section-hero.hero-foreground .hero-logo-overlay,
-  .section-hero.hero-foreground .hero-caption {
+  [data-hero][data-hero-mode="foreground"] [data-hero-logo-overlay],
+  [data-hero][data-hero-mode="foreground"] [data-hero-caption] {
     display: none;
   }
-  .section-hero.hero-foreground .hero-picture > img {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture] > img {
     min-height: 13rem;
   }
-  .section-hero.hero-foreground[data-text-position="over_image"] .hero-text {
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] {
     position: relative;
     inset: auto;
     display: block;
@@ -614,14 +614,14 @@ mark {
     color: var(--foreground, var(--color-text));
     text-align: center;
   }
-  .section-hero.hero-foreground[data-text-position="over_image"] .hero-text h1 {
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] h1 {
     color: var(--foreground, var(--color-text));
     -webkit-text-fill-color: currentColor;
     text-shadow: none;
     font-size: clamp(2rem, 9vw, 2.6rem);
     line-height: 1.05;
   }
-  .section-hero.hero-foreground[data-text-position="over_image"] .hero-text p {
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] p {
     color: var(--muted-foreground, var(--color-text-muted));
     text-shadow: none;
     font-size: 1rem;
@@ -705,7 +705,7 @@ tr:hover td {
   h1 {
     font-size: 1.75rem;
   }
-  .section-hero {
+  [data-hero] {
     padding: 3rem 0;
   }
 }

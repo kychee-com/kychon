@@ -58,7 +58,7 @@ describe('foreground hero a11y', () => {
       image_url: '/banner.png',
       image_alt: 'Banner photo of the clubhouse',
     });
-    const pictureImg = root.querySelector('.hero-picture img') as HTMLImageElement;
+    const pictureImg = root.querySelector('[data-hero-picture] img') as HTMLImageElement;
     expect(pictureImg).toBeTruthy();
     expect(pictureImg.getAttribute('alt')).toEqual('Banner photo of the clubhouse');
   });
@@ -70,7 +70,7 @@ describe('foreground hero a11y', () => {
       image_alt: 'Banner with brand mark',
       logo_overlay_url: '/logo.svg',
     });
-    const logoImg = root.querySelector('.hero-logo-overlay img') as HTMLImageElement;
+    const logoImg = root.querySelector('[data-hero-logo-overlay] img') as HTMLImageElement;
     expect(logoImg).toBeTruthy();
     expect(logoImg.getAttribute('alt')).toEqual('');
   });
@@ -82,7 +82,7 @@ describe('foreground hero a11y', () => {
       image_alt: 'x',
       caption_html: 'Founded 1880',
     });
-    const caption = root.querySelector('.hero-caption') as HTMLElement;
+    const caption = root.querySelector('[data-hero-caption]') as HTMLElement;
     expect(caption).toBeTruthy();
     expect(caption.tagName.toLowerCase()).toEqual('div');
     expect(caption.hasAttribute('role')).toBe(false);
@@ -137,7 +137,7 @@ describe('foreground hero a11y', () => {
     console.warn = () => {};
     try {
       const root = renderHero({ mode: 'foreground', image_url: '/banner.png' });
-      const img = root.querySelector('.hero-picture img') as HTMLImageElement;
+      const img = root.querySelector('[data-hero-picture] img') as HTMLImageElement;
       expect(img.hasAttribute('alt')).toBe(true);
       expect(img.getAttribute('alt')).toEqual('');
     } finally {
@@ -152,7 +152,7 @@ describe('foreground hero a11y', () => {
       image_alt: 'x',
       caption_html: '<script>alert(1)</script>Founded <strong>1880</strong>',
     });
-    const caption = root.querySelector('.hero-caption') as HTMLElement;
+    const caption = root.querySelector('[data-hero-caption]') as HTMLElement;
     // Script tag was stripped, content was preserved.
     expect(caption.querySelector('script')).toBeNull();
     expect(caption.textContent).toEqual('Founded 1880');
