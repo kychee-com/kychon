@@ -34,13 +34,17 @@ async function loadHydrator() {
 
 function mountWrapper(config: Record<string, unknown>): HTMLElement {
   bodyFixture(`
-    <section>
+    <section data-section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${escapeHtml(
         JSON.stringify(config),
       )}'></div>
     </section>
   `);
   return document.querySelector('section') as HTMLElement;
+}
+
+function linkListHost(wrapper: HTMLElement): HTMLElement {
+  return wrapper.querySelector('[data-block-hydrate="link_list"]') as HTMLElement;
 }
 
 describe('hydrateLinkListResources', () => {
@@ -76,7 +80,7 @@ describe('hydrateLinkListResources', () => {
 
     const { hydrateLinkListResources } = await loadHydrator();
     await hydrateLinkListResources(
-      wrapper as HTMLElement,
+      linkListHost(wrapper),
       {
         page_slug: 'index',
         zone: 'main',
@@ -126,7 +130,7 @@ describe('hydrateLinkListResources', () => {
 
     const { hydrateLinkListResources } = await loadHydrator();
     await hydrateLinkListResources(
-      wrapper as HTMLElement,
+      linkListHost(wrapper),
       {
         page_slug: 'index',
         zone: 'main',
@@ -158,7 +162,7 @@ describe('hydrateLinkListResources', () => {
 
     const { hydrateLinkListResources } = await loadHydrator();
     await hydrateLinkListResources(
-      wrapper as HTMLElement,
+      linkListHost(wrapper),
       {
         page_slug: 'index',
         zone: 'main',

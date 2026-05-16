@@ -1,7 +1,8 @@
 // blocks.ts — Block-type registry. The single isomorphic renderer that runs
 // at Astro build time (Node) and at runtime (browser). Renderers return HTML
 // strings. Dynamic blocks emit a skeleton at bake time and a per-type
-// `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
+// `hydrate(el, ctx)` is called with the `[data-block-hydrate]` host at runtime
+// to fetch data and replace the body.
 
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
 import {
@@ -74,6 +75,7 @@ export interface BlockRenderContext {
 
 export interface BlockType {
   render: (section: Section, ctx: BlockRenderContext) => string;
+  /** Runtime receives the concrete `[data-block-hydrate]` host, not a wrapper. */
   hydrate?: (el: HTMLElement, section: Section, ctx: BlockRenderContext) => Promise<void> | void;
   defaultConfig: Record<string, any>;
   label: string;
@@ -787,22 +789,22 @@ const POLLS: BlockType = {
     );
   },
   async hydrate(el, section, ctx) {
+    if (el.getAttribute('data-block-hydrate') !== 'polls') return;
+    const shell = (el.closest('[data-section]') as HTMLElement | null) || el;
     if (!ctx.isFeatureEnabled?.('feature_polls')) {
-      el.hidden = true;
+      shell.hidden = true;
       return;
     }
-    const container = el.querySelector('[data-block-hydrate="polls"]') as HTMLElement | null;
-    if (!container) return;
     let cfg: Record<string, unknown> = section.config || {};
     try {
-      cfg = { ...cfg, ...JSON.parse(container.getAttribute('data-config') || '{}') };
+      cfg = { ...cfg, ...JSON.parse(el.getAttribute('data-config') || '{}') };
     } catch {}
     const { mountPollsBlockIsland } = await import('@/components/kychon/PollsBlockIsland');
-    mountPollsBlockIsland(container, {
+    mountPollsBlockIsland(el, {
       config: cfg,
       headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
     });
-    container.dataset.hydrated = 'true';
+    el.dataset.hydrated = 'true';
   },
 };
 
@@ -823,22 +825,22 @@ const EVENT_COUNTDOWN: BlockType = {
     );
   },
   async hydrate(el, section, ctx) {
+    if (el.getAttribute('data-block-hydrate') !== 'event_countdown') return;
+    const shell = (el.closest('[data-section]') as HTMLElement | null) || el;
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      el.hidden = true;
+      shell.hidden = true;
       return;
     }
-    const container = el.querySelector('[data-block-hydrate="event_countdown"]') as HTMLElement | null;
-    if (!container) return;
     let cfg: Record<string, unknown> = section.config || {};
     try {
-      cfg = { ...cfg, ...JSON.parse(container.getAttribute('data-config') || '{}') };
+      cfg = { ...cfg, ...JSON.parse(el.getAttribute('data-config') || '{}') };
     } catch {}
     const { mountEventCountdownIsland } = await import('@/components/kychon/EventCountdownIsland');
-    mountEventCountdownIsland(container, {
+    mountEventCountdownIsland(el, {
       config: cfg,
       headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
     });
-    container.dataset.hydrated = 'true';
+    el.dataset.hydrated = 'true';
   },
 };
 
@@ -1642,8 +1644,9 @@ const EVENTS_LIST: BlockType = {
     return adminWrap(section, ctx, inner, 'w-full py-6');
   },
   async hydrate(el, section, ctx) {
+    if (el.getAttribute('data-block-hydrate') !== 'events_list') return;
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      el.hidden = true;
+      ((el.closest('[data-section]') as HTMLElement | null) || el).hidden = true;
       return;
     }
     const { hydrateEventsList } = await import('./block-hydrators.js');
@@ -1679,8 +1682,9 @@ const EVENTS_CALENDAR: BlockType = {
     return adminWrap(section, ctx, inner);
   },
   async hydrate(el, section, ctx) {
+    if (el.getAttribute('data-block-hydrate') !== 'events_calendar') return;
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      el.style.display = 'none';
+      ((el.closest('[data-section]') as HTMLElement | null) || el).hidden = true;
       return;
     }
     const { hydrateEventsCalendar } = await import('./block-hydrators.js');
@@ -1782,11 +1786,10 @@ const SLIDESHOW: BlockType = {
     return adminWrap(section, ctx, inner, 'w-full py-4');
   },
   async hydrate(el, _section, _ctx) {
-    const root = el.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement | null;
-    if (!root) return;
-    if (root.dataset.hydrated === 'true') return;
+    if (el.getAttribute('data-block-hydrate') !== 'slideshow') return;
+    if (el.dataset.hydrated === 'true') return;
     const { initSlideshow } = await import('./blocks/slideshow.js');
-    initSlideshow(root);
+    initSlideshow(el);
   },
 };
 

@@ -21,11 +21,15 @@ const ctx: BlockRenderContext = {
 
 function mount(): HTMLElement {
   bodyFixture(`
-    <section>
+    <section data-section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="event_countdown" data-config='{"heading":"Next Event"}'></div>
     </section>
   `);
   return document.querySelector('section') as HTMLElement;
+}
+
+function countdownHost(wrapper: HTMLElement): HTMLElement {
+  return wrapper.querySelector('[data-block-hydrate="event_countdown"]') as HTMLElement;
 }
 
 function capabilityResponse(rows: unknown[]) {
@@ -63,7 +67,7 @@ describe('event_countdown hydration', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const wrapper = mount();
-    await BLOCK_TYPES.event_countdown.hydrate?.(wrapper, section, ctx);
+    await BLOCK_TYPES.event_countdown.hydrate?.(countdownHost(wrapper), section, ctx);
 
     await vi.waitFor(() => expect(wrapper.querySelector('[data-event-countdown]')?.textContent).toContain('Picnic'));
     expect(envelope(fetchMock)).toMatchObject({
@@ -80,7 +84,7 @@ describe('event_countdown hydration', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(capabilityResponse([])));
 
     const wrapper = mount();
-    await BLOCK_TYPES.event_countdown.hydrate?.(wrapper, section, ctx);
+    await BLOCK_TYPES.event_countdown.hydrate?.(countdownHost(wrapper), section, ctx);
 
     await vi.waitFor(() => {
       expect(wrapper.querySelector('[data-event-countdown-empty]')?.textContent).toContain('No upcoming events');
@@ -91,7 +95,7 @@ describe('event_countdown hydration', () => {
     vi.stubGlobal('fetch', vi.fn());
 
     const wrapper = mount();
-    await BLOCK_TYPES.event_countdown.hydrate?.(wrapper, section, {
+    await BLOCK_TYPES.event_countdown.hydrate?.(countdownHost(wrapper), section, {
       ...ctx,
       isFeatureEnabled: (flag) => flag !== 'feature_events',
     });
