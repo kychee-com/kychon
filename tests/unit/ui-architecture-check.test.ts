@@ -113,7 +113,9 @@ describe('ui architecture check', () => {
     expect(messages('functions/bad-runtime.js', `return '${nativeButtonHtml}';`)).toContain(
       'Feature UI must use Kychon/shadcn components instead of native <button> controls',
     );
-    expect(messages('src/lib/wild-apricot-search.ts', ['const re = /<but', 'ton\\b[^>]*>/;'].join(''))).toEqual([]);
+    expect(messages('src/lib/wild-apricot-search.ts', ['const re = /<but', 'ton\\b[^>]*>/;'].join(''))).toContain(
+      'Feature UI must use Kychon/shadcn components instead of native <button> controls',
+    );
   });
 
   it('keeps primitive imports and base UI imports behind owned facades', () => {

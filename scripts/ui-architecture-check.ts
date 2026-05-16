@@ -18,7 +18,6 @@ const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
 const ALLOWED_DOM_FRAGMENT_HELPER_FILES = new Set(['src/lib/dom-fragment.ts', 'tests/helpers/dom-fixture.js']);
-const ALLOWED_NATIVE_CONTROL_SOURCE_FILES = new Set(['src/lib/wild-apricot-search.ts']);
 const PRIMITIVE_IMPORT_RE = /from\s+['"](@radix-ui\/[^'"]+|@base-ui-components\/[^'"]+)['"]/g;
 const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
@@ -155,8 +154,7 @@ function isUiRenderSource(file: string): boolean {
 }
 
 function isNativeControlSource(file: string): boolean {
-  const rel = relative(ROOT, file).replaceAll('\\', '/');
-  return (isUiRenderSource(file) || (isProductSource(file) && !isCssSource(file))) && !ALLOWED_NATIVE_CONTROL_SOURCE_FILES.has(rel);
+  return isUiRenderSource(file) || (isProductSource(file) && !isCssSource(file));
 }
 
 function isCssSource(file: string): boolean {
