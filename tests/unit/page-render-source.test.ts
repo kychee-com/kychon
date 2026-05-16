@@ -16,6 +16,8 @@ describe('page-render source', () => {
     expect(pageRenderSource).not.toContain('document.createElement');
     expect(pageRenderSource).not.toContain('appendChild');
     expect(pageRenderSource).not.toContain('querySelector');
+    expect(pageRenderSource).not.toContain('.closest(');
+    expect(pageRenderSource).toContain('nearestElementWithAttribute');
     expect(domFragmentSource).toContain('function domParserCtor');
     expect(domFragmentSource).toContain('new parserCtor()');
     expect(domFragmentSource).toContain('replaceChildren');

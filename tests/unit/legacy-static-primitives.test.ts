@@ -303,6 +303,8 @@ describe('legacy static UI primitives', () => {
     expect(pageRender).toContain("child.id === 'sections'");
     expect(pageRender).toContain('hydrateHosts()');
     expect(pageRender).not.toContain('querySelector');
+    expect(pageRender).not.toContain('.closest(');
+    expect(pageRender).toContain('nearestElementWithAttribute');
     expect(pageRender).toContain('await type.hydrate(host, section, ctx)');
     expect(pageRender).not.toContain("root?.querySelector('[data-block-hydrate]')");
     expect(pageRender).not.toContain('matching?.parentElement');
