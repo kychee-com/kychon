@@ -36,6 +36,7 @@ import {
   adminSectionRemoveButtonHtml,
 } from './admin-action-controls.js';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
+import { sectionShellFor } from './dom-structure.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
 export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
@@ -790,7 +791,7 @@ const POLLS: BlockType = {
   },
   async hydrate(el, section, ctx) {
     if (el.getAttribute('data-block-hydrate') !== 'polls') return;
-    const shell = (el.closest('[data-section]') as HTMLElement | null) || el;
+    const shell = sectionShellFor(el);
     if (!ctx.isFeatureEnabled?.('feature_polls')) {
       shell.hidden = true;
       return;
@@ -826,7 +827,7 @@ const EVENT_COUNTDOWN: BlockType = {
   },
   async hydrate(el, section, ctx) {
     if (el.getAttribute('data-block-hydrate') !== 'event_countdown') return;
-    const shell = (el.closest('[data-section]') as HTMLElement | null) || el;
+    const shell = sectionShellFor(el);
     if (!ctx.isFeatureEnabled?.('feature_events')) {
       shell.hidden = true;
       return;
@@ -1646,7 +1647,7 @@ const EVENTS_LIST: BlockType = {
   async hydrate(el, section, ctx) {
     if (el.getAttribute('data-block-hydrate') !== 'events_list') return;
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      ((el.closest('[data-section]') as HTMLElement | null) || el).hidden = true;
+      sectionShellFor(el).hidden = true;
       return;
     }
     const { hydrateEventsList } = await import('./block-hydrators.js');
@@ -1684,7 +1685,7 @@ const EVENTS_CALENDAR: BlockType = {
   async hydrate(el, section, ctx) {
     if (el.getAttribute('data-block-hydrate') !== 'events_calendar') return;
     if (!ctx.isFeatureEnabled?.('feature_events')) {
-      ((el.closest('[data-section]') as HTMLElement | null) || el).hidden = true;
+      sectionShellFor(el).hidden = true;
       return;
     }
     const { hydrateEventsCalendar } = await import('./block-hydrators.js');

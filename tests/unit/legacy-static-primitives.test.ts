@@ -117,6 +117,9 @@ describe('legacy static UI primitives', () => {
     expect(blockHydrators).toContain('function isHydrateHost');
     expect(blockHydrators).toContain('function hydrationShell');
     expect(blockHydrators).not.toContain('querySelector');
+    expect(blockHydrators).not.toContain('.closest(');
+    expect(blocks).toContain('sectionShellFor');
+    expect(blocks).not.toContain(".closest('[data-section]')");
     expect(blocks).toContain('data-year="auto"');
     expect(blocks).toContain('new Date().getFullYear()');
     expect(blocks).not.toContain('class="ky-container"');
