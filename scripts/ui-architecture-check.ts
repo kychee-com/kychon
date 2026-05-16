@@ -31,8 +31,10 @@ const RETIRED_PRIMITIVE_CLASS_DEFINITION_RE = new RegExp(
   'g',
 );
 const CSS_CLASS_SELECTOR_RE = /(^|[\s,{>+~])\.([A-Za-z_][A-Za-z0-9_-]*)(?=$|[^A-Za-z0-9_-])/g;
-const DYNAMIC_TAILWIND_RE =
-  /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|accent|caret|shadow|rounded|gap|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|w|h|min-w|min-h|max-w|max-h|grid-cols|col-span|row-span)-\$\{/;
+const DYNAMIC_TAILWIND_PREFIX =
+  '(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|accent|caret|shadow|rounded|gap|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|w|h|min-w|min-h|max-w|max-h|grid-cols|col-span|row-span)';
+const DYNAMIC_TAILWIND_TEMPLATE_RE = new RegExp(`\\b${DYNAMIC_TAILWIND_PREFIX}-\\$\\{`);
+const DYNAMIC_TAILWIND_CONCAT_RE = new RegExp(`(["'\`])(?:[a-z0-9-]+:)*${DYNAMIC_TAILWIND_PREFIX}-\\1\\s*\\+`, 'g');
 
 export interface Violation {
   file: string;
@@ -242,7 +244,17 @@ export function checkSource(file: string, source: string): Violation[] {
 
   for (const match of source.matchAll(/`[^`]*\$\{[^`]*`/g)) {
     const text = match[0];
-    if (!DYNAMIC_TAILWIND_RE.test(text)) continue;
+    if (!DYNAMIC_TAILWIND_TEMPLATE_RE.test(text)) continue;
+    const line = lineNumber(source, match.index ?? 0);
+    violations.push({
+      file: rel,
+      line,
+      message: 'Dynamic Tailwind utility construction must use CSS variables, data attributes, or a static variant map',
+      excerpt: lineAt(source, line),
+    });
+  }
+
+  for (const match of source.matchAll(DYNAMIC_TAILWIND_CONCAT_RE)) {
     const line = lineNumber(source, match.index ?? 0);
     violations.push({
       file: rel,

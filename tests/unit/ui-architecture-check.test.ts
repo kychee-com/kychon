@@ -88,8 +88,14 @@ describe('ui architecture check', () => {
   it('rejects dynamic Tailwind utility construction', () => {
     const interpolation = ['$', '{tenantColor}'].join('');
     const dynamicTailwindClass = ['const className = `bg-', interpolation, '-500`;'].join('');
+    const concatPrefix = "'hover:bg-'";
+    const concatSuffix = "'-500'";
+    const dynamicTailwindConcat = ['const className = ', concatPrefix, ' + tenantColor + ', concatSuffix, ';'].join('');
 
     expect(messages('src/components/kychon/BadClass.tsx', dynamicTailwindClass)).toContain(
+      'Dynamic Tailwind utility construction must use CSS variables, data attributes, or a static variant map',
+    );
+    expect(messages('src/components/kychon/BadConcatClass.tsx', dynamicTailwindConcat)).toContain(
       'Dynamic Tailwind utility construction must use CSS variables, data attributes, or a static variant map',
     );
   });
