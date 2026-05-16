@@ -5,6 +5,14 @@ import { pathToFileURL } from 'node:url';
 
 const ROOT = join(import.meta.dirname, '..');
 const SCAN_DIRS = ['src', 'scripts', 'tests', 'public', 'demo', 'functions'];
+const ROOT_SCAN_FILES = [
+  '_aage-port-deploy.ts',
+  '_aage-port.seed.sql',
+  '_bmwclubcanberra-port-deploy.ts',
+  '_bmwclubcanberra-port.seed.sql',
+  '_odbc-port-deploy.ts',
+  '_odbc-port.seed.sql',
+];
 const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.html', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
@@ -17,6 +25,7 @@ const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend)\()/g;
 const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea)\b([^>]*)>/g;
+const PORT_SEED_LEGACY_HTML_RE = /<\s*(form|style)\b|\s(class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 const CLASS_LITERAL_RE = /\b(?:class|className)=\\*(["'`])([^'"`]*)\\*\1/g;
 const RETIRED_PRIMITIVE_CLASSES = new Set([
   'container',
@@ -54,16 +63,26 @@ export function isScannedSourcePath(path: string): boolean {
   const rel = path.replaceAll('\\', '/');
   const extIndex = rel.lastIndexOf('.');
   const ext = extIndex >= 0 ? rel.slice(extIndex) : '';
-  return SCAN_DIRS.some((dir) => rel.startsWith(`${dir}/`)) && SOURCE_EXTENSIONS.has(ext);
+  return (
+    (SCAN_DIRS.some((dir) => rel.startsWith(`${dir}/`)) || ROOT_SCAN_FILES.includes(rel)) &&
+    SOURCE_EXTENSIONS.has(ext)
+  );
 }
 
 export function listScanFiles(): string[] {
-  const output = execFileSync('git', ['ls-files', '-z', '--', ...SCAN_DIRS], { cwd: ROOT, encoding: 'utf-8' });
-  return output
-    .split('\0')
-    .filter(Boolean)
-    .filter(isScannedSourcePath)
-    .map((file) => join(ROOT, file));
+  const output = execFileSync('git', ['ls-files', '-z', '--', ...SCAN_DIRS, ...ROOT_SCAN_FILES], {
+    cwd: ROOT,
+    encoding: 'utf-8',
+  });
+  return Array.from(
+    new Set(
+      output
+        .split('\0')
+        .filter(Boolean)
+        .filter(isScannedSourcePath)
+        .map((file) => join(ROOT, file)),
+    ),
+  );
 }
 
 function lineNumber(source: string, index: number): number {
@@ -111,8 +130,14 @@ function isProductSource(file: string): boolean {
     (rel.startsWith('src/') && !rel.startsWith('src/components/ui/')) ||
     rel.startsWith('public/') ||
     rel.startsWith('demo/') ||
-    rel.startsWith('functions/')
+    rel.startsWith('functions/') ||
+    ROOT_SCAN_FILES.includes(rel)
   );
+}
+
+function isRootPortSeed(file: string): boolean {
+  const rel = relative(ROOT, file).replaceAll('\\', '/');
+  return ROOT_SCAN_FILES.includes(rel) && rel.endsWith('.seed.sql');
 }
 
 function isUiRenderSource(file: string): boolean {
@@ -225,6 +250,19 @@ export function checkSource(file: string, source: string): Violation[] {
         file: rel,
         line,
         message: `Feature UI must use Kychon/shadcn components instead of native <${tag}> controls`,
+        excerpt: lineAt(source, line),
+      });
+    }
+  }
+
+  if (isRootPortSeed(file)) {
+    for (const match of source.matchAll(PORT_SEED_LEGACY_HTML_RE)) {
+      const token = String(match[1] || match[2] || '').toLowerCase();
+      const line = lineNumber(source, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: `Port seed SQL must not embed legacy ${token} HTML; sanitize copied source before tracking or deploying it`,
         excerpt: lineAt(source, line),
       });
     }

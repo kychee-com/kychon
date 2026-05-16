@@ -16,6 +16,8 @@ describe('ui architecture check', () => {
     expect(isScannedSourcePath('demo/site/seed.sql')).toBe(true);
     expect(isScannedSourcePath('functions/site-search.js')).toBe(true);
     expect(isScannedSourcePath('src/components/kychon/View.tsx')).toBe(true);
+    expect(isScannedSourcePath('_aage-port.seed.sql')).toBe(true);
+    expect(isScannedSourcePath('_aage-port-deploy.ts')).toBe(true);
     expect(isScannedSourcePath('public/image.png')).toBe(false);
     expect(isScannedSourcePath('dist/page.html')).toBe(false);
   });
@@ -114,6 +116,24 @@ describe('ui architecture check', () => {
     expect(messages('functions/bad-runtime.js', String.raw`return '<div class=\"card\"></div>';`)).toContain(
       'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
     );
+  });
+
+  it('keeps copied port seed SQL free of legacy embedded HTML primitives', () => {
+    const violations = messages(
+      '_aage-port.seed.sql',
+      `INSERT INTO pages (content) VALUES ('<style>.card{color:red}</style><form class="legacy"><input name="q"><p style="color:red">Legacy</p></form>');`,
+    );
+
+    expect(violations).toContain(
+      'Port seed SQL must not embed legacy style HTML; sanitize copied source before tracking or deploying it',
+    );
+    expect(violations).toContain(
+      'Port seed SQL must not embed legacy form HTML; sanitize copied source before tracking or deploying it',
+    );
+    expect(violations).toContain(
+      'Port seed SQL must not embed legacy class HTML; sanitize copied source before tracking or deploying it',
+    );
+    expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <input> controls');
   });
 
   it('routes test DOM fixtures through the shared helper and allows negative source assertions', () => {
