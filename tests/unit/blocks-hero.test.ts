@@ -45,8 +45,8 @@ describe('hero renderer — background mode (existing behavior)', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('class="section section-hero"');
-    expect(html).not.toContain('hero-foreground');
+    expect(html).toContain('class="section" data-hero data-hero-mode="background"');
+    expect(html).not.toContain('data-hero-mode="foreground"');
     expect(html).toContain("background-image:url('/img/hero.jpg')");
     expect(html).toContain('<h1>Welcome</h1>');
     expect(html).toContain('<p>Subhead</p>');
@@ -79,8 +79,8 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('hero-foreground');
-    expect(html).toContain('<picture class="hero-picture"');
+    expect(html).toContain('data-hero-mode="foreground"');
+    expect(html).toContain('<picture data-hero-picture');
     expect(html).toContain('src="https://cdn.example.com/banner.png"');
     expect(html).toContain('alt="Founded 1880"');
     expect(html).toContain('loading="eager"');
@@ -90,7 +90,7 @@ describe('hero renderer — foreground mode', () => {
 
   it("defaults aspect to 'auto' when image_aspect is unset", () => {
     const html = renderBlock(heroSection({ mode: 'foreground', image_url: '/x.png', image_alt: 'x' }), baseCtx);
-    expect(html).toContain('data-aspect="auto"');
+    expect(html).toContain('data-hero-aspect="auto"');
   });
 
   it('applies non-auto aspect when configured', () => {
@@ -103,7 +103,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('data-aspect="16/9"');
+    expect(html).toContain('data-hero-aspect="16/9"');
   });
 
   it("ignores invalid aspect ratios and falls back to 'auto'", () => {
@@ -116,7 +116,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('data-aspect="auto"');
+    expect(html).toContain('data-hero-aspect="auto"');
   });
 
   it('renders the logo overlay when logo_overlay_url is set, with default left position and 120px max-height', () => {
@@ -129,7 +129,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('class="hero-logo-overlay" data-position="left"');
+    expect(html).toContain('data-hero-logo-overlay data-hero-position="left"');
     expect(html).toContain('src="https://cdn.example.com/logo.svg"');
     expect(html).toContain('alt=""');
     expect(html).toContain('max-height:120px');
@@ -147,13 +147,13 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('data-position="center"');
+    expect(html).toContain('data-hero-position="center"');
     expect(html).toContain('max-height:80px');
   });
 
   it('omits the logo overlay when logo_overlay_url is unset', () => {
     const html = renderBlock(heroSection({ mode: 'foreground', image_url: '/x.png', image_alt: 'x' }), baseCtx);
-    expect(html).not.toContain('hero-logo-overlay');
+    expect(html).not.toContain('data-hero-logo-overlay');
   });
 
   it('renders caption at default bottom-right position when caption_html is set', () => {
@@ -166,7 +166,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('class="hero-caption" data-position="bottom-right"');
+    expect(html).toContain('data-hero-caption data-hero-position="bottom-right"');
     expect(html).toContain('Alexandria, Virginia');
   });
 
@@ -181,7 +181,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('data-position="top-left"');
+    expect(html).toContain('data-hero-position="top-left"');
   });
 
   it('falls back to bottom-right for invalid caption positions', () => {
@@ -195,12 +195,12 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('data-position="bottom-right"');
+    expect(html).toContain('data-hero-position="bottom-right"');
   });
 
   it("defaults text_position to 'over_image'", () => {
     const html = renderBlock(heroSection({ mode: 'foreground', image_url: '/x.png', image_alt: 'x' }), baseCtx);
-    expect(html).toContain('data-text-position="over_image"');
+    expect(html).toContain('data-hero-text-position="over_image"');
   });
 
   it("renders below_image when text_position is 'below_image'", () => {
@@ -215,7 +215,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(html).toContain('data-text-position="below_image"');
+    expect(html).toContain('data-hero-text-position="below_image"');
     // <picture> appears before the heading group in document order
     const picIdx = html.indexOf('<picture');
     const headIdx = html.indexOf('<h1');
@@ -225,7 +225,7 @@ describe('hero renderer — foreground mode', () => {
 
   it('renders the heading group only when at least one heading field is present', () => {
     const noText = renderBlock(heroSection({ mode: 'foreground', image_url: '/x.png', image_alt: 'x' }), baseCtx);
-    expect(noText).not.toContain('hero-text');
+    expect(noText).not.toContain('<div data-hero-text>');
     const withText = renderBlock(
       heroSection({
         mode: 'foreground',
@@ -235,7 +235,7 @@ describe('hero renderer — foreground mode', () => {
       }),
       baseCtx,
     );
-    expect(withText).toContain('hero-text');
+    expect(withText).toContain('<div data-hero-text>');
     expect(withText).toContain('<h1');
   });
 
@@ -307,8 +307,39 @@ describe('hero renderer — admin attributes', () => {
     expect(editableConfig).toContain('&lt;strong&gt;Sedgwick County, KS&lt;/strong&gt;');
     expect(editableConfig).not.toContain('<strong>');
     expect(html).toContain(
-      '<div class="hero-caption" data-position="bottom-right">Founded 1995 · <strong>Sedgwick County, KS</strong></div>',
+      '<div data-hero-caption data-hero-position="bottom-right">Founded 1995 · <strong>Sedgwick County, KS</strong></div>',
     );
+  });
+});
+
+describe('hero renderer — retired primitive classes', () => {
+  it('keeps hero-specific CSS primitive classes out of renderer output and public CSS', () => {
+    const foreground = renderBlock(
+      heroSection({
+        mode: 'foreground',
+        image_url: '/x.png',
+        image_alt: 'x',
+        heading: 'Hi',
+        caption_html: 'Caption',
+        logo_overlay_url: '/logo.svg',
+      }),
+      baseCtx,
+    );
+    const background = renderBlock(heroSection({ heading: 'Welcome', bg_image: '/bg.jpg' }), baseCtx);
+    const combined = `${foreground}\n${background}\n${blocksSource}`;
+    const styles = readFileSync('src/styles/public.css', 'utf8');
+
+    for (const retired of [
+      'section-hero',
+      'hero-foreground',
+      'hero-picture',
+      'hero-logo-overlay',
+      'hero-caption',
+      'hero-text',
+    ]) {
+      expect(combined).not.toMatch(new RegExp(`class="[^"]*\\b${retired}\\b`));
+      expect(styles).not.toContain(`.${retired}`);
+    }
   });
 });
 
