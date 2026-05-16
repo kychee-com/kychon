@@ -5,7 +5,6 @@ import { headFixture } from '../helpers/dom-fixture.js';
 describe('copied-theme token application', () => {
   beforeEach(() => {
     document.documentElement.removeAttribute('style');
-    document.getElementById('wl-theme-vars')?.remove();
     headFixture('<style id="wl-theme-vars"></style>');
   });
 
