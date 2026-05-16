@@ -9,6 +9,7 @@ const STYLES = resolve(process.cwd(), 'src/styles/public.css');
 const ZONE_GRID_STYLES = resolve(process.cwd(), 'src/styles/zone-grid.css');
 const EVENT_CALENDAR_RUNTIME = resolve(process.cwd(), 'src/lib/blocks/events-calendar.ts');
 const EVENT_CALENDAR_VIEW = resolve(process.cwd(), 'src/components/kychon/EventsCalendarBlockView.tsx');
+const SLIDESHOW_RUNTIME = resolve(process.cwd(), 'src/lib/blocks/slideshow.ts');
 const GLOBAL_STYLES = resolve(process.cwd(), 'src/styles/globals.css');
 const ADMIN_STYLES = resolve(process.cwd(), 'public/css/admin-editing.css');
 const PUBLIC_ZONE_GRID_STYLES = resolve(process.cwd(), 'public/css/zone-grid.css');
@@ -75,6 +76,7 @@ describe('legacy static UI primitives', () => {
     const zoneGridStyles = await readFile(ZONE_GRID_STYLES, 'utf8');
     const eventCalendarRuntime = await readFile(EVENT_CALENDAR_RUNTIME, 'utf8');
     const eventCalendarView = await readFile(EVENT_CALENDAR_VIEW, 'utf8');
+    const slideshowRuntime = await readFile(SLIDESHOW_RUNTIME, 'utf8');
     const globalStyles = await readFile(GLOBAL_STYLES, 'utf8');
     const adminStyles = await readFile(ADMIN_STYLES, 'utf8');
     const publicZoneGridStyles = await readFile(PUBLIC_ZONE_GRID_STYLES, 'utf8');
@@ -165,6 +167,7 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarView).toContain('data-events-calendar-controls-host');
     expect(eventCalendarView).toContain('data-events-calendar-peek-host');
     expect(eventCalendarView).not.toContain('block-events-calendar__');
+    expect(slideshowRuntime).not.toContain('IntersectionObserver');
     expect(globalStyles).not.toContain('block-events-calendar.css');
     expect(globalStyles).not.toContain('nav-dropdown.css');
     expect(adminStyles).not.toContain('block-embed');
