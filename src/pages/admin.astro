@@ -1,11 +1,7 @@
 ---
-import AdminAccessShell from '../components/AdminAccessShell.astro';
 import AdminDashboardApp from '../components/kychon/AdminDashboardApp';
 import Portal from '../layouts/Portal.astro';
 ---
 <Portal title="Admin Dashboard">
-  <AdminAccessShell />
-  <div class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8" data-admin-content hidden>
-    <AdminDashboardApp client:load />
-  </div>
+  <AdminDashboardApp client:load />
 </Portal>

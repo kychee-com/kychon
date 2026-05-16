@@ -615,7 +615,10 @@ async function waitForRouteReady(page: any, route: CaptureRoute): Promise<void> 
       await page.waitForSelector('[data-forum-page] [data-forum-category-card]', { timeout: 5000 });
       break;
     case 'admin-settings':
-      await page.waitForSelector('[data-admin-content]:not([hidden])', { timeout: 8000 });
+      await page.waitForFunction(
+        () => Array.from(document.querySelectorAll('h2')).some((heading) => heading.textContent?.trim() === 'Site Settings'),
+        { timeout: 8000 },
+      );
       break;
     case 'baked-chrome-page':
       await page.waitForFunction(

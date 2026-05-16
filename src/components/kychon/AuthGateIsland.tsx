@@ -32,7 +32,7 @@ interface AuthGateProps {
 
 const roots = new WeakMap<HTMLElement, Root>();
 
-function AuthGate({ backLabel, copy, kind, signInLabel }: AuthGateProps) {
+export function AuthGate({ backLabel, copy, kind, signInLabel }: AuthGateProps) {
   const Icon = kind === 'admin' ? ShieldAlert : LockKeyhole;
 
   function openSignIn(event: React.MouseEvent<HTMLButtonElement>) {

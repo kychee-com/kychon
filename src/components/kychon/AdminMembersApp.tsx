@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/kychon/ui';
-import { revealAdminContent, showAdminAccessDenied } from '@/lib/admin-access';
+import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
 import { get, patch } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { ready, refreshMemberRecord } from '@/lib/config';
@@ -104,6 +104,7 @@ function csvHref(members: Member[]): string {
 }
 
 export default function AdminMembersApp() {
+  const [accessState, setAccessState] = useState<AdminAccessState>('checking');
   const [members, setMembers] = useState<Member[]>([]);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [query, setQuery] = useState('');
@@ -148,16 +149,18 @@ export default function AdminMembersApp() {
   async function loadPage() {
     setLoading(true);
     setFatalError('');
+    setAccessState('checking');
     try {
       await ready;
       await refreshMemberRecord();
       if (!isAdmin()) {
-        showAdminAccessDenied();
+        setAccessState('denied');
         return;
       }
-      revealAdminContent();
+      setAccessState('allowed');
       await loadMembers();
     } catch (error) {
+      setAccessState('allowed');
       setFatalError(formatError(error));
     } finally {
       setLoading(false);
@@ -202,19 +205,25 @@ export default function AdminMembersApp() {
     await updateMember(member, { role }, `role:${member.id}`, `${memberName(member)} role updated`);
   }
 
+  if (accessState !== 'allowed') {
+    return <AdminAccessGate state={accessState}>{null}</AdminAccessGate>;
+  }
+
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading members
-        </CardContent>
-      </Card>
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading members
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-normal">Members</h2>

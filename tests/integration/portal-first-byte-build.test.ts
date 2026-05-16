@@ -75,7 +75,7 @@ describe('Portal first-byte build output', () => {
       if (ADMIN_PAGES.has(page)) {
         expect(html, page).toContain('data-admin-access-checking');
         expect(html, page).toContain('Checking access');
-        expect(html, page).toMatch(/<div[^>]*data-admin-content[^>]*hidden|<div[^>]*hidden[^>]*data-admin-content/);
+        expect(html, page).not.toContain('data-admin-content');
       }
     }
 
