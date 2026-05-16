@@ -122,9 +122,9 @@ const cspValue = buildCspValue();
         || document.documentElement.dataset.reducedMotion === 'true';
 
       if (prefersReducedMotion) {
-        document.querySelectorAll('.section').forEach(revealSection);
+        document.querySelectorAll('[data-section]').forEach(revealSection);
         new MutationObserver(mutations => mutations.forEach(m =>
-          m.addedNodes.forEach(n => { if ((n as Element).classList?.contains('section')) revealSection(n as Element); })
+          m.addedNodes.forEach(n => { if ((n as Element).matches?.('[data-section]')) revealSection(n as Element); })
         )).observe(document.body, { childList: true, subtree: true });
         return;
       }
@@ -142,12 +142,12 @@ const cspValue = buildCspValue();
         setTimeout(() => { staggerIndex = 0; }, 50);
       }, { threshold: 0.15 });
 
-      document.querySelectorAll('main .section').forEach(el => observer.observe(el));
+      document.querySelectorAll('main [data-section]').forEach(el => observer.observe(el));
 
       new MutationObserver((mutations) => {
         mutations.forEach((m) => {
           m.addedNodes.forEach((node) => {
-            if ((node as Element).classList?.contains('section') && (node as Element).closest('main')) {
+            if ((node as Element).matches?.('[data-section]') && (node as Element).closest('main')) {
               observer.observe(node as Element);
             }
           });
@@ -155,7 +155,7 @@ const cspValue = buildCspValue();
       }).observe(document.body, { childList: true, subtree: true });
 
       setTimeout(() => {
-        document.querySelectorAll('main .section:not([data-section-visible="true"])').forEach(revealSection);
+        document.querySelectorAll('main [data-section]:not([data-section-visible="true"])').forEach(revealSection);
       }, 2000);
     }
 

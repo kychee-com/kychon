@@ -36,7 +36,8 @@ function buildSlideshowDOM(
   const autoMs = opts.autoMs ?? 1000;
   const total = opts.slides ?? 3;
   const wrapper = document.createElement('section');
-  wrapper.className = 'section w-full py-4';
+  wrapper.dataset.section = '';
+  wrapper.className = 'w-full py-4';
   wrapper.innerHTML = `
     <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>
       <div class="relative overflow-hidden" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Test" data-block-hydrate="slideshow" data-auto-ms="${autoMs}" data-pause-hover="${opts.pauseHover === false ? 'false' : 'true'}" data-pause-focus="${opts.pauseFocus === false ? 'false' : 'true'}" data-manual-pause="${opts.manualPause ? 'true' : 'false'}" style="--aspect:16/9;--fit:cover">

@@ -288,13 +288,14 @@ function adminEditButton(section: Section, ctx: BlockRenderContext): string {
   return adminSectionEditButtonHtml(section.id);
 }
 
-function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, classes = 'section'): string {
+function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, classes = ''): string {
   const sid = section.id;
   const sortable = sid != null
     ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"`
     : '';
   const zoneAttr = ` data-section-zone="${section.zone}"`;
   const scopeAttr = ` data-section-scope="${section.scope}"`;
+  const classAttr = classes.trim() ? ` class="${escAttr(classes.trim())}"` : '';
   const cfgAttr = sid != null && ctx.admin
     ? ` data-editable-config="${jsonAttr(section.config || {})}"`
     : '';
@@ -302,7 +303,7 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
     ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-  return `<section class="${classes}"${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
+  return `<section data-section${classAttr}${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
 }
 
 function editableAttr(section: Section, path: string, ctx: BlockRenderContext): string {
@@ -583,7 +584,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
   const bgImageAttr = safeBgImage ? ' data-hero-bg-image="true"' : '';
-  return `<section class="section" data-hero data-hero-mode="background"${bgImageAttr}${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
+  return `<section data-section data-hero data-hero-mode="background"${bgImageAttr}${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
 }
 
 function renderForegroundHero(section: Section, ctx: BlockRenderContext): string {
@@ -650,7 +651,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   // For below_image, headingGroup falls below the picture in document order.
   const body = `${pictureMarkup}${logoMarkup}${captionMarkup}${headingGroup}`;
 
-  return `<section class="section" data-hero data-hero-mode="foreground" data-hero-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${dragHandle}${adminCtrls}${body}</section>`;
+  return `<section data-section data-hero data-hero-mode="foreground" data-hero-text-position="${escAttr(textPosition)}"${sortable}${cfgAttr}>${dragHandle}${adminCtrls}${body}</section>`;
 }
 
 const HERO: BlockType = {
@@ -795,7 +796,7 @@ const POLLS: BlockType = {
       section,
       ctx,
       constrainedContainerHtml(` data-block-hydrate="polls" data-config="${jsonAttr(cfg)}"`),
-      'section w-full py-8',
+      'w-full py-8',
     );
   },
   async hydrate(el, section, ctx) {
@@ -831,7 +832,7 @@ const EVENT_COUNTDOWN: BlockType = {
       section,
       ctx,
       constrainedContainerHtml(` data-block-hydrate="event_countdown" data-config="${jsonAttr(cfg)}"`),
-      'section w-full py-8',
+      'w-full py-8',
     );
   },
   async hydrate(el, section, ctx) {
@@ -867,7 +868,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
       section,
       ctx,
       constrainedContainerHtml(` data-block-hydrate="announcements_feed" data-config="${jsonAttr(cfg)}"`),
-      'section w-full py-8',
+      'w-full py-8',
     );
   },
   async hydrate(el, section, ctx) {
@@ -893,7 +894,7 @@ const ACTIVITY_FEED: BlockType = {
       section,
       ctx,
       constrainedContainerHtml(' data-block-hydrate="activity_feed"', heading),
-      'section section-activity',
+      '',
     );
   },
   async hydrate(el, section, ctx) {
@@ -1193,9 +1194,9 @@ const SITE_SEARCH: BlockType = {
     })}"`;
     const inner = `<div data-block-hydrate="site_search" data-site-search-root${cfgAttr}></div>`;
     const headerClasses = config.mode === 'header_icon'
-      ? 'section col-[4] row-[1] flex w-9 justify-self-end py-0'
-      : 'section col-[4] row-[1] flex w-full min-w-0 max-w-md justify-self-end py-0 sm:max-w-[18rem]';
-    const classes = section.zone === 'header' ? headerClasses : 'section w-full py-1';
+      ? 'col-[4] row-[1] flex w-9 justify-self-end py-0'
+      : 'col-[4] row-[1] flex w-full min-w-0 max-w-md justify-self-end py-0 sm:max-w-[18rem]';
+    const classes = section.zone === 'header' ? headerClasses : 'w-full py-1';
     return adminWrap(section, ctx, inner, classes);
   },
   async hydrate(el, section, ctx) {
@@ -1383,7 +1384,7 @@ const TAGLINE_STRIP: BlockType = {
         return editablePath(section, path, ctx);
       },
     });
-    return adminWrap(section, ctx, inner, 'section w-full p-0');
+    return adminWrap(section, ctx, inner, 'w-full p-0');
   },
 };
 
@@ -1413,7 +1414,7 @@ const PAGE_BANNER: BlockType = {
       imageUrl: safeImageUrl,
       overlayColor: safeOverlay,
     });
-    return adminWrap(section, ctx, inner, 'section w-full p-0');
+    return adminWrap(section, ctx, inner, 'w-full p-0');
   },
 };
 
@@ -1432,7 +1433,7 @@ const LINK_LIST: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const inner = constrainedContainerHtml(` data-block-hydrate="link_list" data-config="${jsonAttr(cfg)}"`);
-    return adminWrap(section, ctx, inner, 'section w-full py-8 has-[[data-link-list-empty=true]]:hidden');
+    return adminWrap(section, ctx, inner, 'w-full py-8 has-[[data-link-list-empty=true]]:hidden');
   },
   async hydrate(el, section, ctx) {
     const { hydrateLinkListResources } = await import('./block-hydrators.js');
@@ -1469,7 +1470,7 @@ const PROMO_CARDS: BlockType = {
         return safeCssValue(value);
       },
     });
-    return adminWrap(section, ctx, inner, 'section w-full');
+    return adminWrap(section, ctx, inner, 'w-full');
   },
 };
 
@@ -1547,7 +1548,7 @@ const IMAGE_ACCORDION: BlockType = {
       rootStyle,
       showEmptyPlaceholder: ctx.admin,
     });
-    return adminWrap(section, ctx, inner, 'section w-full py-8');
+    return adminWrap(section, ctx, inner, 'w-full py-8');
   },
 };
 
@@ -1595,7 +1596,7 @@ const SHAPE_DIVIDER: BlockType = {
           viewBox: '0 0 1440 120',
         })
         : '';
-      return adminWrap(section, ctx, placeholder, 'section w-full overflow-visible p-0');
+      return adminWrap(section, ctx, placeholder, 'w-full overflow-visible p-0');
     }
     const layers = Array.isArray(cfg.layers) && cfg.layers.length > 0
       ? cfg.layers
@@ -1629,7 +1630,7 @@ const SHAPE_DIVIDER: BlockType = {
       transform: safeCssValue(transforms) || undefined,
       viewBox: safeCssValue(cfg.view_box || '0 0 1440 120') || '0 0 1440 120',
     });
-    return adminWrap(section, ctx, inner, 'section w-full overflow-visible p-0');
+    return adminWrap(section, ctx, inner, 'w-full overflow-visible p-0');
   },
 };
 
@@ -1651,7 +1652,7 @@ const EVENTS_LIST: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const inner = constrainedContainerHtml(` data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}"`);
-    return adminWrap(section, ctx, inner, 'section w-full py-6');
+    return adminWrap(section, ctx, inner, 'w-full py-6');
   },
   async hydrate(el, section, ctx) {
     if (!ctx.isFeatureEnabled?.('feature_events')) {
@@ -1688,8 +1689,7 @@ const EVENTS_CALENDAR: BlockType = {
       editableHeadingPath: editablePath(section, 'heading', ctx),
       heading: cfg.heading ? String(cfg.heading) : '',
     });
-    const cls = 'section section-events-calendar';
-    return adminWrap(section, ctx, inner, cls);
+    return adminWrap(section, ctx, inner);
   },
   async hydrate(el, section, ctx) {
     if (!ctx.isFeatureEnabled?.('feature_events')) {
@@ -1792,7 +1792,7 @@ const SLIDESHOW: BlockType = {
       showEmptyPlaceholder: ctx.admin,
       transition,
     });
-    return adminWrap(section, ctx, inner, 'section w-full py-4');
+    return adminWrap(section, ctx, inner, 'w-full py-4');
   },
   async hydrate(el, _section, _ctx) {
     const root = el.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement | null;
