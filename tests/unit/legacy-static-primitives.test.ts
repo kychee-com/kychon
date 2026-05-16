@@ -179,6 +179,7 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).not.toContain('button[data-filter]');
     expect(eventCalendarRuntime).not.toContain("querySelectorAll<HTMLElement>('[data-day-peek]')");
     expect(eventCalendarRuntime).not.toContain("querySelectorAll<HTMLElement>('[data-events-calendar-cell]')");
+    expect(eventCalendarRuntime).not.toContain('[data-events-calendar-cell][data-day=');
     expect(eventCalendarRuntime).toContain('createRoot');
     expect(eventCalendarRuntime).toContain('EventsCalendarControls');
     expect(eventCalendarView).toContain('@/components/kychon/ui');
@@ -186,6 +187,8 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarView).not.toContain('onAddToCalendar');
     expect(eventCalendarView).toContain('onDayPeek');
     expect(eventCalendarView).toContain('onCellClick');
+    expect(eventCalendarView).toContain('focusDay');
+    expect(eventCalendarView).toContain('cellRefs');
     expect(eventCalendarView).toContain('asChild');
     expect(eventCalendarView).toContain('data-events-calendar-controls-host');
     expect(eventCalendarView).toContain('data-events-calendar-peek-host');

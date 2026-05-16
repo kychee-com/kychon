@@ -103,6 +103,7 @@ export interface EventsCalendarMonthCell {
 
 export interface EventsCalendarMonthViewProps {
   density: EventsCalendarDensity;
+  focusDay?: string | null;
   label: string;
   liveText: string;
   onCellClick?: (day: string) => void;
@@ -423,6 +424,7 @@ function EventsCalendarMoreButton({ day, label, onDayPeek }: EventsCalendarMoreB
 
 export function EventsCalendarMonthView({
   density,
+  focusDay,
   label,
   liveText,
   onCellClick,
@@ -432,6 +434,13 @@ export function EventsCalendarMonthView({
   rows,
   weekdays,
 }: EventsCalendarMonthViewProps) {
+  const cellRefs = React.useRef(new Map<string, HTMLDivElement>());
+
+  React.useEffect(() => {
+    if (!focusDay) return;
+    cellRefs.current.get(focusDay)?.focus();
+  }, [focusDay]);
+
   return (
     <>
       <Card className="overflow-hidden shadow-none" data-events-calendar-month role="grid" aria-label={label}>
@@ -459,6 +468,10 @@ export function EventsCalendarMonthView({
                 onClick={onCellClick ? () => onCellClick(cell.day) : undefined}
                 onMouseEnter={onCellMouseEnter ? () => onCellMouseEnter(cell.day) : undefined}
                 onMouseLeave={onCellMouseLeave}
+                ref={(node) => {
+                  if (node) cellRefs.current.set(cell.day, node);
+                  else cellRefs.current.delete(cell.day);
+                }}
                 role="gridcell"
                 tabIndex={cell.focused ? 0 : -1}
               >
