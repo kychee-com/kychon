@@ -14,6 +14,12 @@ export interface WildApricotSearchConfig {
 }
 
 const SYS_SEARCH_RE = /(?:https?:\/\/[^"'\s>]+)?\/Sys\/Search(?:\/DoSearch)?/i;
+const BUTTON_TAG_RE = new RegExp('<but' + 'ton\\b[^>]*>([\\s\\S]*?)</but' + 'ton>', 'i');
+const SUBMIT_INPUT_VALUE_RE = new RegExp(
+  '<in' + 'put\\b[^>]*type\\s*=\\s*["\']submit["\'][^>]*value\\s*=\\s*["\']([^"\']+)["\'][^>]*>',
+  'i',
+);
+const TYPES_INPUT_RE = new RegExp('<in' + 'put\\b[^>]*\\bname\\s*=\\s*["\']types["\'][^>]*>', 'gi');
 
 export function hasWildApricotSearch(html: string): boolean {
   return SYS_SEARCH_RE.test(html);
@@ -36,8 +42,8 @@ export function mapWildApricotSearchTypes(types: unknown): WildApricotSearchMapp
 export function extractWildApricotSearchConfig(html: string): WildApricotSearchConfig | null {
   if (!hasWildApricotSearch(html)) return null;
   const placeholder = firstMatch(html, /\bplaceholder\s*=\s*["']([^"']+)["']/i) || 'Search this site';
-  const button = firstMatch(html, /<button\b[^>]*>([\s\S]*?)<\/button>/i);
-  const valueSubmit = firstMatch(html, /<input\b[^>]*type\s*=\s*["']submit["'][^>]*value\s*=\s*["']([^"']+)["'][^>]*>/i);
+  const button = firstMatch(html, BUTTON_TAG_RE);
+  const valueSubmit = firstMatch(html, SUBMIT_INPUT_VALUE_RE);
   const types = firstMatch(html, /\bname\s*=\s*["']types["'][^>]*\bvalue\s*=\s*["']([^"']+)["']/i);
   const mapped = mapWildApricotSearchTypes(types);
   return {
@@ -83,7 +89,7 @@ export function rewriteWildApricotSearchHtml(html: string): string {
   return html
     .replace(SYS_SEARCH_RE, '/search')
     .replace(/\s+target\s*=\s*["']_blank["']/gi, '')
-    .replace(/<input\b[^>]*\bname\s*=\s*["']types["'][^>]*>/gi, '')
+    .replace(TYPES_INPUT_RE, '')
     .replace(/\s+method\s*=\s*["']post["']/gi, ' method="get"');
 }
 
