@@ -277,9 +277,9 @@ Each forkable Kychon project SHALL have a typed seed module under `src/seeds/{pr
 
 ### Requirement: Main and footer zones render as a 6-column responsive grid
 
-The main-zone container (`#sections` when present, otherwise `#main-content`) and the footer-zone container (`[data-zone="footer"] > .container`) SHALL render as a CSS Grid with `grid-template-columns: repeat(6, 1fr)` on viewports above 900px wide. On viewports between 600px and 900px the grid SHALL drop to 4 columns. On viewports at or below 600px the grid SHALL collapse to a single column so all blocks stack vertically.
+The main-zone container (`#sections` when present, otherwise `#main-content`) and the footer-zone container (`[data-zone="footer"] > [data-layout-container]`) SHALL render as a CSS Grid with `grid-template-columns: repeat(6, 1fr)` on viewports above 900px wide. On viewports between 600px and 900px the grid SHALL drop to 4 columns. On viewports at or below 600px the grid SHALL collapse to a single column so all blocks stack vertically.
 
-The header zone is intentionally exempt: its existing flex layout (`.nav .container { display: flex }`) gives `brand_header`, `nav`, and `sign_in_bar` a natural horizontal arrangement that 6-col grid would not improve. Header chrome blocks all carry `data-column-span="1"` for the rare cases when they DO end up in a grid-rendered zone (e.g. an admin drags a brand block to the footer), but the header zone itself stays flex.
+The header zone is intentionally exempt from column-span grid rules: its `[data-nav-shell] [data-layout-container]` layout gives `brand_header`, `nav`, and `sign_in_bar` a dedicated chrome arrangement that the 6-column content grid would not improve. Header chrome blocks all carry `data-column-span="1"` for the rare cases when they DO end up in a grid-rendered zone (e.g. an admin drags a brand block to the footer), but the header zone itself stays on the nav-shell layout.
 
 #### Scenario: Desktop renders 6-column grid in main and footer
 
@@ -301,7 +301,7 @@ The header zone is intentionally exempt: its existing flex layout (`.nav .contai
 #### Scenario: Header zone keeps its flex layout
 
 - **WHEN** any viewport size loads any Kychon page
-- **THEN** the header zone container (`.nav .container`) computes `display: flex` (unchanged from before this change)
+- **THEN** the header zone container (`[data-nav-shell] [data-layout-container]`) computes its dedicated nav-shell layout instead of the column-span grid
 - **THEN** chrome blocks (`brand_header`, `nav`, `sign_in_bar`) flow horizontally per the existing flex rules
 
 ### Requirement: Every rendered block carries `data-column-span`
@@ -502,7 +502,7 @@ Each copied-theme block type SHALL define `render(section, ctx)`, `defaultConfig
 
 #### Scenario: Shape divider can render full width
 - **WHEN** a `shape_divider` block is rendered in a zone where the source design requires full-width section transition
-- **THEN** the block can opt out of the normal constrained `.container` wrapper
+- **THEN** the block can opt out of the normal constrained `data-layout-container` wrapper
 - **THEN** the divider spans the intended viewport or zone width
 
 #### Scenario: Existing block rendering remains registry-based
@@ -581,4 +581,3 @@ Copied-theme block types SHALL participate in the existing column-span and zone 
 - **WHEN** a `shape_divider` section is moved or re-rendered
 - **THEN** the section preserves its configured span
 - **THEN** full-bleed rendering remains controlled by the block type rather than ad hoc wrapper markup
-

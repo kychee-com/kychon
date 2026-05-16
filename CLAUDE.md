@@ -47,7 +47,7 @@ Every visible block on every page — including chrome (`zone='header'`, `zone='
 - **Runtime hydrate** — `src/lib/page-render.ts:hydratePage(slug)` runs on every page load. It reads cached sections from `localStorage` (`wl_cache_sections_{slug}`), renders into zones, then fetches fresh from PostgREST in one query (`?or=(and(page_slug.eq.{slug},scope.eq.page),scope.eq.global,page_slug.eq.*)`), updates if different, and runs each block's hydrator.
 - **Cross-zone drag** — `AdminEditor.astro` has document-level drag handlers. Drop into a different zone PATCHes both `zone` and `position`. Empty zones show a "Drop here" placeholder during admin drag. Cross-zone-into-chrome shows a transient promotion tooltip offering `Make global`.
 - **Scope toggle** — `scope` is an explicit, drag-independent property. The admin section toolbar shows a `GLOBAL` pill when `scope='global'` plus a `Make global` / `Make page-only` toggle.
-- **Column span** — each `sections` row carries `column_span` (`'1' | '1/2' | '1/3' | '2/3'`). The main and footer zone hosts (`#sections`, `[data-zone="footer"] > .container`) render as a 6-column CSS Grid (`public/css/zone-grid.css`); `renderBlock` post-processes the leading tag of every block with `data-column-span`. On tablet (≤900px) the grid drops to 4 cols and thirds collapse to full; on mobile (≤600px) every block stacks. Each `BlockType.supportedSpans` constrains the popover's span radio. The header zone keeps its existing flex layout — chrome is naturally horizontal.
+- **Column span** — each `sections` row carries `column_span` (`'1' | '1/2' | '1/3' | '2/3'`). The main and footer zone hosts (`#sections`, `[data-zone="footer"] > [data-layout-container]`) render as a 6-column CSS Grid (`src/styles/zone-grid.css`, bundled through Astro/Vite); `renderBlock` post-processes the leading tag of every block with `data-column-span`. On tablet (≤900px) the grid drops to 4 cols and thirds collapse to full; on mobile (≤600px) every block stacks. Each `BlockType.supportedSpans` constrains the popover's span radio. The header zone is exempt from column-span grid rules and keeps its dedicated nav-shell layout.
 
 ### i18n (Krello Pattern)
 
@@ -108,7 +108,7 @@ kychon/
 - **Predictable naming**: `src/pages/{feature}.astro`, `src/components/{Name}.astro`, `src/lib/{module}.ts`
 - **Island hydration**: `client:load` (immediate), `client:visible` (on scroll), `client:idle` (after page settles)
 - **Feature flags, not plugins** - all features ship, toggle with booleans in `site_config`
-- **CSS variables for theming** - ConfigProvider reads `theme` from DB and sets custom properties at runtime; every theme key has a downstream consumer in `public/css/`. Non-system fonts named in `theme.font_heading` / `theme.font_body` are auto-loaded via Google Fonts at build time (see [THEME.md](THEME.md))
+- **CSS variables for theming** - ConfigProvider reads `theme` from DB and sets custom properties at runtime; every theme key has a downstream consumer in `src/styles/` or component styling. Non-system fonts named in `theme.font_heading` / `theme.font_body` are auto-loaded via Google Fonts at build time (see [THEME.md](THEME.md))
 - **Astro build step** - `astro build` outputs static HTML/JS/CSS to `dist/`, deployed to Run402
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
