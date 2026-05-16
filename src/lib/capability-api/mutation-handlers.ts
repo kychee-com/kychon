@@ -1,5 +1,6 @@
 import { getOperation } from './operations.js';
 import { checkOperationPermission } from './permissions.js';
+import { sanitizeRichHtmlServer } from '../sanitize-html.js';
 import {
   actionResult,
   auditReference,
@@ -573,41 +574,7 @@ function isModeratorLike(ctx: CapabilityMutationContext): boolean {
   return ctx.actor.state === 'moderator' || isAdminLike(ctx);
 }
 
-// Server-side rich-HTML sanitizer mirroring the read-side allowlist in
-// `src/lib/sanitize-html.ts`. We strip the obvious attack vectors with regex
-// as belt-and-braces for the read-side sanitizer so any other consumer
-// (newsletter generator, translation cache, CSV/RSS export) inherits the
-// guarantee. (#29)
-export function sanitizeRichHtmlServer(input: unknown): string {
-  if (input == null) return '';
-  let html = String(input);
-  html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
-  html = html.replace(/<\/?\s*(script|style|iframe|object|embed|svg|math|details|link|meta)(?:\s|\/|>)[^>]*>/gi, '');
-  html = html.replace(/[\s/]+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  html = html.replace(/\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  html = html.replace(/\s(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (_match, attr: string, rawValue: string) => {
-    const value = rawValue.replace(/^['"]|['"]$/g, '');
-    const decoded = decodeHtmlEntities(value).trim();
-    return /^(?:javascript|vbscript):/i.test(decoded) ? '' : ` ${attr}=${rawValue}`;
-  });
-  html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
-  html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
-  return html;
-}
-
-function decodeHtmlEntities(value: string): string {
-  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
-    const normalized = entity.toLowerCase();
-    if (normalized === 'amp') return '&';
-    if (normalized === 'lt') return '<';
-    if (normalized === 'gt') return '>';
-    if (normalized === 'quot') return '"';
-    if (normalized === 'apos') return "'";
-    if (normalized.startsWith('#x')) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
-    if (normalized.startsWith('#')) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
-    return match;
-  });
-}
+export { sanitizeRichHtmlServer };
 
 async function translateText(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const result = (await ctx.ai?.translateText(input)) || { translatedText: input.text || '' };

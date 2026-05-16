@@ -25,6 +25,7 @@ import {
   type ShapeDividerRenderLayer,
 } from '@/components/kychon/ShapeDividerBlockView';
 import { constrainedContainerClass } from './ui/container.js';
+import { sanitizeRichHtmlServer } from './sanitize-html.js';
 import {
   adminDragHandleHtml,
   adminNavEditButtonHtml,
@@ -1357,7 +1358,7 @@ const CUSTOM: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const richEdit = richEditableAttr(section, 'html', ctx);
-    const inner = constrainedContainerHtml(richEdit, cfg.html || '');
+    const inner = constrainedContainerHtml(richEdit, sanitizeRichHtmlServer(cfg.html || ''));
     return adminWrap(section, ctx, inner);
   },
 };
