@@ -86,13 +86,31 @@ interface CalendarRenderRoots {
 
 const calendarRenderRoots = new WeakMap<HTMLElement, CalendarRenderRoots>();
 
+function findDirectChildWithAttribute(root: HTMLElement, attribute: string): HTMLElement | null {
+  for (const child of Array.from(root.children)) {
+    if (!(child instanceof HTMLElement)) continue;
+    if (child.hasAttribute(attribute)) return child;
+  }
+  return null;
+}
+
+function sortableIdFor(root: HTMLElement): string {
+  let current = root.parentElement;
+  while (current) {
+    const sortableId = current.getAttribute('data-sortable-id');
+    if (sortableId) return sortableId;
+    current = current.parentElement;
+  }
+  return 'global';
+}
+
 function getCalendarRenderRoots(root: HTMLElement): CalendarRenderRoots | null {
   const existing = calendarRenderRoots.get(root);
   if (existing) return existing;
 
-  const controlsHost = root.querySelector<HTMLElement>('[data-events-calendar-controls-host]');
-  const viewportHost = root.querySelector<HTMLElement>('[data-events-calendar-viewport]');
-  const peekHost = root.querySelector<HTMLElement>('[data-events-calendar-peek-host]');
+  const controlsHost = findDirectChildWithAttribute(root, 'data-events-calendar-controls-host');
+  const viewportHost = findDirectChildWithAttribute(root, 'data-events-calendar-viewport');
+  const peekHost = findDirectChildWithAttribute(root, 'data-events-calendar-peek-host');
   if (!controlsHost || !viewportHost || !peekHost) return null;
 
   const roots: CalendarRenderRoots = {
@@ -674,8 +692,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     state.filter = filter;
     // Persist per block instance.
     try {
-      const sid = root.closest('[data-sortable-id]')?.getAttribute('data-sortable-id') || 'global';
-      localStorage.setItem(`wl_calendar_filter_${sid}`, filter);
+      localStorage.setItem(`wl_calendar_filter_${sortableIdFor(root)}`, filter);
     } catch {}
     void loadWindow();
   }
@@ -871,8 +888,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
 
   // Restore persisted filter, if any.
   try {
-    const sid = root.closest('[data-sortable-id]')?.getAttribute('data-sortable-id') || 'global';
-    const stored = localStorage.getItem(`wl_calendar_filter_${sid}`);
+    const stored = localStorage.getItem(`wl_calendar_filter_${sortableIdFor(root)}`);
     if (stored && ['all', 'members', 'open', 'my_rsvps', 'past'].includes(stored)) {
       state.filter = stored as Filter;
     }
