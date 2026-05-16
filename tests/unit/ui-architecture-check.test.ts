@@ -32,6 +32,8 @@ describe('ui architecture check', () => {
   });
 
   it('keeps feature UI on Kychon/shadcn controls while allowing hidden plumbing inputs', () => {
+    const nativeButtonHtml = ['<but', 'ton type="button">Save</but', 'ton>'].join('');
+    const nativeSelectHtml = ['<sel', 'ect></sel', 'ect>'].join('');
     const violations = messages(
       'src/components/kychon/BadControls.tsx',
       '<button type="button">Save</button><input name="q" /><select /><textarea />',
@@ -48,6 +50,14 @@ describe('ui architecture check', () => {
         '<Button type="button">Save</Button><Input name="q" /><input type="hidden" /><input type="file" hidden />',
       ),
     ).toEqual([]);
+
+    expect(messages('demo/bad/seed.sql', `'{"html":"${nativeButtonHtml}"}'`)).toContain(
+      'Feature UI must use Kychon/shadcn components instead of native <button> controls',
+    );
+    expect(messages('public/js/bad-runtime.js', `const html = '${nativeSelectHtml}';`)).toContain(
+      'Feature UI must use Kychon/shadcn components instead of native <select> controls',
+    );
+    expect(messages('src/lib/wild-apricot-search.ts', ['const re = /<but', 'ton\\b[^>]*>/;'].join(''))).toEqual([]);
   });
 
   it('keeps primitive imports and base UI imports behind owned facades', () => {
