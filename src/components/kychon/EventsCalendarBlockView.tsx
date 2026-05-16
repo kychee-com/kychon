@@ -139,6 +139,8 @@ export interface EventsCalendarWeekViewProps {
 export interface EventsCalendarPeekItem {
   avatarOverflow: number;
   avatars: EventsCalendarPeekAvatar[];
+  calendarDownloadName: string;
+  calendarHref: string;
   capacity: EventsCalendarPeekCapacity | null;
   href: string;
   id: number;
@@ -156,7 +158,6 @@ export interface EventsCalendarPeekOverlayProps {
   items: EventsCalendarPeekItem[];
   liveNowLabel: string;
   membersOnlyLabel: string;
-  onAddToCalendar?: (eventId: number) => void;
   onClose?: () => void;
 }
 
@@ -168,7 +169,6 @@ function EventsCalendarShell({ configJson, editableHeadingPath, heading }: Event
           {heading}
         </h2>
       ) : null}
-      <a aria-hidden="true" className="sr-only" data-events-calendar-download tabIndex={-1} />
       <div data-events-calendar-controls-host />
       <div data-events-calendar-viewport data-view="month">
         <div aria-label="Loading events" className="grid min-h-32 grid-cols-1 gap-2 sm:grid-cols-2" data-events-calendar-skeleton>
@@ -543,7 +543,6 @@ export function EventsCalendarPeekOverlay({
   items,
   liveNowLabel,
   membersOnlyLabel,
-  onAddToCalendar,
   onClose,
 }: EventsCalendarPeekOverlayProps) {
   return (
@@ -597,19 +596,17 @@ export function EventsCalendarPeekOverlay({
                 <EventsCalendarAvatarStack overflow={item.avatarOverflow} people={item.avatars} />
               </div>
               <div className="mt-2">
-                <Button
-                  data-event-id={item.id}
-                  data-events-calendar-peek-ics
-                  onClick={onAddToCalendar ? (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onAddToCalendar(item.id);
-                  } : undefined}
-                  size="sm"
-                  type="button"
-                >
-                  <CalendarPlus />
-                  {addToCalendarLabel}
+                <Button asChild size="sm">
+                  <a
+                    data-event-id={item.id}
+                    data-events-calendar-peek-ics
+                    download={item.calendarDownloadName}
+                    href={item.calendarHref}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <CalendarPlus />
+                    {addToCalendarLabel}
+                  </a>
                 </Button>
               </div>
             </li>

@@ -61,8 +61,8 @@ describe('legacy static UI primitives', () => {
     expect(html).toContain('data-events-calendar-controls-host');
     expect(html).toContain('data-events-calendar-viewport');
     expect(html).toContain('data-events-calendar-peek-host');
-    expect(html).toContain('data-events-calendar-download');
     expect(html).toContain('animate-pulse');
+    expect(html).not.toContain('data-events-calendar-download');
     expect(html).not.toContain('block-events-calendar');
     expect(html).not.toContain('block-events-calendar__skeleton');
     expect(html).not.toContain('event-skeleton-card');
@@ -161,6 +161,8 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).not.toContain('innerHTML');
     expect(eventCalendarRuntime).not.toContain('insertAdjacentHTML');
     expect(eventCalendarRuntime).not.toContain('appendChild');
+    expect(eventCalendarRuntime).not.toContain('downloadIcs');
+    expect(eventCalendarRuntime).not.toContain('data-events-calendar-download');
     expect(eventCalendarRuntime).not.toContain('eventsCalendarNavBound');
     expect(eventCalendarRuntime).not.toContain('eventsCalendarViewBound');
     expect(eventCalendarRuntime).not.toContain('eventsCalendarFilterBound');
@@ -179,9 +181,10 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).toContain('EventsCalendarControls');
     expect(eventCalendarView).toContain('@/components/kychon/ui');
     expect(eventCalendarView).toContain('onNavigate');
-    expect(eventCalendarView).toContain('onAddToCalendar');
+    expect(eventCalendarView).not.toContain('onAddToCalendar');
     expect(eventCalendarView).toContain('onDayPeek');
     expect(eventCalendarView).toContain('onCellClick');
+    expect(eventCalendarView).toContain('asChild');
     expect(eventCalendarView).toContain('data-events-calendar-controls-host');
     expect(eventCalendarView).toContain('data-events-calendar-peek-host');
     expect(eventCalendarView).not.toContain('block-events-calendar__');

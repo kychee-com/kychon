@@ -279,24 +279,8 @@ function eventToIcs(evt: Event, host: string): string {
   return lines.join('\r\n');
 }
 
-function downloadIcs(evt: Event, root: HTMLElement): void {
-  const host = window.location.host || 'kychon.run402.com';
-  const ics = eventToIcs(evt, host);
-  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = root.querySelector<HTMLAnchorElement>('[data-events-calendar-download]');
-  if (!a) {
-    URL.revokeObjectURL(url);
-    return;
-  }
-  a.href = url;
-  a.download = `event-${evt.id}.ics`;
-  a.click();
-  setTimeout(() => {
-    a.removeAttribute('href');
-    a.removeAttribute('download');
-    URL.revokeObjectURL(url);
-  }, 0);
+function calendarDataHref(evt: Event, host: string): string {
+  return `data:text/calendar;charset=utf-8,${encodeURIComponent(eventToIcs(evt, host))}`;
 }
 
 // --- HTML helpers ---
@@ -742,12 +726,15 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       return;
     }
     const heading = fmtDateLong(dayDate, ctx.locale);
+    const host = window.location.host || 'kychon.run402.com';
     const items = events.map((e) => {
       const time = formatEventDateTime(e, ctx.locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
       const avatars = rsvpAvatarStackData(e.id, state.rsvps);
       return {
         avatarOverflow: avatars.overflow,
         avatars: avatars.avatars,
+        calendarDownloadName: `event-${e.id}.ics`,
+        calendarHref: calendarDataHref(e, host),
         capacity: capacityBadgeInfo(e, state.rsvps, ctx.locale),
         href: `/event?id=${e.id}`,
         id: e.id,
@@ -766,10 +753,6 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       items,
       liveNowLabel: t('Live now', ctx.locale),
       membersOnlyLabel: t('Members only', ctx.locale),
-      onAddToCalendar: (eventId) => {
-        const evt = state.events.find((event) => event.id === eventId);
-        if (evt) downloadIcs(evt, root);
-      },
       onClose: () => {
         state.peekDayKey = null;
         renderPeekOverlay();
