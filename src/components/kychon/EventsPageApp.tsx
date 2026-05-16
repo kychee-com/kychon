@@ -74,7 +74,7 @@ function EventCard({ event }: { event: Event }) {
   const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'card' });
 
   return (
-    <Card className="h-full overflow-hidden transition-colors hover:bg-accent/50">
+    <Card className="h-full overflow-hidden transition-colors hover:bg-accent/50" data-event-card={event.id}>
       <a className="block h-full text-foreground no-underline" href={`/event?id=${event.id}`}>
         <EventImage event={event} />
         <CardHeader>
@@ -117,7 +117,7 @@ function EventSection({ title, tone, events }: { title: string; tone?: 'muted'; 
   return (
     <section className="space-y-3">
       <h3 className={tone === 'muted' ? 'text-lg font-semibold text-muted-foreground' : 'text-lg font-semibold'}>{title}</h3>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-events-list={title.toLowerCase().replace(/\s+/g, '-')}>
         {events.map((event) => (
           <EventCard event={event} key={event.id} />
         ))}
@@ -322,7 +322,7 @@ export default function EventsPageApp() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-events-page>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-normal">Events</h2>

@@ -111,8 +111,8 @@ npm run ui:css-collisions -- --out docs/ui-css-collision-report.md
 
 Legacy classes that collide with Tailwind or the component system are split into three buckets:
 
-- `.container` remains a temporary Kychon chrome/layout class and must not be treated as Tailwind's container utility during migration.
-- `.btn`, `.card`, `.badge`, `.form-input`, `.form-select`, and `.form-textarea` remain temporary legacy component classes until their call sites move to Kychon UI components.
+- `.container` is retired as a Kychon chrome/layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout.
+- `.btn`, `.card`, `.badge`, `.form-input`, `.form-select`, and `.form-textarea` are retired Kychon public component classes; use shadcn/Kychon UI components and semantic `data-*` hooks for automation/readiness selectors.
 - `.hidden`, `.flex`, `.flex-col`, `.gap-1`, `.mt-1`, `.mt-2`, `.mb-1`, `.mb-2`, `.items-center`, `.justify-between`, `.text-sm`, and `.text-center` are legacy utility collisions that should be renamed, deleted, or quarantined before broad unprefixed Tailwind usage.
 
 New UI code should not add fresh usages of those legacy utilities unless the code is explicitly working inside the compatibility layer.
@@ -128,7 +128,7 @@ Tailwind/public CSS ownership:
 Public CSS token bridge:
 
 - `src/styles/theme.css` now defines `--ky-*` runtime tokens first, maps shadcn/Tailwind semantic tokens from them, then exposes the old `--color-*` aliases as compatibility shims. The public copy is retained only for compatibility tooling.
-- Public blocks remain Astro/static, but shared public classes such as `.btn`, `.card`, `.form-input`, `.badge`, and `.feature-card` now read semantic tokens where practical; nav, hero, section visibility, and footer chrome have moved to semantic `data-*` hooks.
+- Public blocks remain Astro/static, but shared public classes such as `.feature-card` now read semantic tokens where practical; `.btn`, `.card`, `.form-input`, and `.badge` have moved to shadcn/Kychon UI components, while nav, hero, section visibility, footer chrome, and screenshot readiness hooks use semantic `data-*` hooks.
 - Demo seeds and copied-site themes should set runtime values through `site_config.theme`, not dynamic Tailwind classes or one-off generated CSS utility names.
 
 ## Browser Support Floor

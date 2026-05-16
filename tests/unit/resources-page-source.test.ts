@@ -31,5 +31,7 @@ describe('resources page source', () => {
     expect(app).toContain('Select');
     expect(app).toContain('Checkbox');
     expect(app).toContain('Button');
+    expect(app).toContain('data-resources-page');
+    expect(app).toContain('data-resource-card');
   });
 });

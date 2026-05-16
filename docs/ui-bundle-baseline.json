@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-16T01:14:13.571Z",
+  "generatedAt": "2026-05-16T01:24:35.301Z",
   "dist": "/Users/talweiss/Developer/kychon/dist",
   "note": "Local asset byte counts are uncompressed and include assets referenced directly by each HTML file.",
   "routes": [
@@ -51,7 +51,7 @@
       "kind": "public",
       "route": "/events",
       "file": "events.html",
-      "htmlBytes": 17812,
+      "htmlBytes": 17835,
       "inlineScriptBytes": 6808,
       "inlineStyleBytes": 67,
       "localJsBytes": 29344,
@@ -94,7 +94,7 @@
       "kind": "public",
       "route": "/resources",
       "file": "resources.html",
-      "htmlBytes": 19173,
+      "htmlBytes": 19230,
       "inlineScriptBytes": 6808,
       "inlineStyleBytes": 67,
       "localJsBytes": 29344,

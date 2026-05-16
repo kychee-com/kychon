@@ -32,6 +32,8 @@ describe('events page source', () => {
     expect(app).toContain('Textarea');
     expect(app).toContain('Button');
     expect(app).toContain('formatEventDateTime');
+    expect(app).toContain('data-events-page');
+    expect(app).toContain('data-event-card');
     expect(app).not.toContain('dangerouslySetInnerHTML');
   });
 });

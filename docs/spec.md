@@ -740,16 +740,16 @@ Each page uses `data-editable` attributes. The `admin-editor.js` scans for these
 
 ```html
 <!-- events.html — same file serves both roles -->
-<div class="event-card" data-event-id="42">
-  <div class="event-image" data-editable-image="events/42/cover">
+<article data-event-card="42" data-event-id="42">
+  <div data-event-image data-editable-image="events.42.cover">
     <img src="/storage/events/42/cover.jpg" alt="Summer BBQ">
     <!-- admin-editor.js adds camera overlay for admins -->
   </div>
   <h3 data-editable="events.42.title">Summer BBQ</h3>
   <p data-editable="events.42.location">Riverside Park</p>
-  <button class="btn-primary rsvp-btn">RSVP</button>
+  <button data-event-rsvp>RSVP</button>
   <!-- admin-editor.js adds Edit/Delete buttons for admins -->
-</div>
+</article>
 ```
 
 CSS patterns for invisible-until-hovered edit controls:

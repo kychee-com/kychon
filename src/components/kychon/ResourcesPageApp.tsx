@@ -206,7 +206,7 @@ export default function ResourcesPageApp() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-resources-page>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-normal">Resources</h2>
@@ -248,7 +248,7 @@ export default function ResourcesPageApp() {
       ) : null}
 
       {loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-resources-grid="loading">
           {Array.from({ length: 6 }, (_, index) => (
             <Card key={index}>
               <CardContent className="space-y-3 p-5">
@@ -285,12 +285,12 @@ export default function ResourcesPageApp() {
       ) : null}
 
       {!loading && visibleResources.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-resources-grid="ready">
           {visibleResources.map((resource) => {
             const Icon = resourceIcon(resource.file_type);
             const label = categoryLabel(resource.category);
             return (
-              <Card key={resource.id} id={`resource-${resource.id}`}>
+              <Card key={resource.id} id={`resource-${resource.id}`} data-resource-card={resource.id}>
                 <CardHeader className="flex-row items-start gap-3 space-y-0">
                   <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     <Icon className="h-5 w-5" aria-hidden="true" />

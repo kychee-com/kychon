@@ -4,14 +4,13 @@ import { activeMember, allMembers, defaultTiers } from '../fixtures/members.js';
 describe('directory rendering', () => {
   function renderMemberGrid(members) {
     const grid = document.createElement('div');
-    grid.className = 'card-grid';
+    grid.dataset.memberGrid = '';
     for (const m of members) {
       const card = document.createElement('div');
-      card.className = 'card member-card';
       card.dataset.memberId = m.id;
       card.innerHTML = `
-        <div class="member-name">${m.display_name}</div>
-        <div class="member-meta">${m.tier_name || ''}</div>
+        <div data-member-name>${m.display_name}</div>
+        <div data-member-meta>${m.tier_name || ''}</div>
       `;
       grid.appendChild(card);
     }
@@ -59,7 +58,7 @@ describe('directory rendering', () => {
 
   it('renders member cards with name', () => {
     const grid = renderMemberGrid([activeMember]);
-    const name = grid.querySelector('.member-name');
+    const name = grid.querySelector('[data-member-name]');
     expect(name.textContent).toBe('Jane Member');
   });
 

@@ -30,15 +30,14 @@ describe('events rendering', () => {
 
   function renderEventCard(event) {
     const card = document.createElement('div');
-    card.className = 'card';
     card.dataset.eventId = event.id;
     const date = new Date(event.starts_at);
     card.innerHTML = `
       <h4>${event.title}</h4>
-      <p class="date">${date.toLocaleDateString()}</p>
-      ${event.location ? `<p class="location">${event.location}</p>` : ''}
-      ${event.is_members_only ? '<span class="badge members-only">Members Only</span>' : ''}
-      ${event.capacity ? `<span class="badge capacity">${event.capacity} spots</span>` : ''}
+      <p data-event-date>${date.toLocaleDateString()}</p>
+      ${event.location ? `<p data-event-location>${event.location}</p>` : ''}
+      ${event.is_members_only ? '<span data-event-members-only>Members Only</span>' : ''}
+      ${event.capacity ? `<span data-event-capacity>${event.capacity} spots</span>` : ''}
     `;
     return card;
   }
@@ -46,37 +45,37 @@ describe('events rendering', () => {
   it('renders event card with title and date', () => {
     const card = renderEventCard(events[0]);
     expect(card.querySelector('h4').textContent).toBe('Summer BBQ');
-    expect(card.querySelector('.date')).toBeTruthy();
+    expect(card.querySelector('[data-event-date]')).toBeTruthy();
   });
 
   it('shows location when present', () => {
     const card = renderEventCard(events[0]);
-    expect(card.querySelector('.location').textContent).toBe('Park');
+    expect(card.querySelector('[data-event-location]').textContent).toBe('Park');
   });
 
   it('hides location when null', () => {
     const card = renderEventCard(events[2]);
-    expect(card.querySelector('.location')).toBeNull();
+    expect(card.querySelector('[data-event-location]')).toBeNull();
   });
 
   it('shows members-only badge', () => {
     const card = renderEventCard(events[1]);
-    expect(card.querySelector('.members-only')).toBeTruthy();
+    expect(card.querySelector('[data-event-members-only]')).toBeTruthy();
   });
 
   it('hides members-only badge for public events', () => {
     const card = renderEventCard(events[0]);
-    expect(card.querySelector('.members-only')).toBeNull();
+    expect(card.querySelector('[data-event-members-only]')).toBeNull();
   });
 
   it('shows capacity badge', () => {
     const card = renderEventCard(events[0]);
-    expect(card.querySelector('.capacity').textContent).toContain('50');
+    expect(card.querySelector('[data-event-capacity]').textContent).toContain('50');
   });
 
   it('hides capacity badge when null', () => {
     const card = renderEventCard(events[2]);
-    expect(card.querySelector('.capacity')).toBeNull();
+    expect(card.querySelector('[data-event-capacity]')).toBeNull();
   });
 
   it('renders RSVP buttons', () => {
