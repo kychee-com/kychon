@@ -849,17 +849,23 @@ export default function AdminSettingsApp() {
                 ['text', 'Text'],
                 ['text_muted', 'Muted'],
                 ['border', 'Border'],
-              ].map(([key, label]) => (
-                <label key={key} className="flex items-center gap-3 rounded-md border border-border p-3 text-sm">
-                  <Input
-                    type="color"
-                    className="h-10 w-10 rounded-md border border-input bg-transparent"
-                    value={theme[key as keyof ThemeForm]}
-                    onChange={(event) => setTheme({ ...theme, [key]: event.currentTarget.value })}
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
+              ].map(([key, label]) => {
+                const id = `as-theme-${key}`;
+                return (
+                  <div key={key} className="flex items-center gap-3 rounded-md border border-border p-3 text-sm">
+                    <Input
+                      id={id}
+                      type="color"
+                      className="h-10 w-10 rounded-md border border-input bg-transparent"
+                      value={theme[key as keyof ThemeForm]}
+                      onChange={(event) => setTheme({ ...theme, [key]: event.currentTarget.value })}
+                    />
+                    <Label htmlFor={id} className="leading-5">
+                      {label}
+                    </Label>
+                  </div>
+                );
+              })}
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <Field id="as-radius" label="Border Radius">

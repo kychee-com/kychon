@@ -2,7 +2,7 @@ import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Search } from 'lucide-react';
 
-import { Badge, Button, Card, Input } from '@/components/kychon/ui';
+import { Badge, Button, Card, Input, Label } from '@/components/kychon/ui';
 import { searchSite } from '@/lib/api';
 import {
   normalizeSiteSearchConfig,
@@ -183,9 +183,9 @@ function SiteSearchIsland(props: SiteSearchProps) {
         role="search"
         style={styles.form}
       >
-        <label className="sr-only" htmlFor={inputId}>
+        <Label className="sr-only" htmlFor={inputId}>
           {placeholder}
-        </label>
+        </Label>
         <Input
           aria-activedescendant={activeIndex >= 0 ? `${inputId}-option-${activeIndex}` : undefined}
           aria-autocomplete="list"
