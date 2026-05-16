@@ -148,10 +148,6 @@ async function main(): Promise<void> {
     <div ${layoutContainerAttrs}>${footerHtml}</div>
   </footer>
   <script type="module">
-    // Sections are opacity:0 by default in production CSS; the layout adds
-    // data-section-visible via IntersectionObserver. In this static preview we
-    // surface every section immediately.
-    document.querySelectorAll('main [data-section]').forEach((el) => { el.dataset.sectionVisible = 'true'; });
     ${slideshowBundled.replace(/export\s*\{[^}]*\}\s*;?/g, '')}
     document.querySelectorAll('[data-block-hydrate="slideshow"]').forEach((el) => initSlideshow(el));
   </script>

@@ -136,6 +136,8 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.page(?:[.{:#\s-]|$)/);
     expect(styles).not.toMatch(/\.page-content\b/);
     expect(styles).not.toContain('#page-content');
+    expect(styles).toContain('@keyframes section-fade-in');
+    expect(styles).not.toContain('data-section-visible');
     expect(styles).toContain('[data-nav-shell] [data-layout-container]');
     expect(styles).not.toContain('.nav [data-layout-container]');
     expect(styles).not.toContain('ky-container');
@@ -195,7 +197,6 @@ describe('legacy static UI primitives', () => {
     expect(adminDashboard).toContain('@/components/kychon/ui');
     expect(adminDashboard).not.toContain('admin-account-security');
     expect(adminDashboard).not.toContain('admin-checklist');
-    expect(portal).toContain('data-section-visible');
     expect(portal).toContain('class="flex min-h-screen flex-col"');
     expect(portal).toContain('class="flex-1 py-8" id="main-content"');
     expect(portal).toContain('constrainedContainerClass');
@@ -205,7 +206,10 @@ describe('legacy static UI primitives', () => {
     expect(portal).not.toContain('class="footer"');
     expect(portal).not.toContain('class="page"');
     expect(portal).not.toContain('class="page-content"');
-    expect(portal).toContain("document.querySelectorAll('main [data-section]')");
+    expect(portal).not.toContain('MutationObserver');
+    expect(portal).not.toContain('IntersectionObserver');
+    expect(portal).not.toContain('data-section-visible');
+    expect(portal).not.toContain("document.querySelectorAll('main [data-section]')");
     expect(portal).not.toContain("document.querySelectorAll('[data-section]')");
     expect(portal).not.toContain("document.querySelectorAll('.section')");
     expect(portal).not.toContain("classList?.contains('section')");
@@ -213,7 +217,6 @@ describe('legacy static UI primitives', () => {
     expect(portal).not.toContain('.section-visible');
     expect(portal).not.toContain('wl-skip-nav');
     expect(portal).not.toContain('wl-sr-live" class="wl-sr-live');
-    expect(portal).toContain('document.documentElement.dataset.reducedMotion');
     expect(portal).toContain('id="wl-sr-live" class="sr-only"');
     expect(portal).toContain('id="wl-theme-vars"');
     expect(config).toContain('document.documentElement.dataset.highContrast');
@@ -285,8 +288,8 @@ describe('legacy static UI primitives', () => {
     expect(uiCaptureRoutes).not.toContain('#resources-grid .card');
     expect(uiCaptureRoutes).not.toContain('.forum-category');
     expect(showcaseRender).toContain('data-layout-container');
-    expect(showcaseRender).toContain('data-section-visible');
-    expect(showcaseRender).toContain("document.querySelectorAll('main [data-section]')");
+    expect(showcaseRender).not.toContain('data-section-visible');
+    expect(showcaseRender).not.toContain("document.querySelectorAll('main [data-section]')");
     expect(showcaseRender).not.toContain("document.querySelectorAll('[data-section]')");
     expect(showcaseRender).not.toContain('ky-container');
     expect(showcaseRender).not.toContain('page-content');
