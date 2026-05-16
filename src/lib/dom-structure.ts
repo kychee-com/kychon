@@ -26,11 +26,16 @@ export function nearestElementWithTagName(host: Element | null, tagName: string)
   return null;
 }
 
-type ElementContainer = Pick<Document, 'children'> | Pick<Element, 'children'> | null | undefined;
+export interface StructuralElement {
+  readonly children?: ArrayLike<StructuralElement>;
+  readonly id?: string;
+  readonly textContent?: string | null;
+}
 
-export function findDescendantElementById(container: ElementContainer, id: string): HTMLElement | null {
+type ElementContainer = Pick<Document, 'children'> | StructuralElement | null | undefined;
+
+export function findDescendantElementById(container: ElementContainer, id: string): StructuralElement | null {
   for (const child of Array.from(container?.children ?? [])) {
-    if (!(child instanceof HTMLElement)) continue;
     if (child.id === id) return child;
     const nested = findDescendantElementById(child, id);
     if (nested) return nested;

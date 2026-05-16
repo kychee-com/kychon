@@ -69,7 +69,8 @@
   let adminPromptActionsBound = false;
 
   function adminElementById(id: string): HTMLElement | null {
-    return findDescendantElementById(document.body, id);
+    const element = findDescendantElementById(document.body, id);
+    return element instanceof HTMLElement ? element : null;
   }
 
   async function ensureAdminEditorControls(): Promise<AdminEditorControlsModule | null> {

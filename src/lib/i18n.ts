@@ -1,5 +1,7 @@
 // i18n.ts — Translation function with English fallback, plurals, interpolation
 
+import { findDescendantElementById } from './dom-structure';
+
 let strings: Record<string, any> = {};
 let fallbackStrings: Record<string, any> = {};
 let currentLocale = 'en';
@@ -132,20 +134,9 @@ export function setAvailableLocales(locales: string[]): void {
   _availableLocales = locales;
 }
 
-type ElementContainer = Pick<Element, 'children'> | Pick<Document, 'children'> | null | undefined;
-
-function findDescendantById(container: ElementContainer, id: string): Element | null {
-  for (const child of Array.from(container?.children ?? [])) {
-    if (child.id === id) return child;
-    const nested = findDescendantById(child, id);
-    if (nested) return nested;
-  }
-  return null;
-}
-
-function brandDataElement(): Element | null {
+function brandDataElement(): { textContent?: string | null } | null {
   if (typeof document === 'undefined') return null;
-  return findDescendantById(document.head, 'brand-data') ?? findDescendantById(document.body, 'brand-data');
+  return findDescendantElementById(document.head, 'brand-data') ?? findDescendantElementById(document.body, 'brand-data');
 }
 
 export function getAvailableLocales(): string[] {

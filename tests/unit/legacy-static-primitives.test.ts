@@ -305,7 +305,7 @@ describe('legacy static UI primitives', () => {
     expect(config).toContain('findHeadChild');
     expect(i18n).not.toContain('getElementById');
     expect(i18n).not.toContain('querySelector');
-    expect(i18n).toContain('findDescendantById');
+    expect(i18n).toContain('findDescendantElementById');
     expect(pageRender).toContain('findDirectElementChild');
     expect(pageRender).toContain("child.hasAttribute('data-layout-container')");
     expect(pageRender).toContain("child.id === 'sections'");
