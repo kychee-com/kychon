@@ -2,8 +2,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
-const SCAN_DIRS = ['src', 'scripts', 'tests'];
-const SOURCE_EXTENSIONS = new Set(['.astro', '.js', '.jsx', '.mjs', '.ts', '.tsx']);
+const SCAN_DIRS = ['src', 'scripts', 'tests', 'public/css'];
+const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.js', '.jsx', '.mjs', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
@@ -13,7 +13,21 @@ const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|\.className\s*=|classList\.)/g;
 const CLASS_LITERAL_RE = /\b(?:class|className)=['"`]([^'"`]*)['"`]/g;
-const RETIRED_PRIMITIVE_CLASSES = new Set(['btn', 'card', 'badge', 'form-input', 'form-select', 'form-textarea']);
+const RETIRED_PRIMITIVE_CLASSES = new Set([
+  'container',
+  'text-muted',
+  'btn',
+  'card',
+  'badge',
+  'toast',
+  'form-input',
+  'form-select',
+  'form-textarea',
+]);
+const RETIRED_PRIMITIVE_CLASS_DEFINITION_RE = new RegExp(
+  `(^|[^a-zA-Z0-9_-])\\.(${Array.from(RETIRED_PRIMITIVE_CLASSES).join('|')})(?=$|[^a-zA-Z0-9_-])`,
+  'g',
+);
 const DYNAMIC_TAILWIND_RE =
   /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|accent|caret|shadow|rounded|gap|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|w|h|min-w|min-h|max-w|max-h|grid-cols|col-span|row-span)-\$\{/;
 
@@ -69,6 +83,10 @@ function relativeImportTarget(file: string, specifier: string): string {
 function isProductSource(file: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
   return rel.startsWith('src/') && !rel.startsWith('src/components/ui/');
+}
+
+function isCssSource(file: string): boolean {
+  return file.endsWith('.css');
 }
 
 function isTestSource(file: string): boolean {
@@ -140,6 +158,18 @@ function checkFile(file: string): Violation[] {
         file: rel,
         line,
         message: 'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
+        excerpt: lineAt(source, line),
+      });
+    }
+  }
+
+  if (isCssSource(file)) {
+    for (const match of source.matchAll(RETIRED_PRIMITIVE_CLASS_DEFINITION_RE)) {
+      const line = lineNumber(source, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: 'CSS must not define retired Kychon primitive classes; use Tailwind, shadcn/Kychon UI, and data hooks',
         excerpt: lineAt(source, line),
       });
     }

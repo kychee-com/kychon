@@ -148,6 +148,7 @@ Older browser support requires an explicit product exception before Tailwind v4 
 - Feature code must not import `@radix-ui/*` or `@base-ui-components/*` directly. Imports from those packages belong behind `src/components/ui/*` or an approved UI adapter.
 - Feature code must import Kychon React UI through `@/components/kychon/ui`, not directly from `@/components/ui/*`. The `src/components/ui/*` files stay product-owned shadcn source, while `src/components/kychon/ui.ts` is the app-facing facade.
 - Product source must not hand-build DOM with APIs such as `document.createElement`, `innerHTML =`, `appendChild`, or `classList`; use React islands, Astro markup, or owned DOM-fragment helpers.
+- Product source must not use exact retired Kychon primitive class tokens such as `.container`, `.text-muted`, `.btn`, `.card`, `.badge`, `.toast`, or old form primitive classes, and CSS must not define them.
 - Tests must not reintroduce hand-built DOM fixtures; use `tests/helpers/dom-fixture.js` for parsed fixture markup, while negative source assertions may still assert that product code omits old DOM APIs.
 - Runtime values must not construct Tailwind utility names such as ``bg-${tenantColor}-500``. Use CSS variables, data attributes, static variant maps, or a finite safelist.
 
