@@ -28,15 +28,14 @@ function setState(el: HTMLElement, key: string, active: boolean): void {
 function getFocusableInMenu(menu: HTMLElement): HTMLElement[] {
   // Items focusable via arrow keys: top-level menuitems + immediate chevron toggles.
   // Selector intentionally avoids `:scope` (not supported by happy-dom) — we
-  // iterate direct <li> children and pick out each row's anchor + chevron.
+  // iterate direct <li> children and pick out each row's anchor + submenu trigger.
   const out: HTMLElement[] = [];
   for (const child of Array.from(menu.children)) {
     if (child.tagName.toLowerCase() !== 'li') continue;
     for (const grand of Array.from(child.children)) {
-      const tag = grand.tagName.toLowerCase();
-      if (tag === 'a' && grand.getAttribute('role') === 'menuitem') {
+      if ((grand as HTMLElement).hasAttribute('data-nav-menuitem')) {
         out.push(grand as HTMLElement);
-      } else if (tag === 'button' && (grand as HTMLElement).classList.contains('nav-chevron-toggle')) {
+      } else if ((grand as HTMLElement).hasAttribute('data-nav-trigger')) {
         out.push(grand as HTMLElement);
       }
     }
@@ -96,7 +95,7 @@ function closeMenu(menu: HTMLElement, returnFocus = false): void {
   const trigger = findTrigger(menu);
   if (trigger) trigger.setAttribute('aria-expanded', 'false');
   // Recursively close any nested open submenus.
-  menu.querySelectorAll<HTMLElement>('.nav-dropdown-nested:not([hidden])').forEach((nested) => {
+  menu.querySelectorAll<HTMLElement>('[data-nav-nested-menu]:not([hidden])').forEach((nested) => {
     nested.setAttribute('hidden', '');
     const nestedTrigger = findTrigger(nested);
     if (nestedTrigger) nestedTrigger.setAttribute('aria-expanded', 'false');
@@ -105,7 +104,7 @@ function closeMenu(menu: HTMLElement, returnFocus = false): void {
   // user moves their cursor off the trigger. Suppress hover-open until next
   // mouseleave so Escape / click-outside closes feel immediate.
   const wrap = menu.parentElement;
-  if (wrap?.classList.contains('nav-item-wrap') || wrap?.classList.contains('nav-dropdown-parent')) {
+  if (wrap?.hasAttribute('data-nav-item-wrap') || wrap?.hasAttribute('data-nav-dropdown-parent')) {
     setState(wrap, 'navSuppressHover', true);
     const cleanup = () => {
       setState(wrap, 'navSuppressHover', false);
@@ -117,7 +116,7 @@ function closeMenu(menu: HTMLElement, returnFocus = false): void {
 }
 
 function closeAllOpenMenus(except?: HTMLElement): void {
-  document.querySelectorAll<HTMLElement>('.nav-dropdown:not([hidden])').forEach((menu) => {
+  document.querySelectorAll<HTMLElement>('[data-nav-menu]:not([hidden])').forEach((menu) => {
     if (except && (menu === except || except.contains(menu) || menu.contains(except))) return;
     closeMenu(menu);
   });
@@ -139,7 +138,7 @@ function focusSibling(current: HTMLElement, dir: 1 | -1, items: HTMLElement[]): 
 }
 
 function bindChevronToggles(root: HTMLElement): void {
-  root.querySelectorAll<HTMLElement>('.nav-chevron-toggle, .nav-link.nav-parent-button').forEach((trigger) => {
+  root.querySelectorAll<HTMLElement>('[data-nav-trigger]').forEach((trigger) => {
     if (trigger.dataset.chevronBound === 'true') return;
     trigger.dataset.chevronBound = 'true';
     trigger.addEventListener('click', (e) => {
@@ -151,12 +150,12 @@ function bindChevronToggles(root: HTMLElement): void {
       // Close sibling dropdowns at the same level for cleanliness.
       const parentList = menu.parentElement?.parentElement;
       if (parentList) {
-        // Iterate direct children to find sibling .nav-dropdowns (avoids :scope).
+        // Iterate direct children to find sibling menus (avoids :scope).
         Array.from(parentList.children).forEach((sibling) => {
           if (sibling === menu.parentElement) return;
-          const otherMenu = sibling.querySelector(':scope > .nav-dropdown') as HTMLElement | null
+          const otherMenu = sibling.querySelector(':scope > [data-nav-menu]') as HTMLElement | null
             || (sibling.tagName.toLowerCase() === 'li'
-              ? Array.from(sibling.children).find((c) => c.classList.contains('nav-dropdown')) as HTMLElement | undefined
+              ? Array.from(sibling.children).find((c) => (c as HTMLElement).hasAttribute('data-nav-menu')) as HTMLElement | undefined
               : undefined);
           if (otherMenu && otherMenu !== menu && !otherMenu.hasAttribute('hidden')) {
             closeMenu(otherMenu);
@@ -177,9 +176,8 @@ function bindKeyboard(root: HTMLElement): void {
     const target = e.target as HTMLElement;
     if (!target) return;
 
-    const isTrigger = target.classList.contains('nav-chevron-toggle')
-      || target.classList.contains('nav-parent-button');
-    const insideMenu = target.closest('.nav-dropdown') as HTMLElement | null;
+    const isTrigger = target.hasAttribute('data-nav-trigger');
+    const insideMenu = target.closest('[data-nav-menu]') as HTMLElement | null;
 
     if (isTrigger) {
       const menu = findControlled(target);
@@ -224,7 +222,7 @@ function bindKeyboard(root: HTMLElement): void {
           }
           // Close all menus along the chain.
           closeAllOpenMenus();
-        } else if (target.classList.contains('nav-chevron-toggle')) {
+        } else if (target.hasAttribute('data-nav-trigger')) {
           // Already handled above as trigger.
         }
       } else if (e.key === 'Tab') {
@@ -246,13 +244,13 @@ function bindFocusSync(root: HTMLElement): void {
   root.addEventListener('focusout', (e) => {
     const t = e.target as HTMLElement;
     if (!t) return;
-    const wrap = t.closest('.nav-item-wrap') as HTMLElement | null;
+    const wrap = t.closest('[data-nav-item-wrap], [data-nav-dropdown-parent]') as HTMLElement | null;
     if (!wrap) return;
     // Defer to allow focusin elsewhere to fire first.
     setTimeout(() => {
       const active = document.activeElement as HTMLElement | null;
       if (!active || !wrap.contains(active)) {
-        const menu = directChildren(wrap, '.nav-dropdown')[0] || null;
+        const menu = directChildren(wrap, '[data-nav-menu]')[0] || null;
         if (menu && !menu.hasAttribute('hidden')) closeMenu(menu);
       }
     }, 0);
@@ -265,11 +263,11 @@ function bindHoverSync(root: HTMLElement): void {
 
   // CSS handles visual hover-open via the @media (hover) query, but we still
   // need to keep `aria-expanded` in sync with hover state for assistive tech.
-  root.querySelectorAll<HTMLElement>('.nav-item-wrap, .nav-dropdown-parent').forEach((wrap) => {
+  root.querySelectorAll<HTMLElement>('[data-nav-item-wrap], [data-nav-dropdown-parent]').forEach((wrap) => {
     if ((wrap as any).dataset.navHoverWrapBound === 'true') return;
     (wrap as any).dataset.navHoverWrapBound = 'true';
     wrap.addEventListener('mouseenter', () => {
-      const menu = directChildren(wrap, '.nav-dropdown')[0] || null;
+      const menu = directChildren(wrap, '[data-nav-menu]')[0] || null;
       if (!menu) return;
       const trigger = findTrigger(menu);
       if (trigger) trigger.setAttribute('aria-expanded', 'true');
@@ -277,7 +275,7 @@ function bindHoverSync(root: HTMLElement): void {
       if (menu.dataset.navOpenMode !== 'click') setMenuOpenMode(menu, 'hover');
     });
     wrap.addEventListener('mouseleave', () => {
-      const menu = directChildren(wrap, '.nav-dropdown')[0] || null;
+      const menu = directChildren(wrap, '[data-nav-menu]')[0] || null;
       if (!menu) return;
       if (menu.dataset.navOpenMode === 'click') return;
       // Don't close if focus is still inside the menu (keyboard user).
@@ -296,20 +294,19 @@ function bindClickOutside(): void {
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
-    document.querySelectorAll<HTMLElement>('.nav-overflow-menu:not([hidden])').forEach((menu) => {
+    document.querySelectorAll<HTMLElement>('[data-nav-overflow-menu]:not([hidden])').forEach((menu) => {
       const trigger = document.querySelector<HTMLElement>(`[aria-controls="${menu.id}"]`);
       const inMenu = menu.contains(target);
       const inTrigger = trigger ? trigger.contains(target) : false;
       if (!inMenu && !inTrigger) closeOverflowMenu(menu);
     });
-    document.querySelectorAll<HTMLElement>('.nav-dropdown:not([hidden])').forEach((menu) => {
+    document.querySelectorAll<HTMLElement>('[data-nav-menu]:not([hidden])').forEach((menu) => {
       const trigger = findTrigger(menu);
       const inMenu = menu.contains(target);
       const inTrigger = trigger ? trigger.contains(target) : false;
-      // Also keep open if click is inside the same nav-item-wrap (covers
-      // clicks on the parent <a class="nav-link nav-parent"> that opens
-      // alongside its chevron).
-      const wrap = menu.parentElement?.classList.contains('nav-item-wrap')
+      // Also keep open if click is inside the same nav item wrapper (covers
+      // clicks on the parent link that opens alongside its chevron).
+      const wrap = menu.parentElement?.hasAttribute('data-nav-item-wrap')
         ? (menu.parentElement as HTMLElement)
         : null;
       const inWrap = wrap ? wrap.contains(target) : false;
@@ -326,7 +323,7 @@ function getOverflowMenu(root: HTMLElement): HTMLElement | null {
   const container = root.parentElement;
   if (!container) return null;
   const id = overflowMenuId(root);
-  return container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+  return container.querySelector<HTMLElement>(`#${CSS.escape(id)}[data-nav-overflow-menu]`);
 }
 
 function overflowCopies(menu: HTMLElement): HTMLElement[] {
@@ -337,7 +334,7 @@ function overflowCopies(menu: HTMLElement): HTMLElement[] {
 
 function hideOverflowCopy(copy: HTMLElement): void {
   copy.setAttribute('hidden', '');
-  copy.querySelectorAll<HTMLElement>('.nav-dropdown:not([hidden])').forEach((dropdown) => closeMenu(dropdown));
+  copy.querySelectorAll<HTMLElement>('[data-nav-menu]:not([hidden])').forEach((dropdown) => closeMenu(dropdown));
   copy.querySelectorAll<HTMLElement>('[aria-expanded="true"]').forEach((trigger) => {
     trigger.setAttribute('aria-expanded', 'false');
   });
@@ -355,10 +352,10 @@ function syncStaticOverflowCopies(menu: HTMLElement, visibleIndexes: Set<string>
 }
 
 function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
-  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  const nav = (root.closest('[data-nav-shell]') || root.closest('nav')) as HTMLElement | null;
   const menu = getOverflowMenu(root);
   if (!nav || !menu) return null;
-  const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
+  const toggle = nav.querySelector<HTMLElement>('[data-nav-toggle]');
   const items = topLevelNavItems(root);
   const overflowItems = items.filter((item) => hasState(item, 'navOverflowed'));
   const overflowIndexes = new Set(
@@ -385,8 +382,8 @@ function syncOverflowMenu(root: HTMLElement): HTMLElement | null {
 }
 
 function bindNavToggle(root: HTMLElement): void {
-  const nav = root.closest('.nav, nav') as HTMLElement | null;
-  const toggle = nav?.querySelector<HTMLElement>('.nav-toggle');
+  const nav = (root.closest('[data-nav-shell]') || root.closest('nav')) as HTMLElement | null;
+  const toggle = nav?.querySelector<HTMLElement>('[data-nav-toggle]');
   if (!toggle || toggle.dataset.navToggleBound === 'true') return;
 
   toggle.dataset.navToggleBound = 'true';
@@ -420,7 +417,7 @@ function bindNavToggle(root: HTMLElement): void {
 }
 
 function applySourceMobileMode(root: HTMLElement): void {
-  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  const nav = (root.closest('[data-nav-shell]') || root.closest('nav')) as HTMLElement | null;
   if (!nav) return;
   const raw = Number(root.dataset.mobileBreakpoint || 0);
   const active = Number.isFinite(raw) && raw > 0 && window.innerWidth <= raw;
@@ -431,12 +428,12 @@ function applySourceMobileMode(root: HTMLElement): void {
 function topLevelNavItems(root: HTMLElement): HTMLElement[] {
   return Array.from(root.children).filter(
     (child): child is HTMLElement => child instanceof HTMLElement
-      && (child.classList.contains('nav-link') || child.classList.contains('nav-item-wrap')),
+      && (child.hasAttribute('data-nav-link') || child.hasAttribute('data-nav-item-wrap')),
   );
 }
 
 function applyOverflowMode(root: HTMLElement): void {
-  const nav = root.closest('.nav, nav') as HTMLElement | null;
+  const nav = (root.closest('[data-nav-shell]') || root.closest('nav')) as HTMLElement | null;
   if (!nav) return;
   const items = topLevelNavItems(root);
   if (items.length === 0) return;
@@ -458,7 +455,7 @@ function applyOverflowMode(root: HTMLElement): void {
   if (total <= available) return;
 
   setState(nav, 'navOverflow', true);
-  const toggle = nav.querySelector<HTMLElement>('.nav-toggle');
+  const toggle = nav.querySelector<HTMLElement>('[data-nav-toggle]');
   const reserved = (toggle?.getBoundingClientRect().width || 36) + gap;
   const fitWidth = Math.max(0, root.getBoundingClientRect().width - reserved);
   let used = 0;
@@ -489,8 +486,13 @@ function bindResponsiveModes(root: HTMLElement): void {
   });
 }
 
+function getDefaultNavRoot(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-nav-links]')
+    || (document.getElementById('nav-links') as HTMLElement | null);
+}
+
 export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
-  const root = navRoot || (document.getElementById('nav-links') as HTMLElement | null);
+  const root = navRoot || getDefaultNavRoot();
   if (!root) return;
   bindResponsiveModes(root);
   bindNavToggle(root);
@@ -517,7 +519,7 @@ export function bindNavDropdowns(navRoot?: HTMLElement | null): void {
 export function rebindNavDropdowns(): void {
   // Called after SPA swap or section re-render. Resets per-element flags so a
   // freshly-rendered nav block picks up the bindings.
-  const root = document.getElementById('nav-links') as HTMLElement | null;
+  const root = getDefaultNavRoot();
   if (!root) return;
   // The root-level flags persist because the root element stays mounted while
   // its children are reconciled. For inner triggers we already rely on

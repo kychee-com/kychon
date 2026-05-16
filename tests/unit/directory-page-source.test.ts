@@ -18,8 +18,9 @@ describe('directory page source', () => {
 
   it('renders member card actions through the shared Button component', () => {
     expect(app).toContain('Button');
-    expect(app).toContain('badgeVariants');
+    expect(app).toContain('Badge');
     expect(app).toMatch(/aria-label=\{`View \$\{member\.display_name\}`\}/);
+    expect(app).not.toContain('badgeVariants');
     expect(app).not.toContain('role="button"');
     expect(app).not.toContain('tabIndex={0}');
     expect(app).not.toContain('onKeyDown');
