@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -18,12 +18,8 @@ const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.html', '.js', '.jsx', '.m
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
-const ALLOWED_DOM_FRAGMENT_HELPER_FILES = new Set(['src/lib/dom-fragment.ts', 'tests/helpers/dom-fixture.js']);
-const ALLOWED_DOM_FRAGMENT_IMPORT_FILES = new Set([
-  'src/components/AdminEditor.astro',
-  'src/lib/page-render.ts',
-  'src/lib/sanitize-html.ts',
-]);
+const ALLOWED_DOM_MUTATION_HELPER_FILES = new Set(['tests/helpers/dom-fixture.js']);
+const ALLOWED_DOM_FRAGMENT_IMPORT_FILES = new Set<string>();
 const PRIMITIVE_IMPORT_RE = /from\s+['"](@radix-ui\/[^'"]+|@base-ui-components\/[^'"]+)['"]/g;
 const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
@@ -90,7 +86,8 @@ export function listScanFiles(): string[] {
         .split('\0')
         .filter(Boolean)
         .filter(isScannedSourcePath)
-        .map((file) => join(ROOT, file)),
+        .map((file) => join(ROOT, file))
+        .filter(existsSync),
     ),
   );
 }
@@ -122,10 +119,10 @@ function isAllowedUiFacadeImport(file: string): boolean {
   );
 }
 
-function isAllowedDomFragmentMutation(file: string, token: string): boolean {
+function isAllowedDomMutation(file: string, token: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
   return (
-    ALLOWED_DOM_FRAGMENT_HELPER_FILES.has(rel) &&
+    ALLOWED_DOM_MUTATION_HELPER_FILES.has(rel) &&
     /(?:replaceChildren|insertBefore|replaceWith|\.append\(|\.prepend\(|\.remove\()/.test(token)
   );
 }
@@ -235,7 +232,7 @@ export function checkSource(file: string, source: string): Violation[] {
         violations.push({
           file: rel,
           line,
-          message: 'Product source must not import dom-fragment outside the approved render, sanitizer, and admin boundaries',
+          message: 'Product source must not import dom-fragment',
           excerpt: lineAt(source, line),
         });
       }
@@ -245,19 +242,19 @@ export function checkSource(file: string, source: string): Violation[] {
         violations.push({
           file: rel,
           line,
-          message: 'Product source must not import dom-fragment outside the approved render, sanitizer, and admin boundaries',
+          message: 'Product source must not import dom-fragment',
           excerpt: lineAt(source, line),
         });
       }
     }
 
     for (const match of source.matchAll(HAND_ROLLED_DOM_RE)) {
-      if (isAllowedDomFragmentMutation(file, match[0])) continue;
+      if (isAllowedDomMutation(file, match[0])) continue;
       const line = lineNumber(source, match.index ?? 0);
       violations.push({
         file: rel,
         line,
-        message: 'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+        message: 'Product source must not hand-build DOM; use React islands, Astro markup, or library/framework helpers',
         excerpt: lineAt(source, line),
       });
     }

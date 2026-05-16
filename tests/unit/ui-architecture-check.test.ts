@@ -28,13 +28,13 @@ describe('ui architecture check', () => {
 
     for (const path of ['src/lib/bad-runtime.ts', 'public/js/bad-runtime.js']) {
       expect(messages(path, createElementCall)).toContain(
-        'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+        'Product source must not hand-build DOM; use React islands, Astro markup, or library/framework helpers',
       );
     }
 
     const replaceChildrenCall = ['root.replace', 'Children(node);'].join('');
     const removeCall = ['node.', 'remove();'].join('');
-    const domFragmentHelperCalls = [
+    const domFixtureHelperCalls = [
       'host.replace',
       'Children(node); reference.replace',
       'With(node); node.',
@@ -42,30 +42,33 @@ describe('ui architecture check', () => {
     ].join('');
 
     expect(messages('src/lib/bad-runtime.ts', replaceChildrenCall)).toContain(
-      'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+      'Product source must not hand-build DOM; use React islands, Astro markup, or library/framework helpers',
     );
     expect(messages('src/lib/bad-runtime.ts', removeCall)).toContain(
-      'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+      'Product source must not hand-build DOM; use React islands, Astro markup, or library/framework helpers',
     );
     expect(messages('functions/bad-runtime.js', createElementCall)).toContain(
-      'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+      'Product source must not hand-build DOM; use React islands, Astro markup, or library/framework helpers',
     );
-    expect(messages('src/lib/dom-fragment.ts', domFragmentHelperCalls)).toEqual([]);
+    expect(messages('tests/helpers/dom-fixture.js', domFixtureHelperCalls)).toEqual([]);
 
     expect(messages('public/js/env.js', "window.__KYCHON_API = 'https://api.run402.com';")).toEqual([]);
   });
 
-  it('keeps dom-fragment imports confined to approved runtime boundaries', () => {
+  it('rejects dom-fragment imports in product source', () => {
     const relativeImport = "import { renderHtmlChildren } from '../lib/dom-fragment';";
     const aliasedImport = "import { renderHtmlChildren } from '@/lib/dom-fragment';";
-    const violation =
-      'Product source must not import dom-fragment outside the approved render, sanitizer, and admin boundaries';
+    const violation = 'Product source must not import dom-fragment';
 
     expect(messages('src/components/OtherAdmin.astro', relativeImport)).toContain(violation);
     expect(messages('src/components/kychon/BadFragment.tsx', aliasedImport)).toContain(violation);
-    expect(messages('src/components/AdminEditor.astro', relativeImport)).toEqual([]);
-    expect(messages('src/lib/page-render.ts', "import { renderHtmlChildren } from './dom-fragment';")).toEqual([]);
-    expect(messages('src/lib/sanitize-html.ts', "import { parseHtmlBody } from './dom-fragment';")).toEqual([]);
+    expect(messages('src/components/AdminEditor.astro', relativeImport)).toContain(violation);
+    expect(messages('src/lib/page-render.ts', "import { renderHtmlChildren } from './dom-fragment';")).toContain(
+      violation,
+    );
+    expect(messages('src/lib/sanitize-html.ts', "import { parseHtmlBody } from './dom-fragment';")).toContain(
+      violation,
+    );
   });
 
   it('rejects selector-based DOM lookup in product source', () => {

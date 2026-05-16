@@ -17,7 +17,7 @@ import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
 import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
-import { renderHtmlChildren } from './dom-fragment';
+import { renderReactHtmlChildren } from './react-html-children';
 import {
   collectDescendantElements,
   findDescendantElement,
@@ -136,7 +136,7 @@ function renderZoneInto(
       return;
     }
     const newHtml = filtered.map((s) => renderBlock(s, ctx)).join('');
-    renderHtmlChildren(sectionsHost, newHtml);
+    renderReactHtmlChildren(sectionsHost, newHtml);
     return;
   }
 
@@ -152,7 +152,7 @@ function renderZoneInto(
     else chromeBlocks.push(s);
   }
   const chromeHtml = chromeBlocks.map((s) => renderBlock(s, ctx)).join('');
-  renderHtmlChildren(container, chromeHtml);
+  renderReactHtmlChildren(container, chromeHtml);
 
   // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container.
   // Header full-bleed blocks are inserted after the sticky nav shell, not inside it;
@@ -166,12 +166,12 @@ function renderZoneInto(
     if (fullBleedBlocks.length > 0) {
       if (bleedHost) {
         const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
-        renderHtmlChildren(bleedHost, bleedHtml);
+        renderReactHtmlChildren(bleedHost, bleedHtml);
       }
     } else if (bleedHost) {
       // No bleed blocks for this page — clear the host (don't remove it; keeps
       // DOM stable across SPA navigations).
-      renderHtmlChildren(bleedHost, '');
+      renderReactHtmlChildren(bleedHost, '');
     }
   }
 
