@@ -23,7 +23,7 @@ const PRIMITIVE_IMPORT_RE = /from\s+['"](@radix-ui\/[^'"]+|@base-ui-components\/
 const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
-  /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend)\()/g;
+  /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend|remove)\()/g;
 const SELECTOR_DOM_LOOKUP_RE =
   /\bdocument\.(?:getElementById|getElementsByClassName|getElementsByTagName|querySelector(?:All)?)\s*\(|(?:\?\.|\.)\s*(?:closest|matches|querySelector(?:All)?)\s*\(/g;
 const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea|label)\b([^>]*)>/g;
@@ -120,7 +120,7 @@ function isAllowedDomFragmentMutation(file: string, token: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
   return (
     ALLOWED_DOM_FRAGMENT_HELPER_FILES.has(rel) &&
-    /(?:replaceChildren|insertBefore|replaceWith|\.append\(|\.prepend\()/.test(token)
+    /(?:replaceChildren|insertBefore|replaceWith|\.append\(|\.prepend\(|\.remove\()/.test(token)
   );
 }
 
