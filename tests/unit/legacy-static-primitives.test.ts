@@ -260,6 +260,10 @@ describe('legacy static UI primitives', () => {
     expect(adminStyles).toContain('[data-layout-container]:empty::before');
     expect(adminStyles).not.toContain('ky-container');
     expect(publicZoneGridStyles).toContain('[data-layout-container]');
+    expect(publicZoneGridStyles).toContain('#sections > [data-react-html-children] > [data-column-span="1"]');
+    expect(publicZoneGridStyles).toContain(
+      '[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1"]',
+    );
     expect(publicZoneGridStyles).not.toContain('ky-container');
     for (const stylesheet of [a11yStyles, publicA11yStyles]) {
       expect(stylesheet).toContain('html[data-high-contrast="true"]');
