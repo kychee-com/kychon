@@ -130,7 +130,7 @@ async function main(): Promise<void> {
   </style>
 </head>
 <body>
-  <nav class="nav" data-zone="header" aria-label="Primary navigation">
+  <nav data-nav-shell data-zone="header" aria-label="Primary navigation">
     <div ${layoutContainerAttrs}>${chromeHtml}</div>
   </nav>
   ${bannerHtml}

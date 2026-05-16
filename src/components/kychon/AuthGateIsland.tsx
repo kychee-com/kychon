@@ -2,8 +2,6 @@
 
 import { Home, LockKeyhole, ShieldAlert } from 'lucide-react';
 import * as React from 'react';
-import { type Root, createRoot } from 'react-dom/client';
-import { flushSync } from 'react-dom';
 import {
   Button,
   Card,
@@ -23,14 +21,12 @@ interface GateCopy {
   showSignIn: boolean;
 }
 
-interface AuthGateProps {
+export interface AuthGateProps {
   backLabel: string;
   copy: GateCopy;
   kind: AuthGateKind;
   signInLabel: string;
 }
-
-const roots = new WeakMap<HTMLElement, Root>();
 
 export function AuthGate({ backLabel, copy, kind, signInLabel }: AuthGateProps) {
   const Icon = kind === 'admin' ? ShieldAlert : LockKeyhole;
@@ -71,19 +67,4 @@ export function AuthGate({ backLabel, copy, kind, signInLabel }: AuthGateProps) 
       </Card>
     </div>
   );
-}
-
-export function mountAuthGate(targetSelector: string, props: AuthGateProps): void {
-  const target = document.querySelector<HTMLElement>(targetSelector);
-  if (!target) return;
-
-  let root = roots.get(target);
-  if (!root) {
-    root = createRoot(target);
-    roots.set(target, root);
-  }
-
-  flushSync(() => {
-    root.render(<AuthGate {...props} />);
-  });
 }

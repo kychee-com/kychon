@@ -127,7 +127,7 @@ function renderZoneInto(
   renderHtmlChildren(container, chromeHtml);
 
   // Full-bleed siblings live in a dedicated `[data-fullbleed-host]` container.
-  // Header full-bleed blocks are inserted after the sticky `.nav`, not inside it;
+  // Header full-bleed blocks are inserted after the sticky nav shell, not inside it;
   // otherwise a page banner would stay stuck to the viewport while scrolling.
   // Footer full-bleed blocks can remain inside the footer wrapper.
   if (containerWrapper) {

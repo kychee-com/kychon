@@ -1,9 +1,7 @@
-// auth-gate.ts — Inline empty-state card shown to anonymous or non-admin users
-// in place of the silent `window.location.href = '/'` redirect that requireAuth
-// / requireAdmin used to perform. Page chrome (header / footer) stays put so
-// the user keeps their bearings and sees a clear next action.
+// auth-gate.ts — Shared copy for inline empty-state cards shown to anonymous
+// or non-admin users. Page chrome stays put so the user keeps their bearings
+// and sees a clear next action.
 
-import { mountAuthGate } from '../components/kychon/AuthGateIsland';
 import { t } from './i18n';
 
 export type AuthGateKind = 'auth' | 'admin';
@@ -29,17 +27,4 @@ export function authGateCopy(kind: AuthGateKind, context?: AuthGateContext): Gat
     body: t(`auth.gate.${ctx}.body`),
     showSignIn: true,
   };
-}
-
-export function showAuthGate(
-  targetSelector: string,
-  kind: AuthGateKind,
-  context?: AuthGateContext,
-): void {
-  mountAuthGate(targetSelector, {
-    copy: authGateCopy(kind, context),
-    kind,
-    signInLabel: t('auth.gate.signIn'),
-    backLabel: t('auth.gate.backHome'),
-  });
 }
