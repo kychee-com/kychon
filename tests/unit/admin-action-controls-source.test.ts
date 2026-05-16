@@ -257,6 +257,8 @@ describe('admin action controls source', () => {
 
     expect(editor).toContain('id="admin-image-upload-input"');
     expect(editor).toContain('imageUploadInput');
+    expect(editor).toContain('editableImageElement');
+    expect(editor).not.toContain("querySelector('img')");
     expect(editor).not.toContain("document.createElement('input')");
   });
 
