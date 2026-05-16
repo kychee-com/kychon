@@ -74,7 +74,7 @@ describe('ui architecture check', () => {
     ]);
   });
 
-  it('keeps feature UI on Kychon/shadcn controls while allowing hidden plumbing inputs', () => {
+  it('keeps feature UI on Kychon/shadcn controls while allowing hidden file-input plumbing', () => {
     const nativeButtonHtml = ['<but', 'ton type="button">Save</but', 'ton>'].join('');
     const nativeSelectHtml = ['<sel', 'ect></sel', 'ect>'].join('');
     const violations = messages(
@@ -87,11 +87,14 @@ describe('ui architecture check', () => {
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <select> controls');
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <textarea> controls');
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <label> controls');
+    expect(messages('src/components/kychon/BadHiddenControl.tsx', '<input type="hidden" name="type" />')).toContain(
+      'Feature UI must use Kychon/shadcn components instead of native <input> controls',
+    );
 
     expect(
       messages(
         'src/components/kychon/GoodControls.tsx',
-        '<Button type="button">Save</Button><Label htmlFor="q">Search</Label><Input name="q" /><input type="hidden" /><input type="file" hidden />',
+        '<Button type="button">Save</Button><Label htmlFor="q">Search</Label><Input name="q" /><Input type="hidden" /><input type="file" hidden />',
       ),
     ).toEqual([]);
 
