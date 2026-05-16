@@ -573,6 +573,7 @@
   let draggedEl: HTMLElement | null = null;
   let dropIndicator: HTMLElement | null = null;
   let sourceZone: string | null = null;
+  let sourceItemHost: HTMLElement | null = null;
 
   function indicatorHost(): HTMLElement | null {
     return document.getElementById('admin-editor-root');
@@ -614,6 +615,12 @@
     return zone;
   }
 
+  function sortableItemChildren(host: HTMLElement): HTMLElement[] {
+    return Array.from(host.children).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.hasAttribute('data-sortable-id'),
+    );
+  }
+
   function startDragFromHandle(handle: HTMLElement, event: DragEvent) {
     const el = handle.closest('[data-sortable-id]') as HTMLElement | null;
     if (!el) return;
@@ -621,6 +628,7 @@
     draggedEl = el;
     const zone = findZoneContainer(el);
     sourceZone = zone?.dataset.zone || null;
+    sourceItemHost = zone ? findZoneItemHost(zone) : null;
     document.body.dataset.adminDragging = 'true';
     el.dataset.adminDragging = 'true';
     event.dataTransfer.effectAllowed = 'move';
@@ -678,9 +686,11 @@
       const targetZone = targetZoneEl.dataset.zone!;
       replaceNodeWith(indicator, draggedEl);
       const moved = draggedEl;
-      const wasCrossZone = sourceZone !== targetZone;
+      const fromZone = sourceZone || 'main';
+      const fromHost = sourceItemHost;
+      const wasCrossZone = fromZone !== targetZone;
       cleanupDrag();
-      await persistOrder(moved, sourceZone || 'main', targetZone);
+      await persistOrder(moved, fromZone, targetZone, fromHost);
       if (wasCrossZone) maybeOfferGlobalPromotion(moved, targetZone as 'header' | 'main' | 'footer');
     });
 
@@ -698,13 +708,14 @@
     delete document.body.dataset.adminDragging;
     draggedEl = null;
     sourceZone = null;
+    sourceItemHost = null;
   }
 
-  async function persistOrder(moved: HTMLElement, fromZone: string, toZone: string) {
+  async function persistOrder(moved: HTMLElement, fromZone: string, toZone: string, fromHost: HTMLElement | null) {
     const targetZoneEl = findZoneContainer(moved);
     if (!targetZoneEl) return;
     const targetHost = findZoneItemHost(targetZoneEl);
-    const targetSiblings = Array.from(targetHost.querySelectorAll<HTMLElement>('[data-sortable-id]'));
+    const targetSiblings = sortableItemChildren(targetHost);
     const updates: Promise<any>[] = [];
     targetSiblings.forEach((sib, idx) => {
       const sid = sib.dataset.sortableId;
@@ -716,20 +727,14 @@
       updates.push(patch(`${table}?id=eq.${id}`, body));
     });
     // Renumber source zone too (close the gap left behind)
-    if (fromZone !== toZone) {
-      const sourceZoneEl = document.querySelector(`[data-zone="${fromZone}"]`) as HTMLElement | null;
-      if (sourceZoneEl) {
-        const sourceHost = findZoneItemHost(sourceZoneEl);
-        Array.from(sourceHost.querySelectorAll<HTMLElement>('[data-sortable-id]')).forEach(
-          (sib, idx) => {
-            const sid = sib.dataset.sortableId;
-            if (!sid) return;
-            const [table, id] = sid.split('.');
-            if (!table || !id) return;
-            updates.push(patch(`${table}?id=eq.${id}`, { position: idx + 1 }));
-          },
-        );
-      }
+    if (fromZone !== toZone && fromHost) {
+      sortableItemChildren(fromHost).forEach((sib, idx) => {
+        const sid = sib.dataset.sortableId;
+        if (!sid) return;
+        const [table, id] = sid.split('.');
+        if (!table || !id) return;
+        updates.push(patch(`${table}?id=eq.${id}`, { position: idx + 1 }));
+      });
     }
     try {
       await Promise.all(updates);
