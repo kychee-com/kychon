@@ -77,7 +77,7 @@ a:hover {
 }
 
 /* Nav */
-.nav {
+[data-nav-shell] {
   background: var(--nav-header-bg, var(--background, var(--color-bg)));
   border-bottom: var(--nav-header-border-bottom, 1px solid var(--border, var(--color-border)));
   box-shadow: var(--nav-header-shadow, none);
@@ -86,7 +86,7 @@ a:hover {
   top: var(--demo-banner-height, 0px);
   z-index: 100;
 }
-.nav [data-layout-container] {
+[data-nav-shell] [data-layout-container] {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   grid-template-rows: auto auto;
@@ -96,10 +96,10 @@ a:hover {
   min-height: var(--nav-header-min-height, 3.5rem);
   position: relative;
 }
-.nav [data-layout-container]:has(.brand-header--icon) {
+[data-nav-shell] [data-layout-container]:has([data-brand-mode="icon"]) {
   grid-template-columns: max(var(--nav-logo-max-height, 2rem), 4rem) minmax(0, 1fr) auto auto;
 }
-.nav-brand {
+[data-nav-brand] {
   grid-column: 1 / 3;
   grid-row: 1;
   justify-self: start;
@@ -115,10 +115,10 @@ a:hover {
   gap: var(--nav-brand-gap, var(--nav-header-gap, 1rem));
   text-align: left;
 }
-.nav-brand img {
+[data-nav-brand] img {
   max-height: none;
 }
-.brand-header--icon.nav-brand {
+[data-nav-brand][data-brand-mode="icon"] {
   grid-row: 1 / 3;
   align-self: stretch;
   display: grid;
@@ -130,10 +130,10 @@ a:hover {
 }
 
 /* brand-identity-fields: three render modes for the brand_header block.
-   Picker rules in src/lib/blocks.ts decide which class lands on the <a>.
+   Picker rules in src/lib/blocks.ts decide which data-brand-mode lands on the <a>.
    Icon mode shows a square mark + text. Wordmark mode is the wide image
    alone (no separate text). Text mode is the universal fallback. */
-.brand-header--icon .brand-icon {
+[data-brand-mode="icon"] [data-brand-icon] {
   --brand-icon-size: max(var(--nav-logo-max-height, 2rem), 4rem);
   grid-column: 1;
   grid-row: 1 / 3;
@@ -144,7 +144,7 @@ a:hover {
   object-fit: contain;
   flex-shrink: 0;
 }
-.brand-header--wordmark .brand-wordmark {
+[data-brand-mode="wordmark"] [data-brand-wordmark] {
   /* Wordmark images are constrained by height so the chrome row stays tidy
      regardless of intrinsic width. */
   height: var(--nav-wordmark-max-height, 2.25rem);
@@ -153,31 +153,31 @@ a:hover {
   object-fit: contain;
   display: block;
 }
-.brand-header--text {
-  /* Pure text mode inherits .nav-brand sizing — nothing extra. */
+[data-brand-mode="text"] {
+  /* Pure text mode inherits [data-nav-brand] sizing — nothing extra. */
 }
-.brand-header .brand-text {
+[data-nav-brand] [data-brand-text] {
   display: block;
   flex: 0 0 auto;
   min-width: 0;
 }
-.brand-header .brand-text--full {
+[data-nav-brand] [data-brand-text-full] {
   display: block;
 }
-.brand-header .brand-text--short {
+[data-nav-brand] [data-brand-text-short] {
   display: none;
 }
 @media (max-width: 1200px) {
   /* Swap full text → short text on narrow viewports only when a short variant
      exists. CSS-only, no JS — see brand-identity-fields/design.md §2. */
-  .brand-header .brand-text--full:has(+ .brand-text--short) {
+  [data-nav-brand] [data-brand-text-full]:has(+ [data-brand-text-short]) {
     display: none;
   }
-  .brand-header .brand-text--short {
+  [data-nav-brand] [data-brand-text-short] {
     display: block;
   }
 }
-.brand-header .brand-copy {
+[data-nav-brand] [data-brand-copy] {
   grid-column: 2;
   grid-row: 1;
   align-self: center;
@@ -194,14 +194,14 @@ a:hover {
   overflow: hidden;
   line-height: 1.1;
 }
-.brand-header .brand-text--full,
-.brand-header .brand-text--short,
-.brand-header .brand-subtitle {
+[data-nav-brand] [data-brand-text-full],
+[data-nav-brand] [data-brand-text-short],
+[data-nav-brand] [data-brand-subtitle] {
   min-width: 0;
   max-width: 100%;
   white-space: nowrap;
 }
-.brand-header .brand-subtitle {
+[data-nav-brand] [data-brand-subtitle] {
   flex: 1 1 auto;
   color: var(--muted-foreground, var(--color-text-muted));
   overflow: hidden;
@@ -209,15 +209,15 @@ a:hover {
   font-size: var(--brand-subtitle-size, 0.9rem);
   font-weight: var(--brand-subtitle-weight, 600);
 }
-.brand-header .brand-subtitle::before {
+[data-nav-brand] [data-brand-subtitle]::before {
   content: "- ";
 }
 @container (max-width: 21rem) {
-  .brand-header .brand-subtitle {
+  [data-nav-brand] [data-brand-subtitle] {
     display: none;
   }
 }
-.nav-links {
+[data-nav-links] {
   grid-column: 2 / -1;
   grid-row: 2;
   display: flex;
@@ -235,12 +235,13 @@ a:hover {
   box-shadow: var(--nav-links-shadow, none);
   overflow: visible;
 }
-.nav-links[data-nav-full-row="true"] {
+[data-nav-links][data-nav-full-row="true"] {
   flex-basis: 100%;
   width: 100%;
   margin-left: 0;
 }
-.nav-link {
+[data-nav-link],
+[data-nav-parent-trigger] {
   padding: var(--nav-link-padding, 0.5rem 0.75rem);
   border-radius: var(--nav-link-radius, var(--radius));
   color: var(--nav-link-color, var(--muted-foreground, var(--color-text-muted)));
@@ -253,15 +254,17 @@ a:hover {
     color var(--nav-transition, var(--transition)),
     transform var(--nav-transition, var(--transition));
 }
-.nav-link:hover {
+[data-nav-link]:hover,
+[data-nav-parent-trigger]:hover {
   background: var(--nav-link-hover-bg, var(--muted, var(--color-surface)));
   color: var(--nav-link-hover-color, var(--foreground, var(--color-text)));
 }
-.nav-link.active {
+[data-nav-link][data-nav-active="true"],
+[data-nav-parent-trigger][data-nav-active="true"] {
   color: var(--nav-link-active-color, var(--primary, var(--color-primary)));
   background: var(--nav-link-active-bg, rgba(99, 102, 241, 0.08));
 }
-.nav-user {
+[data-nav-user] {
   grid-column: 3;
   grid-row: 1;
   justify-self: end;
@@ -273,13 +276,13 @@ a:hover {
   min-height: 2.25rem;
   margin-left: 0;
 }
-.nav-user:empty::before {
+[data-nav-user]:empty::before {
   content: "";
   display: block;
   width: var(--nav-user-reserved-width, 10rem);
   height: 2.25rem;
 }
-.nav-toggle {
+[data-nav-toggle] {
   grid-column: 2 / -1;
   grid-row: 2;
   justify-self: end;
@@ -707,10 +710,10 @@ tr:hover td {
   }
 }
 
-.nav[data-nav-source-mobile="true"] .nav-toggle {
+[data-nav-shell][data-nav-source-mobile="true"] [data-nav-toggle] {
   display: block;
 }
-.nav[data-nav-source-mobile="true"] .nav-links {
+[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links] {
   display: none;
   flex-direction: column;
   position: absolute;
@@ -725,19 +728,19 @@ tr:hover td {
   box-shadow: var(--shadow-md);
   overflow: visible;
 }
-.nav[data-nav-source-mobile="true"] .nav-links[data-nav-mobile-open="true"] {
+[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links][data-nav-mobile-open="true"] {
   display: flex;
 }
-.nav[data-nav-overflow="true"] .nav-toggle {
+[data-nav-shell][data-nav-overflow="true"] [data-nav-toggle] {
   display: block;
 }
-.nav[data-nav-overflow="true"] .nav-links {
+[data-nav-shell][data-nav-overflow="true"] [data-nav-links] {
   padding-right: calc(2.25rem + var(--nav-link-gap, 0.25rem));
 }
-.nav [data-nav-overflowed="true"] {
+[data-nav-shell] [data-nav-overflowed="true"] {
   display: none !important;
 }
-.nav-overflow-menu {
+[data-nav-overflow-menu] {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
@@ -753,32 +756,32 @@ tr:hover td {
   box-shadow: var(--nav-dropdown-shadow, var(--shadow-md));
   z-index: 60;
 }
-.nav-overflow-menu[hidden] {
+[data-nav-overflow-menu][hidden] {
   display: none;
 }
-.nav-overflow-menu > .nav-link,
-.nav-overflow-menu > .nav-item-wrap {
+[data-nav-overflow-menu] > [data-nav-link],
+[data-nav-overflow-menu] > [data-nav-item-wrap] {
   width: 100%;
 }
-.nav-overflow-menu .nav-link,
-.nav-overflow-menu .nav-link.nav-parent-button {
+[data-nav-overflow-menu] [data-nav-link],
+[data-nav-overflow-menu] [data-nav-parent-trigger] {
   width: 100%;
   text-align: left;
 }
-.nav-overflow-menu .nav-item-wrap {
+[data-nav-overflow-menu] [data-nav-item-wrap] {
   flex-direction: column;
   align-items: stretch;
 }
 
 @media (max-width: 520px) {
-  .nav {
+  [data-nav-shell] {
     --nav-header-gap: 0.5rem;
   }
-  .brand-header .brand-text--full,
-  .brand-header .brand-text--short {
+  [data-nav-brand] [data-brand-text-full],
+  [data-nav-brand] [data-brand-text-short] {
     white-space: nowrap;
   }
-  .brand-header .brand-subtitle {
+  [data-nav-brand] [data-brand-subtitle] {
     display: none;
   }
 }

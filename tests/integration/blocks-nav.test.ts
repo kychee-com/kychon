@@ -127,13 +127,13 @@ describe('nav block — flat behavior preserved', () => {
       { label: 'About', href: '/page.html?slug=about', public: true },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    expect(html).toContain('<a class="nav-link"');
+    expect(html).toContain('data-nav-link=""');
     expect(html).toContain('href="/"');
     expect(html).toContain('href="/about"');
     expect(html).toContain('>Home<');
     expect(html).toContain('>About<');
-    expect(html).not.toContain('nav-chevron-toggle');
-    expect(html).not.toContain('nav-dropdown');
+    expect(html).not.toContain('data-nav-trigger');
+    expect(html).not.toContain('data-nav-menu=""');
     expect(html).not.toContain('data-mobile-breakpoint');
   });
 
@@ -159,7 +159,9 @@ describe('nav block — flat behavior preserved', () => {
       ...baseCtx,
       currentPath: '/#announcements-section',
     });
-    const activeLabels = Array.from(wrap.querySelectorAll('[data-nav-item-index].active')).map((el) => el.textContent);
+    const activeLabels = Array.from(wrap.querySelectorAll('[data-nav-item-index][data-nav-active="true"]')).map(
+      (el) => el.textContent,
+    );
     expect(activeLabels).toEqual(['Announcements']);
   });
 });
@@ -203,7 +205,7 @@ describe('nav block — source presentation config', () => {
     const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
       behavior: { mobile_breakpoint: 2000 },
     });
-    document.body.innerHTML = `<nav id="zone-header" class="nav"><div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
+    document.body.innerHTML = `<nav id="zone-header" data-nav-shell><div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
     const host = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(host);
     expect(document.getElementById('zone-header')?.dataset.navSourceMobile).toBe('true');
@@ -242,8 +244,8 @@ describe('nav block — nested children', () => {
     const root = renderInto(`<div>${html}</div>`);
     const parentLink = root.querySelector('[data-nav-link][href="/marina"]') as HTMLElement;
     expect(parentLink).toBeTruthy();
-    expect(parentLink.className).toContain('nav-parent');
-    expect(html).toContain('nav-chevron-toggle');
+    expect(parentLink.hasAttribute('data-nav-parent-link')).toBe(true);
+    expect(html).toContain('data-nav-trigger');
   });
 
   it('renders parent-only (no href) as a button trigger', () => {
@@ -254,7 +256,7 @@ describe('nav block — nested children', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    expect(html).toContain('nav-parent-button');
+    expect(html).toContain('data-nav-parent-trigger');
     expect(html).toContain('aria-haspopup="menu"');
   });
 
@@ -266,8 +268,8 @@ describe('nav block — nested children', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    expect(html).toContain('nav-parent-button');
-    expect(html).not.toContain('nav-parent-button active');
+    expect(html).toContain('data-nav-parent-trigger');
+    expect(html).not.toContain('data-nav-parent-trigger="" data-nav-trigger="" data-nav-active="true"');
   });
 
   it('marks href-less parent menus active when a child matches', () => {
@@ -279,10 +281,10 @@ describe('nav block — nested children', () => {
     ]);
     const html = BLOCK_TYPES.nav.render(section, { ...baseCtx, currentPath: '/forum' });
     const root = renderInto(`<div>${html}</div>`);
-    const parent = root.querySelector('.nav-parent-button') as HTMLElement;
+    const parent = root.querySelector('[data-nav-parent-trigger]') as HTMLElement;
     const child = root.querySelector('a[href="/forum"]') as HTMLElement;
-    expect(parent.classList.contains('active')).toBe(true);
-    expect(child.classList.contains('active')).toBe(true);
+    expect(parent.dataset.navActive).toBe('true');
+    expect(child.dataset.navActive).toBe('true');
   });
 
   it('supports recursive children at depth ≥ 2', () => {
@@ -302,8 +304,8 @@ describe('nav block — nested children', () => {
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
-    expect(root.querySelector('ul.nav-dropdown[role="menu"]')).toBeTruthy();
-    expect(root.querySelector('ul.nav-dropdown.nav-dropdown-nested[role="menu"]')).toBeTruthy();
+    expect(root.querySelector('ul[data-nav-menu][role="menu"]')).toBeTruthy();
+    expect(root.querySelector('ul[data-nav-menu][data-nav-nested-menu][role="menu"]')).toBeTruthy();
     expect(html).toContain('Forms');
     expect(html).toContain('Reports');
   });
@@ -332,7 +334,7 @@ describe('nav block — nested children', () => {
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     // Parent (no href) collapses to plain link rendering — no chevron.
-    expect(html).not.toContain('nav-chevron-toggle');
+    expect(html).not.toContain('data-nav-trigger');
   });
 });
 
@@ -341,7 +343,7 @@ describe('nav block — ARIA attributes', () => {
     const section = makeSection([{ label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] }]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
-    const chevron = root.querySelector('.nav-chevron-toggle, .nav-parent-button') as HTMLElement;
+    const chevron = root.querySelector('[data-nav-trigger]') as HTMLElement;
     expect(chevron).toBeTruthy();
     expect(chevron.tagName.toLowerCase()).toBe('button');
     expect(chevron.getAttribute('aria-haspopup')).toBe('menu');
@@ -352,7 +354,7 @@ describe('nav block — ARIA attributes', () => {
     const section = makeSection([{ label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] }]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
-    const ul = root.querySelector('.nav-dropdown') as HTMLElement;
+    const ul = root.querySelector('[data-nav-menu]') as HTMLElement;
     expect(ul.getAttribute('role')).toBe('menu');
     const li = ul.querySelector('li') as HTMLElement;
     expect(li.getAttribute('role')).toBe('none');
@@ -364,12 +366,12 @@ describe('nav block — ARIA attributes', () => {
     const section = makeSection([{ label: 'Marina', children: [{ label: 'Layout', href: '/m/l' }] }]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     const root = renderInto(`<div>${html}</div>`);
-    const chevron = root.querySelector('.nav-chevron-toggle, .nav-parent-button') as HTMLElement;
+    const chevron = root.querySelector('[data-nav-trigger]') as HTMLElement;
     const controls = chevron.getAttribute('aria-controls') ?? '';
     expect(controls).toBeTruthy();
     const menu = root.querySelector(`#${CSS.escape(controls)}`);
     expect(menu).toBeTruthy();
-    expect(menu?.classList.contains('nav-dropdown')).toBe(true);
+    expect((menu as HTMLElement | null)?.hasAttribute('data-nav-menu')).toBe(true);
   });
 
   it('renders static overflow copies with duplicate-safe dropdown ids', () => {
@@ -425,7 +427,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('clicking the chevron opens the dropdown (sets aria-expanded=true, removes [hidden])', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(true);
     chevron.click();
@@ -465,8 +467,8 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('clicking a hover-open parent pins it open instead of closing it', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
-    const wrap = chevron.closest('.nav-item-wrap') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
+    const wrap = chevron.closest('[data-nav-item-wrap]') as HTMLElement;
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     const firstItem = menu.querySelector('a[role="menuitem"]') as HTMLElement;
 
@@ -504,7 +506,7 @@ describe('nav block — runtime keyboard + click', () => {
     const nav = document.getElementById('zone-header') as HTMLElement;
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
     const links = document.getElementById('nav-links') as HTMLElement;
-    const overflowItem = links.querySelector('.nav-item-wrap') as HTMLElement;
+    const overflowItem = links.querySelector('[data-nav-item-wrap]') as HTMLElement;
 
     nav.dataset.navOverflow = 'true';
     overflowItem.dataset.navOverflowed = 'true';
@@ -533,15 +535,13 @@ describe('nav block — runtime keyboard + click', () => {
     const nav = document.getElementById('zone-header') as HTMLElement;
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
     const links = document.getElementById('nav-links') as HTMLElement;
-    const overflowItem = links.querySelector('.nav-item-wrap') as HTMLElement;
+    const overflowItem = links.querySelector('[data-nav-item-wrap]') as HTMLElement;
 
     nav.dataset.navOverflow = 'true';
     overflowItem.dataset.navOverflowed = 'true';
 
     toggle.click();
-    const overflowTrigger = document.querySelector(
-      '.nav-overflow-menu .nav-parent-button, .nav-overflow-menu .nav-chevron-toggle',
-    ) as HTMLElement;
+    const overflowTrigger = document.querySelector('[data-nav-overflow-menu] [data-nav-trigger]') as HTMLElement;
     const menu = document.getElementById(overflowTrigger.getAttribute('aria-controls') ?? '') as HTMLElement;
 
     expect(menu.hasAttribute('hidden')).toBe(true);
@@ -551,7 +551,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('ArrowDown on chevron opens the menu and focuses the first item', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.focus();
     chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
@@ -561,7 +561,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('ArrowDown on a menu item moves focus to the next item; wraps at end', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.focus();
     chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
@@ -576,7 +576,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('Escape inside open menu closes it and returns focus to the chevron', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.focus();
     chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
@@ -587,7 +587,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('clicking outside the dropdown closes it', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.click();
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(false);
@@ -600,7 +600,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('rebinding does not double-bind: a second bindNavDropdowns call is a no-op', () => {
-    const chevron = host.querySelector('.nav-parent-button, .nav-chevron-toggle') as HTMLElement;
+    const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     bindNavDropdowns(host);
     bindNavDropdowns(host);
     chevron.click();

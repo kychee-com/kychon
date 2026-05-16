@@ -23,12 +23,14 @@ describe('copied-theme visual verification hooks', () => {
 
     expect(navHtml).toContain('data-mobile-closed-layout="hidden"');
     expect(navHtml).toContain('data-mobile-open-layout="drawer"');
-    expect(navHtml).toContain('class="nav-overflow-menu"');
+    expect(navHtml).toContain('data-nav-overflow-menu');
     expect(navHtml).toContain('data-nav-overflow-source-index="');
-    expect(navHtml).toContain('nav-chevron-toggle');
-    expect(navHtml).toContain('nav-dropdown absolute left-0 top-full');
-    expect(styles).toContain('.nav[data-nav-source-mobile="true"] .nav-links[data-nav-mobile-open="true"]');
-    expect(styles).toContain('.nav-overflow-menu[hidden]');
+    expect(navHtml).toContain('data-nav-trigger');
+    expect(navHtml).toContain('data-nav-menu');
+    expect(styles).toContain(
+      '[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links][data-nav-mobile-open="true"]',
+    );
+    expect(styles).toContain('[data-nav-overflow-menu][hidden]');
     expect(navComponent).toContain('hover:bg-accent');
     expect(navComponent).toContain('focus:bg-accent');
     expect(navComponent).not.toContain('nav-dropdown.css');
@@ -37,19 +39,19 @@ describe('copied-theme visual verification hooks', () => {
   it('keeps the header brand on the utility row with a responsive subtitle', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
 
-    expect(styles).toContain('.nav [data-layout-container]:has(.brand-header--icon)');
-    expect(styles).toContain('.brand-header--icon.nav-brand');
+    expect(styles).toContain('[data-nav-shell] [data-layout-container]:has([data-brand-mode="icon"])');
+    expect(styles).toContain('[data-nav-brand][data-brand-mode="icon"]');
     expect(styles).toContain('grid-row: 1 / 3;');
     expect(styles).toContain('grid-column: 1 / 3;');
     expect(styles).toContain('max(var(--nav-logo-max-height, 2rem), 4rem)');
-    expect(styles).toContain('.brand-header .brand-subtitle::before');
+    expect(styles).toContain('[data-nav-brand] [data-brand-subtitle]::before');
     expect(styles).toContain('@container (max-width: 21rem)');
   });
 
   it('keeps desktop nav dropdowns visible outside the nav links row', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
 
-    expect(styles).toMatch(/\.nav-links\s*\{[\s\S]*overflow: visible;/);
+    expect(styles).toMatch(/\[data-nav-links\]\s*\{[\s\S]*overflow: visible;/);
   });
 
   it('keeps image accordion hover and keyboard focus reveal hooks', () => {

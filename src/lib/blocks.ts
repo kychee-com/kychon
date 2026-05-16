@@ -1132,20 +1132,20 @@ const BRAND_HEADER: BlockType = {
     if (iconUrl) {
       // Mode 1: icon + text. Short text swaps in via CSS at narrow viewports.
       const shortSpan = brandTextShort
-        ? `<span class="brand-text--short"${editableTextShort}>${escHtml(brandTextShort)}</span>`
+        ? `<span data-brand-text-short${editableTextShort}>${escHtml(brandTextShort)}</span>`
         : '';
       const subtitleSpan = brandSubtitle
-        ? `<span class="brand-subtitle">${escHtml(brandSubtitle)}</span>`
+        ? `<span data-brand-subtitle>${escHtml(brandSubtitle)}</span>`
         : '';
-      return `<a href="${escAttr(href)}" class="brand-header brand-header--icon nav-brand" aria-label="${escAttr(brandText)}"><img class="brand-icon" src="${escAttr(iconUrl)}" alt=""${editableIcon}><span class="brand-copy"><span class="brand-text"><span class="brand-text--full"${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
+      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="icon" aria-label="${escAttr(brandText)}"><img data-brand-icon src="${escAttr(iconUrl)}" alt=""${editableIcon}><span data-brand-copy><span data-brand-text><span data-brand-text-full${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
     }
     if (wordmarkUrl) {
       // Mode 2: wordmark alone — the image already contains the org name, so
       // no separate text element is rendered.
-      return `<a href="${escAttr(href)}" class="brand-header brand-header--wordmark nav-brand" aria-label="${escAttr(brandText)}"><img class="brand-wordmark" src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${editableWordmark}></a>`;
+      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${editableWordmark}></a>`;
     }
     // Mode 3: text fallback (equivalent to today's logo_url=NULL behavior).
-    return `<a href="${escAttr(href)}" class="brand-header brand-header--text nav-brand"${editableText}>${escHtml(brandText)}</a>`;
+    return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="text"${editableText}>${escHtml(brandText)}</a>`;
   },
 };
 
@@ -1157,7 +1157,7 @@ const SIGN_IN_BAR: BlockType = {
   supportedSpans: ['1'],
   defaultConfig: { show_lang_toggle: true, show_theme_toggle: true },
   render(_section, _ctx) {
-    return `<div class="nav-user" id="nav-user" data-block-hydrate="sign_in_bar"></div>`;
+    return `<div id="nav-user" data-block-hydrate="sign_in_bar" data-nav-user></div>`;
   },
   async hydrate(el, _section, ctx) {
     const { hydrateSignInBar } = await import('./block-hydrators.js');

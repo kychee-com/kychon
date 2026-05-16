@@ -122,7 +122,8 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.page(?:[.{:#\s-]|$)/);
     expect(styles).not.toMatch(/\.page-content\b/);
     expect(styles).not.toContain('#page-content');
-    expect(styles).toContain('.nav [data-layout-container]');
+    expect(styles).toContain('[data-nav-shell] [data-layout-container]');
+    expect(styles).not.toContain('.nav [data-layout-container]');
     expect(styles).not.toContain('ky-container');
     expect(zoneGridStyles).toContain('[data-layout-container]');
     expect(zoneGridStyles).not.toContain('ky-container');
