@@ -299,7 +299,6 @@
   }
 
   // --- Simple text editing via shared prompt island ---
-  const boundText = new WeakSet();
   const activeTextPrompts = new WeakSet<HTMLElement>();
 
   async function promptEditableText(htmlEl: HTMLElement): Promise<string | null> {
@@ -313,37 +312,30 @@
     });
   }
 
-  function initEditableText() {
-    document.querySelectorAll('[data-editable]').forEach((el) => {
-      if (boundText.has(el)) return;
-      boundText.add(el);
-      const htmlEl = el as HTMLElement;
-      htmlEl.setAttribute('data-lpignore', 'true'); // prevent LastPass interference
-
-      htmlEl.addEventListener('click', async (e) => {
-        // Don't activate if clicking a link inside
-        if ((e.target as HTMLElement).closest('a')) return;
-        const attr = htmlEl.dataset.editable!;
-        const target = parseEditTarget(attr);
-        if (!target) return;
-        if (activeTextPrompts.has(htmlEl)) return;
-        activeTextPrompts.add(htmlEl);
-        const previousText = htmlEl.textContent || '';
-        const original = previousText.trim();
-        try {
-          const newText = await promptEditableText(htmlEl);
-          if (newText === null || newText === original) return;
-          htmlEl.textContent = newText;
-          const ok = await saveField(htmlEl, target, newText);
-          if (!ok) htmlEl.textContent = previousText;
-          flashSave(htmlEl, ok);
-          if (ok) showToast('Saved');
-          else showToast('Save failed', 'error');
-        } finally {
-          activeTextPrompts.delete(htmlEl);
-        }
-      });
-    });
+  async function activateEditableText(htmlEl: HTMLElement, event: MouseEvent) {
+    // Don't activate if clicking a link inside.
+    if ((event.target as HTMLElement | null)?.closest('a')) return;
+    htmlEl.setAttribute('data-lpignore', 'true'); // prevent LastPass interference
+    const attr = htmlEl.dataset.editable;
+    if (!attr) return;
+    const target = parseEditTarget(attr);
+    if (!target) return;
+    if (activeTextPrompts.has(htmlEl)) return;
+    activeTextPrompts.add(htmlEl);
+    const previousText = htmlEl.textContent || '';
+    const original = previousText.trim();
+    try {
+      const newText = await promptEditableText(htmlEl);
+      if (newText === null || newText === original) return;
+      htmlEl.textContent = newText;
+      const ok = await saveField(htmlEl, target, newText);
+      if (!ok) htmlEl.textContent = previousText;
+      flashSave(htmlEl, ok);
+      if (ok) showToast('Saved');
+      else showToast('Save failed', 'error');
+    } finally {
+      activeTextPrompts.delete(htmlEl);
+    }
   }
 
   // --- Rich text editing via Tiptap ---
@@ -363,52 +355,43 @@
     }
   }
 
-  const boundRich = new WeakSet();
+  const activeRichEditors = new WeakMap<HTMLElement, any>();
 
-  function initEditableRich() {
-    document.querySelectorAll('[data-editable-rich]').forEach((el) => {
-      if (boundRich.has(el)) return;
-      boundRich.add(el);
-      const htmlEl = el as HTMLElement;
-      htmlEl.setAttribute('data-lpignore', 'true');
-      let editor: any = null;
+  async function activateEditableRich(htmlEl: HTMLElement) {
+    if (activeRichEditors.has(htmlEl)) return;
+    await loadTiptap();
+    if (!Editor) return;
+    const originalContent = serializeHtmlChildren(htmlEl);
+    htmlEl.dataset.adminTiptapActive = 'true';
+    htmlEl.setAttribute('data-lpignore', 'true');
+    // Clear original content — Tiptap will render its own editable copy
+    clearHtmlChildren(htmlEl);
 
-      htmlEl.addEventListener('click', async () => {
-        if (editor) return;
-        await loadTiptap();
-        if (!Editor) return;
-        const originalContent = serializeHtmlChildren(htmlEl);
-        htmlEl.dataset.adminTiptapActive = 'true';
-        htmlEl.setAttribute('data-lpignore', 'true');
-        // Clear original content — Tiptap will render its own editable copy
-        clearHtmlChildren(htmlEl);
-
-        editor = new Editor({
-          element: htmlEl,
-          extensions: [StarterKit],
-          content: originalContent,
-          onBlur: async () => {
-            const attr = htmlEl.dataset.editableRich!;
-            const target = parseEditTarget(attr);
-            if (!target) return;
-            const html = editor.getHTML();
-            editor.destroy();
-            editor = null;
-            delete htmlEl.dataset.adminTiptapActive;
-            // Restore rendered content (either saved or original)
-            renderHtmlChildren(htmlEl, html);
-            const ok = await saveField(htmlEl, target, html);
-            flashSave(htmlEl, ok);
-            if (ok) showToast('Saved');
-            else showToast('Save failed', 'error');
-          },
-        });
-      });
+    const editor = new Editor({
+      element: htmlEl,
+      extensions: [StarterKit],
+      content: originalContent,
+      onBlur: async () => {
+        if (activeRichEditors.get(htmlEl) !== editor) return;
+        const attr = htmlEl.dataset.editableRich;
+        const target = attr ? parseEditTarget(attr) : null;
+        const html = editor.getHTML();
+        editor.destroy();
+        activeRichEditors.delete(htmlEl);
+        delete htmlEl.dataset.adminTiptapActive;
+        // Restore rendered content (either saved or original)
+        renderHtmlChildren(htmlEl, html);
+        if (!target) return;
+        const ok = await saveField(htmlEl, target, html);
+        flashSave(htmlEl, ok);
+        if (ok) showToast('Saved');
+        else showToast('Save failed', 'error');
+      },
     });
+    activeRichEditors.set(htmlEl, editor);
   }
 
   // --- Image editing via click-to-upload (base64 JSON) ---
-  const boundImage = new WeakSet();
   let pendingImageTarget: HTMLElement | null = null;
   let boundImageUploadInput: HTMLInputElement | null = null;
 
@@ -538,25 +521,47 @@
     }
   }
 
-  function initEditableImage() {
-    document.querySelectorAll('[data-editable-image]').forEach((el) => {
-      if (boundImage.has(el)) return;
-      boundImage.add(el);
-      const htmlEl = el as HTMLElement;
+  function activateEditableImage(htmlEl: HTMLElement, event: MouseEvent) {
+    // Don't trigger image upload if clicking a child text-editable element.
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[data-editable]') || target?.closest('[data-editable-rich]')) return;
+    htmlEl.setAttribute('data-lpignore', 'true');
+    const input = imageUploadInput();
+    if (!input) {
+      showToast('Image upload unavailable', 'error');
+      return;
+    }
+    pendingImageTarget = htmlEl;
+    input.value = '';
+    input.click();
+  }
 
-      htmlEl.addEventListener('click', (e) => {
-        // Don't trigger image upload if clicking a child text-editable element
-        const target = e.target as HTMLElement;
-        if (target.closest('[data-editable]') || target.closest('[data-editable-rich]')) return;
-        const input = imageUploadInput();
-        if (!input) {
-          showToast('Image upload unavailable', 'error');
-          return;
-        }
-        pendingImageTarget = htmlEl;
-        input.value = '';
-        input.click();
-      });
+  let editableDelegatesBound = false;
+
+  function closestAdminEditable(event: MouseEvent, selector: string): HTMLElement | null {
+    const target = event.target;
+    if (!(target instanceof Element)) return null;
+    return target.closest(selector) as HTMLElement | null;
+  }
+
+  function initEditableDelegates() {
+    if (editableDelegatesBound) return;
+    editableDelegatesBound = true;
+    document.addEventListener('click', (event) => {
+      const richEl = closestAdminEditable(event, '[data-editable-rich]');
+      if (richEl) {
+        void activateEditableRich(richEl);
+        return;
+      }
+
+      const textEl = closestAdminEditable(event, '[data-editable]');
+      if (textEl) {
+        void activateEditableText(textEl, event);
+        return;
+      }
+
+      const imageEl = closestAdminEditable(event, '[data-editable-image]');
+      if (imageEl) activateEditableImage(imageEl, event);
     });
   }
 
@@ -898,9 +903,7 @@
     void ensureAdminEditorControls();
     void ensureAdminActionPrompts();
     void ensureAdminInlineTextPrompt();
-    initEditableText();
-    initEditableRich();
-    initEditableImage();
+    initEditableDelegates();
     initSortable();
     initNavEditor();
     initEmbedEditor();
@@ -912,9 +915,7 @@
 
   function rebindAdminEditableContent() {
     if (document.body.dataset.admin !== 'true') return;
-    initEditableText();
-    initEditableRich();
-    initEditableImage();
+    initEditableDelegates();
     initSortable();
   }
 
