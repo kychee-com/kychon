@@ -65,21 +65,6 @@ const cspValue = buildCspValue();
       else document.documentElement.removeAttribute('data-theme');
     });
   </script>
-  <script is:inline>
-    // Set the current year for footer_copyright blocks. Idempotent across SPA navigations.
-    (function setYear() {
-      var y = new Date().getFullYear();
-      document.querySelectorAll('[data-year="auto"]').forEach(function (el) {
-        el.textContent = String(y);
-      });
-    })();
-    document.addEventListener('astro:after-swap', function () {
-      var y = new Date().getFullYear();
-      document.querySelectorAll('[data-year="auto"]').forEach(function (el) {
-        el.textContent = String(y);
-      });
-    });
-  </script>
   <script is:inline src="/js/env.js"></script>
 </head>
 <body>

@@ -99,6 +99,8 @@ describe('legacy static UI primitives', () => {
     expect(containerUtil).not.toContain('ky-container');
     expect(blocks).toContain('constrainedContainerHtml');
     expect(blocks).toContain('data-layout-container');
+    expect(blocks).toContain('data-year="auto"');
+    expect(blocks).toContain('new Date().getFullYear()');
     expect(blocks).not.toContain('class="ky-container"');
     expect(blocks).not.toContain('ky-container');
     expect(blocks).not.toContain('ky-text-muted');
@@ -210,6 +212,8 @@ describe('legacy static UI primitives', () => {
     expect(portal).not.toContain('IntersectionObserver');
     expect(portal).not.toContain('data-section-visible');
     expect(portal).not.toContain("document.querySelectorAll('main [data-section]')");
+    expect(portal).not.toContain('setYear');
+    expect(portal).not.toContain('data-year="auto"');
     expect(portal).not.toContain("document.querySelectorAll('[data-section]')");
     expect(portal).not.toContain("document.querySelectorAll('.section')");
     expect(portal).not.toContain("classList?.contains('section')");
