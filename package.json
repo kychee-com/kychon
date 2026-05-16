@@ -24,7 +24,7 @@
     "ui:bundle-report": "tsx scripts/ui-bundle-report.ts",
     "ui:capture-routes": "tsx scripts/ui-capture-routes.ts",
     "ui:css-collisions": "tsx scripts/ui-css-collision-report.ts",
-    "check": "npm run build:sdk && npm run ui:architecture-check && tsx scripts/smoke-check-seeds.ts && vitest run && biome check . && astro check"
+    "check": "npm run build:sdk && npm run ui:architecture-check && tsx scripts/smoke-check-seeds.ts && vitest run && biome check . && astro check && tsc --project tsconfig.scripts.json"
   },
   "repository": {
     "type": "git",
