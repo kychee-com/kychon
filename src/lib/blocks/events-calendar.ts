@@ -546,6 +546,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   ro.observe(root);
 
   let hoverTimer: number | undefined;
+  let pendingMonthFocusDay: string | null = null;
 
   function renderViewportElement(): ReactElement {
     if (state.effectiveView === 'agenda') {
@@ -556,6 +557,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     }
     return createElement(EventsCalendarMonthView, {
       ...monthViewProps(state, ctx.locale, cfg.first_day_of_week ?? 0),
+      focusDay: pendingMonthFocusDay,
       onCellClick: handleMonthCellClick,
       onCellMouseEnter: HOVER_CAPABLE ? handleMonthCellMouseEnter : undefined,
       onCellMouseLeave: HOVER_CAPABLE ? handleMonthCellMouseLeave : undefined,
@@ -584,6 +586,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       }));
       roots.viewport.render(renderViewportElement());
     });
+    pendingMonthFocusDay = null;
     renderPeekOverlay();
   }
 
@@ -822,14 +825,12 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       return;
     }
     state.focusDate = next;
+    pendingMonthFocusDay = dayKey(next);
     if (!isSameMonth(next, state.currentMonth)) {
       state.currentMonth = startOfMonth(next);
       void loadWindow();
     } else {
       repaint();
-      // Move focus to new cell.
-      const cell = root.querySelector<HTMLElement>(`[data-events-calendar-cell][data-day="${dayKey(next)}"]`);
-      cell?.focus();
     }
   }
 
