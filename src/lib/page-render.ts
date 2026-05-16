@@ -81,7 +81,7 @@ function renderZoneInto(
   zone: 'header' | 'main' | 'footer',
   sections: Section[],
   ctx: BlockRenderContext,
-): { container: HTMLElement | null; rendered: HTMLElement[] } {
+): void {
   const containerWrapper = document.getElementById(`zone-${zone}`);
   // Header/footer: the inner Kychon container holds the rendered HTML so we don't
   // clobber the persisted shell wrappers.
@@ -89,7 +89,7 @@ function renderZoneInto(
     zone === 'main'
       ? (document.getElementById('main-content') as HTMLElement | null)
       : (containerWrapper?.querySelector('[data-layout-container]') as HTMLElement | null);
-  if (!container) return { container: null, rendered: [] };
+  if (!container) return;
 
   const filtered = sections
     .filter((s) => s.zone === zone)
@@ -103,13 +103,11 @@ function renderZoneInto(
     const sectionsHost = document.getElementById('sections') || container;
     if (sectionsHost === container) {
       // No #sections host — pages opting out of zone main rendering.
-      return { container, rendered: [] };
+      return;
     }
     const newHtml = filtered.map((s) => renderBlock(s, ctx)).join('');
     renderHtmlChildren(sectionsHost, newHtml);
-    const rendered: HTMLElement[] = [];
-    sectionsHost.querySelectorAll('[data-sortable-id]').forEach((el) => rendered.push(el as HTMLElement));
-    return { container: sectionsHost, rendered };
+    return;
   }
 
   // Header / footer zones split into "chrome" blocks (rendered inside the
@@ -148,9 +146,7 @@ function renderZoneInto(
     }
   }
 
-  const rendered: HTMLElement[] = [];
-  containerWrapper?.querySelectorAll('[data-block-hydrate]').forEach((el) => rendered.push(el as HTMLElement));
-  return { container, rendered };
+  return;
 }
 
 function findSectionForElement(el: HTMLElement, sections: Section[]): Section | null {

@@ -292,6 +292,9 @@ describe('legacy static UI primitives', () => {
     expect(pageRender).toContain('await type.hydrate(host, section, ctx)');
     expect(pageRender).not.toContain("root?.querySelector('[data-block-hydrate]')");
     expect(pageRender).not.toContain('matching?.parentElement');
+    expect(pageRender).not.toContain("querySelectorAll('[data-sortable-id]')");
+    expect(pageRender).not.toContain("querySelectorAll('[data-block-hydrate]')");
+    expect(pageRender).not.toContain('rendered: HTMLElement[]');
     expect(pageRender).toContain("import { renderHtmlChildren } from './dom-fragment'");
     expect(pageRender).not.toContain('new DOMParser()');
     expect(pageRender).not.toContain('replaceChildren');
