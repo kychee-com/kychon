@@ -22,6 +22,8 @@ npm run check
 npm run build
 ```
 
+`npm run check` includes the UI architecture guard so import, DOM, primitive-class, visible-control, and owned-CSS regressions fail in the standard verification path.
+
 Additional migration guardrails:
 
 ```bash
@@ -151,6 +153,7 @@ Older browser support requires an explicit product exception before Tailwind v4 
 - Feature TSX/Astro must render visible controls through Kychon/shadcn components; raw native controls are reserved for non-visible plumbing such as hidden inputs and hidden file pickers.
 - Product source must not use exact retired Kychon primitive class tokens such as `.container`, `.text-muted`, `.btn`, `.card`, `.badge`, `.toast`, or old form primitive classes, and CSS must not define them.
 - Owned CSS in `src/styles/` and `public/css/` must not define custom class selectors; use semantic `data-*` selectors, element selectors, and Tailwind utility classes from markup instead.
+- Owned source under `public/` is scanned for the same architecture regressions as `src`, so public JS cannot reintroduce hand-built DOM or legacy UI helpers.
 - Tests must not reintroduce hand-built DOM fixtures; use `tests/helpers/dom-fixture.js` for parsed fixture markup, while negative source assertions may still assert that product code omits old DOM APIs.
 - Runtime values must not construct Tailwind utility names such as ``bg-${tenantColor}-500``. Use CSS variables, data attributes, static variant maps, or a finite safelist.
 
