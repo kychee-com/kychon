@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const ROOT = join(import.meta.dirname, '..');
 const SCAN_DIRS = ['src', 'scripts', 'tests', 'public'];
@@ -33,7 +34,7 @@ const CSS_CLASS_SELECTOR_RE = /(^|[\s,{>+~])\.([A-Za-z_][A-Za-z0-9_-]*)(?=$|[^A-
 const DYNAMIC_TAILWIND_RE =
   /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|accent|caret|shadow|rounded|gap|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|w|h|min-w|min-h|max-w|max-h|grid-cols|col-span|row-span)-\$\{/;
 
-interface Violation {
+export interface Violation {
   file: string;
   line: number;
   message: string;
@@ -90,11 +91,12 @@ function relativeImportTarget(file: string, specifier: string): string {
 
 function isProductSource(file: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
-  return rel.startsWith('src/') && !rel.startsWith('src/components/ui/');
+  return (rel.startsWith('src/') && !rel.startsWith('src/components/ui/')) || rel.startsWith('public/');
 }
 
 function isUiRenderSource(file: string): boolean {
-  return isProductSource(file) && /\.(?:astro|jsx|tsx)$/.test(file);
+  const rel = relative(ROOT, file).replaceAll('\\', '/');
+  return rel.startsWith('src/') && !rel.startsWith('src/components/ui/') && /\.(?:astro|jsx|tsx)$/.test(file);
 }
 
 function hasInputType(attrs: string, type: string): boolean {
@@ -122,8 +124,7 @@ function isSourceAssertion(line: string): boolean {
   return /\bnot\.to(?:Contain|Match)\(/.test(line);
 }
 
-function checkFile(file: string): Violation[] {
-  const source = readFileSync(file, 'utf-8');
+export function checkSource(file: string, source: string): Violation[] {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
   const violations: Violation[] = [];
 
@@ -254,7 +255,11 @@ function checkFile(file: string): Violation[] {
   return violations;
 }
 
-function main(): void {
+export function checkFile(file: string): Violation[] {
+  return checkSource(file, readFileSync(file, 'utf-8'));
+}
+
+export function main(): void {
   const files = SCAN_DIRS.flatMap((dir) => walk(join(ROOT, dir)));
   const violations = files.flatMap(checkFile);
 
@@ -270,4 +275,6 @@ function main(): void {
   process.exit(1);
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
