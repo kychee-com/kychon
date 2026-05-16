@@ -87,6 +87,7 @@ export interface EventsCalendarChipProps {
 export interface EventsCalendarMoreButtonProps {
   day: string;
   label: string;
+  onDayPeek?: (day: string) => void;
 }
 
 export interface EventsCalendarMonthCell {
@@ -104,6 +105,10 @@ export interface EventsCalendarMonthViewProps {
   density: EventsCalendarDensity;
   label: string;
   liveText: string;
+  onCellClick?: (day: string) => void;
+  onCellMouseEnter?: (day: string) => void;
+  onCellMouseLeave?: () => void;
+  onDayPeek?: (day: string) => void;
   rows: EventsCalendarMonthCell[][];
   weekdays: string[];
 }
@@ -351,6 +356,7 @@ function EventsCalendarChip({
         data-events-calendar-chip
         draggable
         href={href}
+        onClick={(event) => event.stopPropagation()}
       >
         <span className="sr-only">{`${time} ${title}`.trim()}</span>
       </a>
@@ -369,6 +375,7 @@ function EventsCalendarChip({
       data-events-calendar-chip
       draggable
       href={href}
+      onClick={(event) => event.stopPropagation()}
     >
       {thumbUrl ? (
         <span
@@ -395,11 +402,16 @@ function EventsCalendarChip({
   );
 }
 
-function EventsCalendarMoreButton({ day, label }: EventsCalendarMoreButtonProps) {
+function EventsCalendarMoreButton({ day, label, onDayPeek }: EventsCalendarMoreButtonProps) {
   return (
     <Button
       className="h-auto justify-start px-1 py-0 text-xs"
       data-day-peek={day}
+      onClick={onDayPeek ? (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onDayPeek(day);
+      } : undefined}
       size="sm"
       type="button"
       variant="link"
@@ -409,7 +421,17 @@ function EventsCalendarMoreButton({ day, label }: EventsCalendarMoreButtonProps)
   );
 }
 
-export function EventsCalendarMonthView({ density, label, liveText, rows, weekdays }: EventsCalendarMonthViewProps) {
+export function EventsCalendarMonthView({
+  density,
+  label,
+  liveText,
+  onCellClick,
+  onCellMouseEnter,
+  onCellMouseLeave,
+  onDayPeek,
+  rows,
+  weekdays,
+}: EventsCalendarMonthViewProps) {
   return (
     <>
       <Card className="overflow-hidden shadow-none" data-events-calendar-month role="grid" aria-label={label}>
@@ -434,6 +456,9 @@ export function EventsCalendarMonthView({ density, label, liveText, rows, weekda
                 data-day={cell.day}
                 data-events-calendar-cell
                 key={`${cell.day}-${cellIndex}`}
+                onClick={onCellClick ? () => onCellClick(cell.day) : undefined}
+                onMouseEnter={onCellMouseEnter ? () => onCellMouseEnter(cell.day) : undefined}
+                onMouseLeave={onCellMouseLeave}
                 role="gridcell"
                 tabIndex={cell.focused ? 0 : -1}
               >
@@ -448,7 +473,7 @@ export function EventsCalendarMonthView({ density, label, liveText, rows, weekda
                 </span>
                 <div className={cn('flex min-w-0 flex-1 gap-1', density === 'glance' ? 'flex-row flex-wrap content-start' : 'flex-col')}>
                   {cell.chips.map((chip) => <EventsCalendarChip {...chip} key={chip.id} />)}
-                  {cell.moreButton ? <EventsCalendarMoreButton {...cell.moreButton} /> : null}
+                  {cell.moreButton ? <EventsCalendarMoreButton {...cell.moreButton} onDayPeek={onDayPeek} /> : null}
                 </div>
               </div>
             ))}
