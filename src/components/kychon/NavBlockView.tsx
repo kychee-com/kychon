@@ -142,6 +142,7 @@ function MenuButton({
   children,
   className,
   controls,
+  menuItem,
   parentTrigger,
   label,
   runtime,
@@ -150,6 +151,7 @@ function MenuButton({
   children: React.ReactNode;
   className: string;
   controls: string;
+  menuItem?: { index: number; menuId: string };
   parentTrigger?: boolean;
   label?: string;
   runtime: NavRuntime;
@@ -185,7 +187,10 @@ function MenuButton({
           runtime.closeMenu(controls);
         }
       }}
-      ref={(node) => runtime.registerTrigger(controls, node)}
+      ref={(node) => {
+        runtime.registerTrigger(controls, node);
+        if (menuItem) runtime.registerMenuItem(menuItem.menuId, menuItem.index, node);
+      }}
       type="button"
       variant="ghost"
     >
@@ -318,17 +323,10 @@ function NavMenuItem({
         className="absolute right-1 top-1 h-8 min-h-8 min-w-8 px-2 py-1"
         controls={childMenuId}
         label={`Open ${item.label} submenu`}
+        menuItem={{ menuId, index: triggerIndex }}
         runtime={runtime}
       >
-        <span
-          onKeyDown={(event) => runtime.menuItemKeyDown(menuId, triggerIndex, event as unknown as React.KeyboardEvent<FocusableElement>)}
-          ref={(node) => {
-            const button = node?.closest('button') as HTMLButtonElement | null;
-            runtime.registerMenuItem(menuId, triggerIndex, button);
-          }}
-        >
-          <Chevron />
-        </span>
+        <Chevron />
       </MenuButton>
       <NavMenuList childrenItems={item.children} idSuffix={idSuffix} menuId={childMenuId} nested={nested} runtime={runtime} />
     </li>
