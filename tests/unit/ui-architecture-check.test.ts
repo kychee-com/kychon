@@ -20,6 +20,14 @@ describe('ui architecture check', () => {
       );
     }
 
+    const replaceChildrenCall = ['root.replace', 'Children(node);'].join('');
+    const domFragmentHelperCalls = ['host.replace', 'Children(node); reference.replace', 'With(node);'].join('');
+
+    expect(messages('src/lib/bad-runtime.ts', replaceChildrenCall)).toContain(
+      'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+    );
+    expect(messages('src/lib/dom-fragment.ts', domFragmentHelperCalls)).toEqual([]);
+
     expect(messages('public/js/env.js', "window.__KYCHON_API = 'https://api.run402.com';")).toEqual([]);
   });
 
@@ -81,6 +89,10 @@ describe('ui architecture check', () => {
     const createElementCall = `document.${'createElement'}('div');`;
 
     expect(messages('tests/unit/bad-fixture.test.ts', createElementCall)).toContain(
+      'Tests must use tests/helpers/dom-fixture.js instead of hand-building DOM fixtures',
+    );
+    const appendCall = ['document.body.', 'append(host);'].join('');
+    expect(messages('tests/unit/bad-append-fixture.test.ts', appendCall)).toContain(
       'Tests must use tests/helpers/dom-fixture.js instead of hand-building DOM fixtures',
     );
     expect(messages('tests/helpers/dom-fixture.js', createElementCall)).toEqual([]);
