@@ -334,6 +334,7 @@ describe('legacy static UI primitives', () => {
     expect(adminEditor).toContain('moveNodeAfter');
     expect(adminEditor).toContain('removeNode');
     expect(adminEditor).toContain('replaceNodeWith');
+    expect(adminEditor).toContain('findDescendantElementById');
     expect(adminEditor).toContain('showAdminInlineTextPrompt');
     expect(adminEditor).not.toContain('contentEditable');
     expect(adminEditor).not.toContain('MutationObserver');
@@ -341,6 +342,8 @@ describe('legacy static UI primitives', () => {
     expect(adminEditor).not.toContain('selectNodeContents');
     expect(adminEditor).not.toContain('new DOMParser()');
     expect(adminEditor).not.toContain('replaceChildren');
+    expect(adminEditor).not.toContain('.closest(');
+    expect(adminEditor).not.toContain('getElementById');
     expect(adminEditor).not.toContain('.before(');
     expect(adminEditor).not.toContain('.after(');
     expect(adminEditor).not.toContain('.replaceWith(');
