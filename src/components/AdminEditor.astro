@@ -29,6 +29,11 @@
     serializeHtmlChildren,
   } from '../lib/dom-fragment';
   import {
+    findDescendantElementById,
+    nearestElementWithAttribute,
+    nearestElementWithTagName,
+  } from '../lib/dom-structure';
+  import {
     ADMIN_ACTION_PROMPT_ACTIVATE,
     ADMIN_ACTION_PROMPT_DISMISS,
     ADMIN_ACTION_PROMPT_SHOW,
@@ -63,8 +68,12 @@
   const adminPromptActions = new Map<string, () => Promise<void>>();
   let adminPromptActionsBound = false;
 
+  function adminElementById(id: string): HTMLElement | null {
+    return findDescendantElementById(document.body, id);
+  }
+
   async function ensureAdminEditorControls(): Promise<AdminEditorControlsModule | null> {
-    const root = document.getElementById('admin-editor-controls-root');
+    const root = adminElementById('admin-editor-controls-root');
     if (!root) return null;
     adminEditorControlsPromise ??= import('./kychon/AdminEditorControlsIsland')
       .then((module) => {
@@ -80,7 +89,7 @@
   }
 
   async function ensureAdminActionPrompts(): Promise<AdminActionPromptModule | null> {
-    const root = document.getElementById('admin-editor-root');
+    const root = adminElementById('admin-editor-root');
     if (!root) return null;
     adminActionPromptPromise ??= import('./kychon/AdminActionPromptIsland')
       .then((module) => {
@@ -96,7 +105,7 @@
   }
 
   async function ensureAdminInlineTextPrompt(): Promise<AdminInlineTextPromptModule | null> {
-    const root = document.getElementById('admin-inline-text-root');
+    const root = adminElementById('admin-inline-text-root');
     if (!root) return null;
     adminInlineTextPromptPromise ??= import('./kychon/AdminInlineTextPromptIsland')
       .then((module) => {
@@ -314,7 +323,8 @@
 
   async function activateEditableText(htmlEl: HTMLElement, event: MouseEvent) {
     // Don't activate if clicking a link inside.
-    if ((event.target as HTMLElement | null)?.closest('a')) return;
+    const targetElement = event.target instanceof Element ? event.target : null;
+    if (nearestElementWithTagName(targetElement, 'a')) return;
     htmlEl.setAttribute('data-lpignore', 'true'); // prevent LastPass interference
     const attr = htmlEl.dataset.editable;
     if (!attr) return;
@@ -464,8 +474,8 @@
   }
 
   function imageUploadInput(): HTMLInputElement | null {
-    const input = document.getElementById('admin-image-upload-input') as HTMLInputElement | null;
-    if (!input) return null;
+    const input = adminElementById('admin-image-upload-input');
+    if (!(input instanceof HTMLInputElement)) return null;
     if (boundImageUploadInput !== input) {
       input.addEventListener('change', async () => {
         const file = input.files?.[0] || null;
@@ -532,8 +542,11 @@
 
   function activateEditableImage(htmlEl: HTMLElement, event: MouseEvent) {
     // Don't trigger image upload if clicking a child text-editable element.
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('[data-editable]') || target?.closest('[data-editable-rich]')) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (
+      nearestElementWithAttribute(target, 'data-editable') ||
+      nearestElementWithAttribute(target, 'data-editable-rich')
+    ) return;
     htmlEl.setAttribute('data-lpignore', 'true');
     const input = imageUploadInput();
     if (!input) {
@@ -547,36 +560,36 @@
 
   let editableDelegatesBound = false;
 
-  function closestAdminEditable(event: MouseEvent, selector: string): HTMLElement | null {
+  function adminEditableEventTarget(event: MouseEvent, attribute: string): HTMLElement | null {
     const target = event.target;
     if (!(target instanceof Element)) return null;
-    return target.closest(selector) as HTMLElement | null;
+    return nearestElementWithAttribute(target, attribute);
   }
 
   function initEditableDelegates() {
     if (editableDelegatesBound) return;
     editableDelegatesBound = true;
     document.addEventListener('click', (event) => {
-      const richEl = closestAdminEditable(event, '[data-editable-rich]');
+      const richEl = adminEditableEventTarget(event, 'data-editable-rich');
       if (richEl) {
         void activateEditableRich(richEl);
         return;
       }
 
-      const textEl = closestAdminEditable(event, '[data-editable]');
+      const textEl = adminEditableEventTarget(event, 'data-editable');
       if (textEl) {
         void activateEditableText(textEl, event);
         return;
       }
 
-      const imageEl = closestAdminEditable(event, '[data-editable-image]');
+      const imageEl = adminEditableEventTarget(event, 'data-editable-image');
       if (imageEl) activateEditableImage(imageEl, event);
     });
   }
 
   // --- Drag-to-reorder (document-level, supports cross-zone) ---
   // composable-layout: one document-level handler. Source zone is determined
-  // from `closest('[data-zone]')`; target zone the same. Cross-zone drops PATCH
+  // from the nearest structural data-zone ancestor; target zone the same. Cross-zone drops PATCH
   // both `zone` and `position` together. Empty zones acquire a "Drop here"
   // placeholder via the body data-admin-dragging state (CSS rule below).
   let draggedEl: HTMLElement | null = null;
@@ -585,11 +598,11 @@
   let sourceItemHost: HTMLElement | null = null;
 
   function indicatorHost(): HTMLElement | null {
-    return document.getElementById('admin-editor-root');
+    return adminElementById('admin-editor-root');
   }
 
   function getDropIndicator(): HTMLElement | null {
-    dropIndicator ??= document.getElementById('admin-editor-drop-indicator');
+    dropIndicator ??= adminElementById('admin-editor-drop-indicator');
     return dropIndicator;
   }
 
@@ -610,8 +623,7 @@
   }
 
   function findZoneContainer(el: Element | null): HTMLElement | null {
-    if (!el) return null;
-    return (el.closest('[data-zone]') as HTMLElement | null);
+    return nearestElementWithAttribute(el, 'data-zone');
   }
 
   function findZoneItemHost(zone: HTMLElement): HTMLElement {
@@ -631,7 +643,7 @@
   }
 
   function startDragFromHandle(handle: HTMLElement, event: DragEvent) {
-    const el = handle.closest('[data-sortable-id]') as HTMLElement | null;
+    const el = nearestElementWithAttribute(handle, 'data-sortable-id');
     if (!el) return;
     if (!event.dataTransfer) return;
     draggedEl = el;
@@ -651,14 +663,14 @@
     document.addEventListener('dragstart', (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      const handle = target.closest('[data-admin-drag-handle]') as HTMLElement | null;
+      const handle = nearestElementWithAttribute(target, 'data-admin-drag-handle');
       if (!handle) return;
       startDragFromHandle(handle, event);
     });
 
     document.addEventListener('dragover', (e) => {
       if (!draggedEl) return;
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof Element ? e.target : null;
       const zone = findZoneContainer(target);
       if (!zone) return;
       e.preventDefault();
@@ -667,7 +679,7 @@
       const indicator = ensureIndicator();
       if (!indicator) return;
       const itemHost = findZoneItemHost(zone);
-      const overItem = (target?.closest('[data-sortable-id]') as HTMLElement | null);
+      const overItem = nearestElementWithAttribute(target, 'data-sortable-id');
       if (overItem && overItem !== draggedEl && itemHost.contains(overItem)) {
         const rect = overItem.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
@@ -685,7 +697,7 @@
 
     document.addEventListener('drop', async (e) => {
       if (!draggedEl) return;
-      const targetZoneEl = findZoneContainer(e.target as HTMLElement | null);
+      const targetZoneEl = findZoneContainer(e.target instanceof Element ? e.target : null);
       const indicator = dropIndicator;
       if (!targetZoneEl || !indicator || !indicator.parentElement) {
         cleanupDrag();
@@ -804,7 +816,7 @@
       Object.keys(localStorage)
         .filter((k) => k.startsWith('wl_cache_sections_'))
         .forEach((k) => localStorage.removeItem(k));
-      const section = removeBtn.closest('[data-sortable-id]');
+      const section = nearestElementWithAttribute(removeBtn, 'data-sortable-id');
       if (section) removeNode(section);
       showToast('Section removed');
       emitSectionsChanged();
@@ -831,28 +843,28 @@
     }
   }
 
-  function closestAdminAction(event: MouseEvent, selector: string): HTMLElement | null {
+  function adminActionEventTarget(event: MouseEvent, attribute: string): HTMLElement | null {
     const target = event.target;
     if (!(target instanceof Element)) return null;
-    return target.closest(selector) as HTMLElement | null;
+    return nearestElementWithAttribute(target, attribute);
   }
 
   async function handleAdminActionClick(event: MouseEvent) {
-    const removeBtn = closestAdminAction(event, '[data-section-remove]');
+    const removeBtn = adminActionEventTarget(event, 'data-section-remove');
     if (removeBtn) {
       event.preventDefault();
       await activateSectionRemove(removeBtn);
       return;
     }
 
-    const scopeBtn = closestAdminAction(event, '[data-scope-toggle]');
+    const scopeBtn = adminActionEventTarget(event, 'data-scope-toggle');
     if (scopeBtn) {
       event.preventDefault();
       await activateScopeToggle(scopeBtn);
       return;
     }
 
-    const addBtn = closestAdminAction(event, '[data-zone-add]');
+    const addBtn = adminActionEventTarget(event, 'data-zone-add');
     if (addBtn) {
       event.preventDefault();
       const zone = addBtn.dataset.zoneAdd as 'header' | 'main' | 'footer' | undefined;
@@ -860,7 +872,7 @@
       return;
     }
 
-    const editBtn = closestAdminAction(event, '[data-section-edit]');
+    const editBtn = adminActionEventTarget(event, 'data-section-edit');
     if (editBtn) {
       event.preventDefault();
       const id = parseInt(editBtn.dataset.sectionEdit || '', 10);
@@ -868,7 +880,7 @@
       return;
     }
 
-    const navBtn = closestAdminAction(event, '[data-nav-edit]');
+    const navBtn = adminActionEventTarget(event, 'data-nav-edit');
     if (navBtn) {
       event.preventDefault();
       const sectionId = parseInt(navBtn.dataset.navEdit || '', 10);
@@ -876,7 +888,7 @@
       return;
     }
 
-    const embedBtn = closestAdminAction(event, '[data-embed-edit]');
+    const embedBtn = adminActionEventTarget(event, 'data-embed-edit');
     if (embedBtn) {
       event.preventDefault();
       event.stopPropagation();
