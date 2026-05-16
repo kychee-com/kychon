@@ -16,7 +16,7 @@ import {
   Input,
   Label,
 } from '@/components/kychon/ui';
-import { revealAdminContent, showAdminAccessDenied } from '@/lib/admin-access';
+import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
 import { count, get, patch } from '@/lib/api';
 import {
   getCurrentUser,
@@ -133,6 +133,7 @@ function EmptyState({ children }: { children: string }) {
 }
 
 export default function AdminDashboardApp() {
+  const [accessState, setAccessState] = useState<AdminAccessState>('checking');
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState('');
   const [stats, setStats] = useState<DashboardStat[]>([]);
@@ -296,16 +297,17 @@ export default function AdminDashboardApp() {
   async function loadDashboard() {
     setLoading(true);
     setFatalError('');
+    setAccessState('checking');
 
     try {
       await ready;
       await refreshMemberRecord();
       if (!isAdmin()) {
-        showAdminAccessDenied();
+        setAccessState('denied');
         return;
       }
 
-      revealAdminContent();
+      setAccessState('allowed');
 
       const hasChecklist = await loadFreshStartChecklist();
       setShowAccountSecurity(hasChecklist);
@@ -316,6 +318,7 @@ export default function AdminDashboardApp() {
 
       await Promise.all([loadStats(), loadActivity(), aiModerationEnabled ? loadModerationQueue() : Promise.resolve()]);
     } catch (error) {
+      setAccessState('allowed');
       setFatalError(formatError(error, 'Could not load the admin dashboard.'));
     } finally {
       setLoading(false);
@@ -425,27 +428,35 @@ export default function AdminDashboardApp() {
     }
   }
 
+  if (accessState !== 'allowed') {
+    return <AdminAccessGate state={accessState}>{null}</AdminAccessGate>;
+  }
+
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          Loading dashboard...
-        </CardContent>
-      </Card>
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            Loading dashboard...
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (fatalError) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>{fatalError}</AlertDescription>
-      </Alert>
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Alert variant="destructive">
+          <AlertDescription>{fatalError}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div>
         <h2 className="text-2xl font-semibold tracking-normal">Dashboard</h2>
       </div>

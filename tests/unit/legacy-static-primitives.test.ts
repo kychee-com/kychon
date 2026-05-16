@@ -15,8 +15,8 @@ const PUBLIC_ZONE_GRID_STYLES = resolve(process.cwd(), 'public/css/zone-grid.css
 const A11Y_STYLES = resolve(process.cwd(), 'src/styles/a11y.css');
 const PUBLIC_A11Y_STYLES = resolve(process.cwd(), 'public/css/a11y.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
+const ADMIN_ACCESS_GATE = resolve(process.cwd(), 'src/components/kychon/AdminAccessGate.tsx');
 const CONFIG = resolve(process.cwd(), 'src/lib/config.ts');
-const ADMIN_ACCESS = resolve(process.cwd(), 'src/lib/admin-access.ts');
 const PORTAL = resolve(process.cwd(), 'src/layouts/Portal.astro');
 const PAGE_RENDER = resolve(process.cwd(), 'src/lib/page-render.ts');
 const SANITIZE_HTML = resolve(process.cwd(), 'src/lib/sanitize-html.ts');
@@ -81,8 +81,8 @@ describe('legacy static UI primitives', () => {
     const a11yStyles = await readFile(A11Y_STYLES, 'utf8');
     const publicA11yStyles = await readFile(PUBLIC_A11Y_STYLES, 'utf8');
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
+    const adminAccessGate = await readFile(ADMIN_ACCESS_GATE, 'utf8');
     const config = await readFile(CONFIG, 'utf8');
-    const adminAccess = await readFile(ADMIN_ACCESS, 'utf8');
     const portal = await readFile(PORTAL, 'utf8');
     const pageRender = await readFile(PAGE_RENDER, 'utf8');
     const sanitizeHtml = await readFile(SANITIZE_HTML, 'utf8');
@@ -251,8 +251,10 @@ describe('legacy static UI primitives', () => {
     expect(adminEditor).not.toContain('.replaceWith(');
     expect(adminEditor).not.toContain('.remove(');
     expect(adminEditor).not.toContain('ky-container');
-    expect(adminAccess).toContain("import { removeNode } from './dom-fragment'");
-    expect(adminAccess).not.toContain('.remove(');
+    expect(adminAccessGate).toContain('AdminAccessShellView');
+    expect(adminAccessGate).toContain('AuthGate');
+    expect(adminAccessGate).not.toContain('querySelector');
+    expect(adminAccessGate).not.toContain('data-admin-content');
     expect(domFragment).toContain('function domParserCtor');
     expect(domFragment).toContain('new parserCtor()');
     expect(domFragment).toContain('replaceChildren');
@@ -283,6 +285,8 @@ describe('legacy static UI primitives', () => {
     expect(uiCaptureRoutes).toContain('[data-events-page] [data-event-card]');
     expect(uiCaptureRoutes).toContain('[data-resources-page] [data-resource-card]');
     expect(uiCaptureRoutes).toContain('[data-forum-page] [data-forum-category-card]');
+    expect(uiCaptureRoutes).toContain('Site Settings');
+    expect(uiCaptureRoutes).not.toContain('data-admin-content');
     expect(uiCaptureRoutes.indexOf("context.route('**/functions/v1/**'")).toBeLessThan(
       uiCaptureRoutes.indexOf("context.route('**/functions/v1/kychon-api'"),
     );

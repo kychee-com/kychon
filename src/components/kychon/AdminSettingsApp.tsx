@@ -28,7 +28,7 @@ import {
   SelectValue,
   Textarea,
 } from '@/components/kychon/ui';
-import { showAdminAccessDenied, revealAdminContent } from '@/lib/admin-access';
+import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
 import { del, get, patch, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
@@ -402,6 +402,7 @@ function SectionError({ message }: { message?: string }) {
 }
 
 export default function AdminSettingsApp() {
+  const [accessState, setAccessState] = useState<AdminAccessState>('checking');
   const [config, setConfig] = useState<ConfigMap>({});
   const [branding, setBranding] = useState<BrandingForm>(EMPTY_BRANDING);
   const [theme, setTheme] = useState<ThemeForm>(EMPTY_THEME);
@@ -453,15 +454,16 @@ export default function AdminSettingsApp() {
   async function loadSettings() {
     setLoading(true);
     setFatalError('');
+    setAccessState('checking');
 
     try {
       await ready;
       await refreshMemberRecord();
       if (!isAdmin()) {
-        showAdminAccessDenied();
+        setAccessState('denied');
         return;
       }
-      revealAdminContent();
+      setAccessState('allowed');
 
       const [configRows, tierRows, fieldRows] = await Promise.all([
         get('site_config'),
@@ -479,6 +481,7 @@ export default function AdminSettingsApp() {
       setFields(fieldRows);
       await loadAiActivity();
     } catch (error) {
+      setAccessState('allowed');
       setFatalError(formatError(error));
     } finally {
       setLoading(false);
@@ -735,8 +738,12 @@ export default function AdminSettingsApp() {
 
   const tierBenefits = normalizeBenefits(editingTier?.benefits);
 
+  if (accessState !== 'allowed') {
+    return <AdminAccessGate state={accessState}>{null}</AdminAccessGate>;
+  }
+
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4 py-6">
+    <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-14 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold tracking-normal">Site Settings</h2>
         {loading ? (

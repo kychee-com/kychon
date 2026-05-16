@@ -29,23 +29,22 @@ describe('React page shells', () => {
     expect(source).not.toContain('<script>');
   });
 
-  it('keeps the admin access shell selector without legacy card/container classes', () => {
-    const source = read('src/components/AdminAccessShell.astro');
+  it('keeps the admin access gate on React/shadcn without legacy card/container classes', () => {
+    const gate = read('src/components/kychon/AdminAccessGate.tsx');
     const view = read('src/components/kychon/AdminAccessShellView.tsx');
     const styles = read('src/styles/public.css');
 
-    expect(source).toContain('AdminAccessShellView');
-    expect(source).not.toContain('<script>');
-    expect(source).not.toContain('class=');
-    expect(source).not.toContain('rounded-lg');
-    expect(source).not.toContain('border bg-card');
+    expect(gate).toContain('AdminAccessShellView');
+    expect(gate).toContain('AuthGate');
+    expect(gate).not.toContain('querySelector');
+    expect(gate).not.toContain('data-admin-content');
     expect(view).toContain('data-admin-access-checking');
     expect(view).toContain('@/components/kychon/ui');
     expect(view).toContain('Card');
     expect(view).toContain('LoaderCircle');
-    expect(source).not.toContain('ky-container');
-    expect(source).not.toContain('class="card');
-    expect(source).not.toContain('admin-access-check__');
+    expect(gate).not.toContain('ky-container');
+    expect(gate).not.toContain('class="card');
+    expect(gate).not.toContain('admin-access-check__');
     expect(styles).not.toContain('admin-access-check');
     expect(styles).not.toContain('admin-access-spin');
   });
