@@ -617,10 +617,10 @@
   function findZoneItemHost(zone: HTMLElement): HTMLElement {
     // Header / footer: the inner constrained container holds blocks. Main: the #sections
     // child or the page <main> itself.
-    const inner = zone.querySelector(':scope > [data-layout-container]') as HTMLElement | null;
-    if (inner) return inner;
-    const sections = zone.querySelector('#sections') as HTMLElement | null;
-    if (sections) return sections;
+    for (const child of Array.from(zone.children)) {
+      if (!(child instanceof HTMLElement)) continue;
+      if (child.hasAttribute('data-layout-container') || child.id === 'sections') return child;
+    }
     return zone;
   }
 

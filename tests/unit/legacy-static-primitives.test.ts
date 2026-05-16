@@ -299,7 +299,10 @@ describe('legacy static UI primitives', () => {
     expect(pageRender).not.toContain('new DOMParser()');
     expect(pageRender).not.toContain('replaceChildren');
     expect(pageRender).not.toContain('ky-container');
-    expect(adminEditor).toContain(':scope > [data-layout-container]');
+    expect(adminEditor).toContain("child.hasAttribute('data-layout-container')");
+    expect(adminEditor).toContain("child.id === 'sections'");
+    expect(adminEditor).not.toContain(':scope > [data-layout-container]');
+    expect(adminEditor).not.toContain("querySelector('#sections')");
     expect(adminEditor).toContain('../lib/dom-fragment');
     expect(adminEditor).toContain('moveNodeBefore');
     expect(adminEditor).toContain('moveNodeAfter');
