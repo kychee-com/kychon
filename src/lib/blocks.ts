@@ -3,10 +3,7 @@
 // strings. Dynamic blocks emit a skeleton at bake time and a per-type
 // `hydrate(el, ctx)` is called at runtime to fetch data and replace the body.
 
-import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
-import { Button } from '@/components/kychon/ui';
 import {
   renderMarketingBlockHtml,
   renderPageBannerBlockHtml,
@@ -27,6 +24,7 @@ import {
 import { constrainedContainerClass } from './ui/container.js';
 import { richTextContentClass } from './ui/rich-text.js';
 import { sanitizeRichHtmlServer } from './sanitize-html.js';
+import { renderStaticLinkButtonHtml } from './static-link-button.js';
 import {
   adminDragHandleHtml,
   adminNavEditButtonHtml,
@@ -536,35 +534,22 @@ function sanitizeHref(href: string): string {
   return '';
 }
 
-type DataAttributes = Record<`data-${string}`, string | number | boolean | undefined>;
-type StaticAnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & DataAttributes;
-
 function renderShadcnLinkButton(
   section: Section,
   ctx: BlockRenderContext,
   href: unknown,
   text: unknown,
   editableConfigPath: string,
-  dataAttrs: DataAttributes = {},
+  dataAttrs: Record<`data-${string}`, string | number | boolean | undefined> = {},
 ): string {
-  const anchorProps: StaticAnchorProps = {
+  return renderStaticLinkButtonHtml({
+    className: 'mt-2',
+    dataAttrs,
+    editablePath: editablePath(section, editableConfigPath, ctx),
     href: cleanHref(href, '#'),
-    ...dataAttrs,
-  };
-  const path = editablePath(section, editableConfigPath, ctx);
-  if (path) anchorProps['data-editable'] = path;
-
-  return renderToStaticMarkup(
-    React.createElement(
-      Button,
-      {
-        asChild: true,
-        className: 'mt-2',
-        size: 'lg',
-      },
-      React.createElement('a', anchorProps, String(text ?? '')),
-    ),
-  );
+    size: 'lg',
+    text: String(text ?? ''),
+  });
 }
 
 function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string {

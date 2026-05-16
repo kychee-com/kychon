@@ -172,11 +172,13 @@ describe('social_links block rendering', () => {
 
   it('keeps retired social link classes out of source CSS and renderer', () => {
     const styles = readFileSync('src/styles/public.css', 'utf8');
-    const renderer = readFileSync('src/lib/blocks/social-links.ts', 'utf8');
+    const renderer = readFileSync('src/lib/blocks/social-links.tsx', 'utf8');
 
     expect(renderer).toContain('@/components/kychon/ui');
-    expect(renderer).toContain('Button');
+    expect(renderer).toContain('<Button');
+    expect(renderer).toContain('<svg');
     expect(renderer).toContain('renderToStaticMarkup');
+    expect(renderer).not.toContain('React.createElement');
     expect(renderer).not.toContain('buttonVariants');
     expect(styles).not.toContain('block-social-links');
     expect(renderer).not.toContain('block-social-links');

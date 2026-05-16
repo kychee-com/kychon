@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderBlock, type Section, sanitizeCaptionHtml } from '../../src/lib/blocks.ts';
 
 const blocksSource = readFileSync('src/lib/blocks.ts', 'utf8');
+const staticLinkButtonSource = readFileSync('src/lib/static-link-button.tsx', 'utf8');
 
 const baseCtx: BlockRenderContext = {
   admin: false,
@@ -28,9 +29,13 @@ function heroSection(config: Record<string, unknown>, id = 1): Section {
 
 describe('hero renderer — background mode (existing behavior)', () => {
   it('renders CTA links through the shared Button component renderer', () => {
-    expect(blocksSource).toContain('@/components/kychon/ui');
-    expect(blocksSource).toContain('renderToStaticMarkup');
-    expect(blocksSource).toContain('React.createElement');
+    expect(blocksSource).toContain('renderStaticLinkButtonHtml');
+    expect(staticLinkButtonSource).toContain('@/components/kychon/ui');
+    expect(staticLinkButtonSource).toContain('<Button');
+    expect(staticLinkButtonSource).toContain('renderToStaticMarkup');
+    expect(staticLinkButtonSource).not.toContain('React.createElement');
+    expect(blocksSource).not.toContain('renderToStaticMarkup');
+    expect(blocksSource).not.toContain('React.createElement');
     expect(blocksSource).not.toContain('buttonVariants');
   });
 

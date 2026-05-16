@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks.ts';
 
 const ROOT = process.cwd();
-const HELPER = resolve(ROOT, 'src/lib/admin-action-controls.ts');
+const HELPER = resolve(ROOT, 'src/lib/admin-action-controls.tsx');
 const BLOCK_RENDERERS = [
   resolve(ROOT, 'src/lib/blocks.ts'),
   resolve(ROOT, 'src/lib/blocks/embed.ts'),
-  resolve(ROOT, 'src/lib/blocks/social-links.ts'),
+  resolve(ROOT, 'src/lib/blocks/social-links.tsx'),
 ];
 const ADMIN_EDITOR = resolve(ROOT, 'src/components/AdminEditor.astro');
 const ADMIN_ACTION_PROMPT = resolve(ROOT, 'src/components/kychon/AdminActionPromptIsland.tsx');
@@ -42,7 +42,8 @@ describe('admin action controls source', () => {
 
     expect(helper).toContain('@/components/kychon/ui');
     expect(helper).toContain('renderToStaticMarkup');
-    expect(helper).toContain('React.createElement');
+    expect(helper).toContain('<Button');
+    expect(helper).toContain('<Badge');
     expect(helper).toContain('Button');
     expect(helper).toContain('Badge');
     expect(helper).toContain('lucide-react');
@@ -55,6 +56,7 @@ describe('admin action controls source', () => {
     expect(helper).toContain('data-scope-toggle');
     expect(helper).toContain('data-admin-scope-pill');
     expect(helper).not.toContain('<button');
+    expect(helper).not.toContain('React.createElement');
     expect(helper).not.toContain('buttonVariants');
     expect(helper).not.toContain('badgeVariants');
   });

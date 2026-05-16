@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { ComponentProps, ComponentType, ReactElement, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { GripVertical, Pencil, Settings, X } from 'lucide-react';
 
@@ -23,24 +24,29 @@ const navEditButtonClass =
 
 const sectionActionsClass = 'absolute left-2 top-2 z-10 hidden gap-1 [[data-admin=true]_[data-sortable-group]>[data-sortable-id]:hover>&]:flex';
 
-type IconComponent = React.ComponentType<{
+type IconComponent = ComponentType<{
   'aria-hidden'?: boolean;
   className?: string;
 }>;
 type DataAttributes = Record<`data-${string}`, string | number | boolean | undefined>;
-type StaticButtonProps = React.ComponentProps<typeof Button> & DataAttributes;
-type StaticBadgeProps = React.ComponentProps<typeof Badge> & DataAttributes;
+type StaticButtonProps = ComponentProps<typeof Button> & DataAttributes;
+type StaticBadgeProps = ComponentProps<typeof Badge> & DataAttributes;
 
-function icon(Icon: IconComponent): React.ReactElement {
-  return React.createElement(Icon, { 'aria-hidden': true, className: 'h-4 w-4' });
+function icon(Icon: IconComponent): ReactElement {
+  return <Icon aria-hidden={true} className="h-4 w-4" />;
 }
 
-function buttonHtml(props: StaticButtonProps, ...children: React.ReactNode[]): string {
-  return renderToStaticMarkup(React.createElement(Button, props, ...children));
+function staticChildren(children: ReactNode[]): ReactNode {
+  if (children.length === 1) return children[0];
+  return children.map((child, index) => <React.Fragment key={index}>{child}</React.Fragment>);
 }
 
-function badgeHtml(props: StaticBadgeProps, ...children: React.ReactNode[]): string {
-  return renderToStaticMarkup(React.createElement(Badge, props, ...children));
+function buttonHtml(props: StaticButtonProps, ...children: ReactNode[]): string {
+  return renderToStaticMarkup(<Button {...props}>{staticChildren(children)}</Button>);
+}
+
+function badgeHtml(props: StaticBadgeProps, ...children: ReactNode[]): string {
+  return renderToStaticMarkup(<Badge {...props}>{staticChildren(children)}</Badge>);
 }
 
 export function adminScopePillHtml(): string {
