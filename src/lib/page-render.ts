@@ -77,6 +77,66 @@ function getRenderContext(): BlockRenderContext {
   };
 }
 
+function isHtmlElement(el: Element | null): el is HTMLElement {
+  return el instanceof HTMLElement;
+}
+
+function directElementChildren(parent: Element | null): HTMLElement[] {
+  if (!parent) return [];
+  return Array.from(parent.children).filter(isHtmlElement);
+}
+
+function findDirectElementChild(
+  parent: Element | null,
+  predicate: (child: HTMLElement) => boolean,
+): HTMLElement | null {
+  return directElementChildren(parent).find(predicate) ?? null;
+}
+
+function findDescendantElement(
+  parent: Element | null,
+  predicate: (child: HTMLElement) => boolean,
+): HTMLElement | null {
+  for (const child of directElementChildren(parent)) {
+    if (predicate(child)) return child;
+    const nested = findDescendantElement(child, predicate);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function collectDescendantElements(
+  root: HTMLElement,
+  predicate: (child: HTMLElement) => boolean,
+  matches: HTMLElement[],
+): void {
+  if (predicate(root)) matches.push(root);
+  for (const child of directElementChildren(root)) collectDescendantElements(child, predicate, matches);
+}
+
+function findHeaderFullBleedHost(zoneRoot: HTMLElement): HTMLElement | null {
+  const next = zoneRoot.nextElementSibling;
+  if (
+    isHtmlElement(next) &&
+    next.hasAttribute('data-fullbleed-host') &&
+    next.dataset.zoneFullbleed === 'header'
+  ) {
+    return next;
+  }
+  return findDirectElementChild(
+    zoneRoot.parentElement,
+    (child) => child.hasAttribute('data-fullbleed-host') && child.dataset.zoneFullbleed === 'header',
+  );
+}
+
+function hydrateHosts(): HTMLElement[] {
+  const body = document.body;
+  if (!body) return [];
+  const hosts: HTMLElement[] = [];
+  collectDescendantElements(body, (el) => el.hasAttribute('data-block-hydrate'), hosts);
+  return hosts;
+}
+
 function renderZoneInto(
   zone: 'header' | 'main' | 'footer',
   sections: Section[],
@@ -88,7 +148,7 @@ function renderZoneInto(
   const container =
     zone === 'main'
       ? (document.getElementById('main-content') as HTMLElement | null)
-      : (containerWrapper?.querySelector('[data-layout-container]') as HTMLElement | null);
+      : findDirectElementChild(containerWrapper, (child) => child.hasAttribute('data-layout-container'));
   if (!container) return;
 
   const filtered = sections
@@ -100,8 +160,8 @@ function renderZoneInto(
     // Main is the page slot — only replace the existing #sections / page-section
     // children if the page wants schema-driven sections. We don't blow away
     // the entire <main> because pages own arbitrary content there.
-    const sectionsHost = document.getElementById('sections') || container;
-    if (sectionsHost === container) {
+    const sectionsHost = findDescendantElement(container, (child) => child.id === 'sections');
+    if (!sectionsHost) {
       // No #sections host — pages opting out of zone main rendering.
       return;
     }
@@ -129,11 +189,10 @@ function renderZoneInto(
   // otherwise a page banner would stay stuck to the viewport while scrolling.
   // Footer full-bleed blocks can remain inside the footer wrapper.
   if (containerWrapper) {
-    const headerBleedSelector = '[data-fullbleed-host][data-zone-fullbleed="header"]';
     const bleedHost =
       zone === 'header'
-        ? (document.querySelector(headerBleedSelector) as HTMLElement | null)
-        : containerWrapper.querySelector<HTMLElement>('[data-fullbleed-host]');
+        ? findHeaderFullBleedHost(containerWrapper)
+        : findDirectElementChild(containerWrapper, (child) => child.hasAttribute('data-fullbleed-host'));
     if (fullBleedBlocks.length > 0) {
       if (bleedHost) {
         const bleedHtml = fullBleedBlocks.map((s) => renderBlock(s, ctx)).join('');
@@ -169,8 +228,7 @@ function findSectionForElement(el: HTMLElement, sections: Section[]): Section | 
 
 async function hydrateDynamic(sections: Section[], ctx: BlockRenderContext): Promise<void> {
   // Find every block container that has an outstanding hydrate hook and run it.
-  const hosts = document.querySelectorAll<HTMLElement>('[data-block-hydrate]');
-  for (const host of hosts) {
+  for (const host of hydrateHosts()) {
     const blockType = host.getAttribute('data-block-hydrate');
     if (!blockType) continue;
     const type = BLOCK_TYPES[blockType];
