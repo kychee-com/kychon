@@ -425,6 +425,15 @@
     return !!target && target.table === 'site_config' && target.id === 'brand_icon_url';
   }
 
+  function editableImageElement(el: Element): HTMLImageElement | null {
+    if (el instanceof HTMLImageElement) return el;
+    for (const child of Array.from(el.children)) {
+      const found = editableImageElement(child);
+      if (found) return found;
+    }
+    return null;
+  }
+
   function showWordmarkHint(htmlEl: HTMLElement, savedUrl: string, dims: { width: number; height: number }) {
     void showAdminActionPrompt({
       id: nextPromptId('wordmark'),
@@ -444,7 +453,7 @@
         showToast('Saved to brand_wordmark_url');
         // Remove the now-orphan icon image so the chrome re-renders cleanly
         // on next hydration.
-        const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
+        const img = editableImageElement(htmlEl);
         if (img) img.removeAttribute('src');
         emitSectionsChanged();
       } catch (e) {
@@ -492,7 +501,7 @@
       });
 
       // Update the image element
-      const img = htmlEl.tagName === 'IMG' ? htmlEl as HTMLImageElement : htmlEl.querySelector('img');
+      const img = editableImageElement(htmlEl);
       if (img) img.src = url;
 
       // Save URL to database
