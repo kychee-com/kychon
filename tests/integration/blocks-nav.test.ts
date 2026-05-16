@@ -89,15 +89,27 @@ describe('nav block — flat behavior preserved', () => {
     expect(html).toContain('id="nav-links-overflow-menu"');
     expect(view).toContain('<Button');
     expect(view).toContain('Menu');
+    expect(view).toContain('data-nav-trigger');
+    expect(view).toContain('data-nav-menu');
+    expect(view).toContain('data-nav-menuitem');
+    expect(view).toContain('data-nav-toggle');
+    expect(view).toContain('data-nav-overflow-menu');
     expect(runtime).not.toContain('document.createElement');
     expect(runtime).not.toContain("className = 'nav-overflow-menu'");
     expect(runtime).not.toContain('appendChild');
     expect(runtime).not.toContain('cloneNode');
     expect(runtime).not.toContain('replaceChildren');
     expect(runtime).not.toContain('.append(');
+    expect(runtime).not.toContain('classList');
+    expect(runtime).not.toMatch(/['"]\\.nav/);
     expect(runtime).not.toContain('nav--source-mobile');
     expect(runtime).not.toContain('nav--overflow');
     expect(runtime).not.toContain('nav-overflow-item');
+    expect(runtime).toContain('[data-nav-trigger]');
+    expect(runtime).toContain('[data-nav-menu]');
+    expect(runtime).toContain('[data-nav-links]');
+    expect(runtime).toContain('[data-nav-toggle]');
+    expect(runtime).toContain('[data-nav-overflow-menu]');
     expect(view).not.toContain('nav--source-mobile');
     expect(styles).not.toContain('nav--source-mobile');
     expect(styles).not.toContain('nav--overflow');
@@ -227,7 +239,10 @@ describe('nav block — nested children', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    expect(html).toMatch(/<a class="nav-link nav-parent[^"]*" href="\/marina">/);
+    const root = renderInto(`<div>${html}</div>`);
+    const parentLink = root.querySelector('[data-nav-link][href="/marina"]') as HTMLElement;
+    expect(parentLink).toBeTruthy();
+    expect(parentLink.className).toContain('nav-parent');
     expect(html).toContain('nav-chevron-toggle');
   });
 
@@ -416,6 +431,37 @@ describe('nav block — runtime keyboard + click', () => {
     chevron.click();
     expect(menu.hasAttribute('hidden')).toBe(false);
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('binds dropdown behavior through data attributes rather than nav classes', () => {
+    document.body.innerHTML = '';
+    (window as NavDropdownTestWindow).__navDropdownClickBound = false;
+    const section = makeSection([
+      {
+        label: 'Resources',
+        children: [{ label: 'Guides', href: '/guides' }],
+      },
+    ]);
+    document.body.innerHTML = `<nav id="zone-header"><div data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
+    document.querySelectorAll<HTMLElement>('[class*="nav-"]').forEach((el) => {
+      el.className = el.className
+        .split(/\s+/)
+        .filter((className) => !className.startsWith('nav-'))
+        .join(' ');
+    });
+    const links = document.getElementById('nav-links') as HTMLElement;
+    bindNavDropdowns(links);
+
+    const trigger = links.querySelector('[data-nav-trigger]') as HTMLElement;
+    const menu = document.getElementById(trigger.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(menu.hasAttribute('hidden')).toBe(true);
+    trigger.click();
+    expect(menu.hasAttribute('hidden')).toBe(false);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const toggle = document.querySelector('[data-nav-toggle]') as HTMLElement;
+    toggle.click();
+    expect(links.dataset.navMobileOpen).toBe('true');
   });
 
   it('clicking a hover-open parent pins it open instead of closing it', () => {

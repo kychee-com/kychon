@@ -89,7 +89,7 @@ const cspValue = buildCspValue();
   >Skip to main content</a>
   {renderDemoBanner && <DemoBanner />}
   <div class="flex min-h-screen flex-col">
-    <nav id="zone-header" class="nav" data-zone="header" aria-label="Primary navigation" transition:persist>
+    <nav id="zone-header" class="nav" data-nav-shell data-zone="header" aria-label="Primary navigation" transition:persist>
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>
       <AdminZoneAddButton zone="header" />
     </nav>

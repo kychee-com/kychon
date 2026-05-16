@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   AlertDescription,
-  badgeVariants,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -237,7 +237,7 @@ export default function DirectoryPageApp() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-foreground">{member.display_name}</span>
                   <span className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                    {member.tier_name ? <span className={badgeVariants({ variant: 'secondary' })}>{member.tier_name}</span> : null}
+                    {member.tier_name ? <Badge variant="secondary">{member.tier_name}</Badge> : null}
                     <span>{formatDate(member.joined_at) ? `Joined ${formatDate(member.joined_at)}` : 'Member'}</span>
                   </span>
                 </span>

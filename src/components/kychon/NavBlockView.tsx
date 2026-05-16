@@ -84,6 +84,7 @@ function MenuButton({
         className,
         active ? 'active' : '',
       )}
+      data-nav-trigger=""
       type="button"
       variant="ghost"
     >
@@ -96,7 +97,7 @@ function NavMenuItem({ idSuffix, item, nested = false }: { idSuffix?: string; it
   if (!item.children.length) {
     return (
       <li role="none">
-        <a className={cn(navMenuItemClass, item.active ? 'active bg-primary/10 text-primary' : '')} href={item.href} role="menuitem">
+        <a className={cn(navMenuItemClass, item.active ? 'active bg-primary/10 text-primary' : '')} data-nav-menuitem="" href={item.href} role="menuitem">
           {item.label}
         </a>
       </li>
@@ -106,9 +107,9 @@ function NavMenuItem({ idSuffix, item, nested = false }: { idSuffix?: string; it
   const baseMenuId = item.menuId || `nav-menu-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const menuId = suffixedMenuId(baseMenuId, idSuffix);
   return (
-    <li className="nav-dropdown-parent relative list-none" role="none">
+    <li className="nav-dropdown-parent relative list-none" data-nav-dropdown-parent="" role="none">
       {item.hasHref ? (
-        <a className={cn(navMenuItemClass, item.active ? 'active bg-primary/10 text-primary' : '')} href={item.href} role="menuitem">
+        <a className={cn(navMenuItemClass, item.active ? 'active bg-primary/10 text-primary' : '')} data-nav-menuitem="" href={item.href} role="menuitem">
           {item.label}
         </a>
       ) : (
@@ -117,7 +118,7 @@ function NavMenuItem({ idSuffix, item, nested = false }: { idSuffix?: string; it
       <MenuButton className="nav-chevron-toggle absolute right-1 top-1 h-8 min-h-8 min-w-8 px-2 py-1" controls={menuId} label={`Open ${item.label} submenu`}>
         <Chevron />
       </MenuButton>
-      <ul className={nested ? nestedMenuListClass : menuListClass} role="menu" hidden id={menuId}>
+      <ul className={nested ? nestedMenuListClass : menuListClass} data-nav-menu="" data-nav-nested-menu={nested ? '' : undefined} role="menu" hidden id={menuId}>
         {item.children.map((child) => (
           <NavMenuItem idSuffix={idSuffix} item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
         ))}
@@ -136,7 +137,7 @@ function NavTopItem({ item, index, overflowCopy = false }: { item: NavBlockItem;
 
   if (!item.children.length) {
     return (
-      <a className={cn('nav-link', item.active ? 'active' : '')} href={item.href} {...indexAttrs}>
+      <a className={cn('nav-link', item.active ? 'active' : '')} data-nav-link="" href={item.href} {...indexAttrs}>
         {item.label}
       </a>
     );
@@ -145,7 +146,7 @@ function NavTopItem({ item, index, overflowCopy = false }: { item: NavBlockItem;
   const baseMenuId = item.menuId || `nav-menu-top-${index}`;
   const menuId = suffixedMenuId(baseMenuId, idSuffix);
   const childList = (
-    <ul className={menuListClass} role="menu" hidden id={menuId}>
+    <ul className={menuListClass} data-nav-menu="" role="menu" hidden id={menuId}>
       {item.children.map((child) => (
         <NavMenuItem idSuffix={idSuffix} item={child} key={`${menuId}-${child.label}-${child.href}`} nested />
       ))}
@@ -154,8 +155,8 @@ function NavTopItem({ item, index, overflowCopy = false }: { item: NavBlockItem;
 
   if (item.hasHref) {
     return (
-      <div className={navParentWrapClass} {...indexAttrs}>
-        <a className={cn('nav-link nav-parent border-0 bg-transparent font-[inherit]', item.active ? 'active' : '')} href={item.href}>
+      <div className={navParentWrapClass} data-nav-item-wrap="" {...indexAttrs}>
+        <a className={cn('nav-link nav-parent border-0 bg-transparent font-[inherit]', item.active ? 'active' : '')} data-nav-link="" href={item.href}>
           {item.label}
         </a>
         <MenuButton className="nav-chevron-toggle h-8 min-h-8 min-w-8 self-center px-2 py-1" controls={menuId} label={`Open ${item.label} submenu`}>
@@ -167,7 +168,7 @@ function NavTopItem({ item, index, overflowCopy = false }: { item: NavBlockItem;
   }
 
   return (
-    <div className={navParentWrapClass} {...indexAttrs}>
+    <div className={navParentWrapClass} data-nav-item-wrap="" {...indexAttrs}>
       <MenuButton active={item.active} className="nav-link nav-parent nav-parent-button inline-flex items-center gap-1" controls={menuId}>
         {item.label}
         <Chevron />
@@ -193,13 +194,14 @@ function NavBlock({
 
   return (
     <>
-      <Button className="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false" size="icon" type="button" variant="ghost">
+      <Button className="nav-toggle" id="nav-toggle" aria-label="Menu" aria-controls="nav-links" aria-expanded="false" data-nav-toggle="" size="icon" type="button" variant="ghost">
         <Menu aria-hidden="true" className="h-5 w-5" />
       </Button>
       <div
         className="nav-links"
         id="nav-links"
         data-block-nav
+        data-nav-links
         data-desktop-open={desktopOpen || undefined}
         data-mobile-breakpoint={mobileBreakpoint || undefined}
         data-mobile-closed-layout={mobileClosedLayout || undefined}
@@ -212,7 +214,7 @@ function NavBlock({
           <NavTopItem item={item} index={index} key={`${item.label}-${item.href}-${index}`} />
         ))}
       </div>
-      <div className="nav-overflow-menu" hidden id="nav-links-overflow-menu">
+      <div className="nav-overflow-menu" data-nav-overflow-menu="" hidden id="nav-links-overflow-menu">
         {items.map((item, index) => (
           <NavTopItem item={item} index={index} key={`overflow-${item.label}-${item.href}-${index}`} overflowCopy />
         ))}
