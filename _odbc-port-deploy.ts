@@ -8,11 +8,12 @@
  * Run from kychon repo root:
  *   npx tsx _odbc-port-deploy.ts
  */
-import { copyFileSync, existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { run402 } from "@run402/sdk/node";
 
+import { sanitizeRichHtmlServer } from "./src/lib/sanitize-html.ts";
 import { ROOT, runDeploy } from "./scripts/_lib.ts";
 
 const PROJECT_ID = "prj_1777563179844_1095";
@@ -26,7 +27,12 @@ async function main() {
   }
   // Stage the seed inside ROOT so runDeploy's relative resolution finds it.
   copyFileSync(PORT_SEED, KYCHON_SEED);
-  const seedSize = readFileSync(KYCHON_SEED, "utf-8").length;
+  const rawSeed = readFileSync(KYCHON_SEED, "utf-8");
+  const sanitizedSeed = sanitizeRichHtmlServer(rawSeed);
+  if (sanitizedSeed !== rawSeed) {
+    writeFileSync(KYCHON_SEED, sanitizedSeed);
+  }
+  const seedSize = sanitizedSeed.length;
   console.log(`Staged seed: ${KYCHON_SEED} (${seedSize} bytes)`);
 
   const r = run402();
