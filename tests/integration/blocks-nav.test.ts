@@ -445,12 +445,10 @@ describe('nav block — runtime keyboard + click', () => {
       },
     ]);
     document.body.innerHTML = `<nav id="zone-header"><div data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
-    document.querySelectorAll<HTMLElement>('[class*="nav-"]').forEach((el) => {
-      el.className = el.className
-        .split(/\s+/)
-        .filter((className) => !className.startsWith('nav-'))
-        .join(' ');
-    });
+    const legacyNavClassTokens = Array.from(document.querySelectorAll<HTMLElement>('[class]')).flatMap((el) =>
+      (el.getAttribute('class') || '').split(/\s+/).filter((className) => className.startsWith('nav-')),
+    );
+    expect(legacyNavClassTokens).toEqual([]);
     const links = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(links);
 
