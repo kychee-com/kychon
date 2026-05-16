@@ -28,6 +28,7 @@ const RETIRED_PRIMITIVE_CLASS_DEFINITION_RE = new RegExp(
   `(^|[^a-zA-Z0-9_-])\\.(${Array.from(RETIRED_PRIMITIVE_CLASSES).join('|')})(?=$|[^a-zA-Z0-9_-])`,
   'g',
 );
+const CSS_CLASS_SELECTOR_RE = /(^|[\s,{>+~])\.([A-Za-z_][A-Za-z0-9_-]*)(?=$|[^A-Za-z0-9_-])/g;
 const DYNAMIC_TAILWIND_RE =
   /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|accent|caret|shadow|rounded|gap|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|w|h|min-w|min-h|max-w|max-h|grid-cols|col-span|row-span)-\$\{/;
 
@@ -61,6 +62,12 @@ function lineNumber(source: string, index: number): number {
 
 function lineAt(source: string, line: number): string {
   return source.split('\n')[line - 1]?.trim() ?? '';
+}
+
+function stripCssNoise(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (match) => '\n'.repeat(match.split('\n').length - 1))
+    .replace(/(["'])(?:\\.|(?!\1)[\s\S])*\1/g, (match) => ' '.repeat(match.length));
 }
 
 function isAllowedPrimitiveImport(file: string): boolean {
@@ -164,12 +171,23 @@ function checkFile(file: string): Violation[] {
   }
 
   if (isCssSource(file)) {
-    for (const match of source.matchAll(RETIRED_PRIMITIVE_CLASS_DEFINITION_RE)) {
-      const line = lineNumber(source, match.index ?? 0);
+    const cssForSelectorScan = stripCssNoise(source);
+    for (const match of cssForSelectorScan.matchAll(RETIRED_PRIMITIVE_CLASS_DEFINITION_RE)) {
+      const line = lineNumber(cssForSelectorScan, match.index ?? 0);
       violations.push({
         file: rel,
         line,
         message: 'CSS must not define retired Kychon primitive classes; use Tailwind, shadcn/Kychon UI, and data hooks',
+        excerpt: lineAt(source, line),
+      });
+    }
+
+    for (const match of cssForSelectorScan.matchAll(CSS_CLASS_SELECTOR_RE)) {
+      const line = lineNumber(cssForSelectorScan, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: `Owned CSS must not define custom class selector .${match[2]}; use data attributes, semantic elements, or Tailwind utilities`,
         excerpt: lineAt(source, line),
       });
     }
