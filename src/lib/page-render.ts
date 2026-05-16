@@ -84,7 +84,7 @@ function renderZoneInto(
 ): { container: HTMLElement | null; rendered: HTMLElement[] } {
   const containerWrapper = document.getElementById(`zone-${zone}`);
   // Header/footer: the inner Kychon container holds the rendered HTML so we don't
-  // clobber the .nav / .footer wrappers (and their transition:persist).
+  // clobber the persisted shell wrappers.
   const container =
     zone === 'main'
       ? (document.getElementById('main-content') as HTMLElement | null)

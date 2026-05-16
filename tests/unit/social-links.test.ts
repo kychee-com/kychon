@@ -164,6 +164,9 @@ describe('social_links block rendering', () => {
     expect(html).toContain('data-social-provider="youtube"');
     expect(html).toContain('data-social-link-icon');
     expect(html).toContain('data-legacy-footer-links');
+    expect(html).toContain('data-footer-block');
+    expect(html).not.toMatch(/class="[^"]*\bfooter(?:-|\b)/);
+    expect(html).not.toContain('class="section');
     expect(html).not.toContain('footer-social');
   });
 

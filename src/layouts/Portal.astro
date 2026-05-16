@@ -99,7 +99,7 @@ const cspValue = buildCspValue();
       <slot />
     </main>
 
-    <footer id="zone-footer" class="footer" data-zone="footer" aria-label="Site footer" transition:persist>
+    <footer id="zone-footer" data-footer-shell data-zone="footer" aria-label="Site footer" transition:persist>
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.footerHtml}></div>
       <div data-fullbleed-host></div>
       <AdminZoneAddButton zone="footer" />
@@ -122,9 +122,9 @@ const cspValue = buildCspValue();
         || document.documentElement.dataset.reducedMotion === 'true';
 
       if (prefersReducedMotion) {
-        document.querySelectorAll('[data-section]').forEach(revealSection);
+        document.querySelectorAll('main [data-section]').forEach(revealSection);
         new MutationObserver(mutations => mutations.forEach(m =>
-          m.addedNodes.forEach(n => { if ((n as Element).matches?.('[data-section]')) revealSection(n as Element); })
+          m.addedNodes.forEach(n => { if ((n as Element).matches?.('main [data-section]')) revealSection(n as Element); })
         )).observe(document.body, { childList: true, subtree: true });
         return;
       }

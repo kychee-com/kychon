@@ -103,6 +103,9 @@ describe('legacy static UI primitives', () => {
     expect(blocks).not.toMatch(/class="[^"]*\bsection\b/);
     expect(blocks).not.toContain('section-events-calendar');
     expect(blocks).not.toContain('section-activity');
+    expect(blocks).toContain('data-footer-block');
+    expect(blocks).toContain('data-footer-links');
+    expect(blocks).not.toMatch(/class="[^"]*\bfooter(?:-|\b)/);
     expect(embed).not.toMatch(/class="[^"]*\bsection\b/);
     expect(blocks).not.toContain('event-skeleton-card');
     expect(blocks).not.toContain('block-events-calendar__skeleton');
@@ -110,6 +113,9 @@ describe('legacy static UI primitives', () => {
     expect(embed).not.toContain('block-embed');
     expect(styles).toContain('[data-section]');
     expect(styles).not.toMatch(/\.section(?:[.{:#\s-]|$)/);
+    expect(styles).toContain('[data-footer-shell]');
+    expect(styles).toContain('[data-footer-links]');
+    expect(styles).not.toMatch(/\.footer(?:[.{:#\s-]|$)/);
     expect(styles).not.toMatch(/\.ky-text-muted\b/);
     expect(styles).not.toMatch(/\.skeleton(?:[.{:#\s-]|$)/);
     expect(styles).not.toContain('skeleton-pulse');
@@ -192,11 +198,13 @@ describe('legacy static UI primitives', () => {
     expect(portal).toContain('class="flex-1 py-8" id="main-content"');
     expect(portal).toContain('constrainedContainerClass');
     expect(portal).toContain('data-layout-container');
+    expect(portal).toContain('data-footer-shell');
     expect(portal).not.toContain('ky-container');
+    expect(portal).not.toContain('class="footer"');
     expect(portal).not.toContain('class="page"');
     expect(portal).not.toContain('class="page-content"');
-    expect(portal).toContain("document.querySelectorAll('[data-section]')");
     expect(portal).toContain("document.querySelectorAll('main [data-section]')");
+    expect(portal).not.toContain("document.querySelectorAll('[data-section]')");
     expect(portal).not.toContain("document.querySelectorAll('.section')");
     expect(portal).not.toContain("classList?.contains('section')");
     expect(portal).not.toContain("classList.add('section-visible')");
@@ -263,6 +271,8 @@ describe('legacy static UI primitives', () => {
     expect(cssCollisionReport).not.toContain('ky-text-muted');
     expect(showcaseRender).toContain('data-layout-container');
     expect(showcaseRender).toContain('data-section-visible');
+    expect(showcaseRender).toContain("document.querySelectorAll('main [data-section]')");
+    expect(showcaseRender).not.toContain("document.querySelectorAll('[data-section]')");
     expect(showcaseRender).not.toContain('ky-container');
     expect(showcaseRender).not.toContain('page-content');
     expect(showcaseRender).not.toContain('.section-visible');
