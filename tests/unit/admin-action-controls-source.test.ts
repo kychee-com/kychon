@@ -158,10 +158,17 @@ describe('admin action controls source', () => {
     expect(editor).toContain('data-admin-drag-handle');
     expect(editor).toContain("document.addEventListener('dragstart'");
     expect(editor).toContain('startDragFromHandle');
+    expect(editor).toContain('sortableItemChildren');
+    expect(editor).toContain('sourceItemHost');
+    expect(editor).toContain("const fromZone = sourceZone || 'main'");
+    expect(editor).toContain('const fromHost = sourceItemHost');
+    expect(editor).toContain('await persistOrder(moved, fromZone, targetZone, fromHost)');
     expect(editor).not.toContain("setAttribute('aria-label'");
     expect(editor).not.toContain('bindDragHandle');
     expect(editor).not.toContain('bindSortableHandles');
     expect(editor).not.toContain("document.querySelectorAll<HTMLElement>('[data-admin-drag-handle]')");
+    expect(editor).not.toContain("querySelectorAll<HTMLElement>('[data-sortable-id]')");
+    expect(editor).not.toContain('document.querySelector(`[data-zone="');
     expect(editor).not.toContain('dataset.adminDragBound');
     expect(editor).not.toContain("textContent = '☰'");
     expect(editor).not.toMatch(/(?:\.|["' ])admin-drag-handle\b/);
