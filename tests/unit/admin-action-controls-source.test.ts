@@ -135,6 +135,8 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain('ensureZoneAddButtons');
     expect(editor).not.toContain('data-admin-zone-add-button');
     expect(editor).toContain('dataset.zoneAdd');
+    expect(editor).toContain('handleAdminActionClick');
+    expect(editor).toContain('initAdminActionDelegates');
     expect(editor).not.toContain("document.querySelectorAll<HTMLElement>('[data-zone]')");
     expect(editor).not.toContain('admin-zone-add-btn');
     expect(component).not.toContain('admin-zone-add-btn');
@@ -270,6 +272,29 @@ describe('admin action controls source', () => {
     expect(editor).not.toContain('htmlEl.innerHTML');
     expect(editor).not.toContain('innerHTML =');
     expect(editor).not.toContain('insertAdjacentHTML');
+  });
+
+  it('routes admin action buttons through a single delegated click handler', async () => {
+    const editor = await readFile(ADMIN_EDITOR, 'utf8');
+
+    expect(editor).toContain('function handleAdminActionClick');
+    expect(editor).toContain('function initAdminActionDelegates');
+    expect(editor).toContain('__adminActionDelegatesBound');
+    expect(editor).toContain('activateSectionRemove');
+    expect(editor).toContain('activateScopeToggle');
+    expect(editor).toContain("closestAdminAction(event, '[data-section-remove]')");
+    expect(editor).toContain("closestAdminAction(event, '[data-scope-toggle]')");
+    expect(editor).toContain("closestAdminAction(event, '[data-zone-add]')");
+    expect(editor).toContain("closestAdminAction(event, '[data-section-edit]')");
+    expect(editor).toContain("closestAdminAction(event, '[data-nav-edit]')");
+    expect(editor).toContain("closestAdminAction(event, '[data-embed-edit]')");
+    expect(editor).toContain('initAdminActionDelegates();');
+    expect(editor).not.toContain('function initNavEditor');
+    expect(editor).not.toContain('function initEmbedEditor');
+    expect(editor).not.toContain('function initSectionActions');
+    expect(editor).not.toContain('__navEditorBound');
+    expect(editor).not.toContain('__embedEditorBound');
+    expect(editor).not.toContain('__sectionActionsBound');
   });
 
   it('renders admin actions with shared variant classes instead of legacy primitives', () => {
