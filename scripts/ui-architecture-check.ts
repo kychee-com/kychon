@@ -159,18 +159,6 @@ function isNativeControlSource(file: string): boolean {
   return (isUiRenderSource(file) || (isProductSource(file) && !isCssSource(file))) && !ALLOWED_NATIVE_CONTROL_SOURCE_FILES.has(rel);
 }
 
-function hasInputType(attrs: string, type: string): boolean {
-  return new RegExp(`\\btype\\s*=\\s*(?:["']${type}["']|{\\s*["']${type}["']\\s*})`, 'i').test(attrs);
-}
-
-function isHiddenFileInput(attrs: string): boolean {
-  return hasInputType(attrs, 'file') && /\bhidden(?:\s|=|$)/i.test(attrs);
-}
-
-function isAllowedNativeControl(tag: string, attrs: string): boolean {
-  return tag === 'input' && isHiddenFileInput(attrs);
-}
-
 function isCssSource(file: string): boolean {
   return file.endsWith('.css');
 }
@@ -262,8 +250,6 @@ export function checkSource(file: string, source: string): Violation[] {
   if (isNativeControlSource(file)) {
     for (const match of source.matchAll(NATIVE_CONTROL_RE)) {
       const tag = String(match[1] || '').toLowerCase();
-      const attrs = String(match[2] || '');
-      if (isAllowedNativeControl(tag, attrs)) continue;
       const line = lineNumber(source, match.index ?? 0);
       violations.push({
         file: rel,

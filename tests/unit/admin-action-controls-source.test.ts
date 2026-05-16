@@ -259,9 +259,12 @@ describe('admin action controls source', () => {
   it('uses a static image upload input instead of creating file inputs on click', async () => {
     const editor = await readFile(ADMIN_EDITOR, 'utf8');
 
+    expect(editor).toContain("import { Input } from './kychon/ui'");
+    expect(editor).toContain('<Input id="admin-image-upload-input"');
     expect(editor).toContain('id="admin-image-upload-input"');
     expect(editor).toContain('imageUploadInput');
     expect(editor).toContain('editableImageElement');
+    expect(editor).not.toContain('<input id="admin-image-upload-input"');
     expect(editor).not.toContain("querySelector('img')");
     expect(editor).not.toContain("document.createElement('input')");
   });

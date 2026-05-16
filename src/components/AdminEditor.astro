@@ -2,10 +2,12 @@
 // AdminEditor.astro — Inline editing for admins
 // Loaded with client:idle — only initializes after page settles
 // Supports: text, rich text (Tiptap), image upload, JSONB paths, drag reorder
+
+import { Input } from './kychon/ui';
 ---
 <div id="admin-editor-root"></div>
 <div id="admin-inline-text-root"></div>
-<input id="admin-image-upload-input" type="file" accept="image/*" hidden aria-hidden="true" tabindex="-1" />
+<Input id="admin-image-upload-input" type="file" accept="image/*" hidden aria-hidden="true" tabIndex={-1} />
 <div
   id="admin-editor-drop-indicator"
   class="pointer-events-none my-[-2px] h-[3px] rounded-full bg-primary shadow-sm transition-opacity"
