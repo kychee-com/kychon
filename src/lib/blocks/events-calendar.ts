@@ -10,7 +10,7 @@ import { createElement, type ReactElement } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root as ReactRoot } from 'react-dom/client';
 import { safeCssUrl } from '../blocks.js';
-import { get, patch } from '../api.js';
+import { get } from '../api.js';
 import {
   cancelPendingPrefetches,
   fetchAndUpdateWindow,
@@ -71,9 +71,6 @@ interface State {
   events: Event[];
   rsvps: RsvpAvatar[];
 }
-
-const REDUCED_MOTION = typeof window !== 'undefined' &&
-  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 const HOVER_CAPABLE = typeof window !== 'undefined' &&
   window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
@@ -588,21 +585,15 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
         isAuthenticated: isAuthed,
         labels: calendarControlLabels(ctx.locale),
         monthLabel: fmtMonthYear(state.currentMonth, ctx.locale),
+        onFilterChange: handleFilterChange,
+        onNavigate: handleNavigate,
+        onViewChange: handleViewChange,
         showFilterChips: cfg.show_filter_chips !== false,
       }));
       roots.viewport.render(renderViewportElement());
     });
-    bindControls();
     bindCells();
     renderPeekOverlay();
-    announceMonth();
-  }
-
-  function announceMonth(): void {
-    const live = root.querySelector('[data-events-calendar-live-region]');
-    if (!live) return;
-    const count = filterEvents(state.events, state, new Date()).length;
-    live.textContent = `${fmtMonthYear(state.currentMonth, ctx.locale)}, ${count} ${count === 1 ? 'event' : 'events'}`;
   }
 
   // --- Data fetch ---
@@ -665,51 +656,34 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
 
   // --- Listeners ---
 
-  function bindControls(): void {
-    root.querySelectorAll<HTMLElement>('button[data-nav]').forEach((btn) => {
-      if (btn.dataset.eventsCalendarNavBound === 'true') return;
-      btn.dataset.eventsCalendarNavBound = 'true';
-      btn.addEventListener('click', () => {
-        const dir = btn.dataset.nav;
-        if (dir === 'today') {
-          state.currentMonth = startOfMonth(new Date());
-          state.focusDate = new Date();
-        } else if (dir === 'prev') {
-          state.currentMonth = addMonths(state.currentMonth, -1);
-        } else if (dir === 'next') {
-          state.currentMonth = addMonths(state.currentMonth, 1);
-        }
-        void loadWindow();
-      });
-    });
-    root.querySelectorAll<HTMLElement>('button[data-view]').forEach((btn) => {
-      if (btn.dataset.eventsCalendarViewBound === 'true') return;
-      btn.dataset.eventsCalendarViewBound = 'true';
-      btn.addEventListener('click', () => {
-        const v = btn.dataset.view as ViewMode;
-        if (v && v !== state.view) {
-          state.view = v;
-          state.effectiveView = containerNarrow && !cfg.density_lock ? 'agenda' : v;
-          repaint();
-        }
-      });
-    });
-    root.querySelectorAll<HTMLElement>('button[data-filter]').forEach((btn) => {
-      if (btn.dataset.eventsCalendarFilterBound === 'true') return;
-      btn.dataset.eventsCalendarFilterBound = 'true';
-      btn.addEventListener('click', () => {
-        const f = btn.dataset.filter as Filter;
-        if (f && f !== state.filter) {
-          state.filter = f;
-          // Persist per block instance.
-          try {
-            const sid = root.closest('[data-sortable-id]')?.getAttribute('data-sortable-id') || 'global';
-            localStorage.setItem(`wl_calendar_filter_${sid}`, f);
-          } catch {}
-          void loadWindow();
-        }
-      });
-    });
+  function handleNavigate(direction: 'prev' | 'today' | 'next'): void {
+    if (direction === 'today') {
+      state.currentMonth = startOfMonth(new Date());
+      state.focusDate = new Date();
+    } else if (direction === 'prev') {
+      state.currentMonth = addMonths(state.currentMonth, -1);
+    } else if (direction === 'next') {
+      state.currentMonth = addMonths(state.currentMonth, 1);
+    }
+    void loadWindow();
+  }
+
+  function handleViewChange(view: ViewMode): void {
+    if (!view || view === state.view) return;
+    state.view = view;
+    state.effectiveView = containerNarrow && !cfg.density_lock ? 'agenda' : view;
+    repaint();
+  }
+
+  function handleFilterChange(filter: Filter): void {
+    if (!filter || filter === state.filter) return;
+    state.filter = filter;
+    // Persist per block instance.
+    try {
+      const sid = root.closest('[data-sortable-id]')?.getAttribute('data-sortable-id') || 'global';
+      localStorage.setItem(`wl_calendar_filter_${sid}`, filter);
+    } catch {}
+    void loadWindow();
   }
 
   function bindCells(): void {
@@ -808,38 +782,17 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       items,
       liveNowLabel: t('Live now', ctx.locale),
       membersOnlyLabel: t('Members only', ctx.locale),
+      onAddToCalendar: (eventId) => {
+        const evt = state.events.find((event) => event.id === eventId);
+        if (evt) downloadIcs(evt, root);
+      },
+      onClose: () => {
+        state.peekDayKey = null;
+        renderPeekOverlay();
+      },
     };
     flushSync(() => {
       roots.peek.render(createElement(EventsCalendarPeekOverlay, props));
-    });
-
-    const overlay = roots.peekHost.querySelector<HTMLElement>('[data-events-calendar-peek]');
-    if (!overlay) return;
-
-    if (overlay.dataset.eventsCalendarPeekBound !== 'true') {
-      overlay.dataset.eventsCalendarPeekBound = 'true';
-      overlay.querySelector('[data-events-calendar-peek-close]')?.addEventListener('click', () => {
-        state.peekDayKey = null;
-        renderPeekOverlay();
-      });
-      // Click outside closes
-      overlay.addEventListener('click', (ev) => {
-        if (ev.target === overlay) {
-          state.peekDayKey = null;
-          renderPeekOverlay();
-        }
-      });
-    }
-    overlay.querySelectorAll<HTMLElement>('[data-events-calendar-peek-ics][data-event-id]').forEach((btn) => {
-      if (btn.dataset.eventsCalendarIcsBound === 'true') return;
-      btn.dataset.eventsCalendarIcsBound = 'true';
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const id = Number(btn.dataset.eventId);
-        const evt = state.events.find((e) => e.id === id);
-        if (evt) downloadIcs(evt, root);
-      });
     });
   }
 
@@ -959,8 +912,4 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   // Initial paint and load.
   repaint();
   void loadWindow();
-
-  // Suppress unused vars warning for reduced-motion + patch (drag-resched TODO).
-  void REDUCED_MOTION;
-  void patch;
 }

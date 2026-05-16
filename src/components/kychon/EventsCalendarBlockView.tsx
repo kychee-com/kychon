@@ -46,6 +46,9 @@ export interface EventsCalendarControlsProps {
   isAuthenticated: boolean;
   labels: EventsCalendarControlsLabels;
   monthLabel: string;
+  onFilterChange?: (filter: EventsCalendarFilter) => void;
+  onNavigate?: (direction: 'prev' | 'today' | 'next') => void;
+  onViewChange?: (view: EventsCalendarViewMode) => void;
   showFilterChips: boolean;
 }
 
@@ -148,6 +151,8 @@ export interface EventsCalendarPeekOverlayProps {
   items: EventsCalendarPeekItem[];
   liveNowLabel: string;
   membersOnlyLabel: string;
+  onAddToCalendar?: (eventId: number) => void;
+  onClose?: () => void;
 }
 
 function EventsCalendarShell({ configJson, editableHeadingPath, heading }: EventsCalendarShellProps) {
@@ -192,6 +197,9 @@ export function EventsCalendarControls({
   isAuthenticated,
   labels,
   monthLabel,
+  onFilterChange,
+  onNavigate,
+  onViewChange,
   showFilterChips,
 }: EventsCalendarControlsProps) {
   const viewButtons: Array<{ label: string; value: EventsCalendarViewMode }> = [
@@ -212,13 +220,32 @@ export function EventsCalendarControls({
       <Card className="shadow-none" data-events-calendar-nav-card>
         <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2" data-events-calendar-nav>
-            <Button aria-label={labels.previousMonth} data-nav="prev" size="icon" type="button" variant="outline">
+            <Button
+              aria-label={labels.previousMonth}
+              data-nav="prev"
+              onClick={onNavigate ? () => onNavigate('prev') : undefined}
+              size="icon"
+              type="button"
+              variant="outline"
+            >
               <ChevronLeft />
             </Button>
-            <Button data-nav="today" type="button" variant="outline">
+            <Button
+              data-nav="today"
+              onClick={onNavigate ? () => onNavigate('today') : undefined}
+              type="button"
+              variant="outline"
+            >
               {labels.today}
             </Button>
-            <Button aria-label={labels.nextMonth} data-nav="next" size="icon" type="button" variant="outline">
+            <Button
+              aria-label={labels.nextMonth}
+              data-nav="next"
+              onClick={onNavigate ? () => onNavigate('next') : undefined}
+              size="icon"
+              type="button"
+              variant="outline"
+            >
               <ChevronRight />
             </Button>
           </div>
@@ -234,6 +261,7 @@ export function EventsCalendarControls({
                   className={activeButtonClass(active)}
                   data-view={item.value}
                   key={item.value}
+                  onClick={onViewChange ? () => onViewChange(item.value) : undefined}
                   size="sm"
                   type="button"
                   variant={active ? 'default' : 'outline'}
@@ -256,6 +284,7 @@ export function EventsCalendarControls({
                 className={activeButtonClass(active)}
                 data-filter={item.value}
                 key={item.value}
+                onClick={onFilterChange ? () => onFilterChange(item.value) : undefined}
                 size="sm"
                 type="button"
                 variant={active ? 'default' : 'outline'}
@@ -489,6 +518,8 @@ export function EventsCalendarPeekOverlay({
   items,
   liveNowLabel,
   membersOnlyLabel,
+  onAddToCalendar,
+  onClose,
 }: EventsCalendarPeekOverlayProps) {
   return (
     <Card
@@ -496,12 +527,16 @@ export function EventsCalendarPeekOverlay({
       aria-modal="false"
       className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[80vh] w-full overflow-y-auto rounded-b-none p-0 shadow-lg sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(28rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg"
       data-events-calendar-peek
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose?.();
+      }}
       role="dialog"
     >
       <Button
         aria-label={closeLabel}
         className="absolute right-2 top-2"
         data-events-calendar-peek-close
+        onClick={onClose}
         size="icon"
         type="button"
         variant="ghost"
@@ -537,7 +572,17 @@ export function EventsCalendarPeekOverlay({
                 <EventsCalendarAvatarStack overflow={item.avatarOverflow} people={item.avatars} />
               </div>
               <div className="mt-2">
-                <Button data-event-id={item.id} data-events-calendar-peek-ics size="sm" type="button">
+                <Button
+                  data-event-id={item.id}
+                  data-events-calendar-peek-ics
+                  onClick={onAddToCalendar ? (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onAddToCalendar(item.id);
+                  } : undefined}
+                  size="sm"
+                  type="button"
+                >
                   <CalendarPlus />
                   {addToCalendarLabel}
                 </Button>
