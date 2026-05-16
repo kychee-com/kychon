@@ -9,7 +9,7 @@ describe('nav rendering', () => {
       if (item.auth && !isAuth) continue;
       if (item.admin && role !== 'admin') continue;
       const a = document.createElement('a');
-      a.className = 'nav-link';
+      a.dataset.navLink = '';
       a.href = item.href;
       a.textContent = item.label;
       container.appendChild(a);
