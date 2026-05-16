@@ -242,6 +242,7 @@ describe('legacy static UI primitives', () => {
     expect(adminEditor).toContain('replaceNodeWith');
     expect(adminEditor).toContain('showAdminInlineTextPrompt');
     expect(adminEditor).not.toContain('contentEditable');
+    expect(adminEditor).not.toContain('MutationObserver');
     expect(adminEditor).not.toContain('document.createRange');
     expect(adminEditor).not.toContain('selectNodeContents');
     expect(adminEditor).not.toContain('new DOMParser()');
