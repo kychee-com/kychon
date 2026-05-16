@@ -203,7 +203,7 @@ function SiteSearchIsland(props: SiteSearchProps) {
           type="search"
           value={query}
         />
-        <input name="type" type="hidden" value={defaultType} />
+        <Input name="type" readOnly type="hidden" value={defaultType} />
         <Button
           aria-label={submitLabel}
           className={cn('shrink-0', isHeader && 'h-8 px-3 text-xs')}

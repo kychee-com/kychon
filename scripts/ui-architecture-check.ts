@@ -168,7 +168,7 @@ function isHiddenFileInput(attrs: string): boolean {
 }
 
 function isAllowedNativeControl(tag: string, attrs: string): boolean {
-  return tag === 'input' && (hasInputType(attrs, 'hidden') || isHiddenFileInput(attrs));
+  return tag === 'input' && isHiddenFileInput(attrs);
 }
 
 function isCssSource(file: string): boolean {

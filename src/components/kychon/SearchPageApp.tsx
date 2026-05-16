@@ -151,7 +151,7 @@ export default function SearchPageApp() {
             placeholder="Search this site"
             className="min-w-0 flex-1"
           />
-          <input id="search-page-type-input" name="type" type="hidden" value={params.type} />
+          <Input id="search-page-type-input" name="type" readOnly type="hidden" value={params.type} />
           <Button type="submit">
             <Search className="h-4 w-4" />
             Search
