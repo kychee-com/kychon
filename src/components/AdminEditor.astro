@@ -786,107 +786,101 @@
     });
   }
 
-  // --- Navigation block editor trigger ---
-  function initNavEditor() {
-    if ((document.body as any).__navEditorBound) return;
-    (document.body as any).__navEditorBound = true;
-    document.addEventListener('click', (event) => {
-      const target = event.target as HTMLElement | null;
-      const button = target?.closest('[data-nav-edit]') as HTMLElement | null;
-      if (!button) return;
+  async function activateSectionRemove(removeBtn: HTMLElement) {
+    const id = removeBtn.dataset.sectionRemove;
+    if (!id) return;
+    if (!confirm('Remove this section?')) return;
+    try {
+      await del(`sections?id=eq.${id}`);
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('wl_cache_sections_'))
+        .forEach((k) => localStorage.removeItem(k));
+      const section = removeBtn.closest('[data-sortable-id]');
+      if (section) removeNode(section);
+      showToast('Section removed');
+      emitSectionsChanged();
+    } catch (err) {
+      console.error('Failed to remove section:', err);
+      showToast('Remove failed', 'error');
+    }
+  }
+
+  async function activateScopeToggle(scopeBtn: HTMLElement) {
+    const id = scopeBtn.dataset.scopeToggle;
+    const next = scopeBtn.dataset.scopeNext as 'page' | 'global' | undefined;
+    if (!id || !next) return;
+    try {
+      await patch(`sections?id=eq.${id}`, { scope: next });
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('wl_cache_sections_'))
+        .forEach((k) => localStorage.removeItem(k));
+      showToast(next === 'global' ? 'Saved — appears on all pages' : 'Saved — appears on this page only');
+      emitSectionsChanged();
+    } catch (err) {
+      console.error('Scope toggle failed:', err);
+      showToast('Save failed', 'error');
+    }
+  }
+
+  function closestAdminAction(event: MouseEvent, selector: string): HTMLElement | null {
+    const target = event.target;
+    if (!(target instanceof Element)) return null;
+    return target.closest(selector) as HTMLElement | null;
+  }
+
+  async function handleAdminActionClick(event: MouseEvent) {
+    const removeBtn = closestAdminAction(event, '[data-section-remove]');
+    if (removeBtn) {
       event.preventDefault();
-      const sectionId = parseInt(button.dataset.navEdit || '', 10);
+      await activateSectionRemove(removeBtn);
+      return;
+    }
+
+    const scopeBtn = closestAdminAction(event, '[data-scope-toggle]');
+    if (scopeBtn) {
+      event.preventDefault();
+      await activateScopeToggle(scopeBtn);
+      return;
+    }
+
+    const addBtn = closestAdminAction(event, '[data-zone-add]');
+    if (addBtn) {
+      event.preventDefault();
+      const zone = addBtn.dataset.zoneAdd as 'header' | 'main' | 'footer' | undefined;
+      if (zone) void openReactZoneAdd(zone);
+      return;
+    }
+
+    const editBtn = closestAdminAction(event, '[data-section-edit]');
+    if (editBtn) {
+      event.preventDefault();
+      const id = parseInt(editBtn.dataset.sectionEdit || '', 10);
+      if (Number.isFinite(id)) openSectionEditPopover(id);
+      return;
+    }
+
+    const navBtn = closestAdminAction(event, '[data-nav-edit]');
+    if (navBtn) {
+      event.preventDefault();
+      const sectionId = parseInt(navBtn.dataset.navEdit || '', 10);
       if (Number.isFinite(sectionId)) void openReactNavSettings(sectionId);
-    });
-  }
+      return;
+    }
 
-
-  // --- Section actions: remove / scope-toggle / add-section (delegated) ---
-  function initSectionActions() {
-    if ((document.body as any).__sectionActionsBound) return;
-    (document.body as any).__sectionActionsBound = true;
-
-    document.addEventListener('click', async (e) => {
-      const t = e.target as HTMLElement | null;
-      if (!t) return;
-
-      // Remove section
-      const removeBtn = t.closest('[data-section-remove]') as HTMLElement | null;
-      if (removeBtn) {
-        e.preventDefault();
-        const id = removeBtn.dataset.sectionRemove;
-        if (!id) return;
-        if (!confirm('Remove this section?')) return;
-        try {
-          await del(`sections?id=eq.${id}`);
-          Object.keys(localStorage)
-            .filter((k) => k.startsWith('wl_cache_sections_'))
-            .forEach((k) => localStorage.removeItem(k));
-          const section = removeBtn.closest('[data-sortable-id]');
-          if (section) removeNode(section);
-          showToast('Section removed');
-          emitSectionsChanged();
-        } catch (err) {
-          console.error('Failed to remove section:', err);
-          showToast('Remove failed', 'error');
-        }
-        return;
-      }
-
-      // Scope toggle
-      const scopeBtn = t.closest('[data-scope-toggle]') as HTMLElement | null;
-      if (scopeBtn) {
-        e.preventDefault();
-        const id = scopeBtn.dataset.scopeToggle;
-        const next = scopeBtn.dataset.scopeNext as 'page' | 'global' | undefined;
-        if (!id || !next) return;
-        try {
-          await patch(`sections?id=eq.${id}`, { scope: next });
-          Object.keys(localStorage)
-            .filter((k) => k.startsWith('wl_cache_sections_'))
-            .forEach((k) => localStorage.removeItem(k));
-          showToast(next === 'global' ? 'Saved — appears on all pages' : 'Saved — appears on this page only');
-          emitSectionsChanged();
-        } catch (err) {
-          console.error('Scope toggle failed:', err);
-          showToast('Save failed', 'error');
-        }
-        return;
-      }
-
-      // Add section in zone
-      const addBtn = t.closest('[data-zone-add]') as HTMLElement | null;
-      if (addBtn) {
-        e.preventDefault();
-        const zone = addBtn.dataset.zoneAdd as 'header' | 'main' | 'footer' | undefined;
-        if (!zone) return;
-        void openReactZoneAdd(zone);
-        return;
-      }
-
-      // column-span-rows: per-block edit popover (span radio + scope + remove)
-      const editBtn = t.closest('[data-section-edit]') as HTMLElement | null;
-      if (editBtn) {
-        e.preventDefault();
-        const id = parseInt(editBtn.dataset.sectionEdit || '', 10);
-        if (Number.isFinite(id)) openSectionEditPopover(id);
-        return;
-      }
-    });
-  }
-
-  // --- Embed block editor trigger ---
-  function initEmbedEditor() {
-    if ((document.body as any).__embedEditorBound) return;
-    (document.body as any).__embedEditorBound = true;
-    document.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement | null;
-      const btn = t?.closest('[data-embed-edit]') as HTMLElement | null;
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const sid = parseInt(btn.dataset.embedEdit || '', 10);
+    const embedBtn = closestAdminAction(event, '[data-embed-edit]');
+    if (embedBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const sid = parseInt(embedBtn.dataset.embedEdit || '', 10);
       if (Number.isFinite(sid)) void openReactEmbedSettings(sid);
+    }
+  }
+
+  function initAdminActionDelegates() {
+    if ((document.body as any).__adminActionDelegatesBound) return;
+    (document.body as any).__adminActionDelegatesBound = true;
+    document.addEventListener('click', (event) => {
+      void handleAdminActionClick(event);
     });
   }
 
@@ -908,9 +902,7 @@
     void ensureAdminInlineTextPrompt();
     initEditableDelegates();
     initSortable();
-    initNavEditor();
-    initEmbedEditor();
-    initSectionActions();
+    initAdminActionDelegates();
     // composable-layout: brand logo and nav are now blocks rendered with
     // their own data-editable / data-editable-image attributes — no extra
     // wiring needed here.
