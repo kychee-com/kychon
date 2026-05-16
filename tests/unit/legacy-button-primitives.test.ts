@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const ADMIN_EDITOR = resolve(process.cwd(), 'src/components/AdminEditor.astro');
-const ADMIN_ACTION_CONTROLS = resolve(process.cwd(), 'src/lib/admin-action-controls.ts');
+const ADMIN_ACTION_CONTROLS = resolve(process.cwd(), 'src/lib/admin-action-controls.tsx');
 const STYLES = resolve(process.cwd(), 'src/styles/public.css');
 
 describe('legacy button primitives', () => {

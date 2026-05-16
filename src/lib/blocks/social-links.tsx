@@ -7,6 +7,7 @@ import {
   adminSectionRemoveButtonHtml,
 } from '../admin-action-controls.js';
 import * as React from 'react';
+import type { AnchorHTMLAttributes, CSSProperties, ReactElement, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Button } from '@/components/kychon/ui';
 import type { BlockRenderContext, BlockType, Section } from '../blocks.js';
@@ -83,67 +84,41 @@ const PROVIDER_ALIASES: Record<string, SocialProvider> = {
   link: 'website',
 };
 
-const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, React.ReactNode> = {
-  facebook: React.createElement('path', {
-    d: 'M14 8h3V4h-3c-3.1 0-5 1.9-5 5v2H6v4h3v5h4v-5h3.2l.6-4H13V9c0-.7.3-1 1-1z',
-  }),
-  x: React.createElement('path', {
-    d: 'M4 4h4.6l3.7 5.1L16.8 4H20l-6.1 7 6.6 9h-4.6l-4.1-5.7L6.7 20H3.5l6.6-7.5L4 4zm3.1 2 9.8 12h1L8.1 6h-1z',
-  }),
-  linkedin: React.createElement('path', {
-    d: 'M5 8h4v12H5V8zm2-5a2.3 2.3 0 1 1 0 4.6A2.3 2.3 0 0 1 7 3zm5 5h3.8v1.7h.1c.5-1 1.8-2 3.6-2 3.9 0 4.5 2.5 4.5 5.8V20h-4v-5.8c0-1.4 0-3.1-1.9-3.1s-2.1 1.5-2.1 3V20h-4V8z',
-  }),
+const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, ReactNode> = {
+  facebook: (
+    <path d="M14 8h3V4h-3c-3.1 0-5 1.9-5 5v2H6v4h3v5h4v-5h3.2l.6-4H13V9c0-.7.3-1 1-1z" />
+  ),
+  x: (
+    <path d="M4 4h4.6l3.7 5.1L16.8 4H20l-6.1 7 6.6 9h-4.6l-4.1-5.7L6.7 20H3.5l6.6-7.5L4 4zm3.1 2 9.8 12h1L8.1 6h-1z" />
+  ),
+  linkedin: (
+    <path d="M5 8h4v12H5V8zm2-5a2.3 2.3 0 1 1 0 4.6A2.3 2.3 0 0 1 7 3zm5 5h3.8v1.7h.1c.5-1 1.8-2 3.6-2 3.9 0 4.5 2.5 4.5 5.8V20h-4v-5.8c0-1.4 0-3.1-1.9-3.1s-2.1 1.5-2.1 3V20h-4V8z" />
+  ),
   instagram: [
-    React.createElement('rect', {
-      fill: 'none',
-      height: '16',
-      key: 'frame',
-      rx: '4',
-      stroke: 'currentColor',
-      strokeWidth: '2',
-      width: '16',
-      x: '4',
-      y: '4',
-    }),
-    React.createElement('circle', {
-      cx: '12',
-      cy: '12',
-      fill: 'none',
-      key: 'lens',
-      r: '4',
-      stroke: 'currentColor',
-      strokeWidth: '2',
-    }),
-    React.createElement('circle', { cx: '17', cy: '7', key: 'flash', r: '1.25' }),
+    <rect fill="none" height="16" key="frame" rx="4" stroke="currentColor" strokeWidth="2" width="16" x="4" y="4" />,
+    <circle cx="12" cy="12" fill="none" key="lens" r="4" stroke="currentColor" strokeWidth="2" />,
+    <circle cx="17" cy="7" key="flash" r="1.25" />,
   ],
-  youtube: React.createElement('path', {
-    d: 'M21.6 7.2a3 3 0 0 0-2.1-2.1C17.7 4.6 12 4.6 12 4.6s-5.7 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.8.5 7.5.5 7.5.5s5.7 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8zM10 15.4V8.6l5.8 3.4L10 15.4z',
-  }),
-  email: React.createElement('path', {
-    d: 'M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v.4l8 5.1 8-5.1V8H4zm16 8v-5.2l-7.5 4.8a1 1 0 0 1-1 0L4 10.8V16h16z',
-  }),
+  youtube: (
+    <path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.7 4.6 12 4.6 12 4.6s-5.7 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.8.5 7.5.5 7.5.5s5.7 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8zM10 15.4V8.6l5.8 3.4L10 15.4z" />
+  ),
+  email: (
+    <path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v.4l8 5.1 8-5.1V8H4zm16 8v-5.2l-7.5 4.8a1 1 0 0 1-1 0L4 10.8V16h16z" />
+  ),
   website: [
-    React.createElement('circle', {
-      cx: '12',
-      cy: '12',
-      fill: 'none',
-      key: 'globe',
-      r: '9',
-      stroke: 'currentColor',
-      strokeWidth: '2',
-    }),
-    React.createElement('path', {
-      d: 'M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z',
-      fill: 'none',
-      key: 'meridian',
-      stroke: 'currentColor',
-      strokeLinecap: 'round',
-      strokeWidth: '2',
-    }),
+    <circle cx="12" cy="12" fill="none" key="globe" r="9" stroke="currentColor" strokeWidth="2" />,
+    <path
+      d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"
+      fill="none"
+      key="meridian"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="2"
+    />,
   ],
-  unknown: React.createElement('path', {
-    d: 'M10 5H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4h-2v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4V5zm4 0v2h3.6l-8.3 8.3 1.4 1.4L19 8.4V12h2V5h-7z',
-  }),
+  unknown: (
+    <path d="M10 5H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4h-2v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4V5zm4 0v2h3.6l-8.3 8.3 1.4 1.4L19 8.4V12h2V5h-7z" />
+  ),
 };
 
 const SOCIAL_PROVIDER_COLORS: Record<SocialProvider, string> = {
@@ -162,7 +137,7 @@ const socialIconClass = 'block h-[var(--social-link-icon-size,1rem)] w-[var(--so
 const socialLabelClass = 'ml-1.5 text-sm leading-none';
 const socialLinkBaseClass = 'rounded-[var(--social-link-radius,var(--radius))] border border-[color:var(--social-link-border,var(--border))] bg-[var(--social-link-bg,var(--background))] text-[var(--social-link-color,var(--primary))] no-underline hover:-translate-y-px hover:border-[color:var(--social-link-hover-border,var(--social-link-provider-color,var(--primary)))] hover:bg-[var(--social-link-hover-bg,var(--social-link-provider-color,var(--primary)))] hover:text-[var(--social-link-hover-color,var(--primary-foreground))] focus-visible:ring-ring';
 type DataAttributes = Record<`data-${string}`, string | number | boolean | undefined>;
-type StaticAnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & DataAttributes;
+type StaticAnchorProps = AnchorHTMLAttributes<HTMLAnchorElement> & DataAttributes;
 
 function jsonAttr(value: unknown): string {
   return JSON.stringify(value)
@@ -294,18 +269,12 @@ export function normalizeSocialLinkItems(config: Record<string, unknown>): Norma
     .filter((item) => item.href);
 }
 
-function renderSocialIcon(provider: SocialProvider): React.ReactElement {
+function renderSocialIcon(provider: SocialProvider): ReactElement {
   const icon = SOCIAL_PROVIDER_ICONS[provider] || SOCIAL_PROVIDER_ICONS.unknown;
-  return React.createElement(
-    'svg',
-    {
-      'aria-hidden': true,
-      className: socialIconClass,
-      'data-social-link-icon': true,
-      focusable: false,
-      viewBox: '0 0 24 24',
-    },
-    icon,
+  return (
+    <svg aria-hidden="true" className={socialIconClass} data-social-link-icon focusable={false} viewBox="0 0 24 24">
+      {icon}
+    </svg>
   );
 }
 
@@ -322,7 +291,7 @@ function renderSocialAnchor(item: NormalizedSocialLinkItem): string {
     relTokens.add('noreferrer');
   }
   const rel = relTokens.size > 0 ? Array.from(relTokens).join(' ') : undefined;
-  const label = item.showLabel ? React.createElement('span', { className: socialLabelClass }, item.label) : null;
+  const label = item.showLabel ? <span className={socialLabelClass}>{item.label}</span> : null;
   const sizeClass = item.showLabel
     ? 'h-[var(--social-link-size,1.75rem)] w-auto min-w-[var(--social-link-size,1.75rem)] px-3'
     : 'h-[var(--social-link-size,1.75rem)] w-[var(--social-link-size,1.75rem)] flex-[0_0_var(--social-link-size,1.75rem)] p-0';
@@ -331,21 +300,17 @@ function renderSocialAnchor(item: NormalizedSocialLinkItem): string {
     'data-social-provider': item.provider,
     href: item.href,
     rel,
-    style: { '--social-link-provider-color': SOCIAL_PROVIDER_COLORS[item.provider] } as React.CSSProperties,
+    style: { '--social-link-provider-color': SOCIAL_PROVIDER_COLORS[item.provider] } as CSSProperties,
     target: target || undefined,
   };
 
   return renderToStaticMarkup(
-    React.createElement(
-      Button,
-      {
-        asChild: true,
-        className: `${socialLinkBaseClass} ${sizeClass}`,
-        size: 'icon',
-        variant: 'ghost',
-      },
-      React.createElement('a', anchorProps, renderSocialIcon(item.provider), label),
-    ),
+    <Button asChild className={`${socialLinkBaseClass} ${sizeClass}`} size="icon" variant="ghost">
+      <a {...anchorProps}>
+        {renderSocialIcon(item.provider)}
+        {label}
+      </a>
+    </Button>,
   );
 }
 
