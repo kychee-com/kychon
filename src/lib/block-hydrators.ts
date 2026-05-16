@@ -3,13 +3,14 @@
 // (Astro frontmatter runs in Node and shouldn't pull in localStorage/auth).
 
 import type { Section, BlockRenderContext } from './blocks.js';
+import { sectionShellFor } from './dom-structure.js';
 
 function isHydrateHost(el: HTMLElement, blockType: string): boolean {
   return el.getAttribute('data-block-hydrate') === blockType;
 }
 
 function hydrationShell(host: HTMLElement): HTMLElement {
-  return (host.closest('[data-section]') as HTMLElement | null) || host;
+  return sectionShellFor(host);
 }
 
 export async function hydrateAnnouncementsFeed(
