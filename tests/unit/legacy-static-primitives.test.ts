@@ -20,6 +20,7 @@ const PUBLIC_A11Y_STYLES = resolve(process.cwd(), 'public/css/a11y.css');
 const ADMIN_DASHBOARD = resolve(process.cwd(), 'src/components/kychon/AdminDashboardApp.tsx');
 const ADMIN_ACCESS_GATE = resolve(process.cwd(), 'src/components/kychon/AdminAccessGate.tsx');
 const CONFIG = resolve(process.cwd(), 'src/lib/config.ts');
+const I18N = resolve(process.cwd(), 'src/lib/i18n.ts');
 const PORTAL = resolve(process.cwd(), 'src/layouts/Portal.astro');
 const PAGE_RENDER = resolve(process.cwd(), 'src/lib/page-render.ts');
 const SANITIZE_HTML = resolve(process.cwd(), 'src/lib/sanitize-html.ts');
@@ -89,6 +90,7 @@ describe('legacy static UI primitives', () => {
     const adminDashboard = await readFile(ADMIN_DASHBOARD, 'utf8');
     const adminAccessGate = await readFile(ADMIN_ACCESS_GATE, 'utf8');
     const config = await readFile(CONFIG, 'utf8');
+    const i18n = await readFile(I18N, 'utf8');
     const portal = await readFile(PORTAL, 'utf8');
     const pageRender = await readFile(PAGE_RENDER, 'utf8');
     const sanitizeHtml = await readFile(SANITIZE_HTML, 'utf8');
@@ -301,6 +303,9 @@ describe('legacy static UI primitives', () => {
     expect(config).not.toContain('getElementById');
     expect(config).not.toContain('querySelector');
     expect(config).toContain('findHeadChild');
+    expect(i18n).not.toContain('getElementById');
+    expect(i18n).not.toContain('querySelector');
+    expect(i18n).toContain('findDescendantById');
     expect(pageRender).toContain('findDirectElementChild');
     expect(pageRender).toContain("child.hasAttribute('data-layout-container')");
     expect(pageRender).toContain("child.id === 'sections'");
