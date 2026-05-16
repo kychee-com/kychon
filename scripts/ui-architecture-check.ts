@@ -4,7 +4,7 @@ import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const ROOT = join(import.meta.dirname, '..');
-const SCAN_DIRS = ['src', 'scripts', 'tests', 'public', 'demo'];
+const SCAN_DIRS = ['src', 'scripts', 'tests', 'public', 'demo', 'functions'];
 const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.html', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
@@ -107,7 +107,12 @@ function relativeImportTarget(file: string, specifier: string): string {
 
 function isProductSource(file: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
-  return (rel.startsWith('src/') && !rel.startsWith('src/components/ui/')) || rel.startsWith('public/') || rel.startsWith('demo/');
+  return (
+    (rel.startsWith('src/') && !rel.startsWith('src/components/ui/')) ||
+    rel.startsWith('public/') ||
+    rel.startsWith('demo/') ||
+    rel.startsWith('functions/')
+  );
 }
 
 function isUiRenderSource(file: string): boolean {
