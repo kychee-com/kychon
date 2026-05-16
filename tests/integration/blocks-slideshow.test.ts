@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearBodyFixture, escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
+import { bodyFixture, clearBodyFixture, escapeHtml } from '../helpers/dom-fixture.js';
 
 beforeEach(() => {
   clearBodyFixture();
@@ -36,7 +36,7 @@ function buildSlideshowDOM(
 ) {
   const autoMs = opts.autoMs ?? 1000;
   const total = opts.slides ?? 3;
-  const wrapper = htmlFixture(`
+  const wrapper = bodyFixture(`
     <section data-section class="w-full py-4">
     <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>
       <div class="relative overflow-hidden" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Test" data-block-hydrate="slideshow" data-auto-ms="${escapeHtml(autoMs)}" data-pause-hover="${opts.pauseHover === false ? 'false' : 'true'}" data-pause-focus="${opts.pauseFocus === false ? 'false' : 'true'}" data-manual-pause="${opts.manualPause ? 'true' : 'false'}" style="--aspect:16/9;--fit:cover">
@@ -63,7 +63,6 @@ function buildSlideshowDOM(
     </div>
     </section>
   `);
-  document.body.append(wrapper);
   // Mock matchMedia for reduced-motion control.
   vi.stubGlobal(
     'matchMedia',
