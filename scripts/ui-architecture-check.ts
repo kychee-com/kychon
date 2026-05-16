@@ -3,8 +3,8 @@ import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const ROOT = join(import.meta.dirname, '..');
-const SCAN_DIRS = ['src', 'scripts', 'tests', 'public'];
-const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.js', '.jsx', '.mjs', '.ts', '.tsx']);
+const SCAN_DIRS = ['src', 'scripts', 'tests', 'public', 'demo'];
+const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
@@ -14,7 +14,7 @@ const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|\.className\s*=|classList\.)/g;
 const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea)\b([^>]*)>/g;
-const CLASS_LITERAL_RE = /\b(?:class|className)=['"`]([^'"`]*)['"`]/g;
+const CLASS_LITERAL_RE = /\b(?:class|className)=\\*(["'`])([^'"`]*)\\*\1/g;
 const RETIRED_PRIMITIVE_CLASSES = new Set([
   'container',
   'text-muted',
@@ -25,6 +25,10 @@ const RETIRED_PRIMITIVE_CLASSES = new Set([
   'form-input',
   'form-select',
   'form-textarea',
+  'ky-container',
+  'ky-text-muted',
+  'page-content',
+  'table-wrap',
 ]);
 const RETIRED_PRIMITIVE_CLASS_DEFINITION_RE = new RegExp(
   `(^|[^a-zA-Z0-9_-])\\.(${Array.from(RETIRED_PRIMITIVE_CLASSES).join('|')})(?=$|[^a-zA-Z0-9_-])`,
@@ -93,7 +97,7 @@ function relativeImportTarget(file: string, specifier: string): string {
 
 function isProductSource(file: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
-  return (rel.startsWith('src/') && !rel.startsWith('src/components/ui/')) || rel.startsWith('public/');
+  return (rel.startsWith('src/') && !rel.startsWith('src/components/ui/')) || rel.startsWith('public/') || rel.startsWith('demo/');
 }
 
 function isUiRenderSource(file: string): boolean {
@@ -178,7 +182,7 @@ export function checkSource(file: string, source: string): Violation[] {
     }
 
     for (const match of source.matchAll(CLASS_LITERAL_RE)) {
-      const classes = String(match[1] || '').split(/\s+/).filter(Boolean);
+      const classes = String(match[2] || '').replaceAll('\\', '').split(/\s+/).filter(Boolean);
       if (!classes.some((className) => RETIRED_PRIMITIVE_CLASSES.has(className))) continue;
       const line = lineNumber(source, match.index ?? 0);
       violations.push({

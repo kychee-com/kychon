@@ -71,6 +71,10 @@ describe('ui architecture check', () => {
     expect(violations).toContain(
       'CSS must not define retired Kychon primitive classes; use Tailwind, shadcn/Kychon UI, and data hooks',
     );
+
+    expect(messages('demo/bad/seed.sql', String.raw`'{"html":"<div class=\"card\"></div>"}'`)).toContain(
+      'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
+    );
   });
 
   it('routes test DOM fixtures through the shared helper and allows negative source assertions', () => {
