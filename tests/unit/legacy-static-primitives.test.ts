@@ -221,7 +221,10 @@ describe('legacy static UI primitives', () => {
     expect(navDropdown).not.toContain('navKeyboardBound');
     expect(navDropdown).not.toContain('navHoverBound');
     expect(navDropdown).not.toContain('navToggleBound');
+    expect(navDropdown).not.toContain('querySelector');
     expect(navDropdown).not.toContain('querySelectorAll');
+    expect(navDropdown).not.toContain('.closest(');
+    expect(navDropdown).not.toContain('.matches(');
     expect(navDropdown).not.toContain('[data-nav-trigger]');
     expect(navDropdown).not.toContain('[data-nav-menu]:not([hidden])');
     expect(globalStyles).not.toContain('block-events-calendar.css');

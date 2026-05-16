@@ -178,7 +178,10 @@ describe('nav block — flat behavior preserved', () => {
     expect(runtime).toContain('createRoot');
     expect(runtime).not.toContain('chevronBound');
     expect(runtime).not.toContain('navKeyboardBound');
+    expect(runtime).not.toContain('querySelector');
     expect(runtime).not.toContain('querySelectorAll');
+    expect(runtime).not.toContain('.closest(');
+    expect(runtime).not.toContain('.matches(');
     expect(view).not.toContain('nav--source-mobile');
     expect(styles).not.toContain('nav--source-mobile');
     expect(styles).not.toContain('nav--overflow');
