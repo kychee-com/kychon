@@ -303,6 +303,23 @@ function preservesSourceColorScheme(theme: Record<string, any>): boolean {
   return String(theme.color_scheme || '').toLowerCase() === 'source';
 }
 
+function findHeadChild(predicate: (child: HTMLElement) => boolean): HTMLElement | null {
+  for (const child of Array.from(document.head.children)) {
+    if (!(child instanceof HTMLElement)) continue;
+    if (predicate(child)) return child;
+  }
+  return null;
+}
+
+function themeVarsStyleElement(): HTMLElement | null {
+  return findHeadChild((child) => child.id === 'wl-theme-vars');
+}
+
+function faviconLinkElement(): HTMLLinkElement | null {
+  const link = findHeadChild((child) => child instanceof HTMLLinkElement && child.rel === 'icon');
+  return link instanceof HTMLLinkElement ? link : null;
+}
+
 export function themeCssVars(theme: Record<string, any> | null): Record<string, string> {
   const vars: Record<string, string> = {};
   if (!theme) return vars;
@@ -340,7 +357,7 @@ export function applyTheme(theme: Record<string, any> | null): void {
     }
   }
   const rootSelector = darkOverridable.size > 0 ? ':root:not([data-theme="dark"])' : ':root';
-  const styleEl = document.getElementById('wl-theme-vars');
+  const styleEl = themeVarsStyleElement();
   if (styleEl) styleEl.textContent = `${rootSelector} {\n  ${rootVars.join('\n  ')}\n}`;
 }
 
@@ -359,7 +376,7 @@ export function applyBranding(config: Record<string, any>): void {
   const name = config.brand_text || config.site_name || 'Kychon';
   document.title = getBrandedTitle(document.title, name);
 
-  const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+  const favicon = faviconLinkElement();
   if (!favicon) return;
   const faviconUrl =
     (config.favicon_url && String(config.favicon_url)) ||

@@ -298,6 +298,9 @@ describe('legacy static UI primitives', () => {
     expect(config).not.toContain("classList.add('wl-reduced-motion')");
     expect(config).not.toContain('document.createElement');
     expect(config).not.toContain('appendChild');
+    expect(config).not.toContain('getElementById');
+    expect(config).not.toContain('querySelector');
+    expect(config).toContain('findHeadChild');
     expect(pageRender).toContain('findDirectElementChild');
     expect(pageRender).toContain("child.hasAttribute('data-layout-container')");
     expect(pageRender).toContain("child.id === 'sections'");
