@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hydrateSiteSearch } from '../../src/lib/block-hydrators.ts';
 import type { BlockRenderContext, Section } from '../../src/lib/blocks.ts';
+import { bodyFixture } from '../helpers/dom-fixture.js';
 
 const fetchMock = vi.fn();
 
@@ -22,11 +23,11 @@ const ctx: BlockRenderContext = {
 };
 
 function mount() {
-  document.body.innerHTML = `
+  bodyFixture(`
     <section>
       <div data-block-hydrate="site_search" data-config='{"default_type":"pages","min_chars":2}'></div>
     </section>
-  `;
+  `);
   return document.querySelector('section') as HTMLElement;
 }
 

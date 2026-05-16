@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('events rendering', () => {
   const events = [
@@ -29,17 +30,16 @@ describe('events rendering', () => {
   ];
 
   function renderEventCard(event) {
-    const card = document.createElement('div');
-    card.dataset.eventId = event.id;
     const date = new Date(event.starts_at);
-    card.innerHTML = `
-      <h4>${event.title}</h4>
-      <p data-event-date>${date.toLocaleDateString()}</p>
-      ${event.location ? `<p data-event-location>${event.location}</p>` : ''}
-      ${event.is_members_only ? '<span data-event-members-only>Members Only</span>' : ''}
-      ${event.capacity ? `<span data-event-capacity>${event.capacity} spots</span>` : ''}
-    `;
-    return card;
+    return htmlFixture(`
+      <div data-event-id="${escapeHtml(event.id)}">
+        <h4>${escapeHtml(event.title)}</h4>
+        <p data-event-date>${escapeHtml(date.toLocaleDateString())}</p>
+        ${event.location ? `<p data-event-location>${escapeHtml(event.location)}</p>` : ''}
+        ${event.is_members_only ? '<span data-event-members-only>Members Only</span>' : ''}
+        ${event.capacity ? `<span data-event-capacity>${escapeHtml(event.capacity)} spots</span>` : ''}
+      </div>
+    `);
   }
 
   it('renders event card with title and date', () => {
@@ -79,11 +79,12 @@ describe('events rendering', () => {
   });
 
   it('renders RSVP buttons', () => {
-    const container = document.createElement('div');
-    container.innerHTML = `
-      <button data-rsvp="going">Going</button>
-      <button data-rsvp="maybe">Maybe</button>
-    `;
+    const container = htmlFixture(`
+      <div>
+        <button data-rsvp="going">Going</button>
+        <button data-rsvp="maybe">Maybe</button>
+      </div>
+    `);
     const buttons = container.querySelectorAll('[data-rsvp]');
     expect(buttons.length).toBe(2);
     expect(buttons[0].dataset.rsvp).toBe('going');

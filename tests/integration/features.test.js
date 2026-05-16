@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { defaultNav, featureFlags } from '../fixtures/configs.js';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('feature flag permutations', () => {
   function filterNav(navItems, features) {
@@ -46,14 +47,12 @@ describe('feature flag permutations', () => {
   it('random feature flags produce valid DOM', () => {
     fc.assert(
       fc.property(fc.record(Object.fromEntries(featureFlags.map((f) => [f, fc.boolean()]))), (features) => {
-        const container = document.createElement('div');
         const filtered = filterNav(defaultNav, features);
-        for (const item of filtered) {
-          const a = document.createElement('a');
-          a.href = item.href;
-          a.textContent = item.label;
-          container.appendChild(a);
-        }
+        const container = htmlFixture(`
+          <div>
+            ${filtered.map((item) => `<a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>`).join('')}
+          </div>
+        `);
         // DOM should not throw, container should have at least Home
         expect(container.children.length).toBeGreaterThanOrEqual(1);
       }),

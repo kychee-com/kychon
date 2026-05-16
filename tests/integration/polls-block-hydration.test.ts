@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BLOCK_TYPES, type BlockRenderContext, type Section } from '../../src/lib/blocks';
+import { bodyFixture, clearBodyFixture, escapeHtml } from '../helpers/dom-fixture.js';
 
 const section: Section = {
   id: 91,
@@ -44,11 +45,11 @@ const votes = [
 ];
 
 function mount(config = '{"heading":"Member Poll","poll_ids":[42]}'): HTMLElement {
-  document.body.innerHTML = `
+  bodyFixture(`
     <section>
-      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="polls" data-config='${config}'></div>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="polls" data-config='${escapeHtml(config)}'></div>
     </section>
-  `;
+  `);
   return document.querySelector('section') as HTMLElement;
 }
 
@@ -74,7 +75,7 @@ describe('polls block hydration', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    document.body.innerHTML = '';
+    clearBodyFixture();
   });
 
   it('renders configured polls through a shadcn React island', async () => {

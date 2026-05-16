@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearBodyFixture, headFixture } from '../helpers/dom-fixture.js';
 
 const staleConfig = [
   { key: 'site_name', value: 'Old AAGE', category: 'branding' },
@@ -47,8 +48,8 @@ function envelopeFrom(init?: RequestInit) {
 describe('site_config cache build awareness', () => {
   beforeEach(() => {
     vi.resetModules();
-    document.head.innerHTML = '<title>Kychon</title><link rel="icon" href="/favicon.svg">';
-    document.body.innerHTML = '';
+    headFixture('<title>Kychon</title><link rel="icon" href="/favicon.svg">');
+    clearBodyFixture();
     window.history.pushState(null, '', '/index.html');
     const testWindow = window as Window & {
       __KYCHON_API: string;

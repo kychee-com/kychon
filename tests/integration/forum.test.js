@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('forum rendering', () => {
   const categories = [
@@ -40,19 +41,22 @@ describe('forum rendering', () => {
   ];
 
   function renderCategoryList(categories, topicCounts) {
-    const list = document.createElement('div');
-    for (const cat of categories) {
-      const card = document.createElement('div');
-      card.dataset.forumCategoryCard = String(cat.id);
-      card.innerHTML = `
-        <div data-forum-category-color style="background:${cat.color}"></div>
-        <h3>${cat.name}</h3>
-        <p>${cat.description}</p>
-        <span data-forum-topic-count>${topicCounts[cat.id] || 0} topics</span>
-      `;
-      list.appendChild(card);
-    }
-    return list;
+    return htmlFixture(`
+      <div>
+        ${categories
+          .map(
+            (cat) => `
+          <div data-forum-category-card="${escapeHtml(cat.id)}">
+            <div data-forum-category-color style="background:${escapeHtml(cat.color)}"></div>
+            <h3>${escapeHtml(cat.name)}</h3>
+            <p>${escapeHtml(cat.description)}</p>
+            <span data-forum-topic-count>${escapeHtml(topicCounts[cat.id] || 0)} topics</span>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    `);
   }
 
   function renderTopicList(topics, isAdmin) {
@@ -61,19 +65,22 @@ describe('forum rendering', () => {
       if (a.is_pinned !== b.is_pinned) return b.is_pinned ? 1 : -1;
       return 0;
     });
-    const list = document.createElement('div');
-    for (const t of sorted) {
-      const row = document.createElement('div');
-      row.dataset.forumTopicRow = String(t.id);
-      row.innerHTML = `
-        <span data-forum-topic-title>${t.title}</span>
-        ${t.is_pinned ? '<span data-forum-topic-pinned>Pinned</span>' : ''}
-        ${t.hidden ? '<span data-forum-topic-hidden>Hidden</span>' : ''}
-        <span data-forum-reply-count>${t.reply_count} replies</span>
-      `;
-      list.appendChild(row);
-    }
-    return list;
+    return htmlFixture(`
+      <div>
+        ${sorted
+          .map(
+            (t) => `
+          <div data-forum-topic-row="${escapeHtml(t.id)}">
+            <span data-forum-topic-title>${escapeHtml(t.title)}</span>
+            ${t.is_pinned ? '<span data-forum-topic-pinned>Pinned</span>' : ''}
+            ${t.hidden ? '<span data-forum-topic-hidden>Hidden</span>' : ''}
+            <span data-forum-reply-count>${escapeHtml(t.reply_count)} replies</span>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    `);
   }
 
   it('renders category list with topic counts', () => {

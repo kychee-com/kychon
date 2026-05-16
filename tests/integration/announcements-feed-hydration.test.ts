@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BLOCK_TYPES, type BlockRenderContext, type Section } from '../../src/lib/blocks';
+import { bodyFixture, clearBodyFixture, escapeHtml } from '../helpers/dom-fixture.js';
 
 const section: Section = {
   id: 92,
@@ -51,11 +52,11 @@ const options = [
 const votes = [{ id: 1, poll_id: 42, option_id: 1, member_id: 10, created_at: '2026-05-15T10:10:00.000Z' }];
 
 function mount(config = '{"heading":"Announcements","limit":5}'): HTMLElement {
-  document.body.innerHTML = `
+  bodyFixture(`
     <section>
-      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="announcements_feed" data-config='${config}'></div>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="announcements_feed" data-config='${escapeHtml(config)}'></div>
     </section>
-  `;
+  `);
   return document.querySelector('section') as HTMLElement;
 }
 
@@ -89,7 +90,7 @@ describe('announcements feed hydration', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    document.body.innerHTML = '';
+    clearBodyFixture();
   });
 
   it('renders announcements and attached polls through a shadcn island', async () => {

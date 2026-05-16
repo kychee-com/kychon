@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('resources rendering', () => {
   const resources = [
@@ -66,17 +67,24 @@ describe('resources rendering', () => {
   });
 
   it('renders resource card with icon and title', () => {
-    const card = document.createElement('div');
     const r = resources[0];
-    card.innerHTML = `<span data-resource-icon>${fileTypeIcon(r.file_type)}</span><h4>${r.title}</h4>`;
+    const card = htmlFixture(`
+      <div>
+        <span data-resource-icon>${escapeHtml(fileTypeIcon(r.file_type))}</span>
+        <h4>${escapeHtml(r.title)}</h4>
+      </div>
+    `);
     expect(card.querySelector('[data-resource-icon]').textContent).toBe('📄');
     expect(card.querySelector('h4').textContent).toBe('User Guide');
   });
 
   it('shows members-only badge', () => {
-    const card = document.createElement('div');
     const r = resources[0];
-    if (r.is_members_only) card.innerHTML += '<span data-resource-members-only>Members Only</span>';
+    const card = htmlFixture(`
+      <div>
+        ${r.is_members_only ? '<span data-resource-members-only>Members Only</span>' : ''}
+      </div>
+    `);
     expect(card.querySelector('[data-resource-members-only]')).toBeTruthy();
   });
 });

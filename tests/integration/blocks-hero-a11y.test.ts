@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks.ts';
+import { htmlFixture } from '../helpers/dom-fixture.js';
 
 const ctx: BlockRenderContext = {
   admin: false,
@@ -27,9 +28,7 @@ function renderHero(config: Record<string, unknown>): HTMLElement {
     visible: true,
   };
   const html = renderBlock(section, ctx);
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = html;
-  return wrapper.firstElementChild as HTMLElement;
+  return htmlFixture(`<div>${html}</div>`).firstElementChild as HTMLElement;
 }
 
 describe('foreground hero a11y', () => {

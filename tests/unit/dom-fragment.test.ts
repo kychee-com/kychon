@@ -12,10 +12,11 @@ import {
   serializeHtmlChildren,
   unwrapElement,
 } from '../../src/lib/dom-fragment';
+import { htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('DOM fragment reconciliation', () => {
   it('renders parsed HTML children without replacing identical nodes', () => {
-    const host = document.createElement('div');
+    const host = htmlFixture('<div></div>');
     renderHtmlChildren(host, '<p data-id="1">Hello <strong>there</strong></p>');
     const firstChild = host.firstElementChild;
 
@@ -28,7 +29,7 @@ describe('DOM fragment reconciliation', () => {
   });
 
   it('serializes and clears child content for rich text handoff', () => {
-    const host = document.createElement('div');
+    const host = htmlFixture('<div></div>');
     renderHtmlChildren(host, '<p>Copy</p>plain');
 
     expect(serializeHtmlChildren(host)).toBe('<p>Copy</p>plain');
@@ -37,7 +38,7 @@ describe('DOM fragment reconciliation', () => {
   });
 
   it('moves an existing node to the end without rebuilding siblings', () => {
-    const host = document.createElement('div');
+    const host = htmlFixture('<div></div>');
     renderHtmlChildren(host, '<span>A</span><span>B</span>');
     const first = host.firstElementChild as HTMLElement;
 
@@ -48,7 +49,7 @@ describe('DOM fragment reconciliation', () => {
   });
 
   it('moves a node around a reference without rebuilding unrelated siblings', () => {
-    const host = document.createElement('div');
+    const host = htmlFixture('<div></div>');
     renderHtmlChildren(host, '<span>A</span><span>B</span><span>C</span>');
     const [first, second, third] = Array.from(host.children) as HTMLElement[];
 
@@ -63,12 +64,11 @@ describe('DOM fragment reconciliation', () => {
   });
 
   it('replaces a reference node without rebuilding unrelated siblings', () => {
-    const host = document.createElement('div');
+    const host = htmlFixture('<div></div>');
     renderHtmlChildren(host, '<span>A</span><span>B</span>');
     const first = host.firstElementChild as HTMLElement;
     const second = host.lastElementChild as HTMLElement;
-    const replacement = document.createElement('span');
-    replacement.textContent = 'C';
+    const replacement = htmlFixture('<span>C</span>');
 
     replaceNodeWith(first, replacement);
 
@@ -78,7 +78,7 @@ describe('DOM fragment reconciliation', () => {
   });
 
   it('removes and unwraps nodes for sanitizer handoff', () => {
-    const host = document.createElement('div');
+    const host = htmlFixture('<div></div>');
     renderHtmlChildren(host, '<span>A</span><em><span>B</span></em><span>C</span>');
     const wrapper = host.querySelector('em') as HTMLElement;
     const wrappedChild = wrapper.firstElementChild;

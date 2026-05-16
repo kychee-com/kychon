@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BlockRenderContext, Section } from '../../src/lib/blocks';
+import { bodyFixture, clearBodyFixture } from '../helpers/dom-fixture.js';
 
 const section: Section = {
   id: 7,
@@ -46,13 +47,13 @@ function capabilityResponse(data: unknown) {
 }
 
 function mountActivityHost(): HTMLElement {
-  document.body.innerHTML = `
+  bodyFixture(`
     <section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="activity_feed">
         <h2>Recent Activity</h2>
       </div>
     </section>
-  `;
+  `);
   return document.body;
 }
 
@@ -75,7 +76,7 @@ describe('activity_feed hydration', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    document.body.innerHTML = '';
+    clearBodyFixture();
   });
 
   it('renders member-only state without string-built legacy activity markup', async () => {
