@@ -118,22 +118,37 @@ describe('ui architecture check', () => {
     );
   });
 
-  it('keeps copied port seed SQL free of legacy embedded HTML primitives', () => {
+  it('keeps seed artifacts free of legacy embedded HTML primitives', () => {
     const violations = messages(
       '_aage-port.seed.sql',
-      `INSERT INTO pages (content) VALUES ('<style>.card{color:red}</style><form class="legacy"><input name="q"><p style="color:red">Legacy</p></form>');`,
+      `INSERT INTO pages (content) VALUES ('<style>.card{color:red}</style><form class="legacy"><iframe src="/map"></iframe><input name="q"><p style="color:red">Legacy</p></form>');`,
     );
 
     expect(violations).toContain(
-      'Port seed SQL must not embed legacy style HTML; sanitize copied source before tracking or deploying it',
+      'Seed artifacts must not embed legacy style HTML; use structural rich text or typed shadcn/Kychon blocks',
     );
     expect(violations).toContain(
-      'Port seed SQL must not embed legacy form HTML; sanitize copied source before tracking or deploying it',
+      'Seed artifacts must not embed legacy form HTML; use structural rich text or typed shadcn/Kychon blocks',
     );
     expect(violations).toContain(
-      'Port seed SQL must not embed legacy class HTML; sanitize copied source before tracking or deploying it',
+      'Seed artifacts must not embed legacy iframe HTML; use structural rich text or typed shadcn/Kychon blocks',
+    );
+    expect(violations).toContain(
+      'Seed artifacts must not embed legacy class HTML; use structural rich text or typed shadcn/Kychon blocks',
     );
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <input> controls');
+
+    expect(messages('src/seeds/bad.ts', `const html = '<p class="legacy">Bad</p>';`)).toContain(
+      'Seed artifacts must not embed legacy class HTML; use structural rich text or typed shadcn/Kychon blocks',
+    );
+    expect(messages('demo/bad/reset-demo.js', `const sql = '<p style="color:red">Bad</p>';`)).toContain(
+      'Seed artifacts must not embed legacy style HTML; use structural rich text or typed shadcn/Kychon blocks',
+    );
+    expect(
+      messages('demo/bad/seed.sql', `INSERT INTO sections VALUES ('<p text-xl text-muted-foreground\\">Bad</p>');`),
+    ).toContain(
+      'Seed artifacts must not contain stripped legacy <p> attribute fragments; rewrite rich text structurally before tracking generated SQL',
+    );
   });
 
   it('routes test DOM fixtures through the shared helper and allows negative source assertions', () => {

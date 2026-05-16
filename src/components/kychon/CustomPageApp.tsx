@@ -6,6 +6,7 @@ import { isAdmin, isAuthenticated } from '@/lib/auth';
 import { resolveCustomPageSlugFromLocation } from '@/lib/clean-routes';
 import { ready, translateItems } from '@/lib/config';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
+import { richTextContentClass } from '@/lib/ui/rich-text';
 import type { Page } from '@/schemas/content';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -108,7 +109,7 @@ export default function CustomPageApp() {
       </h1>
       {contentHtml ? (
         <div
-          className="max-w-none break-words leading-7 text-foreground [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-4 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6"
+          className={richTextContentClass}
           data-editable-rich={admin ? `pages.${page.id}.content` : undefined}
           dangerouslySetInnerHTML={{ __html: contentHtml }}
         />

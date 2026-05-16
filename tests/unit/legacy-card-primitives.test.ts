@@ -12,7 +12,8 @@ describe('legacy card primitive', () => {
 
     expect(seed).not.toContain('class="card');
     expect(seed).not.toContain("class='card");
-    expect(seed).toContain('rounded-lg border border-border bg-card');
+    expect(seed).not.toContain('rounded-lg border border-border bg-card');
+    expect(seed).toContain('Open map and directions');
     expect(styles).not.toMatch(/\.card(?:[.{:#\s]|$)/);
     expect(styles).not.toContain('.card-header');
     expect(styles).not.toMatch(/\.form-(?:group|label|input|select|textarea)\b/);
@@ -20,7 +21,8 @@ describe('legacy card primitive', () => {
     expect(styles).not.toMatch(/\.member-(?:card|avatar|info|name|meta)\b/);
     expect(styles).not.toMatch(/\.reaction-(?:bar|badge|picker|picker-btn|picker-dropdown|float-emoji)\b/);
     expect(seed).not.toContain('table-wrap');
-    expect(seed).toContain('overflow-x-auto');
+    expect(seed).not.toContain('overflow-x-auto');
+    expect(seed).toContain('<table><thead>');
     expect(styles).not.toMatch(/\.table-wrap\b/);
   });
 });
