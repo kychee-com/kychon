@@ -614,32 +614,30 @@
     return zone;
   }
 
-  function bindDragHandle(handle: HTMLElement) {
-    if (handle.dataset.adminDragBound === 'true') return;
+  function startDragFromHandle(handle: HTMLElement, event: DragEvent) {
     const el = handle.closest('[data-sortable-id]') as HTMLElement | null;
     if (!el) return;
-    handle.dataset.adminDragBound = 'true';
-    handle.setAttribute('aria-label', 'Drag to reorder');
-    handle.textContent = '☰';
-    handle.addEventListener('dragstart', (e) => {
-      draggedEl = el;
-      const zone = findZoneContainer(el);
-      sourceZone = zone?.dataset.zone || null;
-      document.body.dataset.adminDragging = 'true';
-      el.dataset.adminDragging = 'true';
-      e.dataTransfer!.effectAllowed = 'move';
-      e.dataTransfer!.setData('text/plain', el.dataset.sortableId || '');
-    });
-  }
-
-  function bindSortableHandles() {
-    document.querySelectorAll<HTMLElement>('[data-admin-drag-handle]').forEach(bindDragHandle);
+    if (!event.dataTransfer) return;
+    draggedEl = el;
+    const zone = findZoneContainer(el);
+    sourceZone = zone?.dataset.zone || null;
+    document.body.dataset.adminDragging = 'true';
+    el.dataset.adminDragging = 'true';
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', el.dataset.sortableId || '');
   }
 
   function initSortable() {
-    bindSortableHandles();
     if ((document as any).__sortableDocBound) return;
     (document as any).__sortableDocBound = true;
+
+    document.addEventListener('dragstart', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const handle = target.closest('[data-admin-drag-handle]') as HTMLElement | null;
+      if (!handle) return;
+      startDragFromHandle(handle, event);
+    });
 
     document.addEventListener('dragover', (e) => {
       if (!draggedEl) return;
