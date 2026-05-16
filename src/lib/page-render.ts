@@ -18,6 +18,7 @@ import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { renderHtmlChildren } from './dom-fragment';
+import { nearestElementWithAttribute } from './dom-structure';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -209,7 +210,7 @@ function renderZoneInto(
 }
 
 function findSectionForElement(el: HTMLElement, sections: Section[]): Section | null {
-  const sortable = el.closest('[data-sortable-id]') as HTMLElement | null;
+  const sortable = nearestElementWithAttribute(el, 'data-sortable-id');
   if (sortable) {
     const id = sortable.dataset.sortableId?.split('.')[1];
     if (id != null) {
