@@ -1,28 +1,50 @@
 // @vitest-environment happy-dom
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bodyFixture } from '../helpers/dom-fixture.js';
+import React, { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { appendBodyFixture, clearBodyFixture } from '../helpers/dom-fixture.js';
 
 vi.mock('../../src/lib/auth-modal-events', () => ({
   openAuthModal: vi.fn(),
 }));
 
-import { showAuthGate } from '../../src/lib/auth-gate';
+import { AuthGate } from '../../src/components/kychon/AuthGateIsland';
 import { openAuthModal } from '../../src/lib/auth-modal-events';
 
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const roots: Root[] = [];
+
 describe('auth gate', () => {
-  beforeEach(() => {
-    bodyFixture('<main id="main-content"></main>');
+  afterEach(() => {
+    for (const root of roots.splice(0)) {
+      act(() => root.unmount());
+    }
+    clearBodyFixture();
     vi.clearAllMocks();
   });
 
-  it('shows a sign-in action for admin access denial', () => {
-    showAuthGate('#main-content', 'admin');
+  it('shows a sign-in action for admin access denial', async () => {
+    const [host] = appendBodyFixture('<main id="main-content"></main>');
+    const root = createRoot(host);
+    roots.push(root);
 
-    const signIn = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-      button.textContent?.includes('auth.gate.signIn'),
+    await act(async () => {
+      root.render(
+        React.createElement(AuthGate, {
+          backLabel: 'Back to home',
+          copy: { title: 'Admin access required', body: 'This page is for site admins.', showSignIn: true },
+          kind: 'admin',
+          signInLabel: 'Sign in',
+        }),
+      );
+    });
+
+    const signIn = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.includes('Sign in'),
     );
-    expect(signIn?.textContent).toBe('auth.gate.signIn');
+    expect(signIn?.textContent).toBe('Sign in');
 
     signIn?.click();
     expect(openAuthModal).toHaveBeenCalledWith({ trigger: signIn });

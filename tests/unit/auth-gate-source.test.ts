@@ -17,6 +17,10 @@ describe('auth gate source', () => {
     expect(combined).toContain('Card');
     expect(combined).toContain('Button');
     expect(combined).not.toContain('data-auth-gate-action');
+    expect(combined).not.toContain('mountAuthGate');
+    expect(combined).not.toContain('createRoot');
+    expect(combined).not.toContain('document.querySelector');
+    expect(combined).not.toContain('flushSync');
     expect(combined).not.toContain('document.createElement');
     expect(combined).not.toContain('innerHTML');
     expect(combined).not.toContain('class="btn');

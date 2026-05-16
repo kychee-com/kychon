@@ -296,6 +296,8 @@ describe('legacy static UI primitives', () => {
     expect(uiCaptureRoutes).not.toContain('#resources-grid .card');
     expect(uiCaptureRoutes).not.toContain('.forum-category');
     expect(showcaseRender).toContain('data-layout-container');
+    expect(showcaseRender).toContain('data-nav-shell');
+    expect(showcaseRender).not.toContain('class="nav"');
     expect(showcaseRender).not.toContain('data-section-visible');
     expect(showcaseRender).not.toContain("document.querySelectorAll('main [data-section]')");
     expect(showcaseRender).not.toContain("document.querySelectorAll('[data-section]')");
