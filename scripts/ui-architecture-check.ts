@@ -1,10 +1,11 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const ROOT = join(import.meta.dirname, '..');
 const SCAN_DIRS = ['src', 'scripts', 'tests', 'public', 'demo'];
-const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
+const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.html', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
@@ -49,21 +50,20 @@ export interface Violation {
   excerpt: string;
 }
 
-function walk(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...walk(full));
-      continue;
-    }
-    const ext = entry.name.slice(entry.name.lastIndexOf('.'));
-    if (SOURCE_EXTENSIONS.has(ext)) files.push(full);
-  }
-  return files;
+export function isScannedSourcePath(path: string): boolean {
+  const rel = path.replaceAll('\\', '/');
+  const extIndex = rel.lastIndexOf('.');
+  const ext = extIndex >= 0 ? rel.slice(extIndex) : '';
+  return SCAN_DIRS.some((dir) => rel.startsWith(`${dir}/`)) && SOURCE_EXTENSIONS.has(ext);
+}
+
+export function listScanFiles(): string[] {
+  const output = execFileSync('git', ['ls-files', '-z', '--', ...SCAN_DIRS], { cwd: ROOT, encoding: 'utf-8' });
+  return output
+    .split('\0')
+    .filter(Boolean)
+    .filter(isScannedSourcePath)
+    .map((file) => join(ROOT, file));
 }
 
 function lineNumber(source: string, index: number): number {
@@ -292,7 +292,7 @@ export function checkFile(file: string): Violation[] {
 }
 
 export function main(): void {
-  const files = SCAN_DIRS.flatMap((dir) => walk(join(ROOT, dir)));
+  const files = listScanFiles();
   const violations = files.flatMap(checkFile);
 
   if (violations.length === 0) {

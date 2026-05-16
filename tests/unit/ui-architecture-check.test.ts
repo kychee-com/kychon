@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkSource } from '../../scripts/ui-architecture-check';
+import { checkSource, isScannedSourcePath } from '../../scripts/ui-architecture-check';
 
 function sourceFile(path: string): string {
   return resolve(process.cwd(), path);
@@ -11,6 +11,14 @@ function messages(path: string, source: string): string[] {
 }
 
 describe('ui architecture check', () => {
+  it('scans tracked product source extensions including html', () => {
+    expect(isScannedSourcePath('public/page.html')).toBe(true);
+    expect(isScannedSourcePath('demo/site/seed.sql')).toBe(true);
+    expect(isScannedSourcePath('src/components/kychon/View.tsx')).toBe(true);
+    expect(isScannedSourcePath('public/image.png')).toBe(false);
+    expect(isScannedSourcePath('dist/page.html')).toBe(false);
+  });
+
   it('rejects hand-built DOM in product and public runtime source', () => {
     const createElementCall = `document.${'createElement'}('button');`;
 
@@ -56,6 +64,9 @@ describe('ui architecture check', () => {
     );
     expect(messages('public/js/bad-runtime.js', `const html = '${nativeSelectHtml}';`)).toContain(
       'Feature UI must use Kychon/shadcn components instead of native <select> controls',
+    );
+    expect(messages('public/bad.html', nativeButtonHtml)).toContain(
+      'Feature UI must use Kychon/shadcn components instead of native <button> controls',
     );
     expect(messages('src/lib/wild-apricot-search.ts', ['const re = /<but', 'ton\\b[^>]*>/;'].join(''))).toEqual([]);
   });
