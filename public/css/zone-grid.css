@@ -16,19 +16,29 @@
 }
 
 #sections > [data-column-span],
-[data-zone="footer"] > [data-layout-container] > [data-column-span] {
+#sections > [data-react-html-children] > [data-column-span],
+[data-zone="footer"] > [data-layout-container] > [data-column-span],
+[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span] {
   min-width: 0;
 }
 
 /* Default span mapping (desktop). */
 #sections > [data-column-span="1"],
-[data-zone="footer"] > [data-layout-container] > [data-column-span="1"]   { grid-column: span 6; }
+#sections > [data-react-html-children] > [data-column-span="1"],
+[data-zone="footer"] > [data-layout-container] > [data-column-span="1"],
+[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1"]   { grid-column: span 6; }
 #sections > [data-column-span="1/2"],
-[data-zone="footer"] > [data-layout-container] > [data-column-span="1/2"] { grid-column: span 3; }
+#sections > [data-react-html-children] > [data-column-span="1/2"],
+[data-zone="footer"] > [data-layout-container] > [data-column-span="1/2"],
+[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1/2"] { grid-column: span 3; }
 #sections > [data-column-span="1/3"],
-[data-zone="footer"] > [data-layout-container] > [data-column-span="1/3"] { grid-column: span 2; }
+#sections > [data-react-html-children] > [data-column-span="1/3"],
+[data-zone="footer"] > [data-layout-container] > [data-column-span="1/3"],
+[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1/3"] { grid-column: span 2; }
 #sections > [data-column-span="2/3"],
-[data-zone="footer"] > [data-layout-container] > [data-column-span="2/3"] { grid-column: span 4; }
+#sections > [data-react-html-children] > [data-column-span="2/3"],
+[data-zone="footer"] > [data-layout-container] > [data-column-span="2/3"],
+[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="2/3"] { grid-column: span 4; }
 
 /* Tablet — drop to 4 cols so halves stay halves and thirds become full. */
 @media (max-width: 900px) {
@@ -37,13 +47,21 @@
     grid-template-columns: repeat(4, 1fr);
   }
   #sections > [data-column-span="1"],
-  [data-zone="footer"] > [data-layout-container] > [data-column-span="1"]   { grid-column: span 4; }
+  #sections > [data-react-html-children] > [data-column-span="1"],
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="1"],
+  [data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1"]   { grid-column: span 4; }
   #sections > [data-column-span="1/2"],
-  [data-zone="footer"] > [data-layout-container] > [data-column-span="1/2"] { grid-column: span 2; }
+  #sections > [data-react-html-children] > [data-column-span="1/2"],
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="1/2"],
+  [data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1/2"] { grid-column: span 2; }
   #sections > [data-column-span="1/3"],
-  [data-zone="footer"] > [data-layout-container] > [data-column-span="1/3"] { grid-column: span 4; }
+  #sections > [data-react-html-children] > [data-column-span="1/3"],
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="1/3"],
+  [data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="1/3"] { grid-column: span 4; }
   #sections > [data-column-span="2/3"],
-  [data-zone="footer"] > [data-layout-container] > [data-column-span="2/3"] { grid-column: span 4; }
+  #sections > [data-react-html-children] > [data-column-span="2/3"],
+  [data-zone="footer"] > [data-layout-container] > [data-column-span="2/3"],
+  [data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span="2/3"] { grid-column: span 4; }
 }
 
 /* Mobile — single column, every block stacks. */
@@ -53,5 +71,7 @@
     grid-template-columns: 1fr;
   }
   #sections > [data-column-span],
-  [data-zone="footer"] > [data-layout-container] > [data-column-span]       { grid-column: span 1; }
+  #sections > [data-react-html-children] > [data-column-span],
+  [data-zone="footer"] > [data-layout-container] > [data-column-span],
+  [data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span]       { grid-column: span 1; }
 }
