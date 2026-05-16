@@ -11,19 +11,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-class MockIntersectionObserver implements IntersectionObserver {
-  readonly root = null;
-  readonly rootMargin = '';
-  readonly thresholds = [];
-
-  disconnect() {}
-  observe() {}
-  takeRecords(): IntersectionObserverEntry[] {
-    return [];
-  }
-  unobserve() {}
-}
-
 function buildSlideshowDOM(
   opts: {
     autoMs?: number;
@@ -77,8 +64,6 @@ function buildSlideshowDOM(
       dispatchEvent: () => false,
     }),
   );
-  // happy-dom doesn't have IntersectionObserver — stub it.
-  vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
   return wrapper.querySelector('[data-block-hydrate="slideshow"]') as HTMLElement;
 }
 

@@ -3,8 +3,7 @@
 // Targets ≤ 4 kB minified. Pauses on hover, focus-within, and tab-hidden.
 // Disables auto-rotation entirely under prefers-reduced-motion. Wires up
 // arrow buttons, dots, arrow keys, and a polite live region for slide
-// changes. Uses IntersectionObserver to lazy-load slide images outside the
-// viewport (a small win on top of `loading="lazy"` for above-fold cases).
+// changes.
 
 interface SlideshowState {
   root: HTMLElement;
@@ -21,7 +20,6 @@ interface SlideshowState {
   paused: { hover: boolean; focus: boolean; hidden: boolean; manual: boolean };
   onVis: () => void;
   onSwap: () => void;
-  io: IntersectionObserver | null;
 }
 
 const STATES = new WeakMap<HTMLElement, SlideshowState>();
@@ -59,7 +57,6 @@ export function initSlideshow(root: HTMLElement): void {
       reschedule(state);
     },
     onSwap: () => destroySlideshow(root),
-    io: null,
   };
   STATES.set(root, state);
 
@@ -136,28 +133,6 @@ export function initSlideshow(root: HTMLElement): void {
   // the carousel on normal page loads.
   document.addEventListener('astro:before-swap', state.onSwap);
 
-  // IntersectionObserver lazy-load: ensure off-screen slides only fetch
-  // their image when scrolled near the viewport.
-  if (typeof IntersectionObserver !== 'undefined') {
-    state.io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const img = entry.target as HTMLImageElement;
-          // Browser already handles loading=lazy; this is a hint to bring
-          // forward (mark as eager once we're nearby).
-          if (img.loading === 'lazy') img.loading = 'eager';
-          state.io?.unobserve(img);
-        }
-      },
-      { rootMargin: '200px' },
-    );
-    for (const slide of slides) {
-      const img = slide.querySelector<HTMLImageElement>('img');
-      if (img && img.loading === 'lazy') state.io.observe(img);
-    }
-  }
-
   root.dataset.hydrated = 'true';
 
   // Start auto-rotation unless reduced motion or no auto.
@@ -224,7 +199,6 @@ export function destroySlideshow(root: HTMLElement): void {
   }
   document.removeEventListener('visibilitychange', state.onVis);
   document.removeEventListener('astro:before-swap', state.onSwap);
-  state.io?.disconnect();
   STATES.delete(root);
   // Allow re-init if the same node is re-rendered.
   delete root.dataset.hydrated;
