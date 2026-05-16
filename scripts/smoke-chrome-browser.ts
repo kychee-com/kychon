@@ -59,12 +59,12 @@ async function main(): Promise<void> {
     if (!html.includes(opts.brand)) throw new Error(`hydrated page missing ${opts.brand}`);
     if (opts.forbid && html.includes(opts.forbid)) throw new Error(`hydrated page contains ${opts.forbid}`);
 
-    const brandText = await page.locator('.nav-brand').first().textContent();
+    const brandText = await page.locator('[data-nav-brand]').first().textContent();
     if (!brandText?.includes(opts.brand)) {
       throw new Error(`visible nav brand mismatch: ${brandText ?? '<empty>'}`);
     }
 
-    const dropdownTrigger = page.locator('.nav-item-wrap').first();
+    const dropdownTrigger = page.locator('[data-nav-item-wrap]').first();
     if (await dropdownTrigger.count()) {
       await dropdownTrigger.hover();
       await page.waitForTimeout(250);

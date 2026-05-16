@@ -386,7 +386,7 @@ export function renderSocialLinksBlock(
   const dragHandle = buildAdminDragHandle(section, ctx);
   const links = items.map(renderSocialAnchor).join('');
   const layoutAttr = ` data-social-links-zone="${escAttr(zone)}" data-social-links-layout="${escAttr(layout)}"`;
-  const legacyAttr = options.legacyFooter ? ' data-legacy-footer-links' : '';
+  const legacyAttr = options.legacyFooter ? ' data-legacy-footer-links data-footer-block' : '';
   return `<section data-section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${dragHandle}${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
 }
 

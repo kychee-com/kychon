@@ -1223,25 +1223,25 @@ const FOOTER_ADDRESS: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const name = cfg.name
-      ? `<div class="footer-org-name"${editableAttr(section, 'name', ctx)}>${escHtml(cfg.name)}</div>`
+      ? `<div data-footer-org-name${editableAttr(section, 'name', ctx)}>${escHtml(cfg.name)}</div>`
       : '';
     const lines = (cfg.address_lines || [])
       .map((line: string, i: number) => `<div${editableAttr(section, `address_lines.${i}`, ctx)}>${escHtml(line)}</div>`)
       .join('');
     const phone = cfg.phone
-      ? `<div class="footer-phone"><a href="tel:${escAttr(cfg.phone)}"${editableAttr(section, 'phone', ctx)}>${escHtml(cfg.phone)}</a></div>`
+      ? `<div data-footer-phone><a href="tel:${escAttr(cfg.phone)}"${editableAttr(section, 'phone', ctx)}>${escHtml(cfg.phone)}</a></div>`
       : '';
     const email = cfg.email
-      ? `<div class="footer-email"><a href="mailto:${escAttr(cfg.email)}"${editableAttr(section, 'email', ctx)}>${escHtml(cfg.email)}</a></div>`
+      ? `<div data-footer-email><a href="mailto:${escAttr(cfg.email)}"${editableAttr(section, 'email', ctx)}>${escHtml(cfg.email)}</a></div>`
       : '';
     const hours = cfg.hours
-      ? `<div class="footer-hours"${editableAttr(section, 'hours', ctx)}>${escHtml(cfg.hours)}</div>`
+      ? `<div data-footer-hours${editableAttr(section, 'hours', ctx)}>${escHtml(cfg.hours)}</div>`
       : '';
     const sid = section.id;
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
     const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
     const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-    return `<div class="footer-block footer-address"${sortable}${cfgAttr}>${dragHandle}${name}${lines}${phone}${email}${hours}</div>`;
+    return `<div data-footer-block data-footer-address${sortable}${cfgAttr}>${dragHandle}${name}${lines}${phone}${email}${hours}</div>`;
   },
 };
 
@@ -1267,7 +1267,7 @@ const FOOTER_LINKS: BlockType = {
                 `<li><a href="${escAttr(cleanHref(it.href))}"${editableAttr(section, `columns.${ci}.items.${ii}.label`, ctx)}>${escHtml(it.label)}</a></li>`,
             )
             .join('');
-          return `<div class="footer-links-col"><h4${editableAttr(section, `columns.${ci}.heading`, ctx)}>${escHtml(col.heading)}</h4><ul>${items}</ul></div>`;
+          return `<div data-footer-links-col><h4${editableAttr(section, `columns.${ci}.heading`, ctx)}>${escHtml(col.heading)}</h4><ul>${items}</ul></div>`;
         },
       )
       .join('');
@@ -1275,7 +1275,7 @@ const FOOTER_LINKS: BlockType = {
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
     const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
     const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-    return `<div class="footer-block footer-links"${sortable}${cfgAttr}>${dragHandle}${cols}</div>`;
+    return `<div data-footer-block data-footer-links${sortable}${cfgAttr}>${dragHandle}${cols}</div>`;
   },
 };
 
@@ -1306,7 +1306,7 @@ const FOOTER_COPYRIGHT: BlockType = {
     const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
     const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
     const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-    return `<div class="footer-block footer-copyright"${sortable}${cfgAttr}>${dragHandle}&copy; ${year}${orgName ? ' ' + orgName : ''}${adminContact}</div>`;
+    return `<div data-footer-block data-footer-copyright${sortable}${cfgAttr}>${dragHandle}&copy; ${year}${orgName ? ' ' + orgName : ''}${adminContact}</div>`;
   },
 };
 
@@ -1319,7 +1319,6 @@ const FOOTER_SOCIAL: BlockType = {
   defaultConfig: { icons: [] },
   render(section, ctx) {
     return renderSocialLinksBlock(section, ctx, {
-      className: 'section footer-block',
       legacyFooter: true,
     });
   },
@@ -1344,7 +1343,7 @@ const FOOTER_ATTRIBUTION: BlockType = {
       ? ` data-editable="sections.${sid}.config.text"`
       : '';
     const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-    return `<div class="footer-block footer-attribution"${sortable}${cfgAttr}>${dragHandle}<p${editText}>${renderMarkdownLine(text)}</p></div>`;
+    return `<div data-footer-block data-footer-attribution${sortable}${cfgAttr}>${dragHandle}<p${editText}>${renderMarkdownLine(text)}</p></div>`;
   },
 };
 

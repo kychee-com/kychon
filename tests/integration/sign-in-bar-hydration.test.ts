@@ -54,7 +54,7 @@ function mountPortalShell(): void {
     <main class="flex-1 py-8" id="main-content">
       <div id="sections" data-zone="main"></div>
     </main>
-    <footer id="zone-footer" class="footer" data-zone="footer">
+    <footer id="zone-footer" data-footer-shell data-zone="footer">
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container></div>
       <div data-fullbleed-host></div>
     </footer>
