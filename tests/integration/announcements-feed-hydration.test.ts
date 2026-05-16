@@ -53,11 +53,15 @@ const votes = [{ id: 1, poll_id: 42, option_id: 1, member_id: 10, created_at: '2
 
 function mount(config = '{"heading":"Announcements","limit":5}'): HTMLElement {
   bodyFixture(`
-    <section>
+    <section data-section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="announcements_feed" data-config='${escapeHtml(config)}'></div>
     </section>
   `);
   return document.querySelector('section') as HTMLElement;
+}
+
+function announcementsHost(wrapper: HTMLElement): HTMLElement {
+  return wrapper.querySelector('[data-block-hydrate="announcements_feed"]') as HTMLElement;
 }
 
 function capabilityResponse(rows: unknown[]) {
@@ -103,7 +107,7 @@ describe('announcements feed hydration', () => {
     );
 
     const wrapper = mount();
-    await BLOCK_TYPES.announcements_feed.hydrate?.(wrapper, section, ctx);
+    await BLOCK_TYPES.announcements_feed.hydrate?.(announcementsHost(wrapper), section, ctx);
 
     await vi.waitFor(() =>
       expect(wrapper.querySelector('[data-announcements-feed]')?.textContent).toContain(announcement.title),
@@ -124,7 +128,7 @@ describe('announcements feed hydration', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(capabilityResponse([])));
 
     const wrapper = mount();
-    await BLOCK_TYPES.announcements_feed.hydrate?.(wrapper, section, ctx);
+    await BLOCK_TYPES.announcements_feed.hydrate?.(announcementsHost(wrapper), section, ctx);
 
     await vi.waitFor(() =>
       expect(wrapper.querySelector('[data-announcements-empty]')?.textContent).toContain('No announcements yet'),
@@ -135,7 +139,11 @@ describe('announcements feed hydration', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(capabilityResponse([])));
 
     const wrapper = mount();
-    await BLOCK_TYPES.announcements_feed.hydrate?.(wrapper, section, { ...ctx, admin: true, role: 'admin' });
+    await BLOCK_TYPES.announcements_feed.hydrate?.(announcementsHost(wrapper), section, {
+      ...ctx,
+      admin: true,
+      role: 'admin',
+    });
 
     await vi.waitFor(() =>
       expect(wrapper.querySelector('[data-announcements-feed]')?.textContent).toContain('New Announcement'),

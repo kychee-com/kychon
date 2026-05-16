@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 
 const BLOCKS = resolve(process.cwd(), 'src/lib/blocks.ts');
+const BLOCK_HYDRATORS = resolve(process.cwd(), 'src/lib/block-hydrators.ts');
 const EMBED = resolve(process.cwd(), 'src/lib/blocks/embed.ts');
 const STYLES = resolve(process.cwd(), 'src/styles/public.css');
 const ZONE_GRID_STYLES = resolve(process.cwd(), 'src/styles/zone-grid.css');
@@ -72,6 +73,7 @@ describe('legacy static UI primitives', () => {
 
   it('keeps retired primitive CSS out of source', async () => {
     const blocks = await readFile(BLOCKS, 'utf8');
+    const blockHydrators = await readFile(BLOCK_HYDRATORS, 'utf8');
     const embed = await readFile(EMBED, 'utf8');
     const styles = await readFile(STYLES, 'utf8');
     const zoneGridStyles = await readFile(ZONE_GRID_STYLES, 'utf8');
@@ -103,6 +105,18 @@ describe('legacy static UI primitives', () => {
     expect(containerUtil).not.toContain('ky-container');
     expect(blocks).toContain('constrainedContainerHtml');
     expect(blocks).toContain('data-layout-container');
+    expect(blocks).toContain('Runtime receives the concrete `[data-block-hydrate]` host');
+    expect(blocks).toContain("getAttribute('data-block-hydrate') !== 'polls'");
+    expect(blocks).toContain("getAttribute('data-block-hydrate') !== 'event_countdown'");
+    expect(blocks).toContain("getAttribute('data-block-hydrate') !== 'events_list'");
+    expect(blocks).toContain("getAttribute('data-block-hydrate') !== 'events_calendar'");
+    expect(blocks).toContain("getAttribute('data-block-hydrate') !== 'slideshow'");
+    expect(blocks).not.toContain('el.querySelector(\'[data-block-hydrate="polls"]\')');
+    expect(blocks).not.toContain('el.querySelector(\'[data-block-hydrate="event_countdown"]\')');
+    expect(blocks).not.toContain('el.querySelector(\'[data-block-hydrate="slideshow"]\')');
+    expect(blockHydrators).toContain('function isHydrateHost');
+    expect(blockHydrators).toContain('function hydrationShell');
+    expect(blockHydrators).not.toContain('querySelector');
     expect(blocks).toContain('data-year="auto"');
     expect(blocks).toContain('new Date().getFullYear()');
     expect(blocks).not.toContain('class="ky-container"');
@@ -275,6 +289,9 @@ describe('legacy static UI primitives', () => {
     expect(config).not.toContain('document.createElement');
     expect(config).not.toContain('appendChild');
     expect(pageRender).toContain("querySelector('[data-layout-container]')");
+    expect(pageRender).toContain('await type.hydrate(host, section, ctx)');
+    expect(pageRender).not.toContain("root?.querySelector('[data-block-hydrate]')");
+    expect(pageRender).not.toContain('matching?.parentElement');
     expect(pageRender).toContain("import { renderHtmlChildren } from './dom-fragment'");
     expect(pageRender).not.toContain('new DOMParser()');
     expect(pageRender).not.toContain('replaceChildren');

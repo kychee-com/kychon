@@ -4,25 +4,32 @@
 
 import type { Section, BlockRenderContext } from './blocks.js';
 
+function isHydrateHost(el: HTMLElement, blockType: string): boolean {
+  return el.getAttribute('data-block-hydrate') === blockType;
+}
+
+function hydrationShell(host: HTMLElement): HTMLElement {
+  return (host.closest('[data-section]') as HTMLElement | null) || host;
+}
+
 export async function hydrateAnnouncementsFeed(
   el: HTMLElement,
   section: Section,
   ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="announcements_feed"]') as HTMLElement | null;
-  if (!root) return;
+  if (!isHydrateHost(el, 'announcements_feed')) return;
   let cfg: Record<string, unknown> = section.config || {};
   try {
-    cfg = { ...cfg, ...JSON.parse(root.getAttribute('data-config') || '{}') };
+    cfg = { ...cfg, ...JSON.parse(el.getAttribute('data-config') || '{}') };
   } catch {}
   const { mountAnnouncementsFeedIsland } = await import('@/components/kychon/AnnouncementsFeedIsland');
-  mountAnnouncementsFeedIsland(root, {
+  mountAnnouncementsFeedIsland(el, {
     config: cfg,
     role: ctx.role || null,
     pollsEnabled: ctx.isFeatureEnabled?.('feature_polls') !== false,
     headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
   });
-  root.dataset.hydrated = 'true';
+  el.dataset.hydrated = 'true';
 }
 
 export async function hydrateActivityFeed(
@@ -30,10 +37,9 @@ export async function hydrateActivityFeed(
   section: Section,
   ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="activity_feed"]') as HTMLElement | null;
-  if (!root) return;
+  if (!isHydrateHost(el, 'activity_feed')) return;
   const { mountActivityFeedIsland } = await import('@/components/kychon/ActivityFeedIsland');
-  mountActivityFeedIsland(root, {
+  mountActivityFeedIsland(el, {
     limit: Number(section.config?.limit || 15),
     role: ctx.role || null,
   });
@@ -44,20 +50,19 @@ export async function hydrateSiteSearch(
   section: Section,
   _ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="site_search"]') as HTMLElement | null;
-  if (!root || root.dataset.hydrated === 'true') return;
+  if (!isHydrateHost(el, 'site_search') || el.dataset.hydrated === 'true') return;
   let cfg: any = section.config || {};
   try {
-    cfg = { ...cfg, ...JSON.parse(root.getAttribute('data-config') || '{}') };
+    cfg = { ...cfg, ...JSON.parse(el.getAttribute('data-config') || '{}') };
   } catch {}
 
   const { mountSiteSearchIsland } = await import('@/components/kychon/SiteSearchIsland');
-  mountSiteSearchIsland(root, {
+  mountSiteSearchIsland(el, {
     config: cfg,
     sectionId: String(section.id ?? `pos-${section.position}`),
     zone: section.zone,
   });
-  root.dataset.hydrated = 'true';
+  el.dataset.hydrated = 'true';
 }
 
 export async function hydrateLinkListResources(
@@ -65,24 +70,23 @@ export async function hydrateLinkListResources(
   section: Section,
   ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="link_list"]') as HTMLElement | null;
-  if (!root) return;
-  if (root.dataset.hydrated === 'true') return;
+  if (!isHydrateHost(el, 'link_list') || el.dataset.hydrated === 'true') return;
   let cfg: any = {};
   try {
-    cfg = JSON.parse(root.getAttribute('data-config') || '{}');
+    cfg = JSON.parse(el.getAttribute('data-config') || '{}');
   } catch {
     cfg = {};
   }
   const { mountLinkListIsland } = await import('@/components/kychon/LinkListIsland');
-  mountLinkListIsland(root, {
+  const shell = hydrationShell(el);
+  mountLinkListIsland(el, {
     config: cfg,
     headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
     onEmptyChange(empty) {
-      el.hidden = empty;
+      shell.hidden = empty;
     },
   });
-  root.dataset.hydrated = 'true';
+  el.dataset.hydrated = 'true';
 }
 
 // --- Catalog block hydrators ---
@@ -92,12 +96,10 @@ export async function hydrateEventsCalendar(
   section: Section,
   ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="events_calendar"]') as HTMLElement | null;
-  if (!root) return;
-  if (root.dataset.hydrated === 'true') return;
+  if (!isHydrateHost(el, 'events_calendar') || el.dataset.hydrated === 'true') return;
   const { initCalendar } = await import('./blocks/events-calendar.js');
-  initCalendar(root, section, ctx);
-  root.dataset.hydrated = 'true';
+  initCalendar(el, section, ctx);
+  el.dataset.hydrated = 'true';
 }
 
 export async function hydrateEventsList(
@@ -105,21 +107,19 @@ export async function hydrateEventsList(
   section: Section,
   ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="events_list"]') as HTMLElement | null;
-  if (!root) return;
-  if (root.dataset.hydrated === 'true') return;
+  if (!isHydrateHost(el, 'events_list') || el.dataset.hydrated === 'true') return;
   let cfg: any = {};
   try {
-    cfg = JSON.parse(root.getAttribute('data-config') || '{}');
+    cfg = JSON.parse(el.getAttribute('data-config') || '{}');
   } catch {
     cfg = {};
   }
   const { mountEventsListIsland } = await import('@/components/kychon/EventsListIsland');
-  mountEventsListIsland(root, {
+  mountEventsListIsland(el, {
     config: cfg,
     headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
   });
-  root.dataset.hydrated = 'true';
+  el.dataset.hydrated = 'true';
 }
 
 export async function hydrateSignInBar(
@@ -127,10 +127,9 @@ export async function hydrateSignInBar(
   section: Section,
   _ctx: BlockRenderContext,
 ): Promise<void> {
-  const root = el.querySelector('[data-block-hydrate="sign_in_bar"]') as HTMLElement | null;
-  if (!root) return;
+  if (!isHydrateHost(el, 'sign_in_bar')) return;
   const { mountSignInBarIsland } = await import('@/components/kychon/SignInBarIsland');
-  mountSignInBarIsland(root, {
+  mountSignInBarIsland(el, {
     showLangToggle: section.config.show_lang_toggle !== false,
     showThemeToggle: section.config.show_theme_toggle !== false,
   });

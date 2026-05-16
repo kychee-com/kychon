@@ -28,7 +28,7 @@ function mount() {
       <div data-block-hydrate="site_search" data-config='{"default_type":"pages","min_chars":2}'></div>
     </section>
   `);
-  return document.querySelector('section') as HTMLElement;
+  return document.querySelector('[data-block-hydrate="site_search"]') as HTMLElement;
 }
 
 describe('site_search hydration', () => {

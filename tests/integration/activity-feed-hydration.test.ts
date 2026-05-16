@@ -48,13 +48,13 @@ function capabilityResponse(data: unknown) {
 
 function mountActivityHost(): HTMLElement {
   bodyFixture(`
-    <section>
+    <section data-section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="activity_feed">
         <h2>Recent Activity</h2>
       </div>
     </section>
   `);
-  return document.body;
+  return document.querySelector('[data-block-hydrate="activity_feed"]') as HTMLElement;
 }
 
 function context(role: BlockRenderContext['role'] = null): BlockRenderContext {

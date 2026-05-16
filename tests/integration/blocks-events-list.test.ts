@@ -27,13 +27,17 @@ afterEach(() => {
 
 function makeWrapper(cfg: Record<string, unknown>): HTMLElement {
   bodyFixture(`
-    <section>
+    <section data-section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="events_list" data-config='${escapeHtml(
         JSON.stringify(cfg),
       )}'></div>
     </section>
   `);
   return document.querySelector('section') as HTMLElement;
+}
+
+function eventsListHost(wrapper: HTMLElement): HTMLElement {
+  return wrapper.querySelector('[data-block-hydrate="events_list"]') as HTMLElement;
 }
 
 function capabilityResponse(rows: unknown[]) {
@@ -55,7 +59,7 @@ describe('hydrateEventsList', () => {
     const wrapper = makeWrapper({ count: 3, filter: 'upcoming', layout: 'sidebar' });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
-      wrapper,
+      eventsListHost(wrapper),
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
@@ -79,7 +83,7 @@ describe('hydrateEventsList', () => {
     const wrapper = makeWrapper({ count: 4, filter: 'past', layout: 'list' });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
-      wrapper,
+      eventsListHost(wrapper),
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
@@ -101,7 +105,7 @@ describe('hydrateEventsList', () => {
     const wrapper = makeWrapper({ count: 5, filter: 'this_week', layout: 'sidebar' });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
-      wrapper,
+      eventsListHost(wrapper),
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
@@ -117,7 +121,7 @@ describe('hydrateEventsList', () => {
     const wrapper = makeWrapper({ count: 2, filter: 'upcoming', layout: 'sidebar' });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
-      wrapper,
+      eventsListHost(wrapper),
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );
@@ -132,7 +136,7 @@ describe('hydrateEventsList', () => {
     // The hide path lives in the registry's hydrate wrapper; emulate it here.
     const { BLOCK_TYPES } = await import('../../src/lib/blocks');
     await BLOCK_TYPES.events_list.hydrate?.(
-      wrapper,
+      eventsListHost(wrapper),
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: (flag) => flag !== 'feature_events' },
     );
@@ -155,7 +159,7 @@ describe('hydrateEventsList', () => {
     });
     const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
     await hydrateEventsList(
-      wrapper,
+      eventsListHost(wrapper),
       { page_slug: 'index', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
       { admin: false, locale: 'en', isFeatureEnabled: () => true },
     );

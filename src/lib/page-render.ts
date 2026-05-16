@@ -163,15 +163,10 @@ function findSectionForElement(el: HTMLElement, sections: Section[]): Section | 
     }
   }
   // Chrome blocks may not have a data-sortable-id (rendered without sid in bake).
-  const hydrate = el.matches('[data-block-hydrate]')
-    ? el
-    : (el.querySelector('[data-block-hydrate]') as HTMLElement | null);
-  if (hydrate) {
-    const blockType = hydrate.getAttribute('data-block-hydrate');
-    if (blockType) {
-      const found = sections.find((s) => s.section_type === blockType);
-      if (found) return found;
-    }
+  const blockType = el.getAttribute('data-block-hydrate');
+  if (blockType) {
+    const found = sections.find((s) => s.section_type === blockType);
+    if (found) return found;
   }
   return null;
 }
@@ -184,9 +179,6 @@ async function hydrateDynamic(sections: Section[], ctx: BlockRenderContext): Pro
     if (!blockType) continue;
     const type = BLOCK_TYPES[blockType];
     if (!type || !type.hydrate) continue;
-    const root = host.closest('[data-sortable-id], #zone-header, #zone-footer') as HTMLElement | null;
-    const matching = root?.querySelector('[data-block-hydrate]') as HTMLElement | null;
-    const wrapper = matching?.parentElement || root || host;
     const section = findSectionForElement(host, sections) || {
       page_slug: '*',
       zone: 'main',
@@ -196,7 +188,7 @@ async function hydrateDynamic(sections: Section[], ctx: BlockRenderContext): Pro
       position: 1,
     };
     try {
-      await type.hydrate(wrapper as HTMLElement, section, ctx);
+      await type.hydrate(host, section, ctx);
     } catch (e) {
       console.warn(`hydrate(${blockType}) failed:`, e);
     }

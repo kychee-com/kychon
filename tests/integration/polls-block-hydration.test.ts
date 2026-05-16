@@ -46,11 +46,15 @@ const votes = [
 
 function mount(config = '{"heading":"Member Poll","poll_ids":[42]}'): HTMLElement {
   bodyFixture(`
-    <section>
+    <section data-section>
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="polls" data-config='${escapeHtml(config)}'></div>
     </section>
   `);
   return document.querySelector('section') as HTMLElement;
+}
+
+function pollsHost(wrapper: HTMLElement): HTMLElement {
+  return wrapper.querySelector('[data-block-hydrate="polls"]') as HTMLElement;
 }
 
 function capabilityResponse(rows: unknown[]) {
@@ -89,7 +93,7 @@ describe('polls block hydration', () => {
     );
 
     const wrapper = mount();
-    await BLOCK_TYPES.polls.hydrate?.(wrapper, section, ctx);
+    await BLOCK_TYPES.polls.hydrate?.(pollsHost(wrapper), section, ctx);
 
     await vi.waitFor(() => expect(wrapper.querySelector('[data-polls-block]')?.textContent).toContain(poll.question));
     expect(wrapper.querySelector('[data-section-poll="42"]')).toBeTruthy();
@@ -104,7 +108,7 @@ describe('polls block hydration', () => {
 
     const emptySection = { ...section, config: { heading: 'Member Poll', poll_ids: [] } };
     const wrapper = mount('{"heading":"Member Poll","poll_ids":[]}');
-    await BLOCK_TYPES.polls.hydrate?.(wrapper, emptySection, ctx);
+    await BLOCK_TYPES.polls.hydrate?.(pollsHost(wrapper), emptySection, ctx);
 
     await vi.waitFor(() =>
       expect(wrapper.querySelector('[data-polls-empty]')?.textContent).toContain('No polls to display'),
@@ -116,7 +120,7 @@ describe('polls block hydration', () => {
     vi.stubGlobal('fetch', vi.fn());
 
     const wrapper = mount();
-    await BLOCK_TYPES.polls.hydrate?.(wrapper, section, {
+    await BLOCK_TYPES.polls.hydrate?.(pollsHost(wrapper), section, {
       ...ctx,
       isFeatureEnabled: (flag) => flag !== 'feature_polls',
     });
