@@ -82,6 +82,13 @@ async function init(root: HTMLElement) {
   });
 }
 
+async function initAll(root: HTMLElement = document.body) {
+  const { initSlideshows } = await import('../../src/lib/blocks/slideshow');
+  await act(async () => {
+    initSlideshows(root);
+  });
+}
+
 function slides(root: HTMLElement) {
   return root.querySelectorAll<HTMLElement>('[data-slideshow-slide]');
 }
@@ -120,6 +127,13 @@ async function dispatchCarouselEvent(root: HTMLElement, event: Event) {
 }
 
 describe('slideshow controller', () => {
+  it('hydrates slideshow hosts under a root without selector lookups', async () => {
+    const root = buildSlideshowDOM({ autoMs: 0, slides: 2 });
+    await initAll();
+    expect(root.dataset.hydrated).toBe('true');
+    expect(slides(root)).toHaveLength(2);
+  });
+
   it('auto-rotates through slides at the configured cadence', async () => {
     const root = buildSlideshowDOM({ autoMs: 500, slides: 3 });
     await init(root);

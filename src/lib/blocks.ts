@@ -1789,8 +1789,9 @@ const SLIDESHOW: BlockType = {
   async hydrate(el, _section, _ctx) {
     if (el.getAttribute('data-block-hydrate') !== 'slideshow') return;
     if (el.dataset.hydrated === 'true') return;
-    const { initSlideshow } = await import('./blocks/slideshow.js');
-    initSlideshow(el);
+    const slideshow = await import('./blocks/slideshow.js');
+    void slideshow.initSlideshows;
+    slideshow.initSlideshow(el);
   },
 };
 

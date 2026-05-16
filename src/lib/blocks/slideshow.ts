@@ -9,6 +9,7 @@ import {
   type SlideshowCarouselProps,
   type SlideshowRenderItem,
 } from '@/components/kychon/SlideshowBlockView';
+import { collectDescendantElements } from '../dom-structure.js';
 
 interface MountedSlideshow {
   onSwap: () => void;
@@ -16,6 +17,10 @@ interface MountedSlideshow {
 }
 
 const MOUNTED_SLIDESHOWS = new WeakMap<HTMLElement, MountedSlideshow>();
+
+function isSlideshowHost(host: HTMLElement): boolean {
+  return host.getAttribute('data-block-hydrate') === 'slideshow';
+}
 
 function stringOr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
@@ -98,6 +103,10 @@ export function initSlideshow(host: HTMLElement): void {
     reactRoot.render(createElement(SlideshowCarousel, props));
   });
   host.dataset.hydrated = 'true';
+}
+
+export function initSlideshows(root: HTMLElement = document.body): void {
+  for (const host of collectDescendantElements(root, isSlideshowHost)) initSlideshow(host);
 }
 
 export function destroySlideshow(host: HTMLElement): void {

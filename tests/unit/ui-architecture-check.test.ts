@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkSource, isScannedSourcePath } from '../../scripts/ui-architecture-check';
+import { checkSource, GIT_SCAN_FILE_ARGS, isScannedSourcePath } from '../../scripts/ui-architecture-check';
 
 function sourceFile(path: string): string {
   return resolve(process.cwd(), path);
@@ -11,7 +11,8 @@ function messages(path: string, source: string): string[] {
 }
 
 describe('ui architecture check', () => {
-  it('scans tracked product source extensions including html', () => {
+  it('scans tracked and untracked product source extensions including html', () => {
+    expect(GIT_SCAN_FILE_ARGS).toEqual(['ls-files', '-z', '--cached', '--others', '--exclude-standard']);
     expect(isScannedSourcePath('public/page.html')).toBe(true);
     expect(isScannedSourcePath('demo/site/seed.sql')).toBe(true);
     expect(isScannedSourcePath('functions/site-search.js')).toBe(true);
