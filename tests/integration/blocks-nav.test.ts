@@ -4,9 +4,10 @@
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, isPageActive, type Section } from '../../src/lib/blocks';
-import { bindNavDropdowns } from '../../src/lib/nav-dropdown';
+import { bindNavDropdowns, destroyNavDropdowns } from '../../src/lib/nav-dropdown';
 import { appendBodyFixture, bodyFixture, clearBodyFixture, htmlFixture } from '../helpers/dom-fixture.js';
 
 const NAV_VIEW = resolve(process.cwd(), 'src/components/kychon/NavBlockView.tsx');
@@ -25,6 +26,8 @@ const baseCtx: BlockRenderContext = {
 interface NavDropdownTestWindow extends Window {
   __navDropdownClickBound?: boolean;
 }
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 function makeSection(items: Array<Record<string, unknown>>, extraConfig: Record<string, unknown> = {}): Section {
   return {
@@ -48,6 +51,65 @@ function mountNavShell(html: string): void {
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${html}</div>
     </nav>
   `);
+}
+
+async function hydrateNav(target?: HTMLElement | null): Promise<HTMLElement> {
+  await act(async () => {
+    bindNavDropdowns(target);
+  });
+  return document.getElementById('nav-links') as HTMLElement;
+}
+
+async function destroyHydratedNav(): Promise<void> {
+  const host = document.querySelector<HTMLElement>('[data-block-hydrate="nav"]');
+  if (!host) return;
+  await act(async () => {
+    destroyNavDropdowns(host);
+  });
+}
+
+async function clickElement(element: HTMLElement): Promise<void> {
+  await act(async () => {
+    element.click();
+  });
+}
+
+async function dispatchElementEvent(element: HTMLElement | Window | Document, event: Event): Promise<void> {
+  await act(async () => {
+    element.dispatchEvent(event);
+  });
+}
+
+function rect(width: number): DOMRect {
+  return {
+    bottom: 0,
+    height: 24,
+    left: 0,
+    right: width,
+    top: 0,
+    width,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+async function forceOverflow(): Promise<void> {
+  const links = document.getElementById('nav-links') as HTMLElement;
+  const toggle = document.getElementById('nav-toggle') as HTMLElement;
+  const items = Array.from(links.children).filter(
+    (child): child is HTMLElement =>
+      child instanceof HTMLElement && (child.hasAttribute('data-nav-link') || child.hasAttribute('data-nav-item-wrap')),
+  );
+  Object.defineProperty(links, 'getBoundingClientRect', { configurable: true, value: () => rect(90) });
+  Object.defineProperty(toggle, 'getBoundingClientRect', { configurable: true, value: () => rect(36) });
+  items.forEach((item, index) => {
+    Object.defineProperty(item, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => rect(index === 0 ? 40 : 80),
+    });
+  });
+  await dispatchElementEvent(window, new Event('resize'));
 }
 
 describe('isPageActive — hash-aware active link detection', () => {
@@ -112,11 +174,11 @@ describe('nav block — flat behavior preserved', () => {
     expect(runtime).not.toContain('nav--source-mobile');
     expect(runtime).not.toContain('nav--overflow');
     expect(runtime).not.toContain('nav-overflow-item');
-    expect(runtime).toContain('[data-nav-trigger]');
-    expect(runtime).toContain('[data-nav-menu]');
-    expect(runtime).toContain('[data-nav-links]');
-    expect(runtime).toContain('[data-nav-toggle]');
-    expect(runtime).toContain('[data-nav-overflow-menu]');
+    expect(runtime).toContain('NavBlockContent');
+    expect(runtime).toContain('createRoot');
+    expect(runtime).not.toContain('chevronBound');
+    expect(runtime).not.toContain('navKeyboardBound');
+    expect(runtime).not.toContain('querySelectorAll');
     expect(view).not.toContain('nav--source-mobile');
     expect(styles).not.toContain('nav--source-mobile');
     expect(styles).not.toContain('nav--overflow');
@@ -209,14 +271,15 @@ describe('nav block — source presentation config', () => {
     expect(html).toContain('data-mobile-closed-layout="hidden"');
   });
 
-  it('toggles source mobile mode at custom breakpoint', () => {
+  it('toggles source mobile mode at custom breakpoint', async () => {
     const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
       behavior: { mobile_breakpoint: 2000 },
     });
     mountNavShell(BLOCK_TYPES.nav.render(section, baseCtx));
     const host = document.getElementById('nav-links') as HTMLElement;
-    bindNavDropdowns(host);
-    expect(document.getElementById('zone-header')?.dataset.navSourceMobile).toBe('true');
+    const hydrated = await hydrateNav(host);
+    expect(hydrated.dataset.navSourceMobile).toBe('true');
+    await destroyHydratedNav();
   });
 });
 
@@ -409,7 +472,7 @@ describe('nav block — ARIA attributes', () => {
 describe('nav block — runtime keyboard + click', () => {
   let host: HTMLElement;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     clearBodyFixture();
     (window as NavDropdownTestWindow).__navDropdownClickBound = false;
     const section = makeSection([
@@ -425,25 +488,26 @@ describe('nav block — runtime keyboard + click', () => {
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
     mountNavShell(html);
-    host = document.getElementById('nav-links') as HTMLElement;
-    bindNavDropdowns(host);
+    host = await hydrateNav(document.getElementById('nav-links') as HTMLElement);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await destroyHydratedNav();
     clearBodyFixture();
     delete (window as NavDropdownTestWindow).__navDropdownClickBound;
   });
 
-  it('clicking the chevron opens the dropdown (sets aria-expanded=true, removes [hidden])', () => {
+  it('clicking the chevron opens the dropdown (sets aria-expanded=true, removes [hidden])', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(true);
-    chevron.click();
+    await clickElement(chevron);
     expect(menu.hasAttribute('hidden')).toBe(false);
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('binds dropdown behavior through data attributes rather than nav classes', () => {
+  it('binds dropdown behavior through data attributes rather than nav classes', async () => {
+    await destroyHydratedNav();
     clearBodyFixture();
     (window as NavDropdownTestWindow).__navDropdownClickBound = false;
     const section = makeSection([
@@ -459,41 +523,40 @@ describe('nav block — runtime keyboard + click', () => {
       (el.getAttribute('class') || '').split(/\s+/).filter((className) => className.startsWith('nav-')),
     );
     expect(legacyNavClassTokens).toEqual([]);
-    const links = document.getElementById('nav-links') as HTMLElement;
-    bindNavDropdowns(links);
+    const links = await hydrateNav(document.getElementById('nav-links') as HTMLElement);
 
     const trigger = links.querySelector('[data-nav-trigger]') as HTMLElement;
     const menu = document.getElementById(trigger.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(true);
-    trigger.click();
+    await clickElement(trigger);
     expect(menu.hasAttribute('hidden')).toBe(false);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
 
     const toggle = document.querySelector('[data-nav-toggle]') as HTMLElement;
-    toggle.click();
-    expect(links.dataset.navMobileOpen).toBe('true');
+    await clickElement(toggle);
+    expect((document.getElementById('nav-links') as HTMLElement).dataset.navMobileOpen).toBe('true');
   });
 
-  it('clicking a hover-open parent pins it open instead of closing it', () => {
+  it('clicking a hover-open parent pins it open instead of closing it', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     const wrap = chevron.closest('[data-nav-item-wrap]') as HTMLElement;
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     const firstItem = menu.querySelector('a[role="menuitem"]') as HTMLElement;
 
-    wrap.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    await dispatchElementEvent(wrap, new MouseEvent('mouseover', { bubbles: true }));
     expect(menu.hasAttribute('hidden')).toBe(false);
 
-    chevron.click();
+    await clickElement(chevron);
     expect(menu.hasAttribute('hidden')).toBe(false);
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement).not.toBe(firstItem);
 
-    chevron.click();
+    await clickElement(chevron);
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(chevron.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('clicking the hamburger toggles the mobile nav links', () => {
+  it('clicking the hamburger toggles the mobile nav links', async () => {
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
     const links = document.getElementById('nav-links') as HTMLElement;
 
@@ -501,25 +564,23 @@ describe('nav block — runtime keyboard + click', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(links.dataset.navMobileOpen).toBeUndefined();
 
-    toggle.click();
+    await clickElement(toggle);
     expect(links.dataset.navMobileOpen).toBe('true');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
 
-    toggle.click();
+    await clickElement(toggle);
     expect(links.dataset.navMobileOpen).toBeUndefined();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('clicking the hamburger in overflow mode opens only the overflow menu', () => {
-    const nav = document.getElementById('zone-header') as HTMLElement;
+  it('clicking the hamburger in overflow mode opens only the overflow menu', async () => {
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
     const links = document.getElementById('nav-links') as HTMLElement;
-    const overflowItem = links.querySelector('[data-nav-item-wrap]') as HTMLElement;
 
-    nav.dataset.navOverflow = 'true';
-    overflowItem.dataset.navOverflowed = 'true';
+    await forceOverflow();
+    expect(links.dataset.navOverflow).toBe('true');
 
-    toggle.click();
+    await clickElement(toggle);
     const menu = document.getElementById('nav-links-overflow-menu') as HTMLElement;
     expect(links.dataset.navMobileOpen).toBeUndefined();
     expect(toggle.getAttribute('aria-controls')).toBe('nav-links-overflow-menu');
@@ -534,87 +595,97 @@ describe('nav block — runtime keyboard + click', () => {
     expect(menu.querySelector('[data-nav-overflow-source-index="0"]')?.hasAttribute('hidden')).toBe(true);
     expect(menu.querySelector('[data-nav-overflow-source-index="1"]')?.hasAttribute('hidden')).toBe(false);
 
-    toggle.click();
+    await clickElement(toggle);
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('binds dropdown triggers inside static overflow menu items', () => {
-    const nav = document.getElementById('zone-header') as HTMLElement;
+  it('binds dropdown triggers inside static overflow menu items', async () => {
     const toggle = document.getElementById('nav-toggle') as HTMLElement;
-    const links = document.getElementById('nav-links') as HTMLElement;
-    const overflowItem = links.querySelector('[data-nav-item-wrap]') as HTMLElement;
 
-    nav.dataset.navOverflow = 'true';
-    overflowItem.dataset.navOverflowed = 'true';
-
-    toggle.click();
+    await forceOverflow();
+    await clickElement(toggle);
     const overflowTrigger = document.querySelector('[data-nav-overflow-menu] [data-nav-trigger]') as HTMLElement;
     const menu = document.getElementById(overflowTrigger.getAttribute('aria-controls') ?? '') as HTMLElement;
 
     expect(menu.hasAttribute('hidden')).toBe(true);
-    overflowTrigger.click();
+    await clickElement(overflowTrigger);
     expect(menu.hasAttribute('hidden')).toBe(false);
     expect(overflowTrigger.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('ArrowDown on chevron opens the menu and focuses the first item', () => {
+  it('ArrowDown on chevron opens the menu and focuses the first item', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.focus();
-    chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await dispatchElementEvent(chevron, new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(false);
     const items = menu.querySelectorAll('a[role="menuitem"]');
     expect(document.activeElement).toBe(items[0]);
   });
 
-  it('ArrowDown on a menu item moves focus to the next item; wraps at end', () => {
+  it('ArrowDown on a menu item moves focus to the next item; wraps at end', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.focus();
-    chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await dispatchElementEvent(chevron, new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     const items = Array.from(menu.querySelectorAll<HTMLElement>('a[role="menuitem"]'));
-    items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await dispatchElementEvent(items[0], new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect(document.activeElement).toBe(items[1]);
-    items[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await dispatchElementEvent(items[1], new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect(document.activeElement).toBe(items[2]);
     // Wrap.
-    items[2].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await dispatchElementEvent(items[2], new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect(document.activeElement).toBe(items[0]);
   });
 
-  it('Escape inside open menu closes it and returns focus to the chevron', () => {
+  it('Escape inside open menu closes it and returns focus to the chevron', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
     chevron.focus();
-    chevron.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await dispatchElementEvent(chevron, new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     const firstItem = menu.querySelector<HTMLElement>('a[role="menuitem"]') as HTMLElement;
-    firstItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await dispatchElementEvent(firstItem, new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(document.activeElement).toBe(chevron);
   });
 
-  it('clicking outside the dropdown closes it', () => {
+  it('clicking outside the dropdown closes it', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
-    chevron.click();
+    await clickElement(chevron);
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(false);
     // Click elsewhere.
     const [outside] = appendBodyFixture('<button type="button">Outside</button>');
-    outside.click();
+    await clickElement(outside);
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(chevron.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('rebinding does not double-bind: a second bindNavDropdowns call is a no-op', () => {
+  it('cleans a disconnected hydrated host before binding a replacement nav', async () => {
+    const oldHost = document.querySelector<HTMLElement>('[data-block-hydrate="nav"]') as HTMLElement;
+    expect(oldHost.dataset.hydrated).toBe('true');
+    clearBodyFixture();
+    const replacement = makeSection([{ label: 'Fresh', href: '/fresh' }]);
+    mountNavShell(BLOCK_TYPES.nav.render(replacement, baseCtx));
+
+    const replacementHost = document.querySelector<HTMLElement>('[data-block-hydrate="nav"]') as HTMLElement;
+    await hydrateNav();
+
+    expect(oldHost.dataset.hydrated).toBeUndefined();
+    expect(replacementHost.dataset.hydrated).toBe('true');
+    expect(document.querySelector('#nav-links [data-nav-link]')?.textContent).toBe('Fresh');
+  });
+
+  it('rebinding does not double-bind: a second bindNavDropdowns call is a no-op', async () => {
     const chevron = host.querySelector('[data-nav-trigger]') as HTMLElement;
-    bindNavDropdowns(host);
-    bindNavDropdowns(host);
-    chevron.click();
+    await hydrateNav(host);
+    await hydrateNav(host);
+    await clickElement(chevron);
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     // After a single click, menu should be open (toggled once, not three times).
     expect(menu.hasAttribute('hidden')).toBe(false);
-    chevron.click();
+    await clickElement(chevron);
     expect(menu.hasAttribute('hidden')).toBe(true);
   });
 });

@@ -717,10 +717,12 @@ tr:hover td {
   }
 }
 
-[data-nav-shell][data-nav-source-mobile="true"] [data-nav-toggle] {
+[data-nav-shell][data-nav-source-mobile="true"] [data-nav-toggle],
+[data-nav-toggle][data-nav-source-mobile="true"] {
   display: block;
 }
-[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links] {
+[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links],
+[data-nav-links][data-nav-source-mobile="true"] {
   display: none;
   flex-direction: column;
   position: absolute;
@@ -735,16 +737,20 @@ tr:hover td {
   box-shadow: var(--shadow-md);
   overflow: visible;
 }
-[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links][data-nav-mobile-open="true"] {
+[data-nav-shell][data-nav-source-mobile="true"] [data-nav-links][data-nav-mobile-open="true"],
+[data-nav-links][data-nav-source-mobile="true"][data-nav-mobile-open="true"] {
   display: flex;
 }
-[data-nav-shell][data-nav-overflow="true"] [data-nav-toggle] {
+[data-nav-shell][data-nav-overflow="true"] [data-nav-toggle],
+[data-nav-toggle][data-nav-overflow="true"] {
   display: block;
 }
-[data-nav-shell][data-nav-overflow="true"] [data-nav-links] {
+[data-nav-shell][data-nav-overflow="true"] [data-nav-links],
+[data-nav-links][data-nav-overflow="true"] {
   padding-right: calc(2.25rem + var(--nav-link-gap, 0.25rem));
 }
-[data-nav-shell] [data-nav-overflowed="true"] {
+[data-nav-shell] [data-nav-overflowed="true"],
+[data-nav-links][data-nav-overflow="true"] [data-nav-overflowed="true"] {
   display: none !important;
 }
 [data-nav-overflow-menu] {
