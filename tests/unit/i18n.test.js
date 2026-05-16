@@ -13,13 +13,13 @@ global.localStorage = {
     delete this._data[k];
   },
 };
-global.document = { documentElement: { dir: 'ltr' }, getElementById: () => null };
+global.document = { documentElement: { dir: 'ltr' }, head: { children: [] }, body: { children: [] } };
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // We need to reset the module state between tests
-let t, loadLocale, setLanguage, getLocale;
+let t, loadLocale, setLanguage, getLocale, getAvailableLocales;
 
 describe('i18n.js', () => {
   beforeEach(async () => {
@@ -74,6 +74,7 @@ describe('i18n.js', () => {
     loadLocale = mod.loadLocale;
     setLanguage = mod.setLanguage;
     getLocale = mod.getLocale;
+    getAvailableLocales = mod.getAvailableLocales;
   });
 
   it('translates a simple key', async () => {
@@ -121,6 +122,25 @@ describe('i18n.js', () => {
   it('reports current locale', async () => {
     await loadLocale('pt');
     expect(getLocale()).toBe('pt');
+  });
+
+  it('reads available locales from structural brand data', async () => {
+    document.body = {
+      children: [
+        {
+          children: [
+            {
+              children: [],
+              id: 'brand-data',
+              textContent: '{"languages":["en","es","pt"]}',
+            },
+          ],
+          id: 'app-shell',
+        },
+      ],
+    };
+
+    expect(getAvailableLocales()).toEqual(['en', 'es', 'pt']);
   });
 
   it('caches locale strings in localStorage after fetch', async () => {

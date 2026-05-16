@@ -132,10 +132,26 @@ export function setAvailableLocales(locales: string[]): void {
   _availableLocales = locales;
 }
 
+type ElementContainer = Pick<Element, 'children'> | Pick<Document, 'children'> | null | undefined;
+
+function findDescendantById(container: ElementContainer, id: string): Element | null {
+  for (const child of Array.from(container?.children ?? [])) {
+    if (child.id === id) return child;
+    const nested = findDescendantById(child, id);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function brandDataElement(): Element | null {
+  if (typeof document === 'undefined') return null;
+  return findDescendantById(document.head, 'brand-data') ?? findDescendantById(document.body, 'brand-data');
+}
+
 export function getAvailableLocales(): string[] {
   if (_availableLocales) return _availableLocales;
   try {
-    const brand = JSON.parse(document.getElementById('brand-data')?.textContent || '{}');
+    const brand = JSON.parse(brandDataElement()?.textContent || '{}');
     return brand.languages || ['en'];
   } catch {
     return ['en'];
