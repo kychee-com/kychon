@@ -561,6 +561,8 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
   });
   ro.observe(root);
 
+  let hoverTimer: number | undefined;
+
   function renderViewportElement(): ReactElement {
     if (state.effectiveView === 'agenda') {
       return createElement(EventsCalendarAgendaView, agendaViewProps(state, ctx.locale));
@@ -568,7 +570,13 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     if (state.effectiveView === 'week') {
       return createElement(EventsCalendarWeekView, weekViewProps(state, ctx.locale));
     }
-    return createElement(EventsCalendarMonthView, monthViewProps(state, ctx.locale, cfg.first_day_of_week ?? 0));
+    return createElement(EventsCalendarMonthView, {
+      ...monthViewProps(state, ctx.locale, cfg.first_day_of_week ?? 0),
+      onCellClick: handleMonthCellClick,
+      onCellMouseEnter: HOVER_CAPABLE ? handleMonthCellMouseEnter : undefined,
+      onCellMouseLeave: HOVER_CAPABLE ? handleMonthCellMouseLeave : undefined,
+      onDayPeek: handleDayPeek,
+    });
   }
 
   function repaint(): void {
@@ -592,7 +600,6 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
       }));
       roots.viewport.render(renderViewportElement());
     });
-    bindCells();
     renderPeekOverlay();
   }
 
@@ -686,57 +693,34 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     void loadWindow();
   }
 
-  function bindCells(): void {
-    // Click chip → no special handling (anchor href to /event); drag handlers TODO.
-    // Click overflow "+N more" → open day peek.
-    root.querySelectorAll<HTMLElement>('[data-day-peek]').forEach((btn) => {
-      if (btn.dataset.eventsCalendarPeekButtonBound === 'true') return;
-      btn.dataset.eventsCalendarPeekButtonBound = 'true';
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        state.peekDayKey = btn.dataset.dayPeek || null;
-        renderPeekOverlay();
-      });
-    });
+  function handleDayPeek(day: string): void {
+    state.peekDayKey = day || null;
+    renderPeekOverlay();
+  }
 
-    // Tap a day cell on touch → also opens peek (mobile-friendly).
-    root.querySelectorAll<HTMLElement>('[data-events-calendar-cell]').forEach((cell) => {
-      if (cell.dataset.eventsCalendarCellBound === 'true') return;
-      cell.dataset.eventsCalendarCellBound = 'true';
-      cell.addEventListener('click', (ev) => {
-        if (HOVER_CAPABLE) return;
-        const target = ev.target as HTMLElement;
-        if (target.closest('a, button')) return;
-        const k = cell.dataset.day;
-        if (!k) return;
-        state.peekDayKey = k;
-        renderPeekOverlay();
-      });
-    });
+  function handleMonthCellClick(day: string): void {
+    // Tap a day cell on touch → opens peek (mobile-friendly).
+    // Event chips and the "+N more" button stop propagation in React.
+    if (HOVER_CAPABLE || !day) return;
+    state.peekDayKey = day;
+    renderPeekOverlay();
+  }
 
-    // Hover peek (desktop only).
-    if (HOVER_CAPABLE) {
-      let hoverTimer: number | undefined;
-      root.querySelectorAll<HTMLElement>('[data-events-calendar-cell]').forEach((cell) => {
-        if (cell.dataset.eventsCalendarHoverBound === 'true') return;
-        cell.dataset.eventsCalendarHoverBound = 'true';
-        cell.addEventListener('mouseenter', () => {
-          const events = (state.events && state.events.length)
-            ? filterEvents(state.events, state, new Date()).filter((e) => eventDayKey(e, siteConfig, ctx.locale) === cell.dataset.day)
-            : [];
-          if (!events.length) return;
-          window.clearTimeout(hoverTimer);
-          hoverTimer = window.setTimeout(() => {
-            state.peekDayKey = cell.dataset.day || null;
-            renderPeekOverlay();
-          }, 200);
-        });
-        cell.addEventListener('mouseleave', () => {
-          window.clearTimeout(hoverTimer);
-        });
-      });
-    }
+  function handleMonthCellMouseEnter(day: string): void {
+    if (!day) return;
+    const events = state.events.length
+      ? filterEvents(state.events, state, new Date()).filter((event) => eventDayKey(event, siteConfig, ctx.locale) === day)
+      : [];
+    if (!events.length) return;
+    window.clearTimeout(hoverTimer);
+    hoverTimer = window.setTimeout(() => {
+      state.peekDayKey = day;
+      renderPeekOverlay();
+    }, 200);
+  }
+
+  function handleMonthCellMouseLeave(): void {
+    window.clearTimeout(hoverTimer);
   }
 
   function renderPeekOverlay(): void {
@@ -886,6 +870,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
 
   function cleanup(): void {
     ro.disconnect();
+    window.clearTimeout(hoverTimer);
     cancelPendingPrefetches();
     const roots = calendarRenderRoots.get(root);
     if (roots) {
