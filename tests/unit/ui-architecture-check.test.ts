@@ -14,6 +14,7 @@ describe('ui architecture check', () => {
   it('scans tracked product source extensions including html', () => {
     expect(isScannedSourcePath('public/page.html')).toBe(true);
     expect(isScannedSourcePath('demo/site/seed.sql')).toBe(true);
+    expect(isScannedSourcePath('functions/site-search.js')).toBe(true);
     expect(isScannedSourcePath('src/components/kychon/View.tsx')).toBe(true);
     expect(isScannedSourcePath('public/image.png')).toBe(false);
     expect(isScannedSourcePath('dist/page.html')).toBe(false);
@@ -32,6 +33,9 @@ describe('ui architecture check', () => {
     const domFragmentHelperCalls = ['host.replace', 'Children(node); reference.replace', 'With(node);'].join('');
 
     expect(messages('src/lib/bad-runtime.ts', replaceChildrenCall)).toContain(
+      'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+    );
+    expect(messages('functions/bad-runtime.js', createElementCall)).toContain(
       'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
     );
     expect(messages('src/lib/dom-fragment.ts', domFragmentHelperCalls)).toEqual([]);
@@ -68,6 +72,9 @@ describe('ui architecture check', () => {
     expect(messages('public/bad.html', nativeButtonHtml)).toContain(
       'Feature UI must use Kychon/shadcn components instead of native <button> controls',
     );
+    expect(messages('functions/bad-runtime.js', `return '${nativeButtonHtml}';`)).toContain(
+      'Feature UI must use Kychon/shadcn components instead of native <button> controls',
+    );
     expect(messages('src/lib/wild-apricot-search.ts', ['const re = /<but', 'ton\\b[^>]*>/;'].join(''))).toEqual([]);
   });
 
@@ -102,6 +109,9 @@ describe('ui architecture check', () => {
     );
 
     expect(messages('demo/bad/seed.sql', String.raw`'{"html":"<div class=\"card\"></div>"}'`)).toContain(
+      'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
+    );
+    expect(messages('functions/bad-runtime.js', String.raw`return '<div class=\"card\"></div>';`)).toContain(
       'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
     );
   });
