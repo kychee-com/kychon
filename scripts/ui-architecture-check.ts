@@ -24,6 +24,8 @@ const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend)\()/g;
+const SELECTOR_DOM_LOOKUP_RE =
+  /\bdocument\.(?:getElementById|getElementsByClassName|getElementsByTagName|querySelector(?:All)?)\s*\(|(?:\?\.|\.)\s*(?:closest|matches|querySelector(?:All)?)\s*\(/g;
 const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea|label)\b([^>]*)>/g;
 const SEED_ARTIFACT_LEGACY_HTML_RE = /<\s*(form|iframe|style)\b|\s(class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 const SEED_ARTIFACT_STRIPPED_ATTR_FRAGMENT_RE =
@@ -230,6 +232,16 @@ export function checkSource(file: string, source: string): Violation[] {
         file: rel,
         line,
         message: 'Product source must not hand-build DOM; use React islands, Astro markup, or dom-fragment helpers',
+        excerpt: lineAt(source, line),
+      });
+    }
+
+    for (const match of source.matchAll(SELECTOR_DOM_LOOKUP_RE)) {
+      const line = lineNumber(source, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: 'Product source must not use selector-based DOM lookups; use React refs, structural traversal helpers, or explicit host inputs',
         excerpt: lineAt(source, line),
       });
     }
