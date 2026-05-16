@@ -261,7 +261,7 @@ function PollCard({
     poll.results_visible === 'always' ||
     (poll.results_visible === 'after_vote' && hasVoted) ||
     (poll.results_visible === 'after_close' && closed);
-  const canVote = signedIn && !closed && !showResults;
+  const canVote = signedIn && !closed;
   const meta = [
     `${votes.length} vote${votes.length === 1 ? '' : 's'}`,
     poll.closes_at && !closed ? `Closes ${closeDateLabel(poll.closes_at)}` : '',
@@ -283,13 +283,14 @@ function PollCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {canVote ? (
+          <PollVoteOptions myVotes={myVotes} onVote={onVote} options={options} poll={poll} votingKey={votingKey} />
+        ) : !showResults ? (
+          <PollReadonlyOptions options={options} />
+        ) : null}
         {showResults ? (
           <PollResults myVotes={myVotes} options={options} votes={votes} />
-        ) : canVote ? (
-          <PollVoteOptions myVotes={myVotes} onVote={onVote} options={options} poll={poll} votingKey={votingKey} />
-        ) : (
-          <PollReadonlyOptions options={options} />
-        )}
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {meta.map((item) => (
             <Badge key={item} variant="outline">

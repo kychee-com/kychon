@@ -78,6 +78,21 @@ describe('PollCard', () => {
     expect(host.querySelector('.poll-vote-btn')).toBeNull();
   });
 
+  it('lets signed-in members vote when results are always visible', async () => {
+    const session = { user: { member: { id: 42 } } };
+    const onVote = vi.fn();
+    const { host } = await renderPollCard({ poll: { ...basePoll, results_visible: 'always' }, session, onVote });
+    const buttons = Array.from(host.querySelectorAll('button'));
+
+    expect(buttons.map((button) => button.textContent)).toEqual(expect.arrayContaining(['Workshop', 'Social', 'Talk']));
+    expect(host.querySelector('[role="progressbar"]')).toBeTruthy();
+
+    await act(async () => {
+      buttons[1].click();
+    });
+    expect(onVote).toHaveBeenCalledWith({ ...basePoll, results_visible: 'always' }, baseOptions[1]);
+  });
+
   it('renders vote buttons for signed-in members before voting', async () => {
     const session = { user: { member: { id: 42 } } };
     const onVote = vi.fn();
