@@ -320,7 +320,7 @@ Responsive CSS-Grid of image-card links. Each card is a single `<a>` wrapping a 
 Live list of events from the `events` table.
 - Config: `heading`, `count` (default `4`), `filter` (`'upcoming' | 'past' | 'this_week'`; `'featured'` reserved for future schema addition), `layout` (`'sidebar' | 'grid' | 'list'`), `show_image`, `show_location`, `show_time`, `color_scheme`.
 - Times render in the visitor's locale + timezone via `toLocaleString`.
-- Empty: `<p class="text-muted">No upcoming events.</p>` replaces the skeleton.
+- Empty: `<p className="text-sm text-muted-foreground" data-events-list-empty>No upcoming events.</p>` replaces the skeleton.
 
 ### `slideshow` (main; dynamic)
 Auto-rotating image carousel. Vanilla JS controller (~3 kB) at `src/lib/blocks/slideshow.ts`.

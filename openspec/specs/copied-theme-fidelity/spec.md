@@ -49,7 +49,7 @@ On pointer devices, hovering a panel SHALL reveal its text/CTA and expand it acc
 
 Kychon SHALL provide a `shape_divider` block for copied-site SVG wave and shape dividers between sections. The block config SHALL support either a preset shape id or imported SVG path data, multiple fill layers with opacity, top/bottom placement, horizontal and vertical flip controls, responsive height, and top/bottom color binding.
 
-The renderer SHALL output SVG markup from validated path/layer data only. The renderer SHALL NOT execute arbitrary imported source SVG markup or scripts. The block SHALL be able to render full-width outside the normal `.container` constraint when needed by the source design.
+The renderer SHALL output SVG markup from validated path/layer data only. The renderer SHALL NOT execute arbitrary imported source SVG markup or scripts. The block SHALL be able to render full-width outside the normal `data-layout-container` constraint when needed by the source design.
 
 #### Scenario: Divider renders imported source path
 - **WHEN** a `shape_divider` block has imported SVG path data and fill layers

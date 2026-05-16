@@ -1,6 +1,6 @@
 # UI CSS Collision Report
 
-Generated: 2026-05-16T01:19:28.548Z
+Generated: 2026-05-16T03:44:38.338Z
 
 This report tracks legacy unprefixed classes that collide with Tailwind utilities or shadcn/Kychon component names. New UI code should not add fresh usages of these classes unless it is explicitly part of the compatibility layer.
 
@@ -13,7 +13,7 @@ This report tracks legacy unprefixed classes that collide with Tailwind utilitie
 | `.mt-1` | 0 | 7 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.mt-2` | 0 | 5 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.mb-1` | 0 | 1 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
-| `.mb-2` | 0 | 3 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
+| `.mb-2` | 0 | 2 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.items-center` | 0 | 118 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.justify-between` | 0 | 14 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.text-sm` | 0 | 138 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
@@ -166,7 +166,6 @@ Kychon must not define this class; exact class-token usages should resolve to Ta
 Usages:
 - `src/components/kychon/CalendarPageApp.tsx:285` <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
 - `src/components/kychon/CommitteesPageApp.tsx:189` <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-- `src/seeds/silver-pines.ts:53` const GETTING_HERE_HTML = `<div style="max-width:52rem"><p class="mb-8 text-xl text-muted-foreground">142 Pine Street, Asheville, NC 28801 &bull; Open Mon-Fri 8am-5pm &bull; <strong>828-555-0100</strong></p><div class="mb-2 overflow-hidden rounded-lg"><iframe src="https://maps.google.com/maps?q=142+Pine+Street,+Asheville,+NC+28801&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="300" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div><div class="${CONTENT_CARD_CLASS}"><h3 style="margin-bottom:1rem">By Car</h3><p>From <strong>I-240</strong>, take Exit 5A (Merrimon Ave). Go south 0.5 miles, turn right on Pine Street. The center is on the left.</p><p><strong>Parking:</strong> Free lot behind the building (enter from Pine Street). 4 accessible parking spaces by the front entrance.</p></div><div class="${CONTENT_CARD_CLASS}"><h3 style="margin-bottom:1rem">Silver Pines Shuttle</h3><p>Our <strong>free shuttle</strong> runs Monday-Friday with 3 routes covering North Asheville, West Asheville, and South Asheville.</p><ul style="margin:1rem 0 1rem 1.5rem"><li><strong>Route A (North):</strong> Montford, Merrimon Ave, North Asheville — Departs 8:15am, 10:15am, 1:15pm</li><li><strong>Route B (West):</strong> West Asheville, Candler, Leicester — Departs 8:30am, 10:30am, 1:30pm</li><li><strong>Route C (South):</strong> Biltmore, South Asheville, Arden — Departs 8:00am, 10:00am, 1:00pm</li></ul><p>Return trips depart the center at 12:00pm, 3:00pm, and 5:00pm. Call Frank at <strong>828-555-0106</strong> to arrange a ride or <a href='/resources'>download the full schedule</a>.</p></div><div class="${CONTENT_CARD_CLASS}"><h3 style="margin-bottom:1rem">Volunteer Driver Program</h3><p>Need a ride to a <strong>medical appointment</strong>? Our volunteer drivers are happy to help. Call the center at <strong>828-555-0100</strong> at least 24 hours in advance. Rides available within 15 miles of Asheville.</p></div><div class="${CONTENT_CARD_CLASS}"><h3 style="margin-bottom:1rem">Public Transit</h3><p><strong>ART Bus Route 170</strong> stops at Pine &amp; Merrimon (2 minute walk). Route runs every 30 minutes weekdays.</p></div><div class="${CONTENT_CARD_CLASS} border-l-4 border-l-primary"><h3 style="margin-bottom:1rem">Accessibility</h3><p>Silver Pines is <strong>fully wheelchair accessible</strong>. We have:</p><ul style="margin:1rem 0 0 1.5rem"><li>Ramp at the main entrance</li><li>Wide doorways throughout</li><li>Accessible restrooms on both floors</li><li>Elevator to the second floor</li><li>Hearing loop in the Main Hall</li><li>Large-print materials available</li><li>Service animals welcome</li></ul></div></div>`;
 
 ### .items-center
 
@@ -276,7 +275,7 @@ Usages:
 - `src/components/kychon/CommitteesPageApp.tsx:89` <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
 - `src/components/kychon/CommitteesPageApp.tsx:181` <CardContent className="py-8 text-center text-sm text-muted-foreground">No committees yet.</CardContent>
 - `src/components/kychon/CommitteesPageApp.tsx:260` <CardContent className="py-8 text-center text-sm text-muted-foreground">No members assigned.</CardContent>
-- `src/components/kychon/CustomPageApp.tsx:99` <CardContent className="py-8 text-center text-sm text-muted-foreground">Page not found.</CardContent>
+- `src/components/kychon/CustomPageApp.tsx:100` <CardContent className="py-8 text-center text-sm text-muted-foreground">Page not found.</CardContent>
 - `src/components/kychon/DirectoryPageApp.tsx:132` <Card className="mx-auto max-w-lg text-center" role="status" aria-live="polite">
 - `src/components/kychon/DirectoryPageApp.tsx:209` <CardContent className="p-6 text-center text-sm text-muted-foreground">No members found.</CardContent>
 - `src/components/kychon/DirectoryPageApp.tsx:254` <DialogHeader className="items-center text-center">
