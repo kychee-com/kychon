@@ -390,13 +390,16 @@ describe('legacy static UI primitives', () => {
     expect(uiCaptureRoutes).toContain('[data-events-page] [data-event-card]');
     expect(uiCaptureRoutes).toContain('[data-resources-page] [data-resource-card]');
     expect(uiCaptureRoutes).toContain('[data-forum-page] [data-forum-category-card]');
-    expect(uiCaptureRoutes).toContain('Site Settings');
+    expect(uiCaptureRoutes).toContain("getByRole('heading', { name: 'Site Settings', level: 2 })");
+    expect(uiCaptureRoutes).toContain("getByRole('heading', { name: route.expectedTitle, level: 1 })");
+    expect(uiCaptureRoutes).not.toContain('waitForFunction');
     expect(uiCaptureRoutes).not.toContain('data-admin-content');
     expect(uiCaptureRoutes.indexOf("context.route('**/functions/v1/**'")).toBeLessThan(
       uiCaptureRoutes.indexOf("context.route('**/functions/v1/kychon-api'"),
     );
     expect(uiCaptureRoutes).toContain("operation === 'auth.whoami'");
-    expect(uiCaptureRoutes).toContain("document.querySelector('main h1')");
+    expect(uiCaptureRoutes).not.toContain('document.querySelector');
+    expect(uiCaptureRoutes).not.toContain('document.querySelectorAll');
     expect(uiCaptureRoutes).not.toContain('#events-list .card');
     expect(uiCaptureRoutes).not.toContain('#resources-grid .card');
     expect(uiCaptureRoutes).not.toContain('.forum-category');
