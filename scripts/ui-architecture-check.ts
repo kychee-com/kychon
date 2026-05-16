@@ -71,6 +71,15 @@ function isProductSource(file: string): boolean {
   return rel.startsWith('src/') && !rel.startsWith('src/components/ui/');
 }
 
+function isTestSource(file: string): boolean {
+  const rel = relative(ROOT, file).replaceAll('\\', '/');
+  return rel.startsWith('tests/') && rel !== 'tests/helpers/dom-fixture.js';
+}
+
+function isSourceAssertion(line: string): boolean {
+  return /\bnot\.to(?:Contain|Match)\(/.test(line);
+}
+
 function checkFile(file: string): Violation[] {
   const source = readFileSync(file, 'utf-8');
   const rel = relative(ROOT, file).replaceAll('\\', '/');
@@ -132,6 +141,20 @@ function checkFile(file: string): Violation[] {
         line,
         message: 'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
         excerpt: lineAt(source, line),
+      });
+    }
+  }
+
+  if (isTestSource(file)) {
+    for (const match of source.matchAll(HAND_ROLLED_DOM_RE)) {
+      const line = lineNumber(source, match.index ?? 0);
+      const excerpt = lineAt(source, line);
+      if (isSourceAssertion(excerpt)) continue;
+      violations.push({
+        file: rel,
+        line,
+        message: 'Tests must use tests/helpers/dom-fixture.js instead of hand-building DOM fixtures',
+        excerpt,
       });
     }
   }
