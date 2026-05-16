@@ -157,6 +157,25 @@ const adminSession = {
   },
 };
 
+function authWhoamiData(): Record<string, unknown> {
+  return {
+    actor: {
+      state: 'admin',
+      authenticated: true,
+      user: { id: adminMember.user_id, email: adminMember.email },
+      member: {
+        id: String(adminMember.id),
+        userId: adminMember.user_id,
+        email: adminMember.email,
+        displayName: adminMember.display_name,
+        role: adminMember.role,
+        status: adminMember.status,
+      },
+      authority: { projectAdmin: false, activeMemberAdmin: true },
+    },
+  };
+}
+
 const events = [
   {
     id: 1,
@@ -484,6 +503,22 @@ async function installDemoAssetRoutes(context: any, project: string | null): Pro
 }
 
 async function installMockApi(context: any): Promise<void> {
+  // Register the generic function fallback first. Playwright gives the most
+  // recently registered matching route precedence, so the Kychon capability API
+  // mock below must be registered after this catch-all.
+  await context.route('**/functions/v1/**', async (route: any) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders() });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders(),
+      body: JSON.stringify({ results: [], text: '' }),
+    });
+  });
+
   await context.route('**/functions/v1/kychon-api', async (route: any) => {
     const request = route.request();
     const method = request.method();
@@ -508,7 +543,9 @@ async function installMockApi(context: any): Promise<void> {
       ? body.input as Record<string, unknown>
       : {};
     const rows = rowsForOperation(operation, input);
-    const data = operation.startsWith('search.')
+    const data = operation === 'auth.whoami'
+      ? authWhoamiData()
+      : operation.startsWith('search.')
       ? { query: input.q || '', type: input.type || 'all', page: 1, page_size: 5, total: 0, has_next: false, facets: {}, results: [] }
       : { rows, count: rows.length };
     await route.fulfill({
@@ -531,19 +568,6 @@ async function installMockApi(context: any): Promise<void> {
       contentType: 'application/json',
       headers: corsHeaders(),
       body: JSON.stringify(adminSession),
-    });
-  });
-
-  await context.route('**/functions/v1/**', async (route: any) => {
-    if (route.request().method() === 'OPTIONS') {
-      await route.fulfill({ status: 204, headers: corsHeaders() });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      headers: corsHeaders(),
-      body: JSON.stringify({ results: [], text: '' }),
     });
   });
 }
@@ -595,7 +619,11 @@ async function waitForRouteReady(page: any, route: CaptureRoute): Promise<void> 
       break;
     case 'baked-chrome-page':
       await page.waitForFunction(
-        (expectedTitle: string) => document.querySelector('#page-title')?.textContent?.trim() === expectedTitle,
+        (expectedTitle: string) => {
+          const pageTitle = document.querySelector('main h1')?.textContent?.trim();
+          const renderedSectionCount = document.querySelectorAll('#sections [data-section]').length;
+          return pageTitle === expectedTitle || renderedSectionCount > 0;
+        },
         route.expectedTitle || '',
         { timeout: 5000 },
       );
