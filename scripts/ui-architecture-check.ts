@@ -12,6 +12,7 @@ const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|\.className\s*=|classList\.)/g;
+const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea)\b([^>]*)>/g;
 const CLASS_LITERAL_RE = /\b(?:class|className)=['"`]([^'"`]*)['"`]/g;
 const RETIRED_PRIMITIVE_CLASSES = new Set([
   'container',
@@ -92,6 +93,22 @@ function isProductSource(file: string): boolean {
   return rel.startsWith('src/') && !rel.startsWith('src/components/ui/');
 }
 
+function isUiRenderSource(file: string): boolean {
+  return isProductSource(file) && /\.(?:astro|jsx|tsx)$/.test(file);
+}
+
+function hasInputType(attrs: string, type: string): boolean {
+  return new RegExp(`\\btype\\s*=\\s*(?:["']${type}["']|{\\s*["']${type}["']\\s*})`, 'i').test(attrs);
+}
+
+function isHiddenFileInput(attrs: string): boolean {
+  return hasInputType(attrs, 'file') && /\bhidden(?:\s|=|$)/i.test(attrs);
+}
+
+function isAllowedNativeControl(tag: string, attrs: string): boolean {
+  return tag === 'input' && (hasInputType(attrs, 'hidden') || isHiddenFileInput(attrs));
+}
+
 function isCssSource(file: string): boolean {
   return file.endsWith('.css');
 }
@@ -165,6 +182,21 @@ function checkFile(file: string): Violation[] {
         file: rel,
         line,
         message: 'Product source must not use retired Kychon primitive class tokens; use shadcn/Kychon UI and semantic data hooks',
+        excerpt: lineAt(source, line),
+      });
+    }
+  }
+
+  if (isUiRenderSource(file)) {
+    for (const match of source.matchAll(NATIVE_CONTROL_RE)) {
+      const tag = String(match[1] || '').toLowerCase();
+      const attrs = String(match[2] || '');
+      if (isAllowedNativeControl(tag, attrs)) continue;
+      const line = lineNumber(source, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: `Feature UI must use Kychon/shadcn components instead of native <${tag}> controls`,
         excerpt: lineAt(source, line),
       });
     }
