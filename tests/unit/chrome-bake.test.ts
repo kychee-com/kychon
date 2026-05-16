@@ -21,7 +21,7 @@ describe('bakeChrome', () => {
     expect(chrome.faviconUrl).toContain('data:image/svg+xml');
     expect(chrome.headerHtml).toContain('Old Dominion Boat Club');
     expect(chrome.headerHtml).toContain('The Club');
-    expect(chrome.headerHtml).toContain('nav-dropdown');
+    expect(chrome.headerHtml).toContain('data-nav-menu');
     expect(chrome.footerHtml).toContain('Old Dominion Boat Club');
     expect(chrome.footerHtml).toContain('Contact the GM');
     expect(chrome.fontHead).toContain('Playfair+Display');
