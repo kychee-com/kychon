@@ -201,7 +201,9 @@ describe('legacy static UI primitives', () => {
     expect(eventCalendarRuntime).not.toContain("querySelectorAll<HTMLElement>('[data-events-calendar-cell]')");
     expect(eventCalendarRuntime).not.toContain('.closest(');
     expect(eventCalendarRuntime).not.toContain('[data-events-calendar-cell][data-day=');
-    expect(eventCalendarRuntime).toContain('findDirectChildWithAttribute');
+    expect(eventCalendarRuntime).toContain('findDirectElementChild');
+    expect(eventCalendarRuntime).toContain('nearestAncestorWithAttribute');
+    expect(eventCalendarRuntime).not.toContain('function findDirectChildWithAttribute');
     expect(eventCalendarRuntime).toContain('sortableIdFor');
     expect(eventCalendarRuntime).toContain('createRoot');
     expect(eventCalendarRuntime).toContain('EventsCalendarControls');
@@ -302,7 +304,8 @@ describe('legacy static UI primitives', () => {
     expect(config).not.toContain('appendChild');
     expect(config).not.toContain('getElementById');
     expect(config).not.toContain('querySelector');
-    expect(config).toContain('findHeadChild');
+    expect(config).toContain('findDirectElementChild');
+    expect(config).not.toContain('function findHeadChild');
     expect(i18n).not.toContain('getElementById');
     expect(i18n).not.toContain('querySelector');
     expect(i18n).toContain('findDescendantElementById');
@@ -367,9 +370,11 @@ describe('legacy static UI primitives', () => {
     expect(sanitizeHtml).toContain("from './dom-fragment'");
     expect(sanitizeHtml).toContain('parseHtmlBody');
     expect(sanitizeHtml).toContain('serializeHtmlChildren');
+    expect(sanitizeHtml).toContain('snapshotChildNodes');
     expect(sanitizeHtml).toContain('removeNode');
     expect(sanitizeHtml).toContain('unwrapElement');
     expect(sanitizeHtml).not.toContain('DOMParser');
+    expect(sanitizeHtml).not.toContain('childNodes');
     expect(sanitizeHtml).not.toContain('innerHTML');
     expect(sanitizeHtml).not.toContain('insertAdjacentHTML');
     expect(sanitizeHtml).not.toContain('insertBefore');

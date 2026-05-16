@@ -6,6 +6,7 @@
 import { get, getCurrentActorContext, patch } from './api.js';
 import { getSession, getSessionEmail } from './auth.js';
 import { canonicalRouteKey } from './clean-routes.js';
+import { findDirectElementChild } from './dom-structure.js';
 import { loadLocale, setAvailableLocales } from './i18n.js';
 
 // --- Cache layer (stale-while-revalidate) ---
@@ -303,20 +304,12 @@ function preservesSourceColorScheme(theme: Record<string, any>): boolean {
   return String(theme.color_scheme || '').toLowerCase() === 'source';
 }
 
-function findHeadChild(predicate: (child: HTMLElement) => boolean): HTMLElement | null {
-  for (const child of Array.from(document.head.children)) {
-    if (!(child instanceof HTMLElement)) continue;
-    if (predicate(child)) return child;
-  }
-  return null;
-}
-
 function themeVarsStyleElement(): HTMLElement | null {
-  return findHeadChild((child) => child.id === 'wl-theme-vars');
+  return findDirectElementChild(document.head, (child) => child.id === 'wl-theme-vars');
 }
 
 function faviconLinkElement(): HTMLLinkElement | null {
-  const link = findHeadChild((child) => child instanceof HTMLLinkElement && child.rel === 'icon');
+  const link = findDirectElementChild(document.head, (child) => child instanceof HTMLLinkElement && child.rel === 'icon');
   return link instanceof HTMLLinkElement ? link : null;
 }
 

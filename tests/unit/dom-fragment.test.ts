@@ -10,6 +10,7 @@ import {
   renderHtmlChildren,
   replaceNodeWith,
   serializeHtmlChildren,
+  snapshotChildNodes,
   unwrapElement,
 } from '../../src/lib/dom-fragment';
 import { htmlFixture } from '../helpers/dom-fixture.js';
@@ -35,6 +36,16 @@ describe('DOM fragment reconciliation', () => {
     expect(serializeHtmlChildren(host)).toBe('<p>Copy</p>plain');
     clearHtmlChildren(host);
     expect(host.childNodes).toHaveLength(0);
+  });
+
+  it('snapshots child nodes before sanitizer-style mutation', () => {
+    const host = htmlFixture('<div><span>A</span><span>B</span></div>');
+    const nodes = snapshotChildNodes(host);
+
+    removeNode(nodes[0]);
+
+    expect(nodes.map((node) => node.textContent)).toEqual(['A', 'B']);
+    expect(Array.from(host.children).map((child) => child.textContent)).toEqual(['B']);
   });
 
   it('moves an existing node to the end without rebuilding siblings', () => {

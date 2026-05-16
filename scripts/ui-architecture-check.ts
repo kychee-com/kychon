@@ -18,9 +18,15 @@ const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
 const ALLOWED_DOM_FRAGMENT_HELPER_FILES = new Set(['src/lib/dom-fragment.ts', 'tests/helpers/dom-fixture.js']);
+const ALLOWED_DOM_FRAGMENT_IMPORT_FILES = new Set([
+  'src/components/AdminEditor.astro',
+  'src/lib/page-render.ts',
+  'src/lib/sanitize-html.ts',
+]);
 const PRIMITIVE_IMPORT_RE = /from\s+['"](@radix-ui\/[^'"]+|@base-ui-components\/[^'"]+)['"]/g;
 const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
+const ALIASED_DOM_FRAGMENT_IMPORT_RE = /from\s+['"]@\/lib\/dom-fragment(?:\.[jt]s)?['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend|remove)\()/g;
 const SELECTOR_DOM_LOOKUP_RE =
@@ -123,6 +129,15 @@ function isAllowedDomFragmentMutation(file: string, token: string): boolean {
   );
 }
 
+function isAllowedDomFragmentImport(file: string): boolean {
+  const rel = relative(ROOT, file).replaceAll('\\', '/');
+  return ALLOWED_DOM_FRAGMENT_IMPORT_FILES.has(rel);
+}
+
+function isDomFragmentImportTarget(target: string): boolean {
+  return ['src/lib/dom-fragment', 'src/lib/dom-fragment.js', 'src/lib/dom-fragment.ts'].includes(target);
+}
+
 function relativeImportTarget(file: string, specifier: string): string {
   return relative(ROOT, join(dirname(file), specifier)).replaceAll('\\', '/');
 }
@@ -211,6 +226,30 @@ export function checkSource(file: string, source: string): Violation[] {
   }
 
   if (isProductSource(file)) {
+    if (!isAllowedDomFragmentImport(file)) {
+      for (const match of source.matchAll(RELATIVE_IMPORT_RE)) {
+        const target = relativeImportTarget(file, match[1]);
+        if (!isDomFragmentImportTarget(target)) continue;
+        const line = lineNumber(source, match.index ?? 0);
+        violations.push({
+          file: rel,
+          line,
+          message: 'Product source must not import dom-fragment outside the approved render, sanitizer, and admin boundaries',
+          excerpt: lineAt(source, line),
+        });
+      }
+
+      for (const match of source.matchAll(ALIASED_DOM_FRAGMENT_IMPORT_RE)) {
+        const line = lineNumber(source, match.index ?? 0);
+        violations.push({
+          file: rel,
+          line,
+          message: 'Product source must not import dom-fragment outside the approved render, sanitizer, and admin boundaries',
+          excerpt: lineAt(source, line),
+        });
+      }
+    }
+
     for (const match of source.matchAll(HAND_ROLLED_DOM_RE)) {
       if (isAllowedDomFragmentMutation(file, match[0])) continue;
       const line = lineNumber(source, match.index ?? 0);

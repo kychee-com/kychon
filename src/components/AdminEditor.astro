@@ -31,6 +31,7 @@ import { Input } from './kychon/ui';
     serializeHtmlChildren,
   } from '../lib/dom-fragment';
   import {
+    directElementChildren,
     findDescendantElementById,
     nearestElementWithAttribute,
     nearestElementWithTagName,
@@ -440,7 +441,7 @@ import { Input } from './kychon/ui';
 
   function editableImageElement(el: Element): HTMLImageElement | null {
     if (el instanceof HTMLImageElement) return el;
-    for (const child of Array.from(el.children)) {
+    for (const child of directElementChildren(el)) {
       const found = editableImageElement(child);
       if (found) return found;
     }
@@ -632,17 +633,14 @@ import { Input } from './kychon/ui';
   function findZoneItemHost(zone: HTMLElement): HTMLElement {
     // Header / footer: the inner constrained container holds blocks. Main: the #sections
     // child or the page <main> itself.
-    for (const child of Array.from(zone.children)) {
-      if (!(child instanceof HTMLElement)) continue;
+    for (const child of directElementChildren(zone)) {
       if (child.hasAttribute('data-layout-container') || child.id === 'sections') return child;
     }
     return zone;
   }
 
   function sortableItemChildren(host: HTMLElement): HTMLElement[] {
-    return Array.from(host.children).filter(
-      (child): child is HTMLElement => child instanceof HTMLElement && child.hasAttribute('data-sortable-id'),
-    );
+    return directElementChildren(host).filter((child) => child.hasAttribute('data-sortable-id'));
   }
 
   function startDragFromHandle(handle: HTMLElement, event: DragEvent) {

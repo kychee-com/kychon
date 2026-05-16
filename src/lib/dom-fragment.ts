@@ -13,7 +13,7 @@ export function parseHtmlBody(html: string): HTMLElement | null {
 function parseHtmlFragment(html: string): Node[] {
   const body = parseHtmlBody(html);
   if (!body) throw new Error('DOMParser is required to render HTML fragments');
-  return Array.from(body.childNodes).map((node) => document.importNode(node, true));
+  return snapshotChildNodes(body).map((node) => document.importNode(node, true));
 }
 
 function nodeToHtml(node: ChildNode): string {
@@ -22,14 +22,20 @@ function nodeToHtml(node: ChildNode): string {
   return '';
 }
 
-function childNodesEqual(host: ParentNode, nextChildren: Node[]): boolean {
-  const currentChildren = Array.from(host.childNodes);
+type ChildNodeHost = Pick<Node, 'childNodes'>;
+
+export function snapshotChildNodes(host: ChildNodeHost): ChildNode[] {
+  return Array.from(host.childNodes);
+}
+
+function childNodesEqual(host: ChildNodeHost, nextChildren: Node[]): boolean {
+  const currentChildren = snapshotChildNodes(host);
   if (currentChildren.length !== nextChildren.length) return false;
   return currentChildren.every((child, index) => child.isEqualNode(nextChildren[index] ?? null));
 }
 
-export function serializeHtmlChildren(host: ParentNode): string {
-  return Array.from(host.childNodes).map(nodeToHtml).join('');
+export function serializeHtmlChildren(host: ChildNodeHost): string {
+  return snapshotChildNodes(host).map(nodeToHtml).join('');
 }
 
 export function renderHtmlChildren(host: HTMLElement, html: string): void {
@@ -70,6 +76,6 @@ export function removeNode(node: ChildNode): void {
 export function unwrapElement(element: Element): void {
   const parent = element.parentNode;
   if (!parent) return;
-  for (const child of Array.from(element.childNodes)) parent.insertBefore(child, element);
+  for (const child of snapshotChildNodes(element)) parent.insertBefore(child, element);
   element.remove();
 }
