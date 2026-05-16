@@ -32,6 +32,19 @@ const DEMOS = [
     searchSubmit: 'Buscar',
   },
 ] as const;
+const RETIRED_CLASS_TOKENS = new Set([
+  'container',
+  'text-muted',
+  'btn',
+  'card',
+  'badge',
+  'toast',
+  'form-input',
+  'form-select',
+  'form-textarea',
+  'page-content',
+  'table-wrap',
+]);
 
 function entryValue(raw: SiteConfigEntry | unknown): unknown {
   return raw && typeof raw === 'object' && 'value' in raw ? (raw as SiteConfigEntry).value : raw;
@@ -69,6 +82,15 @@ function indexSection(seed: ProjectSeed, type: string): SeedSection | undefined 
   );
 }
 
+function generatedClassTokens(sql: string): string[] {
+  const normalized = sql.replaceAll('\\"', '"').replaceAll("\\'", "'");
+  return Array.from(normalized.matchAll(/\bclass\s*=\s*["']([^"']*)["']/g)).flatMap((match) =>
+    String(match[1] || '')
+      .split(/\s+/)
+      .filter(Boolean),
+  );
+}
+
 describe('demo seed feature coverage', () => {
   for (const demo of DEMOS) {
     describe(demo.name, () => {
@@ -99,6 +121,13 @@ describe('demo seed feature coverage', () => {
         expect(sql).toContain(`INSERT INTO poll_options`);
         expect(sql).toContain(`INSERT INTO poll_votes`);
         expect(sql).toContain(`'poll_create'`);
+      });
+
+      it('keeps generated demo HTML off retired primitive class tokens', () => {
+        const sql = generateSeedSql(demo.seed);
+        const retiredTokens = generatedClassTokens(sql).filter((token) => RETIRED_CLASS_TOKENS.has(token));
+
+        expect(retiredTokens).toEqual([]);
       });
 
       it('adds native site search to global chrome', () => {

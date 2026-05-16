@@ -77,7 +77,7 @@ WHERE NOT EXISTS (SELECT 1 FROM member_custom_fields WHERE field_name = 'skills'
 -- pages
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'about', 'About The Eagles', '
-<section class="page-content">
+<section class="flex-1 py-8">
   <img src="/assets/about-hero.jpg" alt="Eagles volunteers serving the Wichita community" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>About The Eagles — Good Samaritans of Wichita</h1>
 
@@ -126,7 +126,7 @@ SELECT 'about', 'About The Eagles', '
 WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'about');
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'volunteer', 'Volunteer With Us', '
-<section class="page-content">
+<section class="flex-1 py-8">
   <img src="/assets/volunteer-hero.jpg" alt="Hands joining together — Eagles volunteers at work" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>Volunteer With The Eagles</h1>
 
@@ -1901,7 +1901,7 @@ INSERT INTO activity_log (member_id, action, metadata, created_at) SELECT (SELEC
 
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'about', 'About The Eagles', '
-<section class="page-content">
+<section class="flex-1 py-8">
   <img src="/assets/about-hero.jpg" alt="Eagles volunteers serving the Wichita community" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>About The Eagles — Good Samaritans of Wichita</h1>
 
@@ -1951,7 +1951,7 @@ WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'about');
 
 INSERT INTO pages (slug, title, content, requires_auth, show_in_nav, nav_position, published)
 SELECT 'volunteer', 'Volunteer With Us', '
-<section class="page-content">
+<section class="flex-1 py-8">
   <img src="/assets/volunteer-hero.jpg" alt="Hands joining together — Eagles volunteers at work" style="width:100%;max-height:28rem;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;margin-bottom:2rem" />
   <h1>Volunteer With The Eagles</h1>
 
