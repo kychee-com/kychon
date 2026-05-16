@@ -582,13 +582,13 @@ async function waitForRouteReady(page: any, route: CaptureRoute): Promise<void> 
       await page.waitForSelector('#sections [data-section]', { timeout: 5000 });
       break;
     case 'events':
-      await page.waitForSelector('#events-list .card', { timeout: 5000 });
+      await page.waitForSelector('[data-events-page] [data-event-card]', { timeout: 5000 });
       break;
     case 'resources':
-      await page.waitForSelector('#resources-grid .card', { timeout: 5000 });
+      await page.waitForSelector('[data-resources-page] [data-resource-card]', { timeout: 5000 });
       break;
     case 'forum':
-      await page.waitForSelector('.forum-category', { timeout: 5000 });
+      await page.waitForSelector('[data-forum-page] [data-forum-category-card]', { timeout: 5000 });
       break;
     case 'admin-settings':
       await page.waitForSelector('[data-admin-content]:not([hidden])', { timeout: 8000 });

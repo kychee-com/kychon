@@ -11,11 +11,11 @@ describe('dashboard rendering', () => {
     };
 
     const grid = document.createElement('div');
-    grid.className = 'stats-grid';
+    grid.dataset.dashboardStats = '';
     for (const [label, value] of Object.entries(stats)) {
       const card = document.createElement('div');
-      card.className = 'stat-card';
-      card.innerHTML = `<div class="stat-value">${value}</div><div class="stat-label">${label}</div>`;
+      card.dataset.dashboardStat = label;
+      card.innerHTML = `<div data-stat-value>${value}</div><div data-stat-label>${label}</div>`;
       grid.appendChild(card);
     }
     return { grid, stats };
@@ -25,9 +25,9 @@ describe('dashboard rendering', () => {
     const feed = document.createElement('div');
     for (const a of activities) {
       const entry = document.createElement('div');
-      entry.className = 'activity-entry';
+      entry.dataset.activityEntry = '';
       entry.innerHTML = `
-        <span class="badge">${a.action}</span>
+        <span data-activity-action>${a.action}</span>
         <span>${a.members?.display_name || 'Unknown'}</span>
       `;
       feed.appendChild(entry);
@@ -44,7 +44,7 @@ describe('dashboard rendering', () => {
 
   it('renders stat cards', () => {
     const { grid } = renderStats(allMembers);
-    const values = [...grid.querySelectorAll('.stat-value')].map((el) => el.textContent);
+    const values = [...grid.querySelectorAll('[data-stat-value]')].map((el) => el.textContent);
     expect(values).toContain('2'); // active
     expect(values).toContain('1'); // pending
   });
@@ -52,9 +52,9 @@ describe('dashboard rendering', () => {
   it('renders activity feed entries', () => {
     const feed = renderActivityFeed(sampleActivity);
     expect(feed.children.length).toBe(3);
-    const badges = [...feed.querySelectorAll('.badge')].map((el) => el.textContent);
-    expect(badges).toContain('signup');
-    expect(badges).toContain('announcement');
+    const actions = [...feed.querySelectorAll('[data-activity-action]')].map((el) => el.textContent);
+    expect(actions).toContain('signup');
+    expect(actions).toContain('announcement');
   });
 
   it('shows display name in activity', () => {

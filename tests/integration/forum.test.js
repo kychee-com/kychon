@@ -43,12 +43,12 @@ describe('forum rendering', () => {
     const list = document.createElement('div');
     for (const cat of categories) {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.dataset.forumCategoryCard = String(cat.id);
       card.innerHTML = `
-        <div class="category-color" style="background:${cat.color}"></div>
+        <div data-forum-category-color style="background:${cat.color}"></div>
         <h3>${cat.name}</h3>
         <p>${cat.description}</p>
-        <span class="topic-count">${topicCounts[cat.id] || 0} topics</span>
+        <span data-forum-topic-count>${topicCounts[cat.id] || 0} topics</span>
       `;
       list.appendChild(card);
     }
@@ -64,12 +64,12 @@ describe('forum rendering', () => {
     const list = document.createElement('div');
     for (const t of sorted) {
       const row = document.createElement('div');
-      row.className = 'topic-row';
+      row.dataset.forumTopicRow = String(t.id);
       row.innerHTML = `
-        <span class="title">${t.title}</span>
-        ${t.is_pinned ? '<span class="badge pinned">Pinned</span>' : ''}
-        ${t.hidden ? '<span class="badge hidden-badge">Hidden</span>' : ''}
-        <span class="reply-count">${t.reply_count} replies</span>
+        <span data-forum-topic-title>${t.title}</span>
+        ${t.is_pinned ? '<span data-forum-topic-pinned>Pinned</span>' : ''}
+        ${t.hidden ? '<span data-forum-topic-hidden>Hidden</span>' : ''}
+        <span data-forum-reply-count>${t.reply_count} replies</span>
       `;
       list.appendChild(row);
     }
@@ -78,36 +78,36 @@ describe('forum rendering', () => {
 
   it('renders category list with topic counts', () => {
     const list = renderCategoryList(categories, { 1: 2, 2: 0 });
-    const cards = list.querySelectorAll('.card');
+    const cards = list.querySelectorAll('[data-forum-category-card]');
     expect(cards.length).toBe(2);
-    expect(cards[0].querySelector('.topic-count').textContent).toContain('2');
+    expect(cards[0].querySelector('[data-forum-topic-count]').textContent).toContain('2');
   });
 
   it('renders category color bar', () => {
     const list = renderCategoryList(categories, {});
-    const color = list.querySelector('.category-color');
+    const color = list.querySelector('[data-forum-category-color]');
     expect(color.style.background).toContain('6366f1');
   });
 
   it('shows visible topics sorted by pinned first', () => {
     const list = renderTopicList(topics, false);
-    const rows = list.querySelectorAll('.topic-row');
+    const rows = list.querySelectorAll('[data-forum-topic-row]');
     expect(rows.length).toBe(2); // hidden excluded
-    expect(rows[0].querySelector('.title').textContent).toBe('Welcome');
-    expect(rows[0].querySelector('.pinned')).toBeTruthy();
+    expect(rows[0].querySelector('[data-forum-topic-title]').textContent).toBe('Welcome');
+    expect(rows[0].querySelector('[data-forum-topic-pinned]')).toBeTruthy();
   });
 
   it('shows hidden topics to admins', () => {
     const list = renderTopicList(topics, true);
-    const rows = list.querySelectorAll('.topic-row');
+    const rows = list.querySelectorAll('[data-forum-topic-row]');
     expect(rows.length).toBe(3);
-    const hiddenRow = [...rows].find((r) => r.querySelector('.title').textContent === 'Hidden');
-    expect(hiddenRow.querySelector('.hidden-badge')).toBeTruthy();
+    const hiddenRow = [...rows].find((r) => r.querySelector('[data-forum-topic-title]').textContent === 'Hidden');
+    expect(hiddenRow.querySelector('[data-forum-topic-hidden]')).toBeTruthy();
   });
 
   it('shows reply count on topics', () => {
     const list = renderTopicList(topics, false);
-    const firstReplyCount = list.querySelector('.reply-count');
+    const firstReplyCount = list.querySelector('[data-forum-reply-count]');
     expect(firstReplyCount.textContent).toContain('3');
   });
 });

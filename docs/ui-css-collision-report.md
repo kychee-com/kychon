@@ -1,6 +1,6 @@
 # UI CSS Collision Report
 
-Generated: 2026-05-15T22:28:57.872Z
+Generated: 2026-05-16T01:19:28.548Z
 
 This report tracks legacy unprefixed classes that collide with Tailwind utilities or shadcn/Kychon component names. New UI code should not add fresh usages of these classes unless it is explicitly part of the compatibility layer.
 
@@ -20,13 +20,13 @@ This report tracks legacy unprefixed classes that collide with Tailwind utilitie
 | `.text-center` | 0 | 33 | Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities. |
 | `.text-muted` | 0 | 0 | Retired as a Kychon helper; use Tailwind/shadcn semantic text utilities in generated markup and React code. |
 | `.container` | 0 | 0 | Retired as a Kychon layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout and reserve `.container` for Tailwind if needed. |
-| `.btn` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
-| `.card` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
-| `.badge` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
+| `.btn` | 0 | 0 | Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead. |
+| `.card` | 0 | 0 | Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead. |
+| `.badge` | 0 | 0 | Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead. |
 | `.toast` | 0 | 0 | Retired as a Kychon public component class; use the Sonner-backed Kychon `Toaster`/`toast` helpers instead. |
-| `.form-input` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
-| `.form-select` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
-| `.form-textarea` | 0 | 0 | Owned public component class retained temporarily while call sites move to Kychon UI components. |
+| `.form-input` | 0 | 0 | Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead. |
+| `.form-select` | 0 | 0 | Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead. |
+| `.form-textarea` | 0 | 0 | Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead. |
 
 ## Hit Details
 
@@ -122,10 +122,10 @@ Usages:
 - `src/components/kychon/AdminEditorControlsIsland.tsx:1357` <div className="flex gap-1">
 - `src/components/kychon/CalendarPageApp.tsx:115` <span className="inline-flex items-center gap-1">
 - `src/components/kychon/CalendarPageApp.tsx:120` <span className="inline-flex min-w-0 items-center gap-1">
-- `src/components/kychon/DirectoryPageApp.tsx:243` <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+- `src/components/kychon/DirectoryPageApp.tsx:239` <span className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
 - `src/components/kychon/EventsListIsland.tsx:211` <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
 - `src/components/kychon/EventsListIsland.tsx:217` <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-- `src/components/kychon/NavBlockView.tsx:171` <MenuButton active={item.active} className="nav-link nav-parent nav-parent-button inline-flex items-center gap-1" controls={menuId}>
+- `src/components/kychon/NavBlockView.tsx:175` <MenuButton active={item.active} className="inline-flex items-center gap-1" controls={menuId} parentTrigger>
 - `src/components/kychon/ResourcesPageApp.tsx:300` <div className="flex flex-wrap gap-1">
 
 ### .mt-1
@@ -136,10 +136,10 @@ Usages:
 - `src/components/kychon/ActivityFeedIsland.tsx:142` <p className="mt-1 text-xs text-muted-foreground">{formatActivityTime(entry.created_at)}</p>
 - `src/components/kychon/AdminSettingsApp.tsx:1038` <p className="mt-1 text-sm text-muted-foreground">
 - `src/components/kychon/AdminSettingsApp.tsx:1078` <p className="mt-1 text-sm text-muted-foreground">{field.field_name}</p>
-- `src/components/kychon/DirectoryPageApp.tsx:243` <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+- `src/components/kychon/DirectoryPageApp.tsx:239` <span className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
 - `src/components/kychon/EventsListIsland.tsx:211` <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
 - `src/components/kychon/EventsListIsland.tsx:217` <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-- `src/components/kychon/ForumPageApp.tsx:817` {category?.description ? <p className="mt-1 break-words text-sm text-muted-foreground">{category.description}</p> : null}
+- `src/components/kychon/ForumPageApp.tsx:822` {category?.description ? <p className="mt-1 break-words text-sm text-muted-foreground">{category.description}</p> : null}
 
 ### .mt-2
 
@@ -279,20 +279,20 @@ Usages:
 - `src/components/kychon/CustomPageApp.tsx:99` <CardContent className="py-8 text-center text-sm text-muted-foreground">Page not found.</CardContent>
 - `src/components/kychon/DirectoryPageApp.tsx:132` <Card className="mx-auto max-w-lg text-center" role="status" aria-live="polite">
 - `src/components/kychon/DirectoryPageApp.tsx:209` <CardContent className="p-6 text-center text-sm text-muted-foreground">No members found.</CardContent>
-- `src/components/kychon/DirectoryPageApp.tsx:258` <DialogHeader className="items-center text-center">
+- `src/components/kychon/DirectoryPageApp.tsx:254` <DialogHeader className="items-center text-center">
 - `src/components/kychon/EventCountdownIsland.tsx:74` <div className="mx-auto max-w-3xl text-center" data-event-countdown>
 - `src/components/kychon/EventsCalendarBlockView.tsx:180` <CardContent className="p-8 text-center text-sm text-muted-foreground">{message}</CardContent>
 - `src/components/kychon/EventsCalendarBlockView.tsx:389` <div className="px-2 py-2 text-center text-xs font-semibold uppercase text-muted-foreground" key={`${weekday}-${index}`} role="columnheader">
 - `src/components/kychon/EventsPageApp.tsx:364` <CardContent className="py-8 text-center text-sm text-muted-foreground">No events yet.</CardContent>
 - `src/components/kychon/ForumPageApp.tsx:259` <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
 - `src/components/kychon/ForumPageApp.tsx:753` <CardContent className="py-8 text-center text-sm text-muted-foreground">No categories yet.</CardContent>
-- `src/components/kychon/ForumPageApp.tsx:822` <CardContent className="py-8 text-center text-sm text-muted-foreground">No topics yet. Be the first to start a discussion.</CardContent>
-- `src/components/kychon/ForumPageApp.tsx:903` <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
-- `src/components/kychon/ForumPageApp.tsx:1084` <CardContent className="py-8 text-center text-sm text-muted-foreground">No replies yet.</CardContent>
-- `src/components/kychon/ForumPageApp.tsx:1120` <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
+- `src/components/kychon/ForumPageApp.tsx:827` <CardContent className="py-8 text-center text-sm text-muted-foreground">No topics yet. Be the first to start a discussion.</CardContent>
+- `src/components/kychon/ForumPageApp.tsx:908` <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
+- `src/components/kychon/ForumPageApp.tsx:1089` <CardContent className="py-8 text-center text-sm text-muted-foreground">No replies yet.</CardContent>
+- `src/components/kychon/ForumPageApp.tsx:1125` <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
 - `src/components/kychon/ImageAccordionBlockView.tsx:171` <CardContent className="py-6 text-center text-sm text-muted-foreground">
 - `src/components/kychon/MarketingBlocksView.tsx:238` <MarketingContainer className="max-w-4xl text-center">
-- `src/components/kychon/MarketingBlocksView.tsx:473` className="relative z-10 w-full max-w-6xl px-4 py-8 text-center text-xl font-semibold tracking-normal drop-shadow [&_a]:text-inherit [&_a]:underline"
+- `src/components/kychon/MarketingBlocksView.tsx:467` className="relative z-10 w-full max-w-6xl px-4 py-8 text-center text-xl font-semibold tracking-normal drop-shadow [&_a]:text-inherit [&_a]:underline"
 - `src/components/kychon/PollsBlockIsland.tsx:341` <CardContent className="py-8 text-center text-sm text-muted-foreground" data-polls-empty>
 - `src/components/kychon/PollsPageApp.tsx:683` <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
 - `src/components/kychon/PollsPageApp.tsx:717` <CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</CardContent>
@@ -309,15 +309,15 @@ Retired as a Kychon layout class; use Tailwind layout utilities with `data-layou
 
 ### .btn
 
-Owned public component class retained temporarily while call sites move to Kychon UI components.
+Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.
 
 ### .card
 
-Owned public component class retained temporarily while call sites move to Kychon UI components.
+Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.
 
 ### .badge
 
-Owned public component class retained temporarily while call sites move to Kychon UI components.
+Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.
 
 ### .toast
 
@@ -325,12 +325,12 @@ Retired as a Kychon public component class; use the Sonner-backed Kychon `Toaste
 
 ### .form-input
 
-Owned public component class retained temporarily while call sites move to Kychon UI components.
+Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.
 
 ### .form-select
 
-Owned public component class retained temporarily while call sites move to Kychon UI components.
+Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.
 
 ### .form-textarea
 
-Owned public component class retained temporarily while call sites move to Kychon UI components.
+Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.

@@ -757,7 +757,12 @@ function CategoryList({
           {categories.map((category) => {
             const count = counts[category.id] || 0;
             return (
-              <Card className="h-full border-l-4 transition-colors hover:bg-accent/50" key={category.id} style={{ borderLeftColor: category.color }}>
+              <Card
+                className="h-full border-l-4 transition-colors hover:bg-accent/50"
+                data-forum-category-card={category.id}
+                key={category.id}
+                style={{ borderLeftColor: category.color }}
+              >
                 <a
                   className="block h-full text-left text-foreground no-underline"
                   href={routePath({ view: 'category', categoryId: String(category.id) })}
@@ -1481,7 +1486,7 @@ export default function ForumPageApp() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6" data-forum-page>
         {route.view !== 'categories' ? (
           <Button onClick={() => navigateTo({ view: 'categories' })} type="button" variant="outline">
             <ArrowLeft className="h-4 w-4" />

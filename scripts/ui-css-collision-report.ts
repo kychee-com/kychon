@@ -77,7 +77,7 @@ function decisionFor(className: TargetClass): string {
     return 'Retired as a Kychon public component class; use the Sonner-backed Kychon `Toaster`/`toast` helpers instead.';
   }
   if (['btn', 'card', 'badge', 'form-input', 'form-select', 'form-textarea'].includes(className)) {
-    return 'Owned public component class retained temporarily while call sites move to Kychon UI components.';
+    return 'Retired as a Kychon public component class; use shadcn/Kychon UI components and semantic `data-*` hooks instead.';
   }
   return 'Kychon must not define this class; exact class-token usages should resolve to Tailwind utilities.';
 }
