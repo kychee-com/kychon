@@ -15,6 +15,11 @@
   gap: 1.5rem;
 }
 
+#sections > [data-column-span],
+[data-zone="footer"] > [data-layout-container] > [data-column-span] {
+  min-width: 0;
+}
+
 /* Default span mapping (desktop). */
 #sections > [data-column-span="1"],
 [data-zone="footer"] > [data-layout-container] > [data-column-span="1"]   { grid-column: span 6; }

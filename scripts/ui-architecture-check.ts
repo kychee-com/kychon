@@ -25,7 +25,9 @@ const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend)\()/g;
 const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea)\b([^>]*)>/g;
-const PORT_SEED_LEGACY_HTML_RE = /<\s*(form|style)\b|\s(class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
+const SEED_ARTIFACT_LEGACY_HTML_RE = /<\s*(form|iframe|style)\b|\s(class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
+const SEED_ARTIFACT_STRIPPED_ATTR_FRAGMENT_RE =
+  /<\s*([a-z][a-z0-9-]*)\b(?=[^>]*(?:\b(?:aspect|bg|border|flex|grid|max-h|max-w|mb|mt|mx|my|min-h|min-w|object|overflow|px|py|rounded|shadow|text)[-\w:/%.()]*\b|\b(?:rem|solid|srgb)\b|color-mix\(|var\(--))[^=>]*>/gi;
 const CLASS_LITERAL_RE = /\b(?:class|className)=\\*(["'`])([^'"`]*)\\*\1/g;
 const RETIRED_PRIMITIVE_CLASSES = new Set([
   'container',
@@ -138,6 +140,11 @@ function isProductSource(file: string): boolean {
 function isRootPortSeed(file: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
   return ROOT_SCAN_FILES.includes(rel) && rel.endsWith('.seed.sql');
+}
+
+function isSeedArtifactSource(file: string): boolean {
+  const rel = relative(ROOT, file).replaceAll('\\', '/');
+  return isRootPortSeed(file) || rel.startsWith('src/seeds/') || rel.startsWith('demo/');
 }
 
 function isUiRenderSource(file: string): boolean {
@@ -255,14 +262,25 @@ export function checkSource(file: string, source: string): Violation[] {
     }
   }
 
-  if (isRootPortSeed(file)) {
-    for (const match of source.matchAll(PORT_SEED_LEGACY_HTML_RE)) {
+  if (isSeedArtifactSource(file)) {
+    for (const match of source.matchAll(SEED_ARTIFACT_LEGACY_HTML_RE)) {
       const token = String(match[1] || match[2] || '').toLowerCase();
       const line = lineNumber(source, match.index ?? 0);
       violations.push({
         file: rel,
         line,
-        message: `Port seed SQL must not embed legacy ${token} HTML; sanitize copied source before tracking or deploying it`,
+        message: `Seed artifacts must not embed legacy ${token} HTML; use structural rich text or typed shadcn/Kychon blocks`,
+        excerpt: lineAt(source, line),
+      });
+    }
+
+    for (const match of source.matchAll(SEED_ARTIFACT_STRIPPED_ATTR_FRAGMENT_RE)) {
+      const token = String(match[1] || '').toLowerCase();
+      const line = lineNumber(source, match.index ?? 0);
+      violations.push({
+        file: rel,
+        line,
+        message: `Seed artifacts must not contain stripped legacy <${token}> attribute fragments; rewrite rich text structurally before tracking generated SQL`,
         excerpt: lineAt(source, line),
       });
     }
