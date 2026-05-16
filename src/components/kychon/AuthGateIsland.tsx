@@ -4,15 +4,15 @@ import { Home, LockKeyhole, ShieldAlert } from 'lucide-react';
 import * as React from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Button } from '../ui/button';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from '../ui/card';
+} from '@/components/kychon/ui';
 import { openAuthModal } from '../../lib/auth-modal-events';
 import type { AuthGateKind } from '../../lib/auth-gate';
 import { constrainedContainerClass } from '../../lib/ui/container';
@@ -45,7 +45,7 @@ function AuthGate({ backLabel, copy, kind, signInLabel }: AuthGateProps) {
   }
 
   return (
-    <div className={`${constrainedContainerClass} flex justify-center py-8`} data-layout-container>
+    <div className={`${constrainedContainerClass} flex justify-center py-8`} data-auth-gate={kind} data-layout-container>
       <Card className="w-full max-w-lg text-center" role="status" aria-live="polite">
         <CardHeader className="items-center">
           <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">

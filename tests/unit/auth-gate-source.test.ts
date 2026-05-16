@@ -10,7 +10,10 @@ describe('auth gate source', () => {
   it('uses the React shadcn gate instead of string-built DOM', async () => {
     const combined = (await Promise.all(SOURCES.map((source) => readFile(source, 'utf8')))).join('\n');
 
-    expect(combined).toContain('../ui/button');
+    expect(combined).toContain('@/components/kychon/ui');
+    expect(combined).toContain('data-auth-gate');
+    expect(combined).not.toContain('../ui/button');
+    expect(combined).not.toContain('../ui/card');
     expect(combined).toContain('Card');
     expect(combined).toContain('Button');
     expect(combined).not.toContain('data-auth-gate-action');
