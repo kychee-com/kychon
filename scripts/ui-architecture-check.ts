@@ -24,7 +24,7 @@ const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
 const HAND_ROLLED_DOM_RE =
   /\b(?:document\.createElement|document\.createRange|createContextualFragment|insertAdjacentHTML|appendChild|removeChild|innerHTML\s*=|outerHTML\s*=|replaceChildren\(|insertBefore\(|replaceWith\()|(?:\.className\s*=|classList\.|\.(?:append|prepend)\()/g;
-const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea)\b([^>]*)>/g;
+const NATIVE_CONTROL_RE = /<\s*(button|input|select|textarea|label)\b([^>]*)>/g;
 const SEED_ARTIFACT_LEGACY_HTML_RE = /<\s*(form|iframe|style)\b|\s(class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 const SEED_ARTIFACT_STRIPPED_ATTR_FRAGMENT_RE =
   /<\s*([a-z][a-z0-9-]*)\b(?=[^>]*(?:\b(?:aspect|bg|border|flex|grid|max-h|max-w|mb|mt|mx|my|min-h|min-w|object|overflow|px|py|rounded|shadow|text)[-\w:/%.()]*\b|\b(?:rem|solid|srgb)\b|color-mix\(|var\(--))[^=>]*>/gi;

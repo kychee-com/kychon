@@ -414,14 +414,16 @@ export default function ResourcesPageApp() {
                 />
               </div>
             )}
-            <label className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm">
               <Checkbox
                 id="rf-members-only"
                 checked={uploadForm.isMembersOnly}
                 onCheckedChange={(checked) => setUploadForm((form) => ({ ...form, isMembersOnly: checked === true }))}
               />
-              Members only
-            </label>
+              <Label htmlFor="rf-members-only" className="leading-5">
+                Members only
+              </Label>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>
                 Cancel

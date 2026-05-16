@@ -50,18 +50,19 @@ describe('ui architecture check', () => {
     const nativeSelectHtml = ['<sel', 'ect></sel', 'ect>'].join('');
     const violations = messages(
       'src/components/kychon/BadControls.tsx',
-      '<button type="button">Save</button><input name="q" /><select /><textarea />',
+      '<button type="button">Save</button><input name="q" /><select /><textarea /><label htmlFor="q">Search</label>',
     );
 
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <button> controls');
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <input> controls');
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <select> controls');
     expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <textarea> controls');
+    expect(violations).toContain('Feature UI must use Kychon/shadcn components instead of native <label> controls');
 
     expect(
       messages(
         'src/components/kychon/GoodControls.tsx',
-        '<Button type="button">Save</Button><Input name="q" /><input type="hidden" /><input type="file" hidden />',
+        '<Button type="button">Save</Button><Label htmlFor="q">Search</Label><Input name="q" /><input type="hidden" /><input type="file" hidden />',
       ),
     ).toEqual([]);
 

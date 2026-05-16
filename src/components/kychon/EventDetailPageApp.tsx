@@ -575,17 +575,26 @@ function RegistrationEditor({
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <label className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2 text-sm">
                   <Checkbox
+                    id={`reg-${draft.id}-reviewed`}
                     checked={draft.review_state === 'reviewed'}
                     onCheckedChange={(checked) => updateDraft(draft.id, { review_state: checked ? 'reviewed' : 'needs_review' })}
                   />
-                  Reviewed
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={draft.is_disabled} onCheckedChange={(checked) => updateDraft(draft.id, { is_disabled: checked === true })} />
-                  Hidden/disabled
-                </label>
+                  <Label htmlFor={`reg-${draft.id}-reviewed`} className="leading-5">
+                    Reviewed
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    id={`reg-${draft.id}-disabled`}
+                    checked={draft.is_disabled}
+                    onCheckedChange={(checked) => updateDraft(draft.id, { is_disabled: checked === true })}
+                  />
+                  <Label htmlFor={`reg-${draft.id}-disabled`} className="leading-5">
+                    Hidden/disabled
+                  </Label>
+                </div>
               </div>
             </CardContent>
           </Card>
