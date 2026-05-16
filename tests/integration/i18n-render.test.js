@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('i18n rendering', () => {
   const enStrings = {
@@ -33,42 +34,35 @@ describe('i18n rendering', () => {
   }
 
   it('renders nav items in English', () => {
-    const nav = document.createElement('nav');
-    ['nav.home', 'nav.members'].forEach((key) => {
-      const a = document.createElement('a');
-      a.textContent = t(key);
-      nav.appendChild(a);
-    });
+    const nav = htmlFixture(
+      `<nav>${['nav.home', 'nav.members'].map((key) => `<a>${escapeHtml(t(key))}</a>`).join('')}</nav>`,
+    );
     expect(nav.children[0].textContent).toBe('Home');
     expect(nav.children[1].textContent).toBe('Members');
   });
 
   it('renders nav items in Portuguese', () => {
-    const nav = document.createElement('nav');
-    ['nav.home', 'nav.members'].forEach((key) => {
-      const a = document.createElement('a');
-      a.textContent = t(key, {}, ptStrings, enStrings);
-      nav.appendChild(a);
-    });
+    const nav = htmlFixture(
+      `<nav>${['nav.home', 'nav.members']
+        .map((key) => `<a>${escapeHtml(t(key, {}, ptStrings, enStrings))}</a>`)
+        .join('')}</nav>`,
+    );
     expect(nav.children[0].textContent).toBe('Inicio');
     expect(nav.children[1].textContent).toBe('Membros');
   });
 
   it('renders interpolated greeting', () => {
-    const el = document.createElement('p');
-    el.textContent = t('welcome.greeting', { name: 'Maria' });
+    const el = htmlFixture(`<p>${escapeHtml(t('welcome.greeting', { name: 'Maria' }))}</p>`);
     expect(el.textContent).toBe('Hello, Maria!');
   });
 
   it('renders plural correctly', () => {
-    const el = document.createElement('span');
-    el.textContent = t('members.count', { count: 42 });
+    const el = htmlFixture(`<span>${escapeHtml(t('members.count', { count: 42 }))}</span>`);
     expect(el.textContent).toBe('42 members');
   });
 
   it('renders singular correctly', () => {
-    const el = document.createElement('span');
-    el.textContent = t('members.count', { count: 1 });
+    const el = htmlFixture(`<span>${escapeHtml(t('members.count', { count: 1 }))}</span>`);
     expect(el.textContent).toBe('1 member');
   });
 

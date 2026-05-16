@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { defaultNav } from '../fixtures/configs.js';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('nav rendering', () => {
   function renderNav(navItems, { isAuth, role, features }) {
-    const container = document.createElement('div');
-    for (const item of navItems) {
-      if (item.feature && !features[item.feature]) continue;
-      if (item.auth && !isAuth) continue;
-      if (item.admin && role !== 'admin') continue;
-      const a = document.createElement('a');
-      a.dataset.navLink = '';
-      a.href = item.href;
-      a.textContent = item.label;
-      container.appendChild(a);
-    }
-    return container;
+    return htmlFixture(`
+      <div>
+        ${navItems
+          .filter((item) => {
+            if (item.feature && !features[item.feature]) return false;
+            if (item.auth && !isAuth) return false;
+            if (item.admin && role !== 'admin') return false;
+            return true;
+          })
+          .map(
+            (item) => `
+          <a data-nav-link href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>
+        `,
+          )
+          .join('')}
+      </div>
+    `);
   }
 
   it('renders public nav items for anonymous users', () => {

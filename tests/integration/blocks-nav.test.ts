@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BLOCK_TYPES, type BlockRenderContext, isPageActive, type Section } from '../../src/lib/blocks';
 import { bindNavDropdowns } from '../../src/lib/nav-dropdown';
+import { appendBodyFixture, bodyFixture, clearBodyFixture, htmlFixture } from '../helpers/dom-fixture.js';
 
 const NAV_VIEW = resolve(process.cwd(), 'src/components/kychon/NavBlockView.tsx');
 const NAV_DROPDOWN = resolve(process.cwd(), 'src/lib/nav-dropdown.ts');
@@ -37,10 +38,16 @@ function makeSection(items: Array<Record<string, unknown>>, extraConfig: Record<
 }
 
 function renderInto(html: string): HTMLElement {
-  const wrap = document.createElement('div');
   // Wrap as Portal does — `nav#zone-header > [data-layout-container] > <html>`.
-  wrap.innerHTML = html;
-  return wrap.firstElementChild as HTMLElement;
+  return htmlFixture(html);
+}
+
+function mountNavShell(html: string): void {
+  bodyFixture(`
+    <nav id="zone-header" data-nav-shell>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${html}</div>
+    </nav>
+  `);
 }
 
 describe('isPageActive — hash-aware active link detection', () => {
@@ -154,11 +161,12 @@ describe('nav block — flat behavior preserved', () => {
       { label: 'Home', href: '/', public: true },
       { label: 'Announcements', href: '/#announcements-section', public: true },
     ]);
-    const wrap = document.createElement('div');
-    wrap.innerHTML = BLOCK_TYPES.nav.render(section, {
-      ...baseCtx,
-      currentPath: '/#announcements-section',
-    });
+    const wrap = htmlFixture(
+      `<div>${BLOCK_TYPES.nav.render(section, {
+        ...baseCtx,
+        currentPath: '/#announcements-section',
+      })}</div>`,
+    );
     const activeLabels = Array.from(wrap.querySelectorAll('[data-nav-item-index][data-nav-active="true"]')).map(
       (el) => el.textContent,
     );
@@ -205,7 +213,7 @@ describe('nav block — source presentation config', () => {
     const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
       behavior: { mobile_breakpoint: 2000 },
     });
-    document.body.innerHTML = `<nav id="zone-header" data-nav-shell><div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
+    mountNavShell(BLOCK_TYPES.nav.render(section, baseCtx));
     const host = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(host);
     expect(document.getElementById('zone-header')?.dataset.navSourceMobile).toBe('true');
@@ -402,7 +410,7 @@ describe('nav block — runtime keyboard + click', () => {
   let host: HTMLElement;
 
   beforeEach(() => {
-    document.body.innerHTML = '';
+    clearBodyFixture();
     (window as NavDropdownTestWindow).__navDropdownClickBound = false;
     const section = makeSection([
       { label: 'Home', href: '/', public: true },
@@ -416,13 +424,13 @@ describe('nav block — runtime keyboard + click', () => {
       },
     ]);
     const html = BLOCK_TYPES.nav.render(section, baseCtx);
-    document.body.innerHTML = `<nav id="zone-header"><div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container>${html}</div></nav>`;
+    mountNavShell(html);
     host = document.getElementById('nav-links') as HTMLElement;
     bindNavDropdowns(host);
   });
 
   afterEach(() => {
-    document.body.innerHTML = '';
+    clearBodyFixture();
     delete (window as NavDropdownTestWindow).__navDropdownClickBound;
   });
 
@@ -436,7 +444,7 @@ describe('nav block — runtime keyboard + click', () => {
   });
 
   it('binds dropdown behavior through data attributes rather than nav classes', () => {
-    document.body.innerHTML = '';
+    clearBodyFixture();
     (window as NavDropdownTestWindow).__navDropdownClickBound = false;
     const section = makeSection([
       {
@@ -444,7 +452,9 @@ describe('nav block — runtime keyboard + click', () => {
         children: [{ label: 'Guides', href: '/guides' }],
       },
     ]);
-    document.body.innerHTML = `<nav id="zone-header"><div data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`;
+    bodyFixture(
+      `<nav id="zone-header" data-nav-shell><div data-layout-container>${BLOCK_TYPES.nav.render(section, baseCtx)}</div></nav>`,
+    );
     const legacyNavClassTokens = Array.from(document.querySelectorAll<HTMLElement>('[class]')).flatMap((el) =>
       (el.getAttribute('class') || '').split(/\s+/).filter((className) => className.startsWith('nav-')),
     );
@@ -590,8 +600,7 @@ describe('nav block — runtime keyboard + click', () => {
     const menu = document.getElementById(chevron.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(menu.hasAttribute('hidden')).toBe(false);
     // Click elsewhere.
-    const outside = document.createElement('button');
-    document.body.appendChild(outside);
+    const [outside] = appendBodyFixture('<button type="button">Outside</button>');
     outside.click();
     expect(menu.hasAttribute('hidden')).toBe(true);
     expect(chevron.getAttribute('aria-expanded')).toBe('false');

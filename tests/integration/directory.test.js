@@ -1,20 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { activeMember, allMembers, defaultTiers } from '../fixtures/members.js';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('directory rendering', () => {
   function renderMemberGrid(members) {
-    const grid = document.createElement('div');
-    grid.dataset.memberGrid = '';
-    for (const m of members) {
-      const card = document.createElement('div');
-      card.dataset.memberId = m.id;
-      card.innerHTML = `
-        <div data-member-name>${m.display_name}</div>
-        <div data-member-meta>${m.tier_name || ''}</div>
-      `;
-      grid.appendChild(card);
-    }
-    return grid;
+    return htmlFixture(`
+      <div data-member-grid>
+        ${members
+          .map(
+            (m) => `
+          <div data-member-id="${escapeHtml(m.id)}">
+            <div data-member-name>${escapeHtml(m.display_name)}</div>
+            <div data-member-meta>${escapeHtml(m.tier_name || '')}</div>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    `);
   }
 
   function filterMembers(members, { query, tierId }) {

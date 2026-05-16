@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Section } from '../../src/lib/blocks';
+import { bodyFixture, clearBodyFixture } from '../helpers/dom-fixture.js';
 
 const configRows = [
   { key: 'site_name', value: 'AAGE', category: 'branding' },
@@ -46,8 +47,8 @@ function envelopeFrom(init?: RequestInit) {
 }
 
 function mountPortalShell(): void {
-  document.body.innerHTML = `
-    <nav id="zone-header" class="nav" data-zone="header">
+  bodyFixture(`
+    <nav id="zone-header" data-nav-shell data-zone="header">
       <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container></div>
     </nav>
     <div data-fullbleed-host data-zone-fullbleed="header"></div>
@@ -59,7 +60,7 @@ function mountPortalShell(): void {
       <div data-fullbleed-host></div>
     </footer>
     <div id="auth-modal-root"></div>
-  `;
+  `);
 }
 
 function signInBarSection(config: Record<string, unknown>): Section {
@@ -164,7 +165,7 @@ describe('sign_in_bar hydration', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    document.body.innerHTML = '';
+    clearBodyFixture();
   });
 
   it('honors hidden toggle config on root-level hydrate hosts', async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { allMembers, sampleActivity } from '../fixtures/members.js';
+import { escapeHtml, htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('dashboard rendering', () => {
   function renderStats(members) {
@@ -10,29 +11,38 @@ describe('dashboard rendering', () => {
       suspended: members.filter((m) => m.status === 'suspended').length,
     };
 
-    const grid = document.createElement('div');
-    grid.dataset.dashboardStats = '';
-    for (const [label, value] of Object.entries(stats)) {
-      const card = document.createElement('div');
-      card.dataset.dashboardStat = label;
-      card.innerHTML = `<div data-stat-value>${value}</div><div data-stat-label>${label}</div>`;
-      grid.appendChild(card);
-    }
+    const grid = htmlFixture(`
+      <div data-dashboard-stats>
+        ${Object.entries(stats)
+          .map(
+            ([label, value]) => `
+          <div data-dashboard-stat="${escapeHtml(label)}">
+            <div data-stat-value>${escapeHtml(value)}</div>
+            <div data-stat-label>${escapeHtml(label)}</div>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    `);
     return { grid, stats };
   }
 
   function renderActivityFeed(activities) {
-    const feed = document.createElement('div');
-    for (const a of activities) {
-      const entry = document.createElement('div');
-      entry.dataset.activityEntry = '';
-      entry.innerHTML = `
-        <span data-activity-action>${a.action}</span>
-        <span>${a.members?.display_name || 'Unknown'}</span>
-      `;
-      feed.appendChild(entry);
-    }
-    return feed;
+    return htmlFixture(`
+      <div>
+        ${activities
+          .map(
+            (a) => `
+          <div data-activity-entry>
+            <span data-activity-action>${escapeHtml(a.action)}</span>
+            <span>${escapeHtml(a.members?.display_name || 'Unknown')}</span>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    `);
   }
 
   it('computes correct stats from member data', () => {

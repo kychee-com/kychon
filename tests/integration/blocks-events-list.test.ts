@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { bodyFixture, clearBodyFixture, escapeHtml } from '../helpers/dom-fixture.js';
 
 beforeEach(() => {
   window.__KYCHON_API = 'https://api.test';
@@ -16,7 +17,7 @@ beforeEach(() => {
       for (const k of Object.keys(store)) delete store[k];
     },
   });
-  document.body.innerHTML = '';
+  clearBodyFixture();
 });
 
 afterEach(() => {
@@ -25,12 +26,14 @@ afterEach(() => {
 });
 
 function makeWrapper(cfg: Record<string, unknown>): HTMLElement {
-  const wrapper = document.createElement('section');
-  wrapper.innerHTML = `
-    <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="events_list" data-config='${JSON.stringify(cfg)}'></div>
-  `;
-  document.body.appendChild(wrapper);
-  return wrapper;
+  bodyFixture(`
+    <section>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="events_list" data-config='${escapeHtml(
+        JSON.stringify(cfg),
+      )}'></div>
+    </section>
+  `);
+  return document.querySelector('section') as HTMLElement;
 }
 
 function capabilityResponse(rows: unknown[]) {

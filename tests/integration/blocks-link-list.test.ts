@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { bodyFixture, clearBodyFixture, escapeHtml } from '../helpers/dom-fixture.js';
 
 // happy-dom env from vitest project config provides document/window/localStorage.
 // We mock window globals required by api.ts.
@@ -19,7 +20,7 @@ beforeEach(() => {
       for (const k of Object.keys(store)) delete store[k];
     },
   });
-  document.body.innerHTML = '';
+  clearBodyFixture();
 });
 
 afterEach(() => {
@@ -29,6 +30,17 @@ afterEach(() => {
 
 async function loadHydrator() {
   return await import('../../src/lib/block-hydrators');
+}
+
+function mountWrapper(config: Record<string, unknown>): HTMLElement {
+  bodyFixture(`
+    <section>
+      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${escapeHtml(
+        JSON.stringify(config),
+      )}'></div>
+    </section>
+  `);
+  return document.querySelector('section') as HTMLElement;
 }
 
 describe('hydrateLinkListResources', () => {
@@ -56,18 +68,11 @@ describe('hydrateLinkListResources', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const wrapper = document.createElement('section');
-    wrapper.innerHTML = `
-      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${JSON.stringify(
-        {
-          layout: 'rows',
-          source: 'resources',
-          filter: { category: 'newsletters', limit: 3, order: 'newest' },
-        },
-      )}'>
-      </div>
-    `;
-    document.body.appendChild(wrapper);
+    const wrapper = mountWrapper({
+      layout: 'rows',
+      source: 'resources',
+      filter: { category: 'newsletters', limit: 3, order: 'newest' },
+    });
 
     const { hydrateLinkListResources } = await loadHydrator();
     await hydrateLinkListResources(
@@ -113,18 +118,11 @@ describe('hydrateLinkListResources', () => {
       }),
     );
 
-    const wrapper = document.createElement('section');
-    wrapper.innerHTML = `
-      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${JSON.stringify(
-        {
-          layout: 'rows',
-          source: 'resources',
-          filter: { category: 'nope', limit: 5, order: 'newest' },
-        },
-      )}'>
-      </div>
-    `;
-    document.body.appendChild(wrapper);
+    const wrapper = mountWrapper({
+      layout: 'rows',
+      source: 'resources',
+      filter: { category: 'nope', limit: 5, order: 'newest' },
+    });
 
     const { hydrateLinkListResources } = await loadHydrator();
     await hydrateLinkListResources(
@@ -147,22 +145,16 @@ describe('hydrateLinkListResources', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    const wrapper = document.createElement('section');
-    wrapper.innerHTML = `
-      <div class="mx-auto w-full max-w-[var(--max-width)] px-6" data-layout-container data-block-hydrate="link_list" data-config='${JSON.stringify(
-        {
-          heading: 'Curated',
-          layout: 'compact',
-          source: 'manual',
-          items: [
-            { label: 'A', href: '/a' },
-            { label: 'PDF', href: '/b.pdf', badge: 'PDF' },
-            { label: 'External', href: 'https://www.example.com', external: true },
-          ],
-        },
-      )}'></div>
-    `;
-    document.body.appendChild(wrapper);
+    const wrapper = mountWrapper({
+      heading: 'Curated',
+      layout: 'compact',
+      source: 'manual',
+      items: [
+        { label: 'A', href: '/a' },
+        { label: 'PDF', href: '/b.pdf', badge: 'PDF' },
+        { label: 'External', href: 'https://www.example.com', external: true },
+      ],
+    });
 
     const { hydrateLinkListResources } = await loadHydrator();
     await hydrateLinkListResources(

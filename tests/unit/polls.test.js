@@ -2,6 +2,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { clearBodyFixture, htmlFixture } from '../helpers/dom-fixture.js';
 
 const { PollCard } = await import('../../src/components/kychon/PollsBlockIsland.tsx');
 
@@ -43,8 +44,8 @@ async function renderPollCard({
   onVote = vi.fn(),
 } = {}) {
   setSession(session);
-  const host = document.createElement('div');
-  document.body.appendChild(host);
+  const host = htmlFixture('<div></div>');
+  document.body.append(host);
   const root = createRoot(host);
   roots.push(root);
   await act(async () => {
@@ -57,7 +58,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) {
     act(() => root.unmount());
   }
-  document.body.innerHTML = '';
+  clearBodyFixture();
   localStorage.clear();
 });
 

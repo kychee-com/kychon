@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyTheme } from '../../src/lib/config';
+import { htmlFixture } from '../helpers/dom-fixture.js';
 
 describe('copied-theme token application', () => {
   beforeEach(() => {
     document.documentElement.removeAttribute('style');
     document.getElementById('wl-theme-vars')?.remove();
-    document.head.append(Object.assign(document.createElement('style'), { id: 'wl-theme-vars' }));
+    document.head.append(htmlFixture('<style id="wl-theme-vars"></style>'));
   });
 
   it('applies copied-theme tokens to the document root from cached-shaped theme data', () => {

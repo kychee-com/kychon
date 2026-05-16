@@ -4,6 +4,7 @@ import {
   clearSectionCaches,
   saveCopiedThemeSectionConfig,
 } from '../../src/lib/admin/copied-theme-editor';
+import { clearBodyFixture } from '../helpers/dom-fixture.js';
 
 function createStorage(): Storage {
   const storage = {} as Storage & Record<string, string>;
@@ -47,7 +48,7 @@ function createStorage(): Storage {
 let storage: Storage;
 
 beforeEach(() => {
-  document.body.innerHTML = '';
+  clearBodyFixture();
   storage = createStorage();
 });
 

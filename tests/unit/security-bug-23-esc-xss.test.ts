@@ -22,6 +22,7 @@ import { describe, expect, it } from 'vitest';
 
 import { escAttr, escHtml } from '../../src/lib/blocks.ts';
 import { sanitizeRichHtml } from '../../src/lib/sanitize-html.ts';
+import { htmlFixture } from '../helpers/dom-fixture.js';
 
 // happy-dom rebinds import.meta.url to a non-file scheme; resolve test paths
 // against the repo root via process.cwd() instead.
@@ -34,17 +35,17 @@ const ANNOUNCEMENTS_FEED_ISLAND = resolve(repoRoot, 'src/components/kychon/Annou
 // Reproduce the local `esc()` helper as defined in the affected files so the
 // test pins the legacy (broken) behavior we are removing.
 function legacyEsc(s: unknown): string {
-  const d = document.createElement('div');
-  d.textContent = String(s ?? '');
-  return d.innerHTML;
+  return String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
 const QUOTE_BREAKOUT = '" onmouseover="alert(1)" x="';
 const IMG_PAYLOAD = '<img src=x onerror="alert(1)">';
 
 function attributesOf(html: string, selector: string): string[] {
-  const host = document.createElement('div');
-  host.innerHTML = html;
+  const host = htmlFixture(`<section>${html}</section>`);
   const node = host.querySelector(selector);
   if (!node) throw new Error(`No node matched ${selector} in ${html}`);
   return Array.from(node.attributes).map((a) => a.name);
@@ -101,8 +102,7 @@ describe('bug #23 — announcement body raw innerHTML sink', () => {
     expect(cleaned.toLowerCase()).not.toContain('onerror');
     expect(cleaned.toLowerCase()).not.toContain('<script');
 
-    const host = document.createElement('div');
-    host.innerHTML = cleaned;
+    const host = htmlFixture(`<section>${cleaned}</section>`);
     const img = host.querySelector('img');
     if (img) {
       // <img> is allowed (Tiptap-style rich content), but never with on* attrs.
