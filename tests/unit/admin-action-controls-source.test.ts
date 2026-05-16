@@ -210,8 +210,15 @@ describe('admin action controls source', () => {
     expect(editor).toContain('ensureAdminInlineTextPrompt');
     expect(editor).toContain('showAdminInlineTextPrompt');
     expect(editor).toContain('promptEditableText');
-    expect(editor).toContain("document.querySelectorAll('[data-editable]')");
+    expect(editor).toContain('initEditableDelegates');
+    expect(editor).toContain('activateEditableText');
+    expect(editor).toContain('activateEditableRich');
+    expect(editor).toContain('activateEditableImage');
+    expect(editor).toContain("closestAdminEditable(event, '[data-editable]')");
     expect(editor).toContain("document.addEventListener('wl-content-rendered', rebindAdminEditableContent)");
+    expect(editor).not.toContain("document.querySelectorAll('[data-editable]')");
+    expect(editor).not.toContain("document.querySelectorAll('[data-editable-rich]')");
+    expect(editor).not.toContain("document.querySelectorAll('[data-editable-image]')");
     expect(editor).not.toContain('MutationObserver');
     expect(editor).not.toContain('contentEditable');
     expect(editor).not.toContain('document.createRange');
