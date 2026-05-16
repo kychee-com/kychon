@@ -55,11 +55,12 @@ const ALLOWED_TAGS = new Set([
 ]);
 
 const DROP_WITH_CONTENT_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed']);
+const DROP_ELEMENT_TAGS = new Set(['input', 'select', 'textarea', 'option']);
 
 const ALLOWED_ATTRS_BY_TAG: Record<string, Set<string>> = {
   a: new Set(['href', 'title', 'target', 'rel']),
   img: new Set(['src', 'alt', 'title', 'width', 'height']),
-  '*': new Set(['class', 'id', 'lang', 'dir']),
+  '*': new Set(['id', 'lang', 'dir']),
 };
 
 const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'mailto:'];
@@ -124,6 +125,10 @@ function walk(node: Node): void {
       const el = child as Element;
       const tag = el.tagName.toLowerCase();
       if (!ALLOWED_TAGS.has(tag)) {
+        if (DROP_ELEMENT_TAGS.has(tag)) {
+          removeNode(el);
+          continue;
+        }
         if (DROP_WITH_CONTENT_TAGS.has(tag)) {
           removeNode(el);
           continue;
@@ -156,4 +161,37 @@ export function sanitizeRichHtml(input: string | null | undefined): string {
   }
   walk(body);
   return serializeHtmlChildren(body);
+}
+
+export function sanitizeRichHtmlServer(input: unknown): string {
+  if (input == null) return '';
+  let html = String(input);
+  html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+  html = html.replace(/<\s*(input|select|textarea|option)\b[^>]*>(?:[\s\S]*?<\/\s*\1\s*>)?/gi, '');
+  html = html.replace(/<\/?\s*(script|style|iframe|object|embed|svg|math|details|link|meta)(?:\s|\/|>)[^>]*>/gi, '');
+  html = html.replace(/<\/?\s*(button|form|label)\b[^>]*>/gi, '');
+  html = html.replace(/[\s/]+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\s(?:class|style)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\s(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (_match, attr: string, rawValue: string) => {
+    const value = rawValue.replace(/^['"]|['"]$/g, '');
+    const decoded = decodeHtmlEntities(value).trim();
+    return /^(?:javascript|vbscript):/i.test(decoded) ? '' : ` ${attr}=${rawValue}`;
+  });
+  html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
+  html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
+  return html;
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
+    const normalized = entity.toLowerCase();
+    if (normalized === 'amp') return '&';
+    if (normalized === 'lt') return '<';
+    if (normalized === 'gt') return '>';
+    if (normalized === 'quot') return '"';
+    if (normalized === 'apos') return "'";
+    if (normalized.startsWith('#x')) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
+    if (normalized.startsWith('#')) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+    return match;
+  });
 }
