@@ -54,6 +54,19 @@ describe('ui architecture check', () => {
     expect(messages('public/js/env.js', "window.__KYCHON_API = 'https://api.run402.com';")).toEqual([]);
   });
 
+  it('keeps dom-fragment imports confined to approved runtime boundaries', () => {
+    const relativeImport = "import { renderHtmlChildren } from '../lib/dom-fragment';";
+    const aliasedImport = "import { renderHtmlChildren } from '@/lib/dom-fragment';";
+    const violation =
+      'Product source must not import dom-fragment outside the approved render, sanitizer, and admin boundaries';
+
+    expect(messages('src/components/OtherAdmin.astro', relativeImport)).toContain(violation);
+    expect(messages('src/components/kychon/BadFragment.tsx', aliasedImport)).toContain(violation);
+    expect(messages('src/components/AdminEditor.astro', relativeImport)).toEqual([]);
+    expect(messages('src/lib/page-render.ts', "import { renderHtmlChildren } from './dom-fragment';")).toEqual([]);
+    expect(messages('src/lib/sanitize-html.ts', "import { parseHtmlBody } from './dom-fragment';")).toEqual([]);
+  });
+
   it('rejects selector-based DOM lookup in product source', () => {
     const selectorLookups = [
       "document.getElementById('root');",

@@ -8,7 +8,7 @@
 //   - Node tests: relies on happy-dom (or jsdom) to provide parser globals.
 // Both are tested in tests/unit/security-bug-23-esc-xss.test.ts.
 
-import { parseHtmlBody, removeNode, serializeHtmlChildren, unwrapElement } from './dom-fragment';
+import { parseHtmlBody, removeNode, serializeHtmlChildren, snapshotChildNodes, unwrapElement } from './dom-fragment';
 
 const ALLOWED_TAGS = new Set([
   'p',
@@ -119,7 +119,7 @@ function sanitizeAttributes(el: Element): void {
 
 function walk(node: Node): void {
   // Iterate over a snapshot since we mutate as we go.
-  const children = Array.from(node.childNodes);
+  const children = snapshotChildNodes(node);
   for (const child of children) {
     if (child.nodeType === 1 /* ELEMENT_NODE */) {
       const el = child as Element;

@@ -18,7 +18,12 @@ import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
 import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { renderHtmlChildren } from './dom-fragment';
-import { nearestElementWithAttribute } from './dom-structure';
+import {
+  collectDescendantElements,
+  findDescendantElement,
+  findDirectElementChild,
+  nearestElementWithAttribute,
+} from './dom-structure';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -78,47 +83,10 @@ function getRenderContext(): BlockRenderContext {
   };
 }
 
-function isHtmlElement(el: Element | null): el is HTMLElement {
-  return el instanceof HTMLElement;
-}
-
-function directElementChildren(parent: Element | null): HTMLElement[] {
-  if (!parent) return [];
-  return Array.from(parent.children).filter(isHtmlElement);
-}
-
-function findDirectElementChild(
-  parent: Element | null,
-  predicate: (child: HTMLElement) => boolean,
-): HTMLElement | null {
-  return directElementChildren(parent).find(predicate) ?? null;
-}
-
-function findDescendantElement(
-  parent: Element | null,
-  predicate: (child: HTMLElement) => boolean,
-): HTMLElement | null {
-  for (const child of directElementChildren(parent)) {
-    if (predicate(child)) return child;
-    const nested = findDescendantElement(child, predicate);
-    if (nested) return nested;
-  }
-  return null;
-}
-
-function collectDescendantElements(
-  root: HTMLElement,
-  predicate: (child: HTMLElement) => boolean,
-  matches: HTMLElement[],
-): void {
-  if (predicate(root)) matches.push(root);
-  for (const child of directElementChildren(root)) collectDescendantElements(child, predicate, matches);
-}
-
 function findHeaderFullBleedHost(zoneRoot: HTMLElement): HTMLElement | null {
   const next = zoneRoot.nextElementSibling;
   if (
-    isHtmlElement(next) &&
+    next instanceof HTMLElement &&
     next.hasAttribute('data-fullbleed-host') &&
     next.dataset.zoneFullbleed === 'header'
   ) {

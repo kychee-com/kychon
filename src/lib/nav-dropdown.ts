@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 
 import { NavBlockContent, type NavBlockItem, type NavBlockProps, type NavBlockStyle } from '@/components/kychon/NavBlockView';
+import { findDescendantElement, nearestAncestorElement } from './dom-structure.js';
 
 interface MountedNav {
   onSwap: () => void;
@@ -83,30 +84,10 @@ function isNavHost(el: HTMLElement | null): boolean {
   return el?.getAttribute('data-block-hydrate') === 'nav';
 }
 
-function findNavHostAncestor(el: HTMLElement | null): HTMLElement | null {
-  let current = el?.parentElement ?? null;
-  while (current) {
-    if (isNavHost(current)) return current;
-    current = current.parentElement;
-  }
-  return null;
-}
-
-function findNavHostDescendant(el: HTMLElement | null): HTMLElement | null {
-  if (!el) return null;
-  for (const child of Array.from(el.children)) {
-    if (!(child instanceof HTMLElement)) continue;
-    if (isNavHost(child)) return child;
-    const nested = findNavHostDescendant(child);
-    if (nested) return nested;
-  }
-  return null;
-}
-
 function navHostFrom(target?: HTMLElement | null): HTMLElement | null {
   if (isNavHost(target ?? null)) return target ?? null;
-  if (target) return findNavHostAncestor(target) ?? findNavHostDescendant(target);
-  return findNavHostDescendant(document.body);
+  if (target) return nearestAncestorElement(target, isNavHost) ?? findDescendantElement(target, isNavHost);
+  return findDescendantElement(document.body, isNavHost);
 }
 
 export function bindNavDropdowns(navRoot?: HTMLElement | null): void {

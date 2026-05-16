@@ -23,6 +23,7 @@ import {
 import type { Event } from '../../schemas/event.js';
 import type { RsvpAvatar } from '../api.js';
 import { siteConfig } from '../config.js';
+import { findDirectElementChild, nearestAncestorWithAttribute } from '../dom-structure.js';
 import { eventDayKey, formatEventDateTime } from '../event-display.js';
 import {
   EventsCalendarAgendaView,
@@ -86,31 +87,17 @@ interface CalendarRenderRoots {
 
 const calendarRenderRoots = new WeakMap<HTMLElement, CalendarRenderRoots>();
 
-function findDirectChildWithAttribute(root: HTMLElement, attribute: string): HTMLElement | null {
-  for (const child of Array.from(root.children)) {
-    if (!(child instanceof HTMLElement)) continue;
-    if (child.hasAttribute(attribute)) return child;
-  }
-  return null;
-}
-
 function sortableIdFor(root: HTMLElement): string {
-  let current = root.parentElement;
-  while (current) {
-    const sortableId = current.getAttribute('data-sortable-id');
-    if (sortableId) return sortableId;
-    current = current.parentElement;
-  }
-  return 'global';
+  return nearestAncestorWithAttribute(root, 'data-sortable-id')?.getAttribute('data-sortable-id') || 'global';
 }
 
 function getCalendarRenderRoots(root: HTMLElement): CalendarRenderRoots | null {
   const existing = calendarRenderRoots.get(root);
   if (existing) return existing;
 
-  const controlsHost = findDirectChildWithAttribute(root, 'data-events-calendar-controls-host');
-  const viewportHost = findDirectChildWithAttribute(root, 'data-events-calendar-viewport');
-  const peekHost = findDirectChildWithAttribute(root, 'data-events-calendar-peek-host');
+  const controlsHost = findDirectElementChild(root, (child) => child.hasAttribute('data-events-calendar-controls-host'));
+  const viewportHost = findDirectElementChild(root, (child) => child.hasAttribute('data-events-calendar-viewport'));
+  const peekHost = findDirectElementChild(root, (child) => child.hasAttribute('data-events-calendar-peek-host'));
   if (!controlsHost || !viewportHost || !peekHost) return null;
 
   const roots: CalendarRenderRoots = {
