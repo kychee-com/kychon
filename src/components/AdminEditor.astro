@@ -910,40 +910,15 @@
     // wiring needed here.
   }
 
-  // Use MutationObserver to re-bind after client-side renders
-  const observer = new MutationObserver((mutations) => {
+  function rebindAdminEditableContent() {
     if (document.body.dataset.admin !== 'true') return;
-    let shouldRebind = false;
-    for (const m of mutations) {
-      if (m.type === 'childList' && m.addedNodes.length > 0) {
-        for (const node of m.addedNodes) {
-          if (node instanceof HTMLElement && (
-            node.querySelector('[data-editable]') ||
-            node.querySelector('[data-editable-rich]') ||
-            node.querySelector('[data-editable-image]') ||
-            node.querySelector('[data-sortable-id]') ||
-            node.hasAttribute?.('data-editable') ||
-            node.hasAttribute?.('data-editable-rich') ||
-            node.hasAttribute?.('data-editable-image') ||
-            node.hasAttribute?.('data-sortable-id')
-          )) {
-            shouldRebind = true;
-            break;
-          }
-        }
-      }
-      if (shouldRebind) break;
-    }
-    if (shouldRebind) {
-      initEditableText();
-      initEditableRich();
-      initEditableImage();
-      initSortable();
-    }
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
+    initEditableText();
+    initEditableRich();
+    initEditableImage();
+    initSortable();
+  }
 
   initAdminEditor();
   document.addEventListener('astro:after-swap', initAdminEditor);
+  document.addEventListener('wl-content-rendered', rebindAdminEditableContent);
 </script>

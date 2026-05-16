@@ -211,6 +211,8 @@ describe('admin action controls source', () => {
     expect(editor).toContain('showAdminInlineTextPrompt');
     expect(editor).toContain('promptEditableText');
     expect(editor).toContain("document.querySelectorAll('[data-editable]')");
+    expect(editor).toContain("document.addEventListener('wl-content-rendered', rebindAdminEditableContent)");
+    expect(editor).not.toContain('MutationObserver');
     expect(editor).not.toContain('contentEditable');
     expect(editor).not.toContain('document.createRange');
     expect(editor).not.toContain('selectNodeContents');

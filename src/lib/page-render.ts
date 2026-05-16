@@ -205,8 +205,6 @@ async function hydrateDynamic(sections: Section[], ctx: BlockRenderContext): Pro
 
 async function rebindAdminEditing(): Promise<void> {
   // Inform the AdminEditor that the DOM has new editable / sortable nodes.
-  // The MutationObserver inside AdminEditor reacts to content replacement too,
-  // but a custom event is a cleaner contract.
   document.dispatchEvent(new CustomEvent('wl-content-rendered'));
 }
 
