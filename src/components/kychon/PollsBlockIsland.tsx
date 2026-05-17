@@ -85,11 +85,7 @@ async function loadConfiguredPolls(pollIds: number[]): Promise<PollCardData[]> {
   const rows = await Promise.all(
     pollIds.map(async (pollId) => {
       try {
-        const [row] = await getPolls(`id=eq.${pollId}`);
-        if (!row) return null;
-        const poll = await autoCloseIfNeeded(row);
-        const [options, votes] = await Promise.all([getPollOptions(poll.id), getPollVotes(poll.id)]);
-        return { poll, options, votes };
+        return await loadPollCardById(pollId);
       } catch (error) {
         console.warn(`Failed to fetch poll ${pollId}:`, error);
         return null;
@@ -97,6 +93,14 @@ async function loadConfiguredPolls(pollIds: number[]): Promise<PollCardData[]> {
     }),
   );
   return rows.filter((row): row is PollCardData => !!row);
+}
+
+async function loadPollCardById(pollId: number): Promise<PollCardData | null> {
+  const [row] = await getPolls(`id=eq.${pollId}`);
+  if (!row) return null;
+  const poll = await autoCloseIfNeeded(row);
+  const [options, votes] = await Promise.all([getPollOptions(poll.id), getPollVotes(poll.id)]);
+  return { poll, options, votes };
 }
 
 function PollResults({ options, votes, myVotes }: { options: PollOption[]; votes: PollVote[]; myVotes: PollVote[] }) {
@@ -216,13 +220,10 @@ export function PollCard({
   const closed = pollIsClosed(poll);
   const myVotes = memberId != null ? votes.filter((vote) => sameId(vote.member_id, memberId)) : [];
   const hasVoted = myVotes.length > 0;
-  const showResults =
-    poll.results_visible === 'always' ||
-    (poll.results_visible === 'after_vote' && hasVoted) ||
-    (poll.results_visible === 'after_close' && closed);
+  const showResults = poll.results_visible === 'after_close' ? closed && hasVoted : hasVoted;
   const canVote = signedIn && !closed;
   const meta = [
-    `${votes.length} vote${votes.length === 1 ? '' : 's'}`,
+    showResults ? `${votes.length} vote${votes.length === 1 ? '' : 's'}` : '',
     poll.closes_at && !closed ? `Closes ${closeDateLabel(poll.closes_at)}` : '',
     closed ? 'Closed' : '',
     poll.is_anonymous ? 'Anonymous' : '',
@@ -238,7 +239,6 @@ export function PollCard({
             <CardTitle className="break-words text-lg leading-6">{poll.question}</CardTitle>
             {poll.description ? <CardDescription className="break-words">{poll.description}</CardDescription> : null}
           </div>
-          {closed ? <Badge variant="secondary">Closed</Badge> : <Badge>Open</Badge>}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -300,8 +300,18 @@ function PollsBlockIsland({ config, headingEditablePath }: PollsBlockProps) {
     setVotingKey(`${poll.id}:${option.id}`);
     try {
       await post('poll_votes', { poll_id: poll.id, option_id: option.id });
+      const updated = await loadPollCardById(poll.id);
+      if (updated) {
+        setState((current) =>
+          current.status === 'ready'
+            ? {
+                status: 'ready',
+                polls: current.polls.map((item) => (item.poll.id === poll.id ? updated : item)),
+              }
+            : current,
+        );
+      }
       showToast('Vote recorded', 'success');
-      await refresh();
       document.dispatchEvent(new CustomEvent('wl-content-rendered'));
     } catch (error) {
       showToast(isPermissionDenied(error) ? 'Active member access is required to vote.' : 'Could not record your vote.', 'error');
