@@ -8,13 +8,15 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
   Input,
   Label,
 } from '@/components/kychon/ui';
-import { isAuthenticated, signIn, signInWithGoogle, signUp } from '@/lib/auth';
+import { getRole, getSessionEmail, isAuthenticated, signIn, signInWithGoogle, signUp } from '@/lib/auth';
+import { refreshMemberRecord } from '@/lib/config';
 
 interface SubmitEventLike {
   preventDefault(): void;
@@ -43,8 +45,17 @@ function GoogleMark() {
   );
 }
 
+export function signedInJoinDestination(role: string | null): { href: string; label: string } {
+  return role === 'admin'
+    ? { href: '/admin', label: 'Open admin dashboard' }
+    : { href: '/profile', label: 'View profile' };
+}
+
 export default function JoinPageApp() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [sessionEmail, setSessionEmail] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPasswordValue] = useState('');
   const [message, setMessage] = useState('');
@@ -52,7 +63,26 @@ export default function JoinPageApp() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated()) window.location.href = '/';
+    let cancelled = false;
+
+    async function refreshSignedInState(): Promise<void> {
+      const authenticated = isAuthenticated();
+      if (!authenticated) {
+        if (!cancelled) setSignedIn(false);
+        return;
+      }
+
+      await refreshMemberRecord();
+      if (cancelled) return;
+      setRole(getRole());
+      setSessionEmail(getSessionEmail());
+      setSignedIn(true);
+    }
+
+    void refreshSignedInState();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function submit(event: SubmitEventLike) {
@@ -79,6 +109,42 @@ export default function JoinPageApp() {
   }
 
   const title = isSignUpMode ? 'Sign Up' : 'Sign In';
+  const signedInDestination = signedInJoinDestination(role);
+
+  if (signedIn === null) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl tracking-normal">Join</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Checking account
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (signedIn) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl tracking-normal">Already Signed In</CardTitle>
+          <CardDescription>
+            {sessionEmail ? `You are signed in as ${sessionEmail}.` : 'You are signed in on this site.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button asChild className="w-full">
+            <a href={signedInDestination.href}>{signedInDestination.label}</a>
+          </Button>
+          <Button asChild variant="outline" className="w-full">
+            <a href="/">Return home</a>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
