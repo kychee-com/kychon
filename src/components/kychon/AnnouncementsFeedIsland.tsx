@@ -125,6 +125,14 @@ async function loadAttachedPoll(announcementId: number): Promise<PollCardData | 
   return { poll, options, votes };
 }
 
+async function loadPollCardById(pollId: number): Promise<PollCardData | null> {
+  const [row] = await getPolls(`id=eq.${pollId}`);
+  if (!row) return null;
+  const poll = await autoCloseIfNeeded(row);
+  const [options, votes] = await Promise.all([getPollOptions(poll.id), getPollVotes(poll.id)]);
+  return { poll, options, votes };
+}
+
 function PollFields({
   form,
   onChange,
@@ -487,8 +495,20 @@ function AnnouncementsFeedIsland({ config, role, pollsEnabled = true, headingEdi
     setVotingKey(`${poll.id}:${option.id}`);
     try {
       await post('poll_votes', { poll_id: poll.id, option_id: option.id });
+      const updated = await loadPollCardById(poll.id);
+      if (updated) {
+        setState((current) =>
+          current.status === 'ready'
+            ? {
+                status: 'ready',
+                announcements: current.announcements.map((item) =>
+                  item.poll?.poll.id === poll.id ? { ...item, poll: updated } : item,
+                ),
+              }
+            : current,
+        );
+      }
       showToast('Vote recorded', 'success');
-      await refresh();
       document.dispatchEvent(new CustomEvent('wl-content-rendered'));
     } catch (error) {
       showToast(isPermissionDenied(error) ? 'Active member access is required to vote.' : 'Could not record your vote.', 'error');

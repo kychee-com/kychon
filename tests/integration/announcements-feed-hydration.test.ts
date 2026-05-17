@@ -114,6 +114,8 @@ describe('announcements feed hydration', () => {
     );
     expect(wrapper.querySelector('[data-announcement-card="7"]')).toBeTruthy();
     expect(wrapper.querySelector('[data-section-poll="42"]')).toBeTruthy();
+    expect(wrapper.querySelector('[role="progressbar"]')).toBeNull();
+    expect(wrapper.querySelector('[data-section-poll="42"]')?.textContent).not.toContain('Open');
     expect(wrapper.querySelector('[data-editable-rich="announcements.7.body"]')?.innerHTML).toContain(
       '<p>Bring shoes.</p>',
     );

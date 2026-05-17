@@ -113,6 +113,17 @@ async function autoCloseIfNeeded(poll: Poll): Promise<Poll> {
   }
 }
 
+async function hydratePollCard(row: Poll): Promise<PollCardData> {
+  const poll = await autoCloseIfNeeded(row);
+  const [options, votes] = await Promise.all([getPollOptions(poll.id), getPollVotes(poll.id)]);
+  return { poll, options, votes };
+}
+
+async function loadPollCardById(pollId: number): Promise<PollCardData | null> {
+  const [row] = await getPolls(`id=eq.${pollId}`);
+  return row ? hydratePollCard(row) : null;
+}
+
 function normalizeOptions(options: string[]): string[] {
   return options.map((option) => option.trim()).filter(Boolean);
 }
@@ -257,13 +268,10 @@ function PollCard({
   const closed = pollIsClosed(poll);
   const myVotes = memberId != null ? votes.filter((vote) => sameId(vote.member_id, memberId)) : [];
   const hasVoted = myVotes.length > 0;
-  const showResults =
-    poll.results_visible === 'always' ||
-    (poll.results_visible === 'after_vote' && hasVoted) ||
-    (poll.results_visible === 'after_close' && closed);
+  const showResults = poll.results_visible === 'after_close' ? closed && hasVoted : hasVoted;
   const canVote = signedIn && !closed;
   const meta = [
-    `${votes.length} vote${votes.length === 1 ? '' : 's'}`,
+    showResults ? `${votes.length} vote${votes.length === 1 ? '' : 's'}` : '',
     poll.closes_at && !closed ? `Closes ${closeDateLabel(poll.closes_at)}` : '',
     closed ? 'Closed' : '',
     poll.is_anonymous ? 'Anonymous' : '',
@@ -279,7 +287,6 @@ function PollCard({
             <CardTitle className="break-words text-lg leading-6">{poll.question}</CardTitle>
             {poll.description ? <CardDescription className="break-words">{poll.description}</CardDescription> : null}
           </div>
-          {closed ? <Badge variant="secondary">Closed</Badge> : <Badge>Open</Badge>}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -536,13 +543,7 @@ export default function PollsPageApp() {
       }
 
       const rows = await getPolls('attached_to=is.null&order=is_open.desc,created_at.desc');
-      const hydrated = await Promise.all(
-        rows.map(async (row) => {
-          const poll = await autoCloseIfNeeded(row);
-          const [options, votes] = await Promise.all([getPollOptions(poll.id), getPollVotes(poll.id)]);
-          return { poll, options, votes };
-        }),
-      );
+      const hydrated = await Promise.all(rows.map(hydratePollCard));
       setPolls(hydrated);
     } catch (loadError) {
       if (isPermissionDenied(loadError)) {
@@ -576,8 +577,11 @@ export default function PollsPageApp() {
     setVotingKey(`${poll.id}:${option.id}`);
     try {
       await post('poll_votes', { poll_id: poll.id, option_id: option.id });
+      const updated = await loadPollCardById(poll.id);
+      if (updated) {
+        setPolls((current) => current.map((item) => (item.poll.id === poll.id ? updated : item)));
+      }
       showToast('Vote recorded', 'success');
-      await loadPolls();
     } catch (voteError) {
       showToast(isPermissionDenied(voteError) ? 'Active member access is required to vote.' : 'Could not record your vote.', 'error');
     } finally {

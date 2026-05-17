@@ -97,7 +97,8 @@ describe('polls block hydration', () => {
 
     await vi.waitFor(() => expect(wrapper.querySelector('[data-polls-block]')?.textContent).toContain(poll.question));
     expect(wrapper.querySelector('[data-section-poll="42"]')).toBeTruthy();
-    expect(wrapper.querySelector('[role="progressbar"]')).toBeTruthy();
+    expect(wrapper.querySelector('[role="progressbar"]')).toBeNull();
+    expect(wrapper.querySelector('[data-polls-block]')?.textContent).not.toContain('Open');
     expect(wrapper.querySelector('.poll-widget')).toBeNull();
     expect(wrapper.querySelector('.polls-skeleton')).toBeNull();
     expect(wrapper.querySelector('.card')).toBeNull();

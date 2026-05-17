@@ -253,6 +253,15 @@ async function fetchAttachedForumPoll(topicId: number): Promise<AttachedPoll | n
   return null;
 }
 
+async function fetchForumPollById(pollId: number): Promise<AttachedPoll | null> {
+  const rows = (await get(`polls?id=eq.${pollId}`)) as Poll[];
+  const found = rows[0];
+  if (!found) return null;
+  const poll = await autoCloseIfNeeded(found);
+  const [options, votes] = await Promise.all([getPollOptions(poll.id), getPollVotes(poll.id)]);
+  return { poll, options, votes };
+}
+
 function MemberRequired({ authenticated, subject }: { authenticated: boolean; subject: string }) {
   return (
     <Card>
@@ -454,13 +463,10 @@ function AttachedPollPanel({
   const closed = pollIsClosed(poll);
   const myVotes = memberId != null ? votes.filter((vote) => sameId(vote.member_id, memberId)) : [];
   const hasVoted = myVotes.length > 0;
-  const showResults =
-    poll.results_visible === 'always' ||
-    (poll.results_visible === 'after_vote' && hasVoted) ||
-    (poll.results_visible === 'after_close' && closed);
+  const showResults = poll.results_visible === 'after_close' ? closed && hasVoted : hasVoted;
   const canVote = signedIn && !closed;
   const meta = [
-    `${votes.length} vote${votes.length === 1 ? '' : 's'}`,
+    showResults ? `${votes.length} vote${votes.length === 1 ? '' : 's'}` : '',
     poll.closes_at && !closed ? `Closes ${closeDateLabel(poll.closes_at)}` : '',
     closed ? 'Closed' : '',
     poll.is_anonymous ? 'Anonymous' : '',
@@ -474,7 +480,6 @@ function AttachedPollPanel({
           <h3 className="break-words text-base font-semibold tracking-normal">{poll.question}</h3>
           {poll.description ? <p className="break-words text-sm text-muted-foreground">{poll.description}</p> : null}
         </div>
-        {closed ? <Badge variant="secondary">Closed</Badge> : <Badge>Open</Badge>}
       </div>
       {canVote ? (
         <PollVoteOptions myVotes={myVotes} onVote={onVote} options={options} poll={poll} votingKey={votingKey} />
@@ -1452,7 +1457,9 @@ export default function ForumPageApp() {
         poll_id: poll.id,
         option_id: option.id,
       });
-      await reloadCurrentRoute();
+      const updated = await fetchForumPollById(poll.id);
+      if (updated) setAttachedPoll(updated);
+      showForumToast('Vote recorded', 'success');
     } catch (voteError) {
       console.error('Poll vote failed:', voteError);
       showForumToast(isPermissionDenied(voteError) ? 'Active member access is required to vote.' : 'Vote failed. Please try again.', 'error');

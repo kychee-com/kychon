@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe('PollCard', () => {
-  it('shows results and counts when results are always visible', async () => {
+  it('hides results when results are always visible but the member has not voted', async () => {
     const votes = [
       { id: 1, poll_id: 1, option_id: 10, member_id: 2, created_at: '2026-04-01T00:00:00Z' },
       { id: 2, poll_id: 1, option_id: 10, member_id: 3, created_at: '2026-04-01T00:00:00Z' },
@@ -70,10 +70,11 @@ describe('PollCard', () => {
     ];
     const { host } = await renderPollCard({ poll: { ...basePoll, results_visible: 'always' }, votes });
 
-    expect(host.textContent).toContain('67%');
-    expect(host.textContent).toContain('33%');
-    expect(host.textContent).toContain('3 votes');
-    expect(host.querySelector('[role="progressbar"]')).toBeTruthy();
+    expect(host.textContent).not.toContain('67%');
+    expect(host.textContent).not.toContain('33%');
+    expect(host.textContent).not.toContain('3 votes');
+    expect(host.textContent).not.toContain('Open');
+    expect(host.querySelector('[role="progressbar"]')).toBeNull();
     expect(host.querySelector('.poll-widget')).toBeNull();
     expect(host.querySelector('.poll-vote-btn')).toBeNull();
   });
@@ -85,12 +86,25 @@ describe('PollCard', () => {
     const buttons = Array.from(host.querySelectorAll('button'));
 
     expect(buttons.map((button) => button.textContent)).toEqual(expect.arrayContaining(['Workshop', 'Social', 'Talk']));
-    expect(host.querySelector('[role="progressbar"]')).toBeTruthy();
+    expect(host.querySelector('[role="progressbar"]')).toBeNull();
 
     await act(async () => {
       buttons[1].click();
     });
     expect(onVote).toHaveBeenCalledWith({ ...basePoll, results_visible: 'always' }, baseOptions[1]);
+  });
+
+  it('shows always-visible results after the current member has voted', async () => {
+    const votes = [
+      { id: 1, poll_id: 1, option_id: 10, member_id: 42, created_at: '2026-04-01T00:00:00Z' },
+      { id: 2, poll_id: 1, option_id: 11, member_id: 5, created_at: '2026-04-01T00:00:00Z' },
+    ];
+    const session = { user: { member: { id: '42' } } };
+    const { host } = await renderPollCard({ poll: { ...basePoll, results_visible: 'always' }, votes, session });
+
+    expect(host.textContent).toContain('50%');
+    expect(host.textContent).toContain('2 votes');
+    expect(host.querySelector('[role="progressbar"]')).toBeTruthy();
   });
 
   it('renders vote buttons for signed-in members before voting', async () => {
