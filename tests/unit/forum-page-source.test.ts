@@ -30,6 +30,7 @@ describe('forum page source', () => {
     expect(app).toContain('fetchAttachedForumPoll');
     expect(app).toContain('showForumToast');
     expect(app).toContain('TranslateButton');
+    expect(app).toContain('const canVote = signedIn && !closed;');
     expect(app).toContain('data-forum-page');
     expect(app).toContain('data-forum-category-card');
     expect(app).not.toContain('innerHTML');
