@@ -43,6 +43,7 @@ import {
   COPIED_THEME_EDITOR_TYPES,
   type CopiedThemeEditorType,
 } from '@/lib/admin/copied-theme-editor';
+import { chooseNavigationSection } from '@/lib/admin/navigation-section';
 import { del, get, patch, post } from '@/lib/api';
 import { BLOCK_TYPES, getSupportedSpans } from '@/lib/blocks';
 import { PROVIDERS, type ParamSchemaEntry } from '@/lib/blocks/embed-providers';
@@ -332,6 +333,22 @@ function sectionAppliesToCurrentPage(section: SectionRow, slug: string): boolean
 async function nextSectionPosition(zone: Zone, slug: string): Promise<number> {
   const rows = (await get('sections?visible=eq.true&order=zone.asc,position.asc')) as SectionRow[];
   return rows.filter((section) => section.zone === zone && section.visible !== false && sectionAppliesToCurrentPage(section, slug)).length + 1;
+}
+
+function currentPageSlugForNavEditor(): string {
+  return currentPageSlugFromLocation(window.location.pathname, window.location.search);
+}
+
+async function findCurrentNavigationSection(preferredSectionId: number | null): Promise<SectionRow | null> {
+  const slug = currentPageSlugForNavEditor();
+  if (Number.isFinite(preferredSectionId)) {
+    const preferredRows = (await get(`sections?id=eq.${encodeURIComponent(String(preferredSectionId))}`)) as SectionRow[];
+    const preferred = chooseNavigationSection(preferredRows, preferredSectionId, slug);
+    if (preferred) return preferred as SectionRow;
+  }
+
+  const rows = (await get('sections?visible=eq.true&order=zone.asc,position.asc')) as SectionRow[];
+  return chooseNavigationSection(rows, null, slug) as SectionRow | null;
 }
 
 function cloneNavItems(items: unknown): NavItem[] {
@@ -799,18 +816,18 @@ function AdminEditorControls() {
 
   async function openNavEditor(nextSectionId: number) {
     setNavOpen(true);
-    setNavSectionId(nextSectionId);
+    setNavSectionId(null);
     setNavConfig({});
     setNavItems([]);
     setNavError('');
     setNavLoading(true);
     try {
-      const rows = await get(`sections?id=eq.${nextSectionId}`);
-      const nextRow = rows[0] as SectionRow | undefined;
+      const nextRow = await findCurrentNavigationSection(nextSectionId);
       if (!nextRow) {
         setNavError('Navigation block not found');
         return;
       }
+      setNavSectionId(nextRow.id);
       const config = nextRow.config || {};
       setNavConfig(config);
       setNavItems(cloneNavItems(config.items));
@@ -1073,11 +1090,17 @@ function AdminEditorControls() {
     setNavSaving(true);
     setNavError('');
     try {
-      const rows = await get(`sections?id=eq.${navSectionId}`);
-      const current = rows[0]?.config || navConfig;
+      const nextRow = await findCurrentNavigationSection(navSectionId);
+      if (!nextRow) {
+        setNavSectionId(null);
+        setNavError('Navigation block not found');
+        return;
+      }
+      const current = nextRow.config || navConfig;
       const config = { ...current, items: cloneConfig({ items: navItems }).items };
-      await patch(`sections?id=eq.${navSectionId}`, { config });
+      await patch(`sections?id=eq.${nextRow.id}`, { config });
       clearSectionCaches();
+      setNavSectionId(nextRow.id);
       setNavConfig(config);
       showToast({ type: 'success', message: 'Navigation saved' });
       setNavOpen(false);
