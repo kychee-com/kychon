@@ -68,7 +68,7 @@ The deploy manifest SHALL include all edge functions with their cron schedules p
 - **AND** the manifest does NOT include `check-expirations.js`
 
 #### Scenario: Production deploy unchanged
-- **WHEN** the main `deploy.js` runs for a production portal
+- **WHEN** the main `scripts/deploy.ts` runs for a production portal
 - **THEN** the manifest includes `check-expirations.js` and any other scheduled functions as before
 - **AND** `reset-demo.js` is NOT included (it lives in `demo/` directory, not `functions/`)
 

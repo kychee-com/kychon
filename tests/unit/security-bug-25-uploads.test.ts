@@ -20,6 +20,7 @@ const mockState = vi.hoisted(() => ({
   members: [] as JsonObject[],
   resources: [] as JsonObject[],
   fetchCalls: [] as Array<{ url: string; method: string }>,
+  assetPutCalls: [] as Array<{ key: string; size: number; contentType?: string }>,
   uploadResponse: { ok: true, url: '/storage/test', status: 200 },
   deleteResponse: { ok: true, status: 200 },
   sqlCalls: [] as Array<{ query: string; params: unknown[] }>,
@@ -58,6 +59,38 @@ vi.mock(
         };
       },
     }),
+    assets: {
+      // @run402/functions@2.2.0 surface. The runtime call hits
+      // /apply/v1/service-asset-put; here we just record the call and
+      // return a fake AssetRef shape so the handler's url-pick logic runs.
+      put(key: string, source: Uint8Array | string, opts?: { contentType?: string }) {
+        const size = typeof source === 'string' ? source.length : source.byteLength;
+        const callRecord: { key: string; size: number; contentType?: string } = { key, size };
+        if (opts?.contentType) callRecord.contentType = opts.contentType;
+        mockState.assetPutCalls.push(callRecord);
+        return Promise.resolve({
+          key,
+          sha256: 'mockedsha',
+          size_bytes: size,
+          content_type: opts?.contentType || 'application/octet-stream',
+          visibility: 'public',
+          immutable: true,
+          url: `https://cdn.example/blob/${key}`,
+          immutable_url: `https://cdn.example/blob/${key}?sha=mockedsha`,
+          cdn_url: `https://cdn.example/blob/${key}`,
+          cdn_immutable_url: `https://cdn.example/blob/${key}?sha=mockedsha`,
+          sri: 'sha256-mock',
+          etag: 'etag-mock',
+          content_digest: 'sha256=mock',
+          immutableUrl: `https://cdn.example/blob/${key}?sha=mockedsha`,
+          cdnUrl: `https://cdn.example/blob/${key}`,
+          cdnImmutableUrl: `https://cdn.example/blob/${key}?sha=mockedsha`,
+          size,
+          contentType: opts?.contentType || 'application/octet-stream',
+          contentSha256: 'mockedsha',
+        });
+      },
+    },
   }),
   { virtual: true },
 );
@@ -67,6 +100,7 @@ beforeEach(() => {
   mockState.members = [];
   mockState.resources = [];
   mockState.fetchCalls = [];
+  mockState.assetPutCalls = [];
   mockState.sqlCalls = [];
   mockState.uploadResponse = { ok: true, url: '/storage/test', status: 200 };
   mockState.deleteResponse = { ok: true, status: 200 };
