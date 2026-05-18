@@ -8,13 +8,7 @@ const SAFE_FILE_NAME = /^[A-Za-z0-9._-]+$/;
 const MAX_BASE64_LEN = 50 * 1024 * 1024; // ~37 MB raw — Run402's per-blob upload limit.
 
 function pickAssetUrl(ref, fallbackKey) {
-  return (
-    ref?.cdn_immutable_url ||
-    ref?.immutable_url ||
-    ref?.cdn_url ||
-    ref?.url ||
-    `/storage/${fallbackKey}`
-  );
+  return ref?.cdn_immutable_url || ref?.immutable_url || ref?.cdn_url || ref?.url || `/storage/${fallbackKey}`;
 }
 
 export default async (req) => {

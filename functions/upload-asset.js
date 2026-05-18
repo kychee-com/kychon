@@ -78,13 +78,7 @@ function isSafeAssetPath(value) {
 }
 
 function pickAssetUrl(ref, fallbackKey) {
-  return (
-    ref?.cdn_immutable_url ||
-    ref?.immutable_url ||
-    ref?.cdn_url ||
-    ref?.url ||
-    `/storage/${fallbackKey}`
-  );
+  return ref?.cdn_immutable_url || ref?.immutable_url || ref?.cdn_url || ref?.url || `/storage/${fallbackKey}`;
 }
 
 export default async (req) => {
