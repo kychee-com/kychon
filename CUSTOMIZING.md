@@ -111,7 +111,7 @@ INSERT INTO membership_tiers (name, description, benefits, price_label, position
 VALUES ('Student', 'Discounted student membership', ARRAY['Member directory', 'Events'], '$20/year', 3, false);
 ```
 
-Deploy: `node deploy.js` (or add to `seed.sql` for permanence).
+Deploy: `npx tsx scripts/deploy.ts` (or add to `seed.sql` for permanence).
 
 ## Add a Custom Member Field
 
@@ -179,7 +179,7 @@ VALUES ('about', 'faq', '{"items":[{"q":"How do I join?","a":"Click Sign Up!"}]}
    ```json
    { "languages": ["en", "pt"], "defaultLanguage": "en" }
    ```
-5. Deploy: `node deploy.js`
+5. Deploy: `npx tsx scripts/deploy.ts`
 
 Members select their language in profile settings. The picker only shows when >1 language exists.
 
@@ -195,8 +195,8 @@ Members select their language in profile settings. The picker only shows when >1
      return new Response(JSON.stringify({ status: 'ok', rows_checked: rows.length }));
    };
    ```
-2. The `// schedule:` comment is parsed by `deploy.js` to set the cron schedule
-3. Deploy: `node deploy.js`
+2. The `// schedule:` comment is parsed by `scripts/deploy.ts` to set the cron schedule
+3. Deploy: `npx tsx scripts/deploy.ts`
 
 ## Restructure the Homepage
 

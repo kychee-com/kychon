@@ -11,7 +11,6 @@ interface SitePublicPaths {
 describe('deploy public paths', () => {
   it('assembles explicit public paths and clears static route aliases', () => {
     const spec = buildKychonReleaseSpec({
-      projectId: 'prj_test',
       database: { migrations: [{ id: 'm1', sql: 'SELECT 1;' }] },
       fileSet: {
         'index.html': '<html>home</html>',
@@ -44,7 +43,6 @@ describe('deploy public paths', () => {
 
   it('keeps future function routes separate from ordinary static public paths', () => {
     const spec = buildKychonReleaseSpec({
-      projectId: 'prj_test',
       database: { migrations: [{ id: 'm1', sql: 'SELECT 1;' }] },
       fileSet: { 'index.html': '<html>home</html>' },
       publicPaths: { '/': { asset: 'index.html', cache_class: 'html' } },

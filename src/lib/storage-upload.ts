@@ -1,13 +1,12 @@
-// Browser-side wrapper around Run402's content-addressed storage upload flow.
+// Browser-side wrapper around the Kychon upload pipeline.
 //
-// Run402 retired the legacy `POST /storage/v1/upload/{key}` route post-v1.32
-// in favor of a three-step content-addressed flow:
-//   1. `POST /storage/v1/uploads`       — init with sha256 + size + key
-//   2. `PUT  <part.url>`                — upload each part to its presigned URL
-//   3. `POST /storage/v1/uploads/{id}/complete` — finalize and receive cdn url
-//
-// Every call site that previously hit the single-shot endpoint must route
-// through here. (issue #28)
+// The legacy `POST /storage/v1/uploads*` routes were removed in the Run402
+// v1.48 / @run402/sdk@2.0 unified-apply cutover. Browser code now POSTs the
+// file payload to `functions/v1/upload-asset`, which runs in Run402's
+// serverless and calls `assets.put` from `@run402/functions@2.2.0` against
+// the new `/apply/v1/service-asset-put` substrate. Keeping the wire-shape
+// logic on the server side means future Run402 endpoint changes are a
+// one-file fix instead of two. (issue #28, openspec/changes/upgrade-run402-sdk-v2)
 
 declare global {
   interface Window {
@@ -17,24 +16,29 @@ declare global {
 }
 
 export interface UploadFileOpts {
-  /** Path prefix the file lands under, e.g. `resources`, `avatars/123`, `assets`. */
+  /**
+   * Path prefix the file lands under. Today's only supported prefix is
+   * `assets` (the namespace `functions/upload-asset.js` writes into).
+   * Other prefixes are rejected to keep parity with the server-side
+   * validation in `isSafeAssetPath`.
+   */
   keyPrefix: string;
   /** Optional filename override; defaults to `safeStorageName(file.name)`. */
   keyName?: string;
-  /** Storage visibility — public by default to match prior behavior. */
-  visibility?: 'public' | 'private';
-  /** Immutable blobs are CDN-cached aggressively; safe for upload-and-forget assets. */
-  immutable?: boolean;
   /**
    * Bearer token. Defaults to the anon key. Pass the signed-in user's
    * `access_token` for user-scoped uploads (avatars, etc.).
    */
   authToken?: string;
+  /** Optional `target` field forwarded to the edge function for hint-bearing slots. */
+  target?: string;
 }
 
 export interface UploadFileResult {
   key: string;
   url: string;
+  warning?: string;
+  dimensions?: { width: number; height: number };
 }
 
 function getApiBase(): string {
@@ -50,12 +54,10 @@ export function safeStorageName(name: string): string {
   return base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
 }
 
-export async function sha256Hex(file: Blob): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const hash = await crypto.subtle.digest('SHA-256', buffer);
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i] as number);
+  return btoa(bin);
 }
 
 export async function uploadFileContentAddressed(
@@ -65,61 +67,62 @@ export async function uploadFileContentAddressed(
   const api = getApiBase();
   const anon = getAnonKey();
   const bearer = opts.authToken || anon;
+
+  const prefix = opts.keyPrefix.replace(/^\/+|\/+$/g, '');
+  if (prefix !== 'assets') {
+    throw new Error(
+      `Upload prefix "${prefix}" is not supported. Only the "assets" prefix routes through functions/upload-asset.js.`,
+    );
+  }
+
   const rawName = file instanceof File ? file.name : 'file';
   const filename = safeStorageName(opts.keyName || rawName);
-  const prefix = opts.keyPrefix.replace(/^\/+|\/+$/g, '');
-  const key = `${prefix}/${Date.now()}_${filename}`;
+  const path = `${Date.now()}_${filename}`;
   const contentType = file.type || 'application/octet-stream';
 
-  const initRes = await fetch(`${api}/storage/v1/uploads`, {
+  const buffer = await file.arrayBuffer();
+  const data = bytesToBase64(new Uint8Array(buffer));
+
+  const body: Record<string, unknown> = {
+    file: { data, name: filename, type: contentType },
+    path,
+  };
+  if (opts.target) body.target = opts.target;
+
+  const res = await fetch(`${api}/functions/v1/upload-asset`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       apikey: anon,
       Authorization: `Bearer ${bearer}`,
     },
-    body: JSON.stringify({
-      key,
-      size_bytes: file.size,
-      content_type: contentType,
-      visibility: opts.visibility || 'public',
-      immutable: opts.immutable !== false,
-      sha256: await sha256Hex(file),
-    }),
+    body: JSON.stringify(body),
   });
-  if (!initRes.ok) throw new Error(`Upload init failed: ${await initRes.text()}`);
-  const init = await initRes.json();
-
-  const parts: Array<{ part_number: number; etag: string }> = [];
-  for (const part of init.parts || []) {
-    const putRes = await fetch(part.url, {
-      method: 'PUT',
-      body: file.slice(part.byte_start, part.byte_end + 1),
-    });
-    if (!putRes.ok) throw new Error(`Part ${part.part_number} upload failed`);
-    parts.push({ part_number: part.part_number, etag: putRes.headers.get('etag') || '' });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = await res.text();
+    } catch {
+      // ignore
+    }
+    throw new Error(`Upload failed (${res.status}): ${detail}`);
   }
 
-  const completeRes = await fetch(
-    `${api}/storage/v1/uploads/${encodeURIComponent(init.upload_id)}/complete`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: anon,
-        Authorization: `Bearer ${bearer}`,
-      },
-      body: JSON.stringify(init.mode === 'multipart' ? { parts } : {}),
-    },
-  );
-  if (!completeRes.ok) throw new Error(`Upload complete failed: ${await completeRes.text()}`);
+  const json = (await res.json()) as {
+    url?: string;
+    path?: string;
+    warning?: string;
+    dimensions?: { width: number; height: number };
+  };
+  if (!json.url) {
+    throw new Error('Upload response missing url field');
+  }
 
-  const completed = await completeRes.json();
-  const url =
-    completed.cdn_immutable_url ||
-    completed.immutable_url ||
-    completed.cdn_url ||
-    completed.url ||
-    `/storage/${key}`;
-  return { key, url };
+  const result: UploadFileResult = {
+    key: `assets/${path}`,
+    url: json.url,
+  };
+  if (json.warning) result.warning = json.warning;
+  if (json.dimensions) result.dimensions = json.dimensions;
+  return result;
 }

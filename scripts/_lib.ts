@@ -330,7 +330,6 @@ export interface RunDeployResult {
 }
 
 export interface BuildKychonReleaseSpecOptions {
-  projectId: string;
   database?: NonNullable<ReleaseSpec["database"]>;
   fileSet: FileSet;
   publicPaths: Record<string, PublicStaticPathSpec>;
@@ -339,9 +338,15 @@ export interface BuildKychonReleaseSpecOptions {
   routes?: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"];
 }
 
-export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): ReleaseSpec {
-  const spec: ReleaseSpec = {
-    project: opts.projectId,
+/**
+ * Project-scoped release spec. The `project` field is bound by `r.project(id)`
+ * at apply time, so the assembled spec describes the release without
+ * restating the target. See openspec/changes/upgrade-run402-sdk-v2 Decision 3.
+ */
+export type KychonReleaseSpec = Omit<ReleaseSpec, "project">;
+
+export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): KychonReleaseSpec {
+  const spec: KychonReleaseSpec = {
     site: {
       replace: opts.fileSet,
       public_paths: {
@@ -363,8 +368,15 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Rel
 
 /**
  * High-level deploy: build Astro, assemble the v2 ReleaseSpec, and call
- * `r.deploy.apply()`. Used by both `deploy.ts` (production) and
- * `deploy-demo.ts` (per-demo orchestration).
+ * `r.project(id).apply()` (the v2.0 "Unified Apply" hero). Used by both
+ * `deploy.ts` (production) and `deploy-demo.ts` (per-demo orchestration).
+ *
+ * For asset writes (member photos, resources, admin uploads) use
+ * `r.project(id).assets.put(key, source, opts)` (single key) or
+ * `r.project(id).assets.uploadDir(path, opts)` (Node batches) — both route
+ * through the apply substrate as of `@run402/sdk@2.1.0`. The legacy
+ * `initUploadSession` / `getUploadSession` / `completeUploadSession`
+ * methods throw `LocalError` since 2.1.0; don't call them.
  */
 export async function runDeploy(
   r: Run402Instance,
@@ -375,6 +387,8 @@ export async function runDeploy(
     buildOptions.chromeSnapshot = opts.chromeSnapshot;
   }
   buildAstro(buildOptions);
+
+  const project = await r.project(opts.projectId);
 
   const distDir = join(ROOT, "dist");
   injectEnvJs(distDir, opts.anonKey);
@@ -413,7 +427,6 @@ export async function runDeploy(
   };
 
   const spec = buildKychonReleaseSpec({
-    projectId: opts.projectId,
     database,
     fileSet,
     publicPaths,
@@ -443,7 +456,7 @@ export async function runDeploy(
   }
 
   if (opts.dryRun) {
-    console.log("\n[dry-run] Would call deploy.apply with:");
+    console.log("\n[dry-run] Would call r.project(id).apply with:");
     console.log(
       JSON.stringify(
         {
@@ -496,7 +509,7 @@ export async function runDeploy(
   }
 
   const startedAt = Date.now();
-  const result = await r.deploy.apply(spec, applyOptions);
+  const result = await project.apply(spec, applyOptions);
   const elapsedMs = Date.now() - startedAt;
 
   console.log(`\nDeploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);

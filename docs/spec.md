@@ -141,7 +141,7 @@ The agent doesn't just set up and walk away. The community manager says "add vol
 2. Adds a `volunteer_hours` table to schema
 3. Creates `volunteer.html` + `volunteer.js`
 4. Adds a nav item
-5. Redeploys with `node deploy.js`, which applies the unified Run402 deploy through the SDK (idempotent, additive migrations)
+5. Redeploys with `npx tsx scripts/deploy.ts`, which applies the unified Run402 deploy through the SDK (idempotent, additive migrations)
 
 Run402's bundle deploy handles this — `CREATE TABLE IF NOT EXISTS` style migrations, additive site files, function updates. No destructive redeploys.
 

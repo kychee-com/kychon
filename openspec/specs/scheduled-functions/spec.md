@@ -34,10 +34,10 @@ The system SHALL run an hourly scheduled function that identifies events startin
 
 ### Requirement: Cron Schedule Configuration
 
-Scheduled functions SHALL use cron schedules parsed from comments in the function source files by deploy.js. Each scheduled function MUST declare its schedule as a comment that deploy.js can parse.
+Scheduled functions SHALL use cron schedules parsed from comments in the function source files by scripts/deploy.ts. Each scheduled function MUST declare its schedule as a comment that scripts/deploy.ts can parse.
 
-#### Scenario: deploy.js reads cron schedule from function comment
-- **WHEN** deploy.js processes a scheduled function file containing a cron schedule comment
+#### Scenario: scripts/deploy.ts reads cron schedule from function comment
+- **WHEN** scripts/deploy.ts processes a scheduled function file containing a cron schedule comment
 - **THEN** the function SHALL be deployed with the specified cron schedule
 
 <!-- Phase 3 additions -->
@@ -45,10 +45,10 @@ Scheduled functions SHALL use cron schedules parsed from comments in the functio
 
 ### Requirement: Newsletter generation scheduled function
 
-The system SHALL include a scheduled function `generate-newsletter.js` with cron schedule `0 9 * * 1` (Monday 9 AM). The function SHALL be deployed alongside existing scheduled functions (check-expirations, event-reminders) and follow the same cron comment convention for deploy.js parsing.
+The system SHALL include a scheduled function `generate-newsletter.js` with cron schedule `0 9 * * 1` (Monday 9 AM). The function SHALL be deployed alongside existing scheduled functions (check-expirations, event-reminders) and follow the same cron comment convention for scripts/deploy.ts parsing.
 
 #### Scenario: Newsletter function deployed with cron schedule
-- **WHEN** deploy.js processes `generate-newsletter.js`
+- **WHEN** scripts/deploy.ts processes `generate-newsletter.js`
 - **THEN** the function SHALL be deployed with cron schedule `0 9 * * 1`
 
 #### Scenario: Newsletter function coexists with existing functions
@@ -60,5 +60,5 @@ The system SHALL include a scheduled function `generate-newsletter.js` with cron
 The system SHALL include an edge function `generate-recap.js` that is invoked on-demand (not scheduled). It SHALL accept an event ID parameter and return the generated recap content.
 
 #### Scenario: Recap function deployed as on-demand
-- **WHEN** deploy.js processes `generate-recap.js`
+- **WHEN** scripts/deploy.ts processes `generate-recap.js`
 - **THEN** the function SHALL be deployed as an invocable edge function without a cron schedule

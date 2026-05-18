@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   // safeStorageName uses Date.now() in the key — pin it so assertions are stable.
   vi.useFakeTimers();
-  vi.setSystemTime(new Date('2026-05-11T00:00:00Z'));
+  vi.setSystemTime(new Date('2026-05-18T00:00:00Z'));
   // The library reads window.__KYCHON_API + window.__KYCHON_ANON_KEY.
   vi.stubGlobal('window', {
     __KYCHON_API: 'https://api.run402.example',
@@ -35,67 +35,79 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('bug #28 — uploadFileContentAddressed uses the post-v1.32 endpoint shape', () => {
-  it('calls /storage/v1/uploads (init) then PUTs each part then /complete — never the retired /upload/{key}', async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        // init
-        jsonResponse({
-          upload_id: 'upload-123',
-          mode: 'multipart',
-          parts: [{ part_number: 1, url: 'https://s3.example/part1', byte_start: 0, byte_end: 4 }],
-        }),
-      )
-      .mockResolvedValueOnce(
-        // PUT part1
-        new Response(null, { status: 200, headers: { etag: '"abc123"' } }),
-      )
-      .mockResolvedValueOnce(
-        // complete
-        jsonResponse({ cdn_immutable_url: 'https://cdn.example/blob/abc' }),
-      );
+describe('bug #28 — uploadFileContentAddressed routes through functions/upload-asset', () => {
+  it('POSTs to /functions/v1/upload-asset with the file payload and returns the resulting url', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ status: 'uploaded', url: 'https://cdn.example/blob/abc', path: '1779062400000_hello.txt' }),
+    );
 
     const file = makeFile('hello.txt', 'hello');
-    const result = await uploadFileContentAddressed(file, { keyPrefix: 'resources' });
+    const result = await uploadFileContentAddressed(file, { keyPrefix: 'assets' });
 
     expect(result.url).toBe('https://cdn.example/blob/abc');
+    expect(result.key).toBe('assets/1779062400000_hello.txt');
 
-    const urls = fetchMock.mock.calls.map((args) => String(args[0]));
-    expect(urls[0]).toBe('https://api.run402.example/storage/v1/uploads');
-    expect(urls[1]).toBe('https://s3.example/part1');
-    expect(urls[2]).toBe('https://api.run402.example/storage/v1/uploads/upload-123/complete');
-    // Make sure we never hit the retired single-shot endpoint.
-    expect(urls.some((u) => u.includes('/storage/v1/upload/'))).toBe(false);
+    // Exactly one fetch — to the upload-asset edge function.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.run402.example/functions/v1/upload-asset');
+    expect(init.method).toBe('POST');
+    // The legacy storage substrate must never be called from the browser.
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/storage/v1/'))).toBe(false);
   });
 
-  it('includes sha256 + size_bytes + content_type in the init body', async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ upload_id: 'u', mode: 'single', parts: [] }))
-      .mockResolvedValueOnce(jsonResponse({ cdn_immutable_url: '/storage/x' }));
+  it('includes a base64 file payload + path in the request body', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ status: 'uploaded', url: '/storage/x', path: '1779062400000_avatar.png' }),
+    );
 
     const file = makeFile('avatar.png', 'pngbytes', 'image/png');
-    await uploadFileContentAddressed(file, { keyPrefix: 'avatars/42', authToken: 'user-jwt' });
+    await uploadFileContentAddressed(file, { keyPrefix: 'assets', authToken: 'user-jwt' });
 
-    const initCall = fetchMock.mock.calls[0];
-    expect(initCall[0]).toBe('https://api.run402.example/storage/v1/uploads');
-    const initBody = JSON.parse(String(initCall[1]?.body || '{}'));
-    expect(initBody.content_type).toBe('image/png');
-    expect(initBody.size_bytes).toBe('pngbytes'.length);
-    expect(typeof initBody.sha256).toBe('string');
-    expect(initBody.sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(String(initBody.key)).toMatch(/^avatars\/42\/\d+_avatar\.png$/);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body || '{}'));
+    expect(body.file.name).toBe('avatar.png');
+    expect(body.file.type).toBe('image/png');
+    // base64 of "pngbytes"
+    expect(body.file.data).toBe(btoa('pngbytes'));
+    expect(String(body.path)).toMatch(/^\d+_avatar\.png$/);
     // authToken propagates into the Authorization header.
-    expect(initCall[1]?.headers?.Authorization).toBe('Bearer user-jwt');
+    const headers = (init.headers || {}) as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer user-jwt');
+    expect(headers.apikey).toBe('anon-key');
   });
 
-  it('surfaces an error when the init step fails', async () => {
+  it('surfaces the error body when the edge function fails', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('Admin access required', { status: 403 }));
+
+    const file = makeFile('x.txt', 'x');
+    await expect(uploadFileContentAddressed(file, { keyPrefix: 'assets' })).rejects.toThrow(/Admin access required/);
+  });
+
+  it('rejects non-assets prefixes (must route through upload-asset.js, no direct Run402 calls)', async () => {
+    const file = makeFile('y.txt', 'y');
+    await expect(uploadFileContentAddressed(file, { keyPrefix: 'resources' })).rejects.toThrow(/not supported/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards optional target field to the edge function (for brand_icon_url hint)', async () => {
     fetchMock.mockResolvedValueOnce(
-      new Response('sha256 is required (every blob is content-addressed post-v1.32)', {
-        status: 400,
+      jsonResponse({
+        status: 'uploaded',
+        url: 'https://cdn.example/blob/icon',
+        path: '1779062400000_icon.png',
+        warning: 'looks_like_wordmark',
+        dimensions: { width: 200, height: 50 },
       }),
     );
 
-    const file = makeFile('x.txt', 'x');
-    await expect(uploadFileContentAddressed(file, { keyPrefix: 'resources' })).rejects.toThrow(/content-addressed/);
+    const file = makeFile('icon.png', 'iconbytes', 'image/png');
+    const result = await uploadFileContentAddressed(file, { keyPrefix: 'assets', target: 'brand_icon_url' });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body || '{}'));
+    expect(body.target).toBe('brand_icon_url');
+    expect(result.warning).toBe('looks_like_wordmark');
+    expect(result.dimensions).toEqual({ width: 200, height: 50 });
   });
 });
