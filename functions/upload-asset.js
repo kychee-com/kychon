@@ -1,61 +1,7 @@
 // schedule: none (triggered by admin for asset upload/delete)
-import { adminDb, getUser } from '@run402/functions';
+import { adminDb, assets, getUser } from '@run402/functions';
 
 const RUN402_API = 'https://api.run402.com';
-
-async function sha256Hex(bytes) {
-  const hash = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// Run402 went content-addressed post-v1.32. Three-step flow:
-//   1. POST /storage/v1/uploads        — init with sha256 + size + key
-//   2. PUT  <part.url>                 — upload each part
-//   3. POST /storage/v1/uploads/{id}/complete — finalize, returns cdn url
-// (#28)
-async function uploadBytesContentAddressed(bytes, { key, contentType, visibility = 'public', immutable = true }) {
-  const initRes = await fetch(`${RUN402_API}/storage/v1/uploads`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}`,
-    },
-    body: JSON.stringify({
-      key,
-      size_bytes: bytes.byteLength,
-      content_type: contentType,
-      visibility,
-      immutable,
-      sha256: await sha256Hex(bytes),
-    }),
-  });
-  if (!initRes.ok) throw new Error(`init: ${await initRes.text()}`);
-  const init = await initRes.json();
-
-  const parts = [];
-  for (const part of init.parts || []) {
-    const slice = bytes.slice(part.byte_start, part.byte_end + 1);
-    const putRes = await fetch(part.url, { method: 'PUT', body: slice });
-    if (!putRes.ok) throw new Error(`part ${part.part_number}: ${putRes.status}`);
-    parts.push({ part_number: part.part_number, etag: putRes.headers.get('etag') || '' });
-  }
-
-  const completeRes = await fetch(`${RUN402_API}/storage/v1/uploads/${encodeURIComponent(init.upload_id)}/complete`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}`,
-    },
-    body: JSON.stringify(init.mode === 'multipart' ? { parts } : {}),
-  });
-  if (!completeRes.ok) throw new Error(`complete: ${await completeRes.text()}`);
-  const completed = await completeRes.json();
-  return (
-    completed.cdn_immutable_url || completed.immutable_url || completed.cdn_url || completed.url || `/storage/${key}`
-  );
-}
 
 // Read intrinsic dimensions from raw image bytes for the formats we expect
 // (PNG, JPEG, SVG). Returns null when the format is unknown — callers
@@ -131,6 +77,16 @@ function isSafeAssetPath(value) {
   return true;
 }
 
+function pickAssetUrl(ref, fallbackKey) {
+  return (
+    ref?.cdn_immutable_url ||
+    ref?.immutable_url ||
+    ref?.cdn_url ||
+    ref?.url ||
+    `/storage/${fallbackKey}`
+  );
+}
+
 export default async (req) => {
   const user = await getUser(req);
   if (!user) {
@@ -148,7 +104,9 @@ export default async (req) => {
   try {
     const body = await req.json();
 
-    // Delete action — Run402 now exposes DELETE /storage/v1/blob/{key}. (#28)
+    // Delete action — `/storage/v1/blob/{key}` is still alive in 2.2 (the
+    // SDK uses this path in `r.assets.rm`). Uploads moved to the apply
+    // substrate but per-key DELETE on existing blobs is unaffected.
     if (body.action === 'delete' && body.path) {
       if (!isSafeAssetPath(body.path)) {
         return new Response(
@@ -188,10 +146,15 @@ export default async (req) => {
     const storagePath = `assets/${path}`;
     let url;
     try {
-      url = await uploadBytesContentAddressed(bytes, {
-        key: storagePath,
+      // `assets.put` from @run402/functions@2.2.0 routes through the
+      // unified-apply substrate (`/apply/v1/service-asset-put`). The runtime
+      // injects service-key auth and the SDK hashes + uploads + commits.
+      const ref = await assets.put(storagePath, bytes, {
         contentType: file.type || 'application/octet-stream',
+        visibility: 'public',
+        immutable: true,
       });
+      url = pickAssetUrl(ref, storagePath);
     } catch (err) {
       return new Response(JSON.stringify({ error: 'Upload failed', detail: String(err?.message || err) }), {
         status: 500,
