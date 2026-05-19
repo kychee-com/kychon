@@ -1,0 +1,72 @@
+# Deploy all demo sites on every push to main.
+#
+# Uses GitHub Actions OIDC — no private keys or allowance JSON stored as
+# secrets. Run402 CI bindings (created via scripts/setup-ci-bindings.ts)
+# link this repo's OIDC subject to each demo project.
+#
+# The deploy uses patchDeploy: only changed site files and functions are
+# uploaded. Unchanged blobs (images, vendor chunks, etc.) are skipped.
+#
+# REQUIRED SETUP (one-time, run locally):
+#   npx tsx --env-file=.env scripts/setup-ci-bindings.ts
+#
+# Then add the printed variables at:
+#   https://github.com/kychee-com/kychon/settings/variables/actions
+#
+# Required variables:
+#   EAGLES_PROJECT_ID, EAGLES_ANON_KEY
+#   SILVER_PINES_PROJECT_ID, SILVER_PINES_ANON_KEY
+#   BARRIO_PROJECT_ID, BARRIO_ANON_KEY
+
+name: Deploy Demo Sites
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# id-token:write is required for GitHub's OIDC token endpoint.
+# contents:read is required for actions/checkout.
+permissions:
+  id-token: write
+  contents: read
+
+# Cancel any in-progress deploy for the same branch so a rapid push
+# doesn't queue up stale deploys behind the latest one.
+concurrency:
+  group: deploy-demos-${{ github.ref }}
+  cancel-in-progress: true
+
+# All demo project IDs and anon keys — set as GitHub Actions variables
+# (not secrets; anon keys are already public in every deployed env.js).
+env:
+  EAGLES_PROJECT_ID: ${{ vars.EAGLES_PROJECT_ID }}
+  EAGLES_ANON_KEY: ${{ vars.EAGLES_ANON_KEY }}
+  SILVER_PINES_PROJECT_ID: ${{ vars.SILVER_PINES_PROJECT_ID }}
+  SILVER_PINES_ANON_KEY: ${{ vars.SILVER_PINES_ANON_KEY }}
+  BARRIO_PROJECT_ID: ${{ vars.BARRIO_PROJECT_ID }}
+  BARRIO_ANON_KEY: ${{ vars.BARRIO_ANON_KEY }}
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.demo }}
+    runs-on: ubuntu-latest
+
+    # Run all three demos in parallel; don't let one failure block the others.
+    strategy:
+      matrix:
+        demo: [eagles, silver-pines, barrio]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Deploy ${{ matrix.demo }}
+        run: npx tsx scripts/deploy-ci.ts ${{ matrix.demo }}
