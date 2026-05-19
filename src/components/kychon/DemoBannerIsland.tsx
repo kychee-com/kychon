@@ -55,9 +55,16 @@ function nextResetFrom(lastReset: string | null): number | null {
   return Number.isFinite(value) ? value + 60 * 60 * 1000 : null;
 }
 
-export default function DemoBannerIsland() {
+interface Props {
+  defaultVisible?: boolean;
+}
+
+export default function DemoBannerIsland({ defaultVisible = false }: Props) {
   const bannerRef = useRef<HTMLDivElement | null>(null);
-  const [demo, setDemo] = useState<DemoState>({ visible: false, lastReset: null });
+  const [demo, setDemo] = useState<DemoState>(() => {
+    const cached = typeof localStorage !== 'undefined' ? readCachedDemoState() : null;
+    return cached ?? { visible: defaultVisible, lastReset: null };
+  });
   const [role, setRole] = useState<DemoRole>('visitor');
   const [pendingRole, setPendingRole] = useState<DemoLoginRole | null>(null);
   const [failedRole, setFailedRole] = useState<DemoLoginRole | null>(null);
@@ -68,9 +75,6 @@ export default function DemoBannerIsland() {
   }, []);
 
   useEffect(() => {
-    const cached = readCachedDemoState();
-    if (cached?.visible) setDemo(cached);
-
     let cancelled = false;
     async function loadDemoState() {
       try {
