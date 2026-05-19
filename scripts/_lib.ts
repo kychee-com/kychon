@@ -758,13 +758,14 @@ export async function patchDeploy(
     expose: { version: "1", tables: [...EXPOSE_TABLES] },
   };
 
+  // patchDeploy is content-only: omit subdomains and routes so CI bindings
+  // (which have no infrastructure scope) can apply it, and to avoid
+  // accidentally reconfiguring routing on what should be a pure file patch.
   const spec: KychonReleaseSpec = {
     site: {
       patch: { put: patchPut, delete: patchDelete },
       public_paths: { mode: "explicit", replace: publicPaths },
     },
-    subdomains: { set: [opts.subdomain] },
-    routes: { replace: [] },
     database,
     functions: fnDiff.spec,
   };
