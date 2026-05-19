@@ -233,6 +233,10 @@ export async function deployOneDemo(
       extraFunction: config.resetDemoFile,
       allowWarnings: opts.allowWarnings ?? process.env.RUN402_ALLOW_WARNINGS === "true",
       dryRun: opts.dryRun === true,
+      // Demos re-generate reset-demo.js on every run; the other 11 functions
+      // only change when the engine version bumps. Patch mode skips unchanged
+      // function uploads and only sends reset-demo (and any engine-bumped fns).
+      patchFunctions: true,
     });
 
     if (opts.dryRun !== true) {

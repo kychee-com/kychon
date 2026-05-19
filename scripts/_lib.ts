@@ -12,8 +12,16 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { fileSetFromDir, run402 } from "@run402/sdk/node";
-import type { ApplyOptions, FileSet, FunctionSpec, ReleaseSpec } from "@run402/sdk/node";
+import { dir, fileSetFromDir, run402 } from "@run402/sdk/node";
+import type {
+  ActiveReleaseInventory,
+  ApplyOptions,
+  FileSet,
+  FsFileSource,
+  FunctionSpec,
+  LocalDirRef,
+  ReleaseSpec,
+} from "@run402/sdk/node";
 
 import {
   buildExplicitPublicPathSpecs,
@@ -298,6 +306,59 @@ export function sha256Hex(s: string): string {
   return createHash("sha256").update(s).digest("hex");
 }
 
+/** SHA-256 of raw file bytes. Used to diff site files against a live release. */
+async function hashFileBytes(filePath: string): Promise<string> {
+  const bytes = await readFile(filePath);
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/**
+ * Compare a new functions map against the code hashes from the active release
+ * and return either a full `replace` spec (when functions were removed or
+ * the hash algorithm doesn't match) or a surgical `patch` spec (when only a
+ * subset changed). The exclude list drives `patch.delete` for functions that
+ * should be removed from the live release.
+ */
+function diffFunctionsMap(
+  functionsMap: Record<string, FunctionSpec>,
+  liveCodeHashes: Map<string, string>,
+  excludeFunctions: readonly string[] = [],
+): { spec: NonNullable<ReleaseSpec["functions"]>; changed: number; skipped: number } {
+  const newNames = new Set(Object.keys(functionsMap));
+  const excludeSet = new Set(excludeFunctions);
+
+  // Any live function not in the new map and not in the exclude list would be
+  // silently orphaned by a patch — fall back to replace so the release stays clean.
+  const orphaned = [...liveCodeHashes.keys()].filter(n => !newNames.has(n) && !excludeSet.has(n));
+  if (orphaned.length > 0) {
+    return { spec: { replace: functionsMap }, changed: newNames.size, skipped: 0 };
+  }
+
+  const toSet: Record<string, FunctionSpec> = {};
+  const toDelete: string[] = [];
+  let skipped = 0;
+
+  for (const name of excludeFunctions) {
+    if (liveCodeHashes.has(name)) toDelete.push(name);
+  }
+
+  for (const [name, spec] of Object.entries(functionsMap)) {
+    const source = typeof spec.source === "string" ? spec.source : null;
+    const liveHash = liveCodeHashes.get(name);
+    if (source && liveHash && sha256Hex(source) === liveHash) {
+      skipped++;
+    } else {
+      toSet[name] = spec;
+    }
+  }
+
+  return {
+    spec: { patch: { set: toSet, delete: toDelete } },
+    changed: Object.keys(toSet).length,
+    skipped,
+  };
+}
+
 export interface RunDeployOptions {
   projectId: string;
   anonKey: string;
@@ -314,6 +375,14 @@ export interface RunDeployOptions {
   allowWarnings?: boolean;
   /** When true, prints the assembled spec and returns without calling the API. */
   dryRun?: boolean;
+  /**
+   * When true, fetch the active release before deploying and use
+   * `functions.patch` to only upload functions whose source hash changed.
+   * Functions that need to be removed (via excludeFunctions) are explicitly
+   * deleted. Falls back to `replace` when orphaned live functions are detected
+   * or when the active-release fetch fails.
+   */
+  patchFunctions?: boolean;
 }
 
 export interface RunDeployResult {
@@ -331,9 +400,17 @@ export interface RunDeployResult {
 
 export interface BuildKychonReleaseSpecOptions {
   database?: NonNullable<ReleaseSpec["database"]>;
-  fileSet: FileSet;
+  /** Full FileSet from `fileSetFromDir`, or a lazy `LocalDirRef` from `dir()`. */
+  fileSet: FileSet | LocalDirRef;
   publicPaths: Record<string, PublicStaticPathSpec>;
   subdomain: string;
+  /**
+   * Pre-computed functions spec (replace or patch). When provided, takes
+   * precedence over `functionsMap`. Use `diffFunctionsMap` to build this
+   * when you want surgical `patch` updates rather than a full `replace`.
+   */
+  functionsSpec?: NonNullable<ReleaseSpec["functions"]>;
+  /** Used when `functionsSpec` is absent — emits `{ replace: functionsMap }`. */
   functionsMap?: Record<string, FunctionSpec>;
   routes?: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"];
 }
@@ -348,7 +425,8 @@ export type KychonReleaseSpec = Omit<ReleaseSpec, "project">;
 export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): KychonReleaseSpec {
   const spec: KychonReleaseSpec = {
     site: {
-      replace: opts.fileSet,
+      // LocalDirRef is handled by the SDK normalizer at apply time.
+      replace: opts.fileSet as FileSet,
       public_paths: {
         mode: "explicit",
         replace: opts.publicPaths,
@@ -360,7 +438,9 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Kyc
   if (opts.database) {
     spec.database = opts.database;
   }
-  if (opts.functionsMap && Object.keys(opts.functionsMap).length > 0) {
+  if (opts.functionsSpec) {
+    spec.functions = opts.functionsSpec;
+  } else if (opts.functionsMap && Object.keys(opts.functionsMap).length > 0) {
     spec.functions = { replace: opts.functionsMap };
   }
   return spec;
@@ -406,10 +486,18 @@ export async function runDeploy(
   const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
   writeEngineReleaseManifest(distDir, releaseManifest);
 
-  const fileSet = await fileSetFromDir(distDir);
-  const fileCount = Object.keys(fileSet).length;
+  // dir() registers distDir as a lazy LocalDirRef — the SDK walks and hashes
+  // each file at apply time rather than upfront. readdir gives us the flat
+  // file list we need for public-path registration and for the count log,
+  // without creating per-file FsFileSource objects in the JS heap.
+  const siteDir = dir(distDir);
+  const dirents = await readdir(distDir, { recursive: true, withFileTypes: true });
+  const distFiles = dirents
+    .filter(d => d.isFile())
+    .map(d => join(d.parentPath, d.name).slice(distDir.length + 1).replaceAll("\\", "/"));
+  const fileCount = distFiles.length;
   const publicPaths = buildExplicitPublicPathSpecs({
-    files: Object.keys(fileSet),
+    files: distFiles,
     pageSlugs: materializedCustomPages.map((page) => page.slug),
   });
   const publicPathEntries = Object.entries(publicPaths);
@@ -417,9 +505,26 @@ export async function runDeploy(
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
   if (opts.extraFunction) collectOpts.extraFunction = opts.extraFunction;
-  const functionsMap = await collectFunctionsMap(join(ROOT, "functions"), collectOpts);
+
+  // Fetch the active release in parallel with the local function-source reads
+  // when patch mode is requested. siteLimit:0 skips the (potentially large)
+  // site-paths list since we only need the functions inventory here.
+  const [functionsMap, liveRelease] = await Promise.all([
+    collectFunctionsMap(join(ROOT, "functions"), collectOpts),
+    opts.patchFunctions
+      ? project.deploy.getActiveRelease({ siteLimit: 0 }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
   const fnNames = Object.keys(functionsMap);
   const scheduledFns = fnNames.filter((n) => functionsMap[n]?.schedule);
+
+  const liveCodeHashes = liveRelease
+    ? new Map(liveRelease.functions.map(f => [f.name, f.code_hash]))
+    : null;
+  const fnDiff = liveCodeHashes
+    ? diffFunctionsMap(functionsMap, liveCodeHashes, opts.excludeFunctions ?? [])
+    : null;
 
   const database: ReleaseSpec["database"] = {
     migrations: [{ id: migrationId, sql }],
@@ -428,18 +533,23 @@ export async function runDeploy(
 
   const spec = buildKychonReleaseSpec({
     database,
-    fileSet,
+    fileSet: siteDir,
     publicPaths,
     subdomain: opts.subdomain,
+    functionsSpec: fnDiff?.spec,
     functionsMap,
   });
 
+  const fnSummary = fnDiff
+    ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped (patch)`
+    : `${fnNames.length} (replace)`;
+
   console.log(
       `Deploying to ${opts.projectId} (subdomain: ${opts.subdomain})\n` +
-      `  ${fileCount} site files (lazy-streamed from ${distDir})\n` +
+      `  ${fileCount} site files (dir() — walked + hashed by SDK at apply time)\n` +
       `  ${publicPathEntries.length} explicit public paths\n` +
       `  0 static route aliases (clears v1.66 route aliases)\n` +
-      `  ${fnNames.length} functions (${scheduledFns.length} scheduled)\n` +
+      `  functions: ${fnSummary} (${scheduledFns.length} scheduled)\n` +
       `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
   if (publicPathEntries.length > 0) {
@@ -464,6 +574,9 @@ export async function runDeploy(
           subdomain: opts.subdomain,
           filesCount: fileCount,
           functionsCount: fnNames.length,
+          functionsPatchMode: fnDiff != null,
+          functionsChanged: fnDiff?.changed ?? fnNames.length,
+          functionsSkipped: fnDiff?.skipped ?? 0,
           functionsWithSchedule: scheduledFns.map(
             (n) => `${n}=${functionsMap[n]?.schedule}`,
           ),
@@ -533,6 +646,188 @@ export async function runDeploy(
     operationId: result.operation_id,
     urls: result.urls,
     elapsedMs,
+  };
+}
+
+export interface PatchDeployResult extends RunDeployResult {
+  /** Site files uploaded (new + changed). */
+  siteFilesChanged: number;
+  /** Site files identical to the live release — skipped from upload. */
+  siteFilesSkipped: number;
+  /** Function specs uploaded (new + changed). */
+  functionsChanged: number;
+  /** Functions identical to the live release — skipped from upload. */
+  functionsSkipped: number;
+}
+
+/**
+ * Surgical patch deploy: runs `astro build`, diffs the new dist against the
+ * active release's `content_sha256` values, and calls `site.patch` + optional
+ * `functions.patch` so only changed blobs are sent to the gateway.
+ *
+ * Falls back to a full `runDeploy` when there is no active release yet (first
+ * deploy) or when the diff fetch fails (network error, project not found).
+ *
+ * All other slices (database, subdomains, routes) are included unchanged so
+ * the release stays fully specified.
+ */
+export async function patchDeploy(
+  r: Run402Instance,
+  opts: RunDeployOptions,
+): Promise<PatchDeployResult> {
+  const buildOptions: BuildAstroOptions = {};
+  if (opts.chromeSnapshot !== undefined) buildOptions.chromeSnapshot = opts.chromeSnapshot;
+  buildAstro(buildOptions);
+
+  const project = await r.project(opts.projectId);
+  const distDir = join(ROOT, "dist");
+
+  injectEnvJs(distDir, opts.anonKey);
+  generateAndValidateHeaders(distDir);
+  const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
+  const materializedCustomPages = materializeCustomPageStaticFiles(distDir, deploySeed);
+
+  const sql = readMigrations(ROOT, opts.seedFile);
+  const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
+  const releaseManifestOptions: Parameters<typeof buildEngineReleaseManifest>[0] = {
+    migrationId,
+    schemaSql: sql,
+  };
+  if (opts.seedFile !== undefined) releaseManifestOptions.seedFile = opts.seedFile;
+  const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
+  writeEngineReleaseManifest(distDir, releaseManifest);
+
+  // Fetch the active release for diffing. siteLimit:25000 loads all site paths.
+  let liveRelease: ActiveReleaseInventory | null = null;
+  try {
+    liveRelease = await project.deploy.getActiveRelease({ siteLimit: 25000 });
+  } catch {
+    console.warn("  No active release found — falling back to full deploy.");
+    const base = await runDeploy(r, opts);
+    return { ...base, siteFilesChanged: -1, siteFilesSkipped: 0, functionsChanged: -1, functionsSkipped: 0 };
+  }
+
+  // Walk the new dist and hash each file to compare against the live release.
+  const newFileSet = await fileSetFromDir(distDir);
+  const livePaths = new Map(liveRelease.site.paths.map(p => [p.path, p.content_sha256]));
+
+  const patchPut: FileSet = {};
+  let siteSkipped = 0;
+  const patchDelete: string[] = [];
+
+  await Promise.all(
+    Object.entries(newFileSet).map(async ([path, source]) => {
+      const liveSha = livePaths.get(path);
+      if (!liveSha) {
+        patchPut[path] = source; // new file
+      } else {
+        const localSha = await hashFileBytes((source as FsFileSource).path);
+        if (localSha !== liveSha) {
+          patchPut[path] = source; // changed
+        } else {
+          siteSkipped++;
+        }
+      }
+    }),
+  );
+
+  for (const path of livePaths.keys()) {
+    if (!newFileSet[path]) patchDelete.push(path);
+  }
+
+  const siteChanged = Object.keys(patchPut).length;
+
+  const publicPaths = buildExplicitPublicPathSpecs({
+    files: Object.keys(newFileSet),
+    pageSlugs: materializedCustomPages.map(p => p.slug),
+  });
+
+  // Functions — always use patch mode in patchDeploy.
+  const collectOpts: CollectFunctionsOptions = {};
+  if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
+  if (opts.extraFunction) collectOpts.extraFunction = opts.extraFunction;
+  const functionsMap = await collectFunctionsMap(join(ROOT, "functions"), collectOpts);
+
+  const liveCodeHashes = new Map(liveRelease.functions.map(f => [f.name, f.code_hash]));
+  const fnDiff = diffFunctionsMap(functionsMap, liveCodeHashes, opts.excludeFunctions ?? []);
+  const fnNames = Object.keys(functionsMap);
+  const scheduledFns = fnNames.filter(n => functionsMap[n]?.schedule);
+
+  const database: ReleaseSpec["database"] = {
+    migrations: [{ id: migrationId, sql }],
+    expose: { version: "1", tables: [...EXPOSE_TABLES] },
+  };
+
+  const spec: KychonReleaseSpec = {
+    site: {
+      patch: { put: patchPut, delete: patchDelete },
+      public_paths: { mode: "explicit", replace: publicPaths },
+    },
+    subdomains: { set: [opts.subdomain] },
+    routes: { replace: [] },
+    database,
+    functions: fnDiff.spec,
+  };
+
+  console.log(
+    `Patch deploy to ${opts.projectId} (subdomain: ${opts.subdomain})\n` +
+    `  Site: ${siteChanged} changed + ${patchDelete.length} removed, ${siteSkipped} skipped (of ${Object.keys(newFileSet).length} total)\n` +
+    `  Functions: ${fnDiff.changed} changed, ${fnDiff.skipped} skipped (of ${fnNames.length} total, ${scheduledFns.length} scheduled)\n` +
+    `  ${sql.length} migration bytes (id: ${migrationId})`,
+  );
+
+  if (opts.dryRun) {
+    console.log("\n[dry-run] Would call r.project(id).apply with site.patch + functions.patch");
+    return {
+      ok: true,
+      releaseManifest,
+      schemaMigrationId: migrationId,
+      schemaChecksum: releaseManifest.schemaChecksum,
+      siteFilesChanged: siteChanged,
+      siteFilesSkipped: siteSkipped,
+      functionsChanged: fnDiff.changed,
+      functionsSkipped: fnDiff.skipped,
+    };
+  }
+
+  const applyOptions: ApplyOptions = {
+    onEvent(event) {
+      if (event.type !== "plan.warnings") return;
+      console.warn("\nDeploy plan warnings:");
+      for (const warning of event.warnings) {
+        console.warn(`  [${warning.severity ?? "warning"}] ${warning.code}: ${warning.message}`);
+      }
+    },
+  };
+  if (opts.allowWarnings) {
+    applyOptions.allowWarnings = true;
+    console.warn("\nContinuing past confirmation-required deploy warnings because allowWarnings is enabled.");
+  }
+
+  const startedAt = Date.now();
+  const result = await project.apply(spec, applyOptions);
+  const elapsedMs = Date.now() - startedAt;
+
+  console.log(`\nPatch deploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
+  console.log(`  Release id: ${result.release_id}`);
+  console.log(`  Operation id: ${result.operation_id}`);
+  for (const [k, v] of Object.entries(result.urls)) {
+    console.log(`  ${k}: ${v}`);
+  }
+
+  return {
+    ok: true,
+    releaseManifest,
+    schemaMigrationId: migrationId,
+    schemaChecksum: releaseManifest.schemaChecksum,
+    releaseId: result.release_id,
+    operationId: result.operation_id,
+    urls: result.urls,
+    elapsedMs,
+    siteFilesChanged: siteChanged,
+    siteFilesSkipped: siteSkipped,
+    functionsChanged: fnDiff.changed,
+    functionsSkipped: fnDiff.skipped,
   };
 }
 
