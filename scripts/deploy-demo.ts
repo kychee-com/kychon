@@ -26,6 +26,13 @@ export interface DemoConfig {
   displayName: string;
   /** Env var holding the project id (e.g. EAGLES_PROJECT_ID). */
   projectIdEnvVar: string;
+  /**
+   * Env var holding the Run402 anon key. The anon key is a public JWT
+   * already embedded in every deployed env.js — safe to store as a GitHub
+   * Actions variable (not a secret). Used by CI deploys in place of the
+   * local keystore lookup that the allowance-wallet path uses.
+   */
+  anonKeyEnvVar: string;
   /** Run402 subdomain (e.g. "eagles", "silver-pines", "barrio-unido"). */
   subdomain: string;
   /** Public hostname for the "Live at:" footer. */
@@ -53,6 +60,7 @@ export const DEMOS: Record<string, DemoConfig> = {
   eagles: {
     displayName: "Eagles",
     projectIdEnvVar: "EAGLES_PROJECT_ID",
+    anonKeyEnvVar: "EAGLES_ANON_KEY",
     subdomain: "eagles",
     liveUrl: "https://eagles.kychon.com",
     assetsDir: "demo/eagles/assets",
@@ -62,6 +70,7 @@ export const DEMOS: Record<string, DemoConfig> = {
   "silver-pines": {
     displayName: "Silver Pines",
     projectIdEnvVar: "SILVER_PINES_PROJECT_ID",
+    anonKeyEnvVar: "SILVER_PINES_ANON_KEY",
     subdomain: "silver-pines",
     liveUrl: "https://silver-pines.kychon.com",
     assetsDir: "demo/silver-pines/assets",
@@ -71,6 +80,7 @@ export const DEMOS: Record<string, DemoConfig> = {
   barrio: {
     displayName: "Barrio Unido",
     projectIdEnvVar: "BARRIO_PROJECT_ID",
+    anonKeyEnvVar: "BARRIO_ANON_KEY",
     subdomain: "barrio-unido",
     liveUrl: "https://barrio.kychon.com",
     assetsDir: "demo/barrio-unido/assets",
@@ -109,7 +119,7 @@ export function findMissingDemoStaticAssets(config: DemoConfig): string[] {
     .sort();
 }
 
-function assertDemoStaticAssets(config: DemoConfig): void {
+export function assertDemoStaticAssets(config: DemoConfig): void {
   const missing = findMissingDemoStaticAssets(config);
   if (missing.length === 0) return;
 
@@ -128,7 +138,7 @@ function assertDemoStaticAssets(config: DemoConfig): void {
  * produces it from OPENAI_API_KEY). Fail loud if it's missing for a demo
  * deploy — silently skipping ships demo sites with broken /assets/ refs.
  */
-function copyAssets(src: string, dst: string): () => void {
+export function copyAssets(src: string, dst: string): () => void {
   if (!existsSync(src)) {
     throw new Error(
       `Demo assets dir not found: ${src}\n` +
