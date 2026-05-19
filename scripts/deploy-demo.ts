@@ -12,7 +12,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, copyFileSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { run402 } from "@run402/sdk/node";
@@ -91,6 +91,20 @@ export const DEMOS: Record<string, DemoConfig> = {
 
 const ASSET_REF_RE = /["'`]\/assets\/([^"'`?#]+)(?:[?#][^"'`]*)?["'`]/g;
 
+const LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/";
+
+function isGitLfsPointer(filePath: string): boolean {
+  const fd = openSync(filePath, "r");
+  try {
+    const buf = Buffer.alloc(LFS_POINTER_PREFIX.length);
+    const bytesRead = readSync(fd, buf, 0, buf.length, 0);
+    if (bytesRead < LFS_POINTER_PREFIX.length) return false;
+    return buf.toString("utf8") === LFS_POINTER_PREFIX;
+  } finally {
+    closeSync(fd);
+  }
+}
+
 export function findMissingDemoStaticAssets(config: DemoConfig): string[] {
   const assetRoot = join(ROOT, config.assetsDir);
   const sourceFiles = [
@@ -151,6 +165,16 @@ export function copyAssets(src: string, dst: string): () => void {
     throw new Error(
       `Demo assets dir is empty: ${src}\n` +
         "  Did `generate-images.sh` complete? Check for a partial run.",
+    );
+  }
+  const lfsPointers = entries.filter((name) => isGitLfsPointer(join(src, name)));
+  if (lfsPointers.length > 0) {
+    throw new Error(
+      `Refusing to deploy Git LFS pointer files as assets in ${src}:\n` +
+        lfsPointers.map((name) => `  - ${name}`).join("\n") +
+        "\n  These are 132-byte text stubs, not the real images. Run `git lfs pull`\n" +
+        "  in this checkout (or set `lfs: true` on actions/checkout in CI) so the\n" +
+        "  working tree contains the real bytes before deploying.",
     );
   }
   console.log(`Copying ${entries.length} demo asset(s) into public/assets...`);
