@@ -31,6 +31,8 @@ jobs:
     if: ${{ false }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - uses: actions/setup-node@v6
         with:
