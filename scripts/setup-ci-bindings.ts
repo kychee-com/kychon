@@ -13,7 +13,7 @@
  * issues short-lived tokens that the SDK exchanges for Run402 access tokens.
  */
 
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { run402, signCiDelegation } from "@run402/sdk/node";
 import { CI_GITHUB_ACTIONS_PROVIDER } from "@run402/sdk";
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
     console.log(`--- ${config.displayName} (${projectId}) ---`);
 
     // Each binding gets a fresh nonce to prevent replay.
-    const nonce = randomUUID();
+    const nonce = randomBytes(16).toString("hex");
 
     const delegationValues = {
       project_id: projectId,
