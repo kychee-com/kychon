@@ -836,13 +836,18 @@ export async function patchDeploy(
     ? diffFunctionsMap(functionsMap, new Map(liveRelease.functions.map(f => [f.name, f.code_hash])), opts.excludeFunctions ?? [])
     : null;
 
-  const i18nSpec = buildI18nSpec(deploySeed);
-
+  // The i18n slice is INTENTIONALLY omitted in patchDeploy. The Run402 SDK's
+  // `assertCiDeployableSpec` (CI OIDC sessions) rejects spec.i18n the same way
+  // it rejects subdomains/routes — `forbidden_spec_field` / `resource: 'i18n'`
+  // (kychee-com/run402#395 follow-up). Matches the existing patchDeploy
+  // contract: "content-only, no infrastructure scope." Carry-forward semantics
+  // (omit → inherit from base release) mean that once a local runDeploy sets
+  // the slice via `bash deploy-all.sh`, every subsequent CI patchDeploy
+  // preserves it unchanged.
   const spec: KychonReleaseSpec = {
     site: siteSpec,
     database,
     functions: fnDiff?.spec ?? { replace: functionsMap },
-    i18n: i18nSpec,
   };
 
   const modeSuffix = liveRelease ? "patch" : "replace (no baseline)";
@@ -850,7 +855,7 @@ export async function patchDeploy(
     `Patch deploy to ${opts.projectId} (subdomain: ${opts.subdomain}) [${modeSuffix}]\n` +
     `  Site: ${siteChanged} changed + ${patchDeleteCount} removed, ${siteSkipped} skipped (of ${Object.keys(newFileSet).length} total)\n` +
     `  Functions: ${fnDiff ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped` : `${fnNames.length} (replace)`} (of ${fnNames.length} total, ${scheduledFns.length} scheduled)\n` +
-    `  i18n: defaultLocale=${i18nSpec.defaultLocale}, locales=[${i18nSpec.locales.join(", ")}], detect=[${(i18nSpec.detect ?? []).join(", ")}]\n` +
+    `  i18n: (omitted — CI OIDC forbids; carries forward from base release)\n` +
     `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
 
