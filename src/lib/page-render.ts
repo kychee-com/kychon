@@ -29,14 +29,56 @@ import { type AssetManifest, setGlobalManifest } from './kychon-image';
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
 const ASSET_MANIFEST_URL = '/_assets-manifest.json';
+const ASSET_MANIFEST_CACHE_KEY = 'wl_cache_assets_manifest';
 
-// Module-scope manifest cache. Fetched once on first hydrate, reused across
-// every renderBlock call (chrome re-render after auth, main zone, dynamic
-// hydrators). 404s and JSON parse failures resolve to null — emitters fall
-// back to plain `<img>` for everything, which is the same behavior as a
-// build without an `assetsDir` configured.
+// Module-scope manifest cache. Two layers:
+//   1. localStorage seed read on module load — synchronous, available BEFORE
+//      the first `renderZoneInto` call. This is what kills the flicker that
+//      otherwise hits on every cached-pass refresh: without it the cached
+//      pass paints `<img src="/assets/X.jpg">`, then `fetchAndUpdate` resolves
+//      the network manifest and re-paints `<picture>`, producing a visible
+//      swap. With the localStorage seed the first paint is already
+//      `<picture>` and the network refresh is a no-op when the manifest's
+//      `generated_at` hasn't moved.
+//   2. Network fetch in fetchManifest() — always runs, refreshes the
+//      localStorage seed for the next reload. Variant URLs are immutable
+//      (content-hashed), so a stale seed only misses brand-new assets; it
+//      never serves wrong bytes.
+// 404s and JSON parse failures resolve to null — emitters fall back to plain
+// `<img>` for everything, same behavior as a build without `assetsDir`.
 let manifestPromise: Promise<AssetManifest | null> | null = null;
-let cachedManifest: AssetManifest | null = null;
+let cachedManifest: AssetManifest | null = readManifestFromLocalStorage();
+
+if (cachedManifest) {
+  // Populate the global accessor immediately so client-mounted React
+  // hydrators (e.g. SlideshowCarousel) see the manifest on first mount,
+  // not only after the network fetch resolves.
+  setGlobalManifest(cachedManifest);
+}
+
+function readManifestFromLocalStorage(): AssetManifest | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ASSET_MANIFEST_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || (parsed as { version?: unknown }).version !== 1) return null;
+    return parsed as AssetManifest;
+  } catch {
+    return null;
+  }
+}
+
+function writeManifestToLocalStorage(manifest: AssetManifest): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(ASSET_MANIFEST_CACHE_KEY, JSON.stringify(manifest));
+  } catch {
+    // Likely QuotaExceededError — manifest with 200+ image entries can push
+    // tens of KB. Drop the seed; next reload will re-paint via the network
+    // fetch path, which is the pre-cache-seed behavior.
+  }
+}
 
 function fetchManifest(): Promise<AssetManifest | null> {
   if (manifestPromise) return manifestPromise;
@@ -48,9 +90,7 @@ function fetchManifest(): Promise<AssetManifest | null> {
       if (!data || typeof data !== 'object' || (data as { version?: unknown }).version !== 1) return null;
       const manifest = data as AssetManifest;
       cachedManifest = manifest;
-      // Mirror into `window.__KYCHON_ASSET_MANIFEST` so client-mounted block
-      // hydrators (e.g. SlideshowCarousel) can pick it up without threading
-      // the manifest through their per-instance data-* JSON props.
+      writeManifestToLocalStorage(manifest);
       setGlobalManifest(manifest);
       return manifest;
     } catch {
