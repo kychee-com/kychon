@@ -19,6 +19,7 @@ import type {
   FileSet,
   FsFileSource,
   FunctionSpec,
+  I18nSpec,
   LocalDirRef,
   ReleaseSpec,
 } from "@run402/sdk/node";
@@ -180,6 +181,46 @@ async function resolveDeployOutputSeed(
     return parseProjectSeedSnapshot(path);
   }
   return (await resolveActiveProjectSeed()).seed;
+}
+
+/**
+ * Extract the Run402 ReleaseSpec.i18n slice from the active project seed.
+ *
+ * Reads `site_config.languages` (string[]) and `site_config.default_language`
+ * (string), both of which the typed seeds declare under
+ * `category: 'i18n'` (see e.g. `src/seeds/barrio-unido.ts:120-121`). Falls
+ * back to `['en']` / `'en'` when the seed declares neither — matches the
+ * single-language posture of the kychon/eagles/silver-pines seeds.
+ *
+ * The platform enforces a byte-identical match between `defaultLocale` and
+ * one entry of `locales[]` ("EN" vs ["en"] is rejected at apply time). The
+ * fallback path returns the same string for both so the invariant always
+ * holds when the seed is silent. When the seed declares both, callers are
+ * responsible for keeping them consistent (lowercase BCP-47 is the existing
+ * convention everywhere: `brand.json`, `barrio-unido.ts`, `content_translations`,
+ * `section_translations`).
+ *
+ * `detect: ['cookie:wl_locale', 'accept-language']` — cookie wins when set,
+ * which matches `src/lib/i18n.ts:setLanguage()` (writes `wl_locale` cookie on
+ * every language switch). When neither cookie nor Accept-Language matches a
+ * declared locale, the gateway falls back to `defaultLocale`.
+ */
+export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
+  const langsEntry = seed.site_config?.languages;
+  const defaultEntry = seed.site_config?.default_language;
+  const locales =
+    langsEntry && typeof langsEntry === "object" && "value" in langsEntry && Array.isArray((langsEntry as { value: unknown }).value)
+      ? ((langsEntry as { value: string[] }).value)
+      : ["en"];
+  const defaultLocale =
+    defaultEntry && typeof defaultEntry === "object" && "value" in defaultEntry && typeof (defaultEntry as { value: unknown }).value === "string"
+      ? ((defaultEntry as { value: string }).value)
+      : (locales[0] ?? "en");
+  return {
+    defaultLocale,
+    locales,
+    detect: ["cookie:wl_locale", "accept-language"],
+  };
 }
 
 export interface MaterializedCustomPageFile {
@@ -413,6 +454,15 @@ export interface BuildKychonReleaseSpecOptions {
   /** Used when `functionsSpec` is absent — emits `{ replace: functionsMap }`. */
   functionsMap?: Record<string, FunctionSpec>;
   routes?: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"];
+  /**
+   * Routed-locale-context slice (v2.5+). When set, the gateway negotiates
+   * per-request locale and surfaces it via `x-run402-locale` headers. Today's
+   * SSG pages don't read those headers, but setting up the slice now means
+   * a future routed HTTP render path inherits negotiation for free. Build
+   * the slice with `buildI18nSpec(seed)`. Omitting carries the slice forward
+   * from the previous release (`null` clears it).
+   */
+  i18n?: I18nSpec;
 }
 
 /**
@@ -442,6 +492,9 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Kyc
     spec.functions = opts.functionsSpec;
   } else if (opts.functionsMap && Object.keys(opts.functionsMap).length > 0) {
     spec.functions = { replace: opts.functionsMap };
+  }
+  if (opts.i18n) {
+    spec.i18n = opts.i18n;
   }
   return spec;
 }
@@ -531,6 +584,8 @@ export async function runDeploy(
     expose: { version: "1", tables: [...EXPOSE_TABLES] },
   };
 
+  const i18nSpec = buildI18nSpec(deploySeed);
+
   const spec = buildKychonReleaseSpec({
     database,
     fileSet: siteDir,
@@ -538,6 +593,7 @@ export async function runDeploy(
     subdomain: opts.subdomain,
     functionsSpec: fnDiff?.spec,
     functionsMap,
+    i18n: i18nSpec,
   });
 
   const fnSummary = fnDiff
@@ -550,6 +606,7 @@ export async function runDeploy(
       `  ${publicPathEntries.length} explicit public paths\n` +
       `  0 static route aliases (clears v1.66 route aliases)\n` +
       `  functions: ${fnSummary} (${scheduledFns.length} scheduled)\n` +
+      `  i18n: defaultLocale=${i18nSpec.defaultLocale}, locales=[${i18nSpec.locales.join(", ")}], detect=[${(i18nSpec.detect ?? []).join(", ")}]\n` +
       `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
   if (publicPathEntries.length > 0) {
@@ -590,6 +647,7 @@ export async function runDeploy(
           schemaChecksum: releaseManifest.schemaChecksum,
           releaseManifest,
           exposeTables: EXPOSE_TABLES.length,
+          i18n: i18nSpec,
         },
         null,
         2,
@@ -778,10 +836,13 @@ export async function patchDeploy(
     ? diffFunctionsMap(functionsMap, new Map(liveRelease.functions.map(f => [f.name, f.code_hash])), opts.excludeFunctions ?? [])
     : null;
 
+  const i18nSpec = buildI18nSpec(deploySeed);
+
   const spec: KychonReleaseSpec = {
     site: siteSpec,
     database,
     functions: fnDiff?.spec ?? { replace: functionsMap },
+    i18n: i18nSpec,
   };
 
   const modeSuffix = liveRelease ? "patch" : "replace (no baseline)";
@@ -789,6 +850,7 @@ export async function patchDeploy(
     `Patch deploy to ${opts.projectId} (subdomain: ${opts.subdomain}) [${modeSuffix}]\n` +
     `  Site: ${siteChanged} changed + ${patchDeleteCount} removed, ${siteSkipped} skipped (of ${Object.keys(newFileSet).length} total)\n` +
     `  Functions: ${fnDiff ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped` : `${fnNames.length} (replace)`} (of ${fnNames.length} total, ${scheduledFns.length} scheduled)\n` +
+    `  i18n: defaultLocale=${i18nSpec.defaultLocale}, locales=[${i18nSpec.locales.join(", ")}], detect=[${(i18nSpec.detect ?? []).join(", ")}]\n` +
     `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
 
