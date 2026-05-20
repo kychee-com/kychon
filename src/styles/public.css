@@ -305,19 +305,8 @@ mark {
 
 /* Announcements */
 /* Sections (homepage) */
-@keyframes section-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 main [data-section] {
   padding: 4rem 0;
-  opacity: 0;
-  animation: section-fade-in 600ms ease-out forwards;
 }
 /* Below-fold sections: reserve space without rendering until near viewport */
 #announcements-section {
