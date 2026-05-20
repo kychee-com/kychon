@@ -89,7 +89,13 @@ export default function DemoBannerIsland({ defaultVisible = false }: Props) {
 
         if (!cancelled) setDemo({ visible, lastReset });
       } catch {
-        if (!cached?.visible && !cancelled) setDemo({ visible: false, lastReset: null });
+        // Preserve whatever visibility the initial cached state showed on
+        // mount (line 65 useState initializer). Only flip to invisible when
+        // no cached state was found — otherwise a transient fetch failure
+        // would flash the banner away.
+        if (!cancelled) {
+          setDemo((current) => (current.visible ? current : { visible: false, lastReset: null }));
+        }
       }
     }
 

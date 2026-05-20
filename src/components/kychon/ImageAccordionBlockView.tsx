@@ -3,6 +3,7 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Badge, Card, CardContent } from '@/components/kychon/ui';
+import { KychonImage, type AssetManifest } from '@/lib/kychon-image';
 import { cn } from '@/lib/ui/cn';
 import { constrainedContainerClass } from '@/lib/ui/container';
 
@@ -29,6 +30,8 @@ export interface ImageAccordionRenderProps {
   panels: ImageAccordionRenderPanel[];
   rootStyle: Record<string, string>;
   showEmptyPlaceholder: boolean;
+  /** @run402/astro@0.2 manifest — per-panel variant lookup. */
+  manifest?: AssetManifest | null;
 }
 
 const panelClass = cn(
@@ -49,7 +52,7 @@ function ImageAccordionHeading({ editableHeadingPath, heading }: Pick<ImageAccor
   );
 }
 
-function PanelImage({ panel, index }: { index: number; panel: ImageAccordionRenderPanel }) {
+function PanelImage({ panel, index, manifest }: { index: number; panel: ImageAccordionRenderPanel; manifest: AssetManifest | null | undefined }) {
   if (!panel.imageUrl) {
     return (
       <div
@@ -60,24 +63,31 @@ function PanelImage({ panel, index }: { index: number; panel: ImageAccordionRend
     );
   }
 
+  const editableAttrs: Record<`data-${string}`, string | undefined> = {
+    'data-accordion-image': '',
+    'data-editable-image': panel.imageEditablePath,
+  };
+
   return (
-    <img
+    <KychonImage
       alt={panel.imageAlt}
       className="absolute inset-0 block h-full w-full"
-      data-editable-image={panel.imageEditablePath}
-      data-accordion-image
+      imgDataAttrs={editableAttrs}
       loading={index === 0 ? 'eager' : 'lazy'}
-      src={panel.imageUrl}
-      style={{ objectFit: panel.objectFit, objectPosition: panel.objectPosition }}
+      manifest={manifest}
+      priority={index === 0}
+      sizes="(min-width: 768px) 33vw, 100vw"
+      style={{ objectFit: panel.objectFit, objectPosition: panel.objectPosition } as CSSProperties}
+      url={panel.imageUrl}
     />
   );
 }
 
-function PanelBody({ index, panel }: { index: number; panel: ImageAccordionRenderPanel }) {
+function PanelBody({ index, panel, manifest }: { index: number; panel: ImageAccordionRenderPanel; manifest: AssetManifest | null | undefined }) {
   return (
     <Card className="relative h-full min-h-[22rem] overflow-hidden border-0 bg-card shadow-none max-md:min-h-64" data-accordion-card>
       <CardContent className="p-0">
-        <PanelImage index={index} panel={panel} />
+        <PanelImage index={index} manifest={manifest} panel={panel} />
         <span
           aria-hidden="true"
           className="absolute inset-0 bg-[var(--accordion-overlay-color,rgba(0,0,0,0.55))] opacity-[var(--accordion-overlay-opacity,1)]"
@@ -120,13 +130,13 @@ function PanelBody({ index, panel }: { index: number; panel: ImageAccordionRende
   );
 }
 
-function ImageAccordionPanel({ index, panel }: { index: number; panel: ImageAccordionRenderPanel }) {
+function ImageAccordionPanel({ index, panel, manifest }: { index: number; panel: ImageAccordionRenderPanel; manifest: AssetManifest | null | undefined }) {
   const style = panel.panelStyle as CSSProperties;
 
   if (panel.href) {
     return (
       <a className={panelClass} data-accordion-item data-accordion-panel={index} href={panel.href} style={style}>
-        <PanelBody index={index} panel={panel} />
+        <PanelBody index={index} manifest={manifest} panel={panel} />
       </a>
     );
   }
@@ -141,7 +151,7 @@ function ImageAccordionPanel({ index, panel }: { index: number; panel: ImageAcco
       style={style}
       tabIndex={0}
     >
-      <PanelBody index={index} panel={panel} />
+      <PanelBody index={index} manifest={manifest} panel={panel} />
     </div>
   );
 }
@@ -149,6 +159,7 @@ function ImageAccordionPanel({ index, panel }: { index: number; panel: ImageAcco
 function ImageAccordionBlock({
   editableHeadingPath,
   heading,
+  manifest,
   mobileFallback,
   panels,
   rootStyle,
@@ -164,7 +175,7 @@ function ImageAccordionBlock({
         style={rootStyle as CSSProperties}
       >
         {panels.map((panel, index) => (
-          <ImageAccordionPanel index={index} key={`${panel.title || 'panel'}-${index}`} panel={panel} />
+          <ImageAccordionPanel index={index} key={`${panel.title || 'panel'}-${index}`} manifest={manifest} panel={panel} />
         ))}
         {showEmptyPlaceholder && panels.length === 0 ? (
           <Card className="w-full border-dashed shadow-none" data-accordion-empty>

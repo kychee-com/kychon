@@ -53,9 +53,15 @@ const cleanupAssets = copyAssets(join(ROOT, config.assetsDir), join(ROOT, "publi
 
 const previousProject = process.env.KYCHON_PROJECT;
 const previousPublicUrl = process.env.KYCHON_PUBLIC_URL;
+const previousRun402ProjectId = process.env.RUN402_PROJECT_ID;
 const demoPortal = findDemoPortalByDeployKey(key);
 process.env.KYCHON_PROJECT = config.kychonProject;
 process.env.KYCHON_PUBLIC_URL = demoPortal?.portalUrl ?? config.liveUrl;
+// @run402/astro reads RUN402_PROJECT_ID at astro:config:setup time (inside
+// the buildAstro() invocation that patchDeploy calls below). Without this
+// set per-demo, the integration would target the local active project and
+// upload all 3 demos' images to whichever project happens to be active.
+process.env.RUN402_PROJECT_ID = projectId;
 
 try {
   // Regenerate reset-demo.js from the full seed SQL (same as local deploy).
@@ -93,4 +99,6 @@ try {
   else process.env.KYCHON_PROJECT = previousProject;
   if (previousPublicUrl === undefined) delete process.env.KYCHON_PUBLIC_URL;
   else process.env.KYCHON_PUBLIC_URL = previousPublicUrl;
+  if (previousRun402ProjectId === undefined) delete process.env.RUN402_PROJECT_ID;
+  else process.env.RUN402_PROJECT_ID = previousRun402ProjectId;
 }

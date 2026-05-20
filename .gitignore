@@ -21,3 +21,4 @@ seed.sql
 .claude/launch.json
 # Claude Code git worktrees (each is a full checkout — biome must not traverse them)
 .claude/worktrees/
+node_modules/.run402/

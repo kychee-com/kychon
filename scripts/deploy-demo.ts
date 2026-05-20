@@ -229,9 +229,15 @@ export async function deployOneDemo(
   //   2) Portal.astro's bake reads the same module via `getActiveProjectSeed()`.
   const previousProject = process.env.KYCHON_PROJECT;
   const previousPublicUrl = process.env.KYCHON_PUBLIC_URL;
+  const previousRun402ProjectId = process.env.RUN402_PROJECT_ID;
   const demoPortal = findDemoPortalByDeployKey(key);
   process.env.KYCHON_PROJECT = config.kychonProject;
   process.env.KYCHON_PUBLIC_URL = demoPortal?.portalUrl || config.liveUrl;
+  // @run402/astro reads RUN402_PROJECT_ID at astro:config:setup time. For
+  // local deploys the integration would otherwise default to the SDK's
+  // active project (the wallet's keystore notion), which is wrong when
+  // building eagles assets but the active project is silver-pines.
+  process.env.RUN402_PROJECT_ID = projectId;
 
   try {
     const keys = await r.projects.keys(projectId);
@@ -287,6 +293,8 @@ export async function deployOneDemo(
     else process.env.KYCHON_PROJECT = previousProject;
     if (previousPublicUrl === undefined) delete process.env.KYCHON_PUBLIC_URL;
     else process.env.KYCHON_PUBLIC_URL = previousPublicUrl;
+    if (previousRun402ProjectId === undefined) delete process.env.RUN402_PROJECT_ID;
+    else process.env.RUN402_PROJECT_ID = previousRun402ProjectId;
   }
 }
 

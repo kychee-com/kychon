@@ -10,6 +10,7 @@ import {
   type SlideshowRenderItem,
 } from '@/components/kychon/SlideshowBlockView';
 import { collectDescendantElements } from '../dom-structure.js';
+import { getGlobalManifest } from '../kychon-image.js';
 
 interface MountedSlideshow {
   onSwap: () => void;
@@ -80,6 +81,11 @@ function readSlideshowProps(host: HTMLElement): SlideshowCarouselProps | null {
     autoMs: Math.max(0, numberOr(parsed.autoMs, 0)),
     fit: parsed.fit === 'contain' ? 'contain' : 'cover',
     items,
+    // Pulled from window.__KYCHON_ASSET_MANIFEST (populated by page-render.ts
+    // before any block hydrators run). Not serialized in data-slideshow-props
+    // to keep the per-instance JSON payload small — one global manifest
+    // shared by every block on the page.
+    manifest: getGlobalManifest(),
     manualPause: booleanOr(parsed.manualPause, false),
     pauseFocus: booleanOr(parsed.pauseFocus, true),
     pauseHover: booleanOr(parsed.pauseHover, true),

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Button, Card, CardContent } from '@/components/kychon/ui';
+import { KychonImage, type AssetManifest } from '@/lib/kychon-image';
 import { cn } from '@/lib/ui/cn';
 import { constrainedContainerClass } from '@/lib/ui/container';
 
@@ -35,6 +36,8 @@ export interface SlideshowRenderProps {
   showDots: boolean;
   showEmptyPlaceholder: boolean;
   transition: 'fade' | 'slide';
+  /** @run402/astro@0.2 manifest — per-slide variant lookup at render time. */
+  manifest?: AssetManifest | null;
 }
 
 export type SlideshowCarouselProps = Pick<
@@ -43,6 +46,7 @@ export type SlideshowCarouselProps = Pick<
   | 'autoMs'
   | 'fit'
   | 'items'
+  | 'manifest'
   | 'manualPause'
   | 'pauseFocus'
   | 'pauseHover'
@@ -68,7 +72,7 @@ function SlideshowHeading({ editableHeadingPath, heading }: Pick<SlideshowRender
   );
 }
 
-function SlideImage({ item }: { item: SlideshowRenderItem }) {
+function SlideImage({ item, manifest }: { item: SlideshowRenderItem; manifest: AssetManifest | null | undefined }) {
   if (!item.src) {
     return (
       <div
@@ -80,6 +84,24 @@ function SlideImage({ item }: { item: SlideshowRenderItem }) {
     );
   }
 
+  // Manifest hit → KychonImage emits `<picture>` with the v1.49 3-width
+  // WebP ladder. The legacy avifSrc/webpSrc pathway is kept as a fallback
+  // for slides where the seed pre-baked single-URL variant sources.
+  const objectStyle = { objectFit: item.fit, objectPosition: item.objectPosition };
+  if (manifest) {
+    return (
+      <KychonImage
+        alt={item.alt}
+        className="block h-full w-full"
+        loading={item.loading}
+        manifest={manifest}
+        priority={item.fetchPriority === 'high'}
+        sizes="100vw"
+        url={item.src}
+      />
+    );
+  }
+
   const image = (
     <img
       alt={item.alt}
@@ -87,7 +109,7 @@ function SlideImage({ item }: { item: SlideshowRenderItem }) {
       fetchPriority={item.fetchPriority}
       loading={item.loading}
       src={item.src}
-      style={{ objectFit: item.fit, objectPosition: item.objectPosition }}
+      style={objectStyle}
     />
   );
 
@@ -106,16 +128,18 @@ function SlideshowSlide({
   active,
   index,
   item,
+  manifest,
   total,
   transition,
 }: {
   active: boolean;
   index: number;
   item: SlideshowRenderItem;
+  manifest: AssetManifest | null | undefined;
   total: number;
   transition: SlideshowRenderProps['transition'];
 }) {
-  const image = <SlideImage item={item} />;
+  const image = <SlideImage item={item} manifest={manifest} />;
   const linked = item.href ? (
     <a className="block h-full w-full" href={item.href}>
       {image}
@@ -237,6 +261,7 @@ export function SlideshowCarousel({
   autoMs,
   fit,
   items,
+  manifest,
   manualPause,
   pauseFocus,
   pauseHover,
@@ -349,6 +374,7 @@ export function SlideshowCarousel({
             index={index}
             item={item}
             key={`${item.src}-${index}`}
+            manifest={manifest}
             total={items.length}
             transition={transition}
           />
@@ -379,6 +405,7 @@ function SlideshowBlock({
   fit,
   heading,
   items,
+  manifest,
   manualPause,
   pauseFocus,
   pauseHover,
@@ -403,11 +430,16 @@ function SlideshowBlock({
     );
   }
 
+  // Manifest is intentionally NOT serialized into `data-slideshow-props` —
+  // the client-side hydrator (`src/lib/blocks/slideshow.ts:readSlideshowProps`)
+  // pulls it from `window.__KYCHON_ASSET_MANIFEST` instead, so we don't bloat
+  // the per-slideshow JSON payload with the full manifest object.
   const carouselProps: SlideshowCarouselProps = {
     ariaLabel,
     autoMs,
     fit,
     items,
+    manifest,
     manualPause,
     pauseFocus,
     pauseHover,
@@ -416,13 +448,14 @@ function SlideshowBlock({
     showDots,
     transition,
   };
+  const serializedCarouselProps = { ...carouselProps, manifest: undefined };
 
   return (
     <div className={constrainedContainerClass} data-layout-container>
       <SlideshowHeading editableHeadingPath={editableHeadingPath} heading={heading} />
       <Card className="overflow-hidden p-0 shadow-none" data-slideshow-card>
         <CardContent className="p-0">
-          <div data-block-hydrate="slideshow" data-slideshow-props={JSON.stringify(carouselProps)}>
+          <div data-block-hydrate="slideshow" data-slideshow-props={JSON.stringify(serializedCarouselProps)}>
             <SlideshowCarousel {...carouselProps} />
           </div>
         </CardContent>
