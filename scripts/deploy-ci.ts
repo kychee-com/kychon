@@ -86,6 +86,12 @@ try {
     subdomain: config.subdomain,
     excludeFunctions: ["check-expirations"],
     extraFunction: config.resetDemoFile,
+    // Mirror the deploy-demo.ts pattern: explicit opt-in to continue past
+    // confirmation-required platform warnings (e.g. DESTRUCTIVE_SITE_BULK_REMOVAL
+    // when the JS chunk-hash cascade renames >10% of site paths after a
+    // shared-import change like adding kychon-image.ts to 40+ chunks).
+    // Default false; CI workflow sets RUN402_ALLOW_WARNINGS=true to confirm.
+    allowWarnings: process.env.RUN402_ALLOW_WARNINGS === "true",
   });
 
   const elapsed = ((result.elapsedMs ?? 0) / 1000).toFixed(1);
