@@ -13,7 +13,14 @@ global.localStorage = {
     delete this._data[k];
   },
 };
-global.document = { documentElement: { dir: 'ltr' }, head: { children: [] }, body: { children: [] } };
+global.document = {
+  documentElement: { dir: 'ltr' },
+  head: { children: [] },
+  body: { children: [] },
+  // Simplistic cookie jar — real browsers concat writes, but for these tests
+  // we only need to read back the last setLanguage() write.
+  cookie: '',
+};
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -26,6 +33,7 @@ describe('i18n.js', () => {
     vi.resetModules();
     mockFetch.mockReset();
     localStorage._data = {};
+    document.cookie = '';
 
     // Default mock: brand.json returns en
     mockFetch.mockImplementation((url) => {
@@ -117,6 +125,19 @@ describe('i18n.js', () => {
   it('persists language choice in localStorage', async () => {
     await setLanguage('pt');
     expect(localStorage.getItem('wl_locale')).toBe('pt');
+  });
+
+  it('writes the language to a wl_locale cookie so the Run402 gateway can negotiate locale', async () => {
+    await setLanguage('pt');
+    // The gateway's `detect: ['cookie:wl_locale', 'accept-language']` reads
+    // this exact cookie name; the localStorage write above is for client-side
+    // hydration only and is invisible to the server.
+    expect(document.cookie).toContain('wl_locale=pt');
+    expect(document.cookie).toContain('path=/');
+    expect(document.cookie).toContain('samesite=lax');
+    // 1 year in seconds — long enough that a returning visitor still hits the
+    // gateway's cookie path rather than falling back to Accept-Language.
+    expect(document.cookie).toContain('max-age=31536000');
   });
 
   it('reports current locale', async () => {

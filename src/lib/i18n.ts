@@ -121,6 +121,16 @@ export async function loadLocale(lang?: string | null, defaultLang?: string): Pr
 
 export function setLanguage(lang: string): Promise<Record<string, any>> {
   localStorage.setItem('wl_locale', lang);
+  // The Run402 gateway negotiates locale per request when the release declares
+  // `spec.i18n` (see scripts/_lib.ts buildI18nSpec). Cookie detection runs in
+  // the order configured by `detect: ['cookie:wl_locale', 'accept-language']`,
+  // so this cookie wins over Accept-Language. localStorage stays the
+  // source-of-truth for the SSG client today; the cookie is what server-side
+  // negotiation will read once a routed HTTP render path exists. samesite=lax
+  // so the cookie travels on top-level navigation but not cross-site embeds.
+  if (typeof document !== 'undefined') {
+    document.cookie = `wl_locale=${encodeURIComponent(lang)}; path=/; max-age=31536000; samesite=lax`;
+  }
   return loadLocale(lang);
 }
 
