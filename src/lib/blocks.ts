@@ -26,6 +26,7 @@ import { constrainedContainerClass } from './ui/container.js';
 import { richTextContentClass } from './ui/rich-text.js';
 import { sanitizeRichHtmlServer } from './sanitize-html.js';
 import { renderStaticLinkButtonHtml } from './static-link-button.js';
+import { kychonImageHtml, lookupAssetRef, pickSingleVariantUrl } from './kychon-image.js';
 import {
   adminDragHandleHtml,
   adminNavEditButtonHtml,
@@ -72,6 +73,18 @@ export interface BlockRenderContext {
   brandTextShort?: string;
   brandIconUrl?: string;
   brandWordmarkUrl?: string;
+  /**
+   * Resolved asset manifest from @run402/astro@0.2's assetsDir build step.
+   * When set, image emitters (hero foreground, promo_cards, slideshow, etc.)
+   * look up `/assets/X.jpg` URLs and emit `<picture>` markup with v1.49
+   * variants (320/800/1920 WebP ladder). Null/undefined when (a) the build
+   * had no assetsDir configured (non-demo builds), (b) the renderer is
+   * baking chrome at build time (chrome is logos sub-320 — single `<img>`
+   * either way), or (c) the runtime hydrate's manifest fetch hasn't
+   * completed yet. Misses fall back to a plain `<img>` referencing the
+   * original URL.
+   */
+  manifest?: import('./kychon-image').AssetManifest | null;
 }
 
 export interface BlockType {
@@ -567,13 +580,21 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const imgAttr = sid != null && ctx.admin ? ` data-editable-image="sections.${sid}.config.bg_image"` : '';
-  const safeBgImage = cfg.bg_image ? safeCssUrl(cfg.bg_image) : '';
-  const styleAttr = safeBgImage ? ` style="background-image:url('${safeBgImage}')"` : '';
+  // Manifest hit → swap the background-image URL to a CDN variant. CSS
+  // `background-image: url(...)` can't host a responsive ladder, so we pick
+  // the medium (800w) variant as the single source — small enough to keep
+  // first-paint fast, large enough to avoid visible blur at typical hero
+  // widths. Miss → keep the original `/assets/X.jpg` URL (admin uploads or
+  // dev builds without an assetsDir, anything not in the manifest).
+  const bgRef = cfg.bg_image ? lookupAssetRef(cfg.bg_image, ctx.manifest) : null;
+  const rawBg = bgRef ? pickSingleVariantUrl(bgRef) : (cfg.bg_image as string | undefined);
+  const safeBg = rawBg ? safeCssUrl(rawBg) : '';
+  const styleAttr = safeBg ? ` style="background-image:url('${safeBg}')"` : '';
   const adminCtrls = sid != null && ctx.admin
     ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-  const bgImageAttr = safeBgImage ? ' data-hero-bg-image="true"' : '';
+  const bgImageAttr = safeBg ? ' data-hero-bg-image="true"' : '';
   return `<section data-section data-hero data-hero-mode="background"${bgImageAttr}${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
 }
 
@@ -604,10 +625,31 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   const imgAttr = sid != null && ctx.admin
     ? ` data-editable-image="sections.${sid}.config.image_url"`
     : '';
+  // Hero foreground is the largest single image per page — biggest win from
+  // the v1.49 variant ladder. `kychonImageHtml` emits `<picture>` with the
+  // WebP srcset when the manifest carries variants for this URL, and
+  // gracefully falls back to a plain `<img>` when not (admin-uploaded photos
+  // post-deploy, dev builds without an assetsDir, the build-time chrome bake
+  // running before the manifest fetch in page-render.ts).
   const pictureMarkup = imageUrl
-    ? `<picture data-hero-picture data-hero-aspect="${escAttr(aspect)}"${imgAttr}><img src="${escAttr(imageUrl)}" alt="${escAttr(imageAlt)}" loading="eager" decoding="async" /></picture>`
+    ? kychonImageHtml(
+        imageUrl,
+        imageAlt,
+        {
+          sizes: '100vw',
+          priority: true,
+          imgAttrs: ' decoding="async"',
+          pictureAttrs: ` data-hero-picture data-hero-aspect="${escAttr(aspect)}"${imgAttr}`,
+        },
+        ctx.manifest,
+      )
     : `<picture data-hero-picture data-hero-aspect="${escAttr(aspect)}"${imgAttr}></picture>`;
 
+  // Logo overlay — small (max 120px tall), explicitly NOT a candidate for
+  // variants (below the 320px encoder threshold). Keep the existing single
+  // <img> emission; running it through kychonImageHtml would still emit a
+  // single <img> for sub-320 sources, but the explicit max-height inline
+  // style needs the imgAttrs splice which would be a bigger refactor.
   const logoMarkup = cfg.logo_overlay_url
     ? `<div data-hero-logo-overlay data-hero-position="${escAttr(logoPosition)}"><img src="${escAttr(cfg.logo_overlay_url)}" alt="" style="max-height:${escAttr(logoMaxHeight)}" /></div>`
     : '';
@@ -1402,6 +1444,7 @@ const PAGE_BANNER: BlockType = {
         ? `sections.${section.id}.config.image_url`
         : undefined,
       imageUrl: safeImageUrl,
+      manifest: ctx.manifest,
       overlayColor: safeOverlay,
     });
     return adminWrap(section, ctx, inner, 'w-full p-0');
@@ -1456,6 +1499,7 @@ const PROMO_CARDS: BlockType = {
       editablePath(path) {
         return editablePath(section, path, ctx);
       },
+      manifest: ctx.manifest,
       sanitizeCssValue(value) {
         return safeCssValue(value);
       },
@@ -1533,6 +1577,7 @@ const IMAGE_ACCORDION: BlockType = {
     const inner = renderImageAccordionBlockHtml({
       editableHeadingPath: editablePath(section, 'heading', ctx),
       heading: cfg.heading ? String(cfg.heading) : '',
+      manifest: ctx.manifest,
       mobileFallback,
       panels: renderPanels,
       rootStyle,
@@ -1775,6 +1820,7 @@ const SLIDESHOW: BlockType = {
       fit,
       heading: cfg.heading ? String(cfg.heading) : '',
       items: renderItems,
+      manifest: ctx.manifest,
       manualPause: manualPause === 'true',
       pauseFocus: pauseFocus === 'true',
       pauseHover: pauseHover === 'true',

@@ -21,6 +21,7 @@ import {
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kychon/ui';
 import { canonicalizeKychonHref } from '@/lib/clean-routes';
+import { KychonImage, lookupAssetRef, pickSingleVariantUrl, type AssetManifest } from '@/lib/kychon-image';
 import { cn } from '@/lib/ui/cn';
 
 type MarketingBlockKind = 'features' | 'cta' | 'stats' | 'testimonials' | 'faq';
@@ -32,6 +33,9 @@ interface MarketingRenderOptions {
 interface PromoCardsRenderOptions extends MarketingRenderOptions {
   editableImagePath?: (index: number) => string | undefined;
   sanitizeCssValue?: (value: unknown) => string;
+  /** @run402/astro@0.2 manifest — when present, `<picture>` markup is
+   *  emitted instead of `<img>` for each card with a v1.49 variant entry. */
+  manifest?: AssetManifest | null;
 }
 
 interface TaglineStripConfig {
@@ -52,6 +56,9 @@ interface PageBannerRenderOptions {
   imageEditablePath?: string;
   imageUrl?: string;
   overlayColor?: string;
+  /** @run402/astro@0.2 manifest — when set and the imageUrl resolves to a
+   *  variant, the background-image URL is swapped to the medium CDN URL. */
+  manifest?: AssetManifest | null;
 }
 
 interface FeatureItem {
@@ -374,11 +381,13 @@ function PromoCardsBlock({ config, options }: { config: Record<string, unknown>;
                   {...editableImageAttrs(index, options)}
                 >
                   {imageSrc && (
-                    <img
+                    <KychonImage
                       alt={imageAlt}
                       className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                       loading="lazy"
-                      src={imageSrc}
+                      manifest={options.manifest}
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      url={imageSrc}
                     />
                   )}
                   {overlayColor && (
@@ -441,7 +450,13 @@ function TaglineStripBlock({ config, options }: { config: TaglineStripConfig; op
 
 function PageBannerBlock({ config, options }: { config: PageBannerConfig; options: PageBannerRenderOptions }) {
   const imageAlt = String(config.image_alt || '').trim();
-  const style = options.imageUrl ? { backgroundImage: `url(${options.imageUrl})` } : undefined;
+  // Manifest hit → swap the CSS background-image URL to a CDN variant
+  // (single URL — no responsive ladder possible inside background-image).
+  // Miss → fall through to the raw /assets/X.jpg URL the seed config
+  // specified, which copyAssets() still copies into dist/assets/.
+  const bgRef = options.imageUrl ? lookupAssetRef(options.imageUrl, options.manifest) : null;
+  const resolvedBg = bgRef ? pickSingleVariantUrl(bgRef) : options.imageUrl;
+  const style = resolvedBg ? { backgroundImage: `url(${resolvedBg})` } : undefined;
 
   return (
     <div

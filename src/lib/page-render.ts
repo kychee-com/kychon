@@ -24,9 +24,41 @@ import {
   findDirectElementChild,
   nearestElementWithAttribute,
 } from './dom-structure';
+import { type AssetManifest, setGlobalManifest } from './kychon-image';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
+const ASSET_MANIFEST_URL = '/_assets-manifest.json';
+
+// Module-scope manifest cache. Fetched once on first hydrate, reused across
+// every renderBlock call (chrome re-render after auth, main zone, dynamic
+// hydrators). 404s and JSON parse failures resolve to null — emitters fall
+// back to plain `<img>` for everything, which is the same behavior as a
+// build without an `assetsDir` configured.
+let manifestPromise: Promise<AssetManifest | null> | null = null;
+let cachedManifest: AssetManifest | null = null;
+
+function fetchManifest(): Promise<AssetManifest | null> {
+  if (manifestPromise) return manifestPromise;
+  manifestPromise = (async () => {
+    try {
+      const res = await fetch(ASSET_MANIFEST_URL, { cache: 'force-cache' });
+      if (!res.ok) return null;
+      const data = (await res.json()) as unknown;
+      if (!data || typeof data !== 'object' || (data as { version?: unknown }).version !== 1) return null;
+      const manifest = data as AssetManifest;
+      cachedManifest = manifest;
+      // Mirror into `window.__KYCHON_ASSET_MANIFEST` so client-mounted block
+      // hydrators (e.g. SlideshowCarousel) can pick it up without threading
+      // the manifest through their per-instance data-* JSON props.
+      setGlobalManifest(manifest);
+      return manifest;
+    } catch {
+      return null;
+    }
+  })();
+  return manifestPromise;
+}
 
 interface CachedSections {
   data: Section[];
@@ -80,6 +112,11 @@ function getRenderContext(): BlockRenderContext {
     brandTextShort: siteConfig.brand_text_short ? String(siteConfig.brand_text_short) : undefined,
     brandIconUrl: siteConfig.brand_icon_url ? String(siteConfig.brand_icon_url) : undefined,
     brandWordmarkUrl: siteConfig.brand_wordmark_url ? String(siteConfig.brand_wordmark_url) : undefined,
+    // Populated by `fetchManifest()` once on first hydrate; null until then
+    // (image emitters fall through to plain `<img>` for the very first render
+    // pass). After the fetch resolves, every subsequent renderBlock call sees
+    // the manifest and emits `<picture>` with v1.49 variants.
+    manifest: cachedManifest,
   };
 }
 
@@ -243,6 +280,13 @@ export function filterSectionsForPageSlug(sections: Section[], slug: string): Se
 
 export async function hydratePage(slug: string): Promise<void> {
   await ready;
+  // Kick off the manifest fetch as early as possible. The cached-pass render
+  // below may run with `ctx.manifest === null` if the fetch hasn't resolved
+  // (first paint without variants — acceptable degradation, the network race
+  // is between the manifest JSON fetch and localStorage cache hydrate). The
+  // subsequent `fetchAndUpdate` always sees the resolved manifest because we
+  // await it before re-rendering zones.
+  void fetchManifest();
   const ctx = getRenderContext();
 
   // Cached pass — instant if we have data.
@@ -258,40 +302,59 @@ export async function hydratePage(slug: string): Promise<void> {
 
   if (cached && cacheIsFresh(slug)) {
     // Background revalidate without blocking
-    void fetchAndUpdate(slug, ctx, cached);
+    void fetchAndUpdate(slug, cached);
     return;
   }
 
-  await fetchAndUpdate(slug, ctx, cached);
+  await fetchAndUpdate(slug, cached);
 }
 
 async function fetchAndUpdate(
   slug: string,
-  ctx: BlockRenderContext,
   cached: Section[] | null,
 ): Promise<void> {
-  let fresh: Section[] = [];
-  try {
-    const query = 'sections?visible=eq.true&order=zone.asc,position.asc';
-    fresh = filterSectionsForPageSlug(await get(query), slug);
-  } catch (e) {
-    console.warn('Failed to fetch sections:', e);
-    return;
-  }
+  // Await the manifest before issuing fresh renders. Both fetches run in
+  // parallel (fetchManifest() was kicked off at hydratePage's entry), so
+  // the practical wait is the slower of the two — typically the sections
+  // PostgREST query dominates.
+  const [_, fresh] = await Promise.all([
+    fetchManifest(),
+    (async () => {
+      try {
+        const query = 'sections?visible=eq.true&order=zone.asc,position.asc';
+        return filterSectionsForPageSlug(await get(query), slug);
+      } catch (e) {
+        console.warn('Failed to fetch sections:', e);
+        return null;
+      }
+    })(),
+  ]);
+  if (!fresh) return;
+
+  // Refresh the ctx so it picks up the just-fetched manifest. Sections
+  // changes (admin uploads, role changes) are picked up too.
+  const refreshedCtx = getRenderContext();
 
   writeCache(slug, fresh);
   if (cached && JSON.stringify(cached) === JSON.stringify(fresh)) {
-    // No diff — already rendered. Still ensure dynamic blocks hydrate at least once.
-    await hydrateDynamic(fresh, ctx);
+    // No section diff — re-render anyway because the manifest may have
+    // landed since the cached pass painted `<img>` instead of `<picture>`.
+    // Skipping this here means first-hydrate users without variants until
+    // they navigate away and back.
+    renderZoneInto('header', fresh, refreshedCtx);
+    renderZoneInto('footer', fresh, refreshedCtx);
+    renderZoneInto('main', fresh, refreshedCtx);
+    warmHeroImageCache(fresh);
+    await hydrateDynamic(fresh, refreshedCtx);
     rebindAdminEditing();
     return;
   }
 
-  renderZoneInto('header', fresh, ctx);
-  renderZoneInto('footer', fresh, ctx);
-  renderZoneInto('main', fresh, ctx);
+  renderZoneInto('header', fresh, refreshedCtx);
+  renderZoneInto('footer', fresh, refreshedCtx);
+  renderZoneInto('main', fresh, refreshedCtx);
   warmHeroImageCache(fresh);
-  await hydrateDynamic(fresh, ctx);
+  await hydrateDynamic(fresh, refreshedCtx);
   rebindAdminEditing();
 }
 
