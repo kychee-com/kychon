@@ -136,27 +136,17 @@ function localDemoAssetsPlugin() {
   };
 }
 
-// `@run402/astro@0.2.0` is wired through the rest of this codebase but
-// NOT yet registered as an Astro integration. The consumer-side pieces are
-// ready (blocks.ts consults the manifest via `kychonImageHtml`,
-// page-render.ts fetches `/_assets-manifest.json` at runtime, react helpers
-// use `<KychonImage>`); flipping `enableRun402Integration` to `true` once
-// the upstream platform bugs ship will start the variant pipeline without
-// any further consumer-side changes.
-//
-// Blocking on:
-//   - kychee-com/run402-private#407 — buildStart returns early on empty
-//     <Image> template discovery, never reaching the assetsDir walk.
-//     Worked around in this repo via `src/components/_Run402BuildStartTrigger.astro`.
-//   - kychee-com/run402-private#408 — uploader races on BASE_RELEASE_CONFLICT
-//     when concurrent r.assets.put plans against the same base release,
-//     conflict code not in RETRYABLE_CODES, every multi-file build fails.
-//
-// Once both fix releases ship (and @run402/astro is bumped to the patched
-// minor), flip the flag below to enable variants.
-const enableRun402Integration = false;
-const useRun402Integration =
-  enableRun402Integration && Boolean(integrationAssetsDir && process.env.RUN402_PROJECT_ID);
+// `@run402/astro@0.2.1` is active. When KYCHON_PROJECT selects a demo and
+// RUN402_PROJECT_ID is set (both true during deploy via deploy-{ci,demo}.ts),
+// every image under that demo's assetsDir gets uploaded once to the project's
+// `astro/` asset prefix (CAS-deduped at the gateway) and a JSON manifest is
+// written to dist/_assets-manifest.json. Consumer side: blocks.ts consults
+// the manifest via `kychonImageHtml`, page-render.ts fetches
+// `/_assets-manifest.json` at runtime, react helpers use `<KychonImage>`.
+// 0.2.1 ships fixes for kychee-com/run402-private#407 (buildStart no longer
+// early-returns on empty <Image> discovery) and #408 (BASE_RELEASE_CONFLICT
+// added to RETRYABLE_CODES; concurrent puts converge).
+const useRun402Integration = Boolean(integrationAssetsDir && process.env.RUN402_PROJECT_ID);
 
 export default defineConfig({
   output: 'static',
@@ -164,8 +154,6 @@ export default defineConfig({
     enabled: false,
   },
   integrations: [
-    // Run402 image variants. Held inactive pending kychee-com/run402-private#407+#408 —
-    // see the multi-line comment immediately above for the activation flow.
     ...(useRun402Integration ? [run402({ assetsDir: integrationAssetsDir })] : []),
     react(),
   ],
