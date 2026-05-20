@@ -46,6 +46,13 @@ env:
   SILVER_PINES_ANON_KEY: ${{ vars.SILVER_PINES_ANON_KEY }}
   BARRIO_PROJECT_ID: ${{ vars.BARRIO_PROJECT_ID }}
   BARRIO_ANON_KEY: ${{ vars.BARRIO_ANON_KEY }}
+  # Acknowledge platform-side confirmation-required warnings. The chunk-hash
+  # cascade from any cross-cutting code change (e.g. adding kychon-image.ts
+  # as a shared import across 40+ JS chunks) renames enough site paths to
+  # trigger DESTRUCTIVE_SITE_BULK_REMOVAL (>10% removal threshold). Same
+  # mechanism deploy-demo.ts uses for local-laptop deploys. Set to "" or
+  # remove to surface warnings as blocking errors again.
+  RUN402_ALLOW_WARNINGS: "true"
 
 jobs:
   deploy:
