@@ -10,6 +10,8 @@ import AuthModal from '../components/AuthModal.astro';
 import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
+import AdminBar from '../components/AdminBar.astro';
+import MediaPickerHost from '../components/MediaPickerHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
 import { resolveActiveProjectSeed } from '../seeds';
@@ -21,9 +23,16 @@ import { constrainedContainerClass } from '../lib/ui/container';
 interface Props {
   title: string;
   robots?: string;
+  /**
+   * Per-page `<head>` injection point. Used by `index.astro` to splice in
+   * a hero preload `<link>` derived from the bake's manifest. Trusted HTML
+   * (we control all callers); rendered via `set:html` after the chrome's
+   * baked head tags.
+   */
+  extraHead?: string;
 }
 
-const { title, robots } = Astro.props;
+const { title, robots, extraHead } = Astro.props;
 
 // --- Build-time bake of chrome zones ---
 // The bake can come from a typed seed, an external port snapshot, or a neutral
@@ -46,6 +55,10 @@ const cspValue = buildCspValue();
   {chrome.isSvgFavicon
     ? <link rel="icon" type="image/svg+xml" href={chrome.faviconUrl} />
     : <link rel="icon" href={chrome.faviconUrl} />}
+  {chrome.cdnOrigin && (
+    <link rel="preconnect" href={chrome.cdnOrigin} crossorigin />
+  )}
+  {extraHead && <Fragment set:html={extraHead} />}
   {chrome.fontHead && <Fragment set:html={chrome.fontHead} />}
   {chrome.customCss && <style is:inline set:html={chrome.customCss}></style>}
   <style id="wl-theme-vars" is:inline>:root {}</style>
@@ -73,6 +86,8 @@ const cspValue = buildCspValue();
     class="absolute -top-full left-4 z-[1000] rounded-[var(--radius)] bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-white no-underline transition-[top] duration-150 focus:top-3 focus:text-white"
   >Skip to main content</a>
   {renderDemoBanner && <DemoBanner />}
+  <AdminBar />
+  <MediaPickerHost />
   <div class="flex min-h-screen flex-col">
     <nav id="zone-header" data-nav-shell data-zone="header" aria-label="Primary navigation" transition:persist>
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>

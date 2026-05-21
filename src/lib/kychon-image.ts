@@ -27,6 +27,7 @@
  * of truth without import-order surprises.
  */
 import { resolveVariants, type AssetManifest, type RenderPictureOptions } from '@run402/astro/manifest';
+import { decodeBlurhashToDataUri } from '@run402/astro/blurhash';
 import type { AssetRef, AssetVariant } from '@run402/astro';
 import * as React from 'react';
 
@@ -136,7 +137,44 @@ function buildSrcset(ref: AssetRef): string {
   return entries.join(', ');
 }
 
-export interface KychonImageHtmlOptions extends Partial<RenderPictureOptions> {
+// LQIP cache — keyed by blurhash string so repeated emissions (slideshow
+// frames, repeated hero references) share the ~600μs DCT decode. Cache is
+// process-scoped: keeps the bake hot, and runtime emits don't re-decode for
+// images already painted in this session.
+const LQIP_CACHE = new Map<string, string>();
+
+function lqipDataUri(ref: AssetRef | null | undefined): string {
+  const hash = ref?.blurhash;
+  if (!hash) return '';
+  let dataUri = LQIP_CACHE.get(hash);
+  if (dataUri === undefined) {
+    try {
+      dataUri = decodeBlurhashToDataUri(hash);
+    } catch {
+      dataUri = '';
+    }
+    LQIP_CACHE.set(hash, dataUri);
+  }
+  return dataUri;
+}
+
+function lqipStyleString(ref: AssetRef | null | undefined): string {
+  // Emits the same `background-image:url(data:…)` style the integration's
+  // own `<Image>` component produces — paints a 32×32 blurhash preview
+  // synchronously on parse, so the layout box reserved by aspect-ratio
+  // shows the blurred image instead of gray for the ~100-500ms it takes
+  // the WebP variant to arrive over the network.
+  const dataUri = lqipDataUri(ref);
+  if (!dataUri) return '';
+  return `background-image:url(${dataUri});background-size:cover;background-repeat:no-repeat;`;
+}
+
+// `Omit<…, 'pictureAttrs'>` shadows v0.2.5's `Record<string,string>` form
+// because our HTML emitter still takes a pre-built leading-space-prefixed
+// attribute string for splice into the wrapping tag — different shape, same
+// purpose. If we ever migrate to `renderPicture(ref, opts)` we can drop the
+// Omit and pass `pictureAttrs: { 'data-hero-picture': '', ... }` directly.
+export interface KychonImageHtmlOptions extends Omit<Partial<RenderPictureOptions>, 'pictureAttrs'> {
   /** Extra attributes spliced into the `<img>` element (e.g. `decoding="async"`). */
   imgAttrs?: string;
   /**
@@ -162,14 +200,35 @@ export interface KychonImageHtmlOptions extends Partial<RenderPictureOptions> {
  * building here keeps the attribute splice surface clean and tracks the
  * same matrix (HEIC → display_jpeg, sub-320 → single `<img>`).
  */
+/**
+ * admin-content-management Decision 8: detect AssetRef-shaped values stored
+ * directly in block configs. When the field is an object with `cdn_url` and
+ * `variants`, it IS the variant data — no manifest lookup needed. Strings
+ * fall through to the legacy build-time manifest lookup.
+ */
+function isAssetRefShape(value: unknown): value is AssetRef {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.cdn_url === 'string';
+}
+
 export function kychonImageHtml(
-  url: string | undefined | null,
+  source: string | AssetRef | null | undefined,
   alt: string,
   opts: KychonImageHtmlOptions = {},
   manifest: AssetManifest | null | undefined = null,
 ): string {
-  if (!url) return '';
-  const ref = lookupAssetRef(url, manifest);
+  if (!source) return '';
+  // AssetRef-shaped → use directly (no manifest, no lookup, no cache).
+  let ref: AssetRef | null = null;
+  let url: string;
+  if (isAssetRefShape(source)) {
+    ref = source;
+    url = source.cdn_url;
+  } else {
+    url = source;
+    ref = lookupAssetRef(url, manifest);
+  }
   const loadingAttr = opts.priority ? 'eager' : opts.loading ?? 'lazy';
   const sizesAttr = opts.sizes ?? '100vw';
   const classAttr = opts.class ? ` class="${escAttr(opts.class)}"` : '';
@@ -177,6 +236,14 @@ export function kychonImageHtml(
   const extraImg = opts.imgAttrs ?? '';
   const wrapAttrs = opts.pictureAttrs ?? '';
   const altAttr = escAttr(alt);
+
+  // Blurhash LQIP — when the manifest carries `blurhash`, emit a base64
+  // data URI as `background-image` on the `<img>` so the reserved layout
+  // box paints a blurred preview synchronously on parse, hiding the gray
+  // gap while the WebP variant downloads. No effect when the source has
+  // no blurhash (admin uploads pre-encoding, dev builds without assetsDir).
+  const lqipDecls = lqipStyleString(ref);
+  const styleAttr = lqipDecls ? ` style="${lqipDecls}"` : '';
 
   // Build the inner content. With variants we emit `<source>` + `<img>`;
   // without (manifest miss or sub-320 source) we emit `<img>` alone.
@@ -186,7 +253,7 @@ export function kychonImageHtml(
     const dim = ref ? formatDimAttrs(opts.width ?? ref.width_px, opts.height ?? ref.height_px) : '';
     inner =
       `<img src="${escAttr(src)}" alt="${altAttr}"${dim} ` +
-      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${extraImg} />`;
+      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${styleAttr}${extraImg} />`;
   } else {
     const fallbackSrc = pickFallbackSrc(ref);
     const srcsetAttr = buildSrcset(ref);
@@ -194,7 +261,7 @@ export function kychonImageHtml(
     inner =
       `<source type="image/webp" srcset="${srcsetAttr}" sizes="${escAttr(sizesAttr)}" />` +
       `<img src="${escAttr(fallbackSrc)}" alt="${altAttr}"${dim} ` +
-      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${extraImg} />`;
+      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${styleAttr}${extraImg} />`;
   }
 
   // Wrap when the caller asks for picture-level attributes (e.g.
@@ -220,8 +287,15 @@ function formatDimAttrs(width: number | undefined, height: number | undefined): 
 // -------------------------------------------------------------------------
 
 export interface KychonImageProps {
-  /** Source URL — typically `/assets/X.jpg` from a JSONB section config. */
-  url: string | undefined | null;
+  /**
+   * Source URL OR an embedded AssetRef from a JSONB section config.
+   * admin-content-management Decision 8: MediaPicker writes full AssetRef
+   * objects into block configs. When the value is shaped like an AssetRef
+   * (has `cdn_url` + `variants`), the renderer uses it directly without a
+   * manifest lookup. Plain string URLs still go through the build-time
+   * manifest path for legacy seeded configs.
+   */
+  url: string | AssetRef | undefined | null;
   /** Required alt text. */
   alt: string;
   /** Manifest emitted by @run402/astro at build time. Null at build-time
@@ -257,22 +331,46 @@ export interface KychonImageProps {
 export function KychonImage(props: KychonImageProps): React.ReactNode {
   const { url, alt, manifest, sizes, priority, loading, className, style, width, height, decoding, imgDataAttrs, fallback = null } = props;
   if (!url) return fallback;
-  const ref = lookupAssetRef(url, manifest);
+  // admin-content-management Decision 8: AssetRef-shaped fields are emitted
+  // directly without a manifest lookup; string URLs go through the legacy
+  // build-time manifest path.
+  let ref: AssetRef | null;
+  let resolvedUrl: string;
+  if (isAssetRefShape(url)) {
+    ref = url;
+    resolvedUrl = url.cdn_url;
+  } else {
+    resolvedUrl = url;
+    ref = lookupAssetRef(url, manifest);
+  }
   const loadingAttr = priority ? 'eager' : loading ?? 'lazy';
   const fetchPriority = priority ? ('high' as const) : undefined;
   const resolvedDecoding = decoding ?? undefined;
+  // Blurhash LQIP — matches the HTML emitter above. Merged BEFORE the
+  // caller's `style` so caller-supplied properties (e.g. objectFit) win
+  // when both set the same key; background-image and background-size are
+  // not properties callers reach for here so the merge is safe.
+  const lqip = lqipDataUri(ref);
+  const mergedStyle: React.CSSProperties | undefined = lqip
+    ? {
+        backgroundImage: `url(${lqip})`,
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        ...(style ?? {}),
+      }
+    : style;
   const imgProps = {
     alt,
     loading: loadingAttr,
     fetchPriority,
     className,
-    style,
+    style: mergedStyle,
     decoding: resolvedDecoding,
     ...(imgDataAttrs ?? {}),
   };
 
   if (!ref || !hasVariantLadder(ref)) {
-    const src = ref?.display_url ?? ref?.cdn_url ?? url;
+    const src = ref?.display_url ?? ref?.cdn_url ?? resolvedUrl;
     const w = width ?? ref?.width_px;
     const h = height ?? ref?.height_px;
     return React.createElement('img', { ...imgProps, src, width: w, height: h });

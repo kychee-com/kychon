@@ -54,7 +54,15 @@ export function buildGoogleFontsUrl(
   }
 
   if (families.length === 0) return null;
-  return `https://fonts.googleapis.com/css2?family=${families.join('&family=')}&display=swap`;
+  // `display=optional` over `swap`: when the font isn't ready within the
+  // browser's ~100ms block window, the fallback font is used PERMANENTLY for
+  // this paint — no later swap, so the page never reflows text width when
+  // the woff2 arrives mid-render. Cached / fast-network users still get the
+  // real font on first paint; slow-network users see fallback once, then the
+  // real font on subsequent visits (woff2 cached). Matches Apple's no-flicker
+  // model better than `swap`'s "first the fallback, then the real font, with
+  // a visible CLS shift" behavior.
+  return `https://fonts.googleapis.com/css2?family=${families.join('&family=')}&display=optional`;
 }
 
 export function renderFontPreconnect(): string {

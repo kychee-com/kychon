@@ -53,18 +53,18 @@ describe('buildGoogleFontsUrl', () => {
 
   it('emits heading-only URL when body is system', () => {
     const url = buildGoogleFontsUrl('Playfair Display', 'system-ui');
-    expect(url).toBe('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+    expect(url).toBe('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=optional');
   });
 
   it('emits body-only URL when heading is system', () => {
     const url = buildGoogleFontsUrl('sans-serif', 'Inter');
-    expect(url).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    expect(url).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=optional');
   });
 
   it('emits combined URL with both fonts in order (heading first)', () => {
     const url = buildGoogleFontsUrl('Cormorant Garamond', 'Inter');
     expect(url).toBe(
-      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=Inter:wght@400;600&display=swap',
+      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=Inter:wght@400;600&display=optional',
     );
   });
 
@@ -72,7 +72,7 @@ describe('buildGoogleFontsUrl', () => {
     const url = buildGoogleFontsUrl('Inter', 'Inter');
     const matches = url?.match(/family=Inter/g) ?? [];
     expect(matches).toHaveLength(1);
-    expect(url).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    expect(url).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=optional');
   });
 
   it('dedupe is case-insensitive', () => {
@@ -88,15 +88,19 @@ describe('buildGoogleFontsUrl', () => {
     expect(url).not.toContain('Source Sans');
   });
 
-  it('always appends &display=swap', () => {
+  // `display=optional` over `swap`: when the woff2 isn't ready within the
+  // browser's ~100ms block window, the fallback font is used permanently for
+  // this paint — never reflows when the real font arrives mid-render. See
+  // src/lib/theme/fonts.ts for the rationale.
+  it('always appends &display=optional', () => {
     const url = buildGoogleFontsUrl('Playfair Display', undefined);
-    expect(url?.endsWith('&display=swap')).toBe(true);
+    expect(url?.endsWith('&display=optional')).toBe(true);
   });
 
   it('strips quotes around font names before encoding', () => {
     const url = buildGoogleFontsUrl('"Playfair Display"', "'Inter'");
     expect(url).toBe(
-      'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600&display=swap',
+      'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600&display=optional',
     );
   });
 });
@@ -111,7 +115,7 @@ describe('renderFontPreconnect', () => {
 
 describe('renderFontStylesheet', () => {
   it('emits a stylesheet link tag for the given URL', () => {
-    const url = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap';
+    const url = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=optional';
     expect(renderFontStylesheet(url)).toBe(`<link rel="stylesheet" href="${url}">`);
   });
 });
@@ -129,6 +133,6 @@ describe('renderFontHead', () => {
     expect(html).toContain('rel="stylesheet"');
     expect(html).toContain('family=Bitter:wght@400;700');
     expect(html).toContain('family=IBM+Plex+Sans:wght@400;600');
-    expect(html).toContain('&display=swap');
+    expect(html).toContain('&display=optional');
   });
 });
