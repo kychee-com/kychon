@@ -11,6 +11,14 @@ export interface BakedChrome {
   faviconUrl: string;
   isSvgFavicon: boolean;
   title: string;
+  /**
+   * Origin (e.g. `https://pr-256e20.run402.com`) of the image CDN serving
+   * the manifest's variants. Null when there's no manifest. Portal.astro
+   * emits a `<link rel="preconnect">` so TCP+TLS to the CDN happens in
+   * parallel with the rest of the HTML download, saving ~50-100ms on the
+   * critical path for first-image bytes.
+   */
+  cdnOrigin: string | null;
   bakeCtx: BlockRenderContext;
 }
 
@@ -117,6 +125,84 @@ export function renderMainZone(
     .join('');
 }
 
+// Build the `<link rel="preload" as="image" imagesrcset=... fetchpriority="high">`
+// hint for the first foreground hero on a given page. Lets the browser start
+// the WebP download in parallel with HTML parsing, *before* the `<source
+// srcset>` is encountered in document order. Returns '' when there's no
+// manifest hit (no integration, admin-uploaded image not in the bake, or no
+// hero section on the page).
+export function renderHeroPreloadLink(
+  seed: ProjectSeed,
+  pageSlug: string,
+  manifest: BlockRenderContext['manifest'],
+): string {
+  if (!manifest) return '';
+  // Find the first visible foreground hero on this slug whose image lives
+  // in the asset manifest. Background-mode heroes use CSS background-image
+  // and don't benefit from `as="image"` preload the same way.
+  const sections = seed.sections as unknown as Section[];
+  const hero = sections
+    .filter(
+      (s) =>
+        s.zone === 'main' &&
+        s.scope === 'page' &&
+        s.page_slug === pageSlug &&
+        s.section_type === 'hero' &&
+        s.visible !== false,
+    )
+    .sort((a, b) => a.position - b.position)
+    .find((s) => {
+      const cfg = (s.config ?? {}) as Record<string, unknown>;
+      return cfg.mode === 'foreground' && typeof cfg.image_url === 'string';
+    });
+  if (!hero) return '';
+  const cfg = hero.config as Record<string, unknown>;
+  const url = String(cfg.image_url);
+  // Strip the `/assets/` prefix the integration walks against assetsDir.
+  const key = url.replace(/^\/assets\//, '');
+  const ref = manifest.assets?.[key];
+  if (!ref) return '';
+  // Build imagesrcset across the v1.49 ladder; href as fallback for browsers
+  // without imagesrcset support (Safari ≤14 etc.).
+  const variants = ref.variants;
+  const entries: string[] = [];
+  if (variants?.thumb) entries.push(`${variants.thumb.cdn_url} ${variants.thumb.width_px}w`);
+  if (variants?.medium) entries.push(`${variants.medium.cdn_url} ${variants.medium.width_px}w`);
+  if (variants?.large) entries.push(`${variants.large.cdn_url} ${variants.large.width_px}w`);
+  const fallbackHref =
+    variants?.large?.cdn_url ??
+    variants?.medium?.cdn_url ??
+    variants?.thumb?.cdn_url ??
+    ref.cdn_url ??
+    '';
+  if (!fallbackHref) return '';
+  const srcsetAttr = entries.length > 0 ? ` imagesrcset="${entries.join(', ')}" imagesizes="100vw"` : '';
+  const mimeAttr = entries.length > 0 ? ' type="image/webp"' : '';
+  return (
+    `<link rel="preload" as="image"${mimeAttr}` +
+    ` href="${fallbackHref}"${srcsetAttr} fetchpriority="high" />`
+  );
+}
+
+// Extract the origin of the first variant CDN URL found in the manifest.
+// Returns null for non-integration builds (no manifest) or empty manifests.
+export function cdnOriginFromManifest(
+  manifest: BlockRenderContext['manifest'],
+): string | null {
+  if (!manifest || !manifest.assets) return null;
+  for (const asset of Object.values(manifest.assets)) {
+    const url =
+      asset?.variants?.medium?.cdn_url ??
+      asset?.variants?.large?.cdn_url ??
+      asset?.variants?.thumb?.cdn_url ??
+      asset?.cdn_url;
+    if (!url) continue;
+    const match = url.match(/^(https?:\/\/[^/]+)/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
   const bakeCtx = makeBakeContext(seed);
   const theme = themeFromSeed(seed);
@@ -135,6 +221,7 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     faviconUrl,
     isSvgFavicon: isSvgFaviconUrl(faviconUrl),
     title: getBrandedTitle(pageTitle, bakeCtx.siteName || bakeCtx.brandText || ''),
+    cdnOrigin: cdnOriginFromManifest(bakeCtx.manifest),
     bakeCtx,
   };
 }
