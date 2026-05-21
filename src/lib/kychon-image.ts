@@ -172,14 +172,20 @@ function lqipStyleString(ref: AssetRef | null | undefined): string {
 /**
  * Splice helper for `<img>` tags in chrome blocks (brand_header, etc.) that
  * don't go through `kychonImageHtml`. Returns a leading-space-prefixed
- * attribute string carrying `width="..." height="..." style="..."` when the
- * manifest has the image, or '' on miss. Use exactly once per `<img>`:
+ * `width="..." height="..."` attribute string when the manifest carries
+ * intrinsic dimensions, or '' on miss. Use exactly once per `<img>`:
  *
  *   `<img data-brand-icon src="..."${kychonChromeImgAttrs('/assets/logo.png', ctx.manifest)} alt="...">`
  *
- * Closes the gap between chrome (sub-320 logos that bypass `kychonImageHtml`)
- * and main-zone images: same LQIP background, same intrinsic dimensions, no
- * CLS when the file arrives.
+ * We deliberately DON'T emit a blurhash LQIP here. Chrome images are
+ * predominantly logos (`brand_icon_url`, `brand_wordmark_url`) which are
+ * almost always PNGs with transparent backgrounds — the integration's
+ * blurhash decoder encodes transparency against an opaque (often black)
+ * backdrop, so the LQIP renders as a black square that flashes before
+ * the real logo paints. The width/height attrs alone close the CLS gap
+ * (the nav row reserves the right box at first paint); for the brief
+ * load window the user sees the page background, which is far less
+ * jarring than a black flash.
  */
 export function kychonChromeImgAttrs(
   url: string | undefined | null,
@@ -187,13 +193,11 @@ export function kychonChromeImgAttrs(
 ): string {
   const ref = lookupAssetRef(url, manifest);
   if (!ref) return '';
-  const lqipDecls = lqipStyleString(ref);
-  const styleAttr = lqipDecls ? ` style="${lqipDecls}"` : '';
   const w = ref.width_px;
   const h = ref.height_px;
   const widthAttr = typeof w === 'number' && Number.isFinite(w) ? ` width="${w}"` : '';
   const heightAttr = typeof h === 'number' && Number.isFinite(h) ? ` height="${h}"` : '';
-  return `${widthAttr}${heightAttr}${styleAttr}`;
+  return `${widthAttr}${heightAttr}`;
 }
 
 // `Omit<…, 'pictureAttrs'>` shadows v0.2.5's `Record<string,string>` form
@@ -244,38 +248,48 @@ export function kychonImageHtml(
   const altAttr = escAttr(alt);
 
   // Blurhash LQIP — when the manifest carries `blurhash`, emit a base64
-  // data URI as `background-image` on the `<img>` so the reserved layout
-  // box paints a blurred preview synchronously on parse, hiding the gray
-  // gap while the WebP variant downloads. No effect when the source has
-  // no blurhash (admin uploads pre-encoding, dev builds without assetsDir).
+  // data URI as `background-image`. Placement matters: when we wrap in
+  // `<picture>`, the LQIP MUST go on the wrapper, not the `<img>`. The
+  // hero CSS animates `<img>` from `opacity:0 → 1`; if the LQIP were on
+  // the same `<img>`, opacity:0 would hide the LQIP too, and the user
+  // would see gray during the fade. With LQIP on `<picture>` the fade
+  // reveals the blurred preview underneath, giving the smooth
+  // blurhash→WebP transition. For the single-`<img>` fallback path
+  // (manifest miss, sub-320 source) the LQIP rides on the `<img>` since
+  // there's no wrapper.
   const lqipDecls = lqipStyleString(ref);
-  const styleAttr = lqipDecls ? ` style="${lqipDecls}"` : '';
+  const pictureStyleAttr = lqipDecls ? ` style="${lqipDecls}"` : '';
 
   // Build the inner content. With variants we emit `<source>` + `<img>`;
   // without (manifest miss or sub-320 source) we emit `<img>` alone.
   let inner: string;
+  let willWrap: boolean;
   if (!ref || !hasVariantLadder(ref)) {
     const src = ref?.display_url ?? ref?.cdn_url ?? url;
     const dim = ref ? formatDimAttrs(opts.width ?? ref.width_px, opts.height ?? ref.height_px) : '';
+    willWrap = Boolean(wrapAttrs);
+    // LQIP on `<img>` only when there's no wrapper to host it.
+    const imgStyleAttr = !willWrap ? pictureStyleAttr : '';
     inner =
       `<img src="${escAttr(src)}" alt="${altAttr}"${dim} ` +
-      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${styleAttr}${extraImg} />`;
+      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${imgStyleAttr}${extraImg} />`;
   } else {
+    willWrap = true; // `<source>` requires `<picture>`.
     const fallbackSrc = pickFallbackSrc(ref);
     const srcsetAttr = buildSrcset(ref);
     const dim = formatDimAttrs(opts.width ?? ref.width_px, opts.height ?? ref.height_px);
     inner =
       `<source type="image/webp" srcset="${srcsetAttr}" sizes="${escAttr(sizesAttr)}" />` +
       `<img src="${escAttr(fallbackSrc)}" alt="${altAttr}"${dim} ` +
-      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${styleAttr}${extraImg} />`;
+      `loading="${loadingAttr}"${fetchPriorityAttr}${classAttr}${extraImg} />`;
   }
 
   // Wrap when the caller asks for picture-level attributes (e.g.
   // `data-hero-picture` for CSS aspect-ratio targeting) OR when the inner
   // content contains a `<source>` (which is invalid outside `<picture>`).
   // Plain-`<img>` callers without pictureAttrs get the bare `<img>` back.
-  if (wrapAttrs || inner.startsWith('<source')) {
-    return `<picture${wrapAttrs}>${inner}</picture>`;
+  if (willWrap) {
+    return `<picture${wrapAttrs}${pictureStyleAttr}>${inner}</picture>`;
   }
   return inner;
 }
@@ -334,25 +348,25 @@ export function KychonImage(props: KychonImageProps): React.ReactNode {
   const loadingAttr = priority ? 'eager' : loading ?? 'lazy';
   const fetchPriority = priority ? ('high' as const) : undefined;
   const resolvedDecoding = decoding ?? undefined;
-  // Blurhash LQIP — matches the HTML emitter above. Merged BEFORE the
-  // caller's `style` so caller-supplied properties (e.g. objectFit) win
-  // when both set the same key; background-image and background-size are
-  // not properties callers reach for here so the merge is safe.
+  // Blurhash LQIP — matches the HTML emitter above. Goes on the
+  // wrapping `<picture>` when present, NOT the `<img>`, so an `<img>`
+  // opacity fade animation reveals the LQIP underneath rather than
+  // hiding it. For the single-`<img>` fallback path we put it on the
+  // `<img>` directly since there's no wrapper.
   const lqip = lqipDataUri(ref);
-  const mergedStyle: React.CSSProperties | undefined = lqip
+  const lqipStyle: React.CSSProperties | null = lqip
     ? {
         backgroundImage: `url(${lqip})`,
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
-        ...(style ?? {}),
       }
-    : style;
+    : null;
   const imgProps = {
     alt,
     loading: loadingAttr,
     fetchPriority,
     className,
-    style: mergedStyle,
+    style,
     decoding: resolvedDecoding,
     ...(imgDataAttrs ?? {}),
   };
@@ -361,7 +375,11 @@ export function KychonImage(props: KychonImageProps): React.ReactNode {
     const src = ref?.display_url ?? ref?.cdn_url ?? url;
     const w = width ?? ref?.width_px;
     const h = height ?? ref?.height_px;
-    return React.createElement('img', { ...imgProps, src, width: w, height: h });
+    // Single `<img>` path: LQIP rides on the img because there's no
+    // wrapper. Caller-supplied `style` wins over LQIP background-* keys
+    // (callers don't reach for those in practice).
+    const imgStyle = lqipStyle ? { ...lqipStyle, ...(style ?? {}) } : style;
+    return React.createElement('img', { ...imgProps, style: imgStyle, src, width: w, height: h });
   }
 
   const fallbackSrc = pickFallbackSrc(ref);
@@ -372,7 +390,7 @@ export function KychonImage(props: KychonImageProps): React.ReactNode {
 
   return React.createElement(
     'picture',
-    null,
+    lqipStyle ? { style: lqipStyle } : null,
     React.createElement('source', {
       type: 'image/webp',
       srcSet: srcset,

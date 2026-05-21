@@ -267,17 +267,17 @@ export default function DemoBannerIsland({ defaultVisible = false }: Props) {
           ) : null}
         </div>
 
-        <div className="flex min-w-0 items-center gap-2">
-          {/*
-            Stable width locks the flex layout — without it, the countdown text
-            ("Resets hourly" → "Resets in 3m") changes width on hydrate + every
-            30s tick, redistributing the flex children (the middle Admin/Member
-            buttons visibly shift). `min-w-[7.5rem]` reserves enough room for
-            the widest reasonable text ("Resets in 60m"), `text-right` keeps
-            the right edge of the text against the right edge of the banner,
-            `tabular-nums` makes the digit width identical across "0".."9".
-          */}
-          <span className="inline-block min-w-[7.5rem] whitespace-nowrap text-right tabular-nums text-white/70">{countdown}</span>
+        {/*
+          The whole right group sits at a fixed width via `basis-[16rem]` +
+          `grow-0` + `shrink-0` so it's positionally identical across every
+          countdown text change (SSR `Resets hourly` → hydrate `Resets in 38m`
+          → 30-second tick → 30-second tick…). With justify-between on the
+          outer banner, a fixed-width right group means the middle Admin/Member
+          buttons never shift either. Internal `justify-end` keeps countdown +
+          CTA hugging the right edge regardless of which is rendered.
+        */}
+        <div className="flex shrink-0 grow-0 basis-[16rem] items-center justify-end gap-2">
+          <span className="inline-block whitespace-nowrap tabular-nums text-white/70">{countdown}</span>
           <Button
             asChild
             size="sm"
