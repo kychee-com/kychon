@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildI18nSpec,
-  buildKychonReleaseSpec,
-  formatI18nSlice,
-  i18nSpecMatchesReadback,
-} from '../../scripts/_lib.ts';
+import { buildI18nSpec, buildKychonReleaseSpec, formatI18nSlice, i18nSpecMatchesReadback } from '../../scripts/_lib.ts';
 import type { ProjectSeed } from '../../src/seeds/types.ts';
 
 interface SitePublicPaths {
