@@ -1,3 +1,4 @@
+import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 import { renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { renderFontHead } from './theme/fonts.js';
 import type { ProjectSeed } from '../seeds/types.js';
@@ -74,6 +75,12 @@ export function makeBakeContext(seed: ProjectSeed): BlockRenderContext {
     brandTextShort: stringFromSeed(seed, 'brand_text_short'),
     brandIconUrl: stringFromSeed(seed, 'brand_icon_url'),
     brandWordmarkUrl: stringFromSeed(seed, 'brand_wordmark_url'),
+    // Build-time AssetManifest from @run402/astro@0.2.4. Null when the
+    // integration has no `assetsDir` configured (dev builds, non-demo builds);
+    // emitters fall through to plain `<img>` in that case, identical to
+    // pre-bake first-paint behavior. Chrome blocks don't consult the manifest
+    // (sub-320 icons), but main-zone bakes do — see renderMainZone.
+    manifest: getBuildTimeManifest(),
   };
 }
 
@@ -84,6 +91,27 @@ export function renderGlobalZone(
 ): string {
   return (seed.sections as unknown as Section[])
     .filter((s) => s.zone === zone && s.scope === 'global' && s.visible !== false)
+    .sort((a, b) => a.position - b.position)
+    .map((s) => renderBlock(s, ctx))
+    .join('');
+}
+
+// Bake page-scoped main-zone sections for a specific slug. Mirrors
+// page-render.ts:renderZoneInto's 'main' branch — admin live-edits are still
+// applied by the runtime hydrate, so this only sets the first paint.
+export function renderMainZone(
+  seed: ProjectSeed,
+  pageSlug: string,
+  ctx: BlockRenderContext = makeBakeContext(seed),
+): string {
+  return (seed.sections as unknown as Section[])
+    .filter(
+      (s) =>
+        s.zone === 'main' &&
+        s.scope === 'page' &&
+        s.page_slug === pageSlug &&
+        s.visible !== false,
+    )
     .sort((a, b) => a.position - b.position)
     .map((s) => renderBlock(s, ctx))
     .join('');

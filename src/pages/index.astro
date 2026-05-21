@@ -2,9 +2,19 @@
 import HomePageApp from '../components/kychon/HomePageApp';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 import Portal from '../layouts/Portal.astro';
+import { resolveActiveProjectSeed } from '../seeds';
+import { renderMainZone } from '../lib/chrome-bake';
+
+// First-paint bake of the home page's page-scoped main-zone sections from the
+// active project's typed seed. Runtime hydrate (page-render.ts) still re-renders
+// from cached/live DB state on every load — this only owns the very first paint
+// so first-ever visitors, link previews, and crawlers see the hero immediately
+// instead of an empty container until JS resolves.
+const { seed } = await resolveActiveProjectSeed();
+const sectionsHtml = renderMainZone(seed, 'index');
 ---
 <Portal title="Home">
   <HomePageApp client:load />
-  <div id="sections" data-sortable-group="homepage-sections" data-zone="main"></div>
+  <div id="sections" data-sortable-group="homepage-sections" data-zone="main" set:html={sectionsHtml}></div>
   <AdminZoneAddButton zone="main" />
 </Portal>

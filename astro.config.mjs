@@ -101,6 +101,33 @@ function safeAssetPath(assetDir, url = '') {
   return filePath;
 }
 
+// Provide `virtual:run402-assetmap` as a null-manifest stub when the
+// `@run402/astro` integration isn't active (no KYCHON_PROJECT / RUN402_PROJECT_ID).
+// The integration registers this virtual module itself; chrome-bake.ts's
+// transitive import of `@run402/astro/build-manifest` would otherwise fail
+// Rollup's static-import resolution in plain-Astro builds (e.g. the
+// portal-first-byte-build integration test, neutral fallback builds). Returning
+// `manifest = null` hits the documented `getBuildTimeManifest()` null path —
+// emitters fall back to plain `<img>`, identical to today's first paint.
+function virtualAssetMapStubPlugin() {
+  const id = 'virtual:run402-assetmap';
+  const resolved = '\0virtual:run402-assetmap';
+  return {
+    name: 'kychon-virtual-assetmap-stub',
+    enforce: 'pre',
+    resolveId(source) {
+      if (source === id) return resolved;
+      return null;
+    },
+    load(loadedId) {
+      if (loadedId === resolved) {
+        return 'export const manifest = null;\nexport default new Map();\n';
+      }
+      return null;
+    },
+  };
+}
+
 function localDemoAssetsPlugin() {
   const project = inferLocalAssetsProject();
   const assetDir = project ? resolve(rootDir, demoAssetDirs[project]) : null;
@@ -158,7 +185,13 @@ export default defineConfig({
     react(),
   ],
   vite: {
-    plugins: [tailwindcss(), localDemoAssetsPlugin()],
+    plugins: [
+      tailwindcss(),
+      localDemoAssetsPlugin(),
+      // Only register the stub when the real integration is NOT active —
+      // otherwise both would try to claim the virtual module.
+      ...(useRun402Integration ? [] : [virtualAssetMapStubPlugin()]),
+    ],
   },
   build: {
     format: 'file',
