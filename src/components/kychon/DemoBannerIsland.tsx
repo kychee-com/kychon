@@ -268,7 +268,16 @@ export default function DemoBannerIsland({ defaultVisible = false }: Props) {
         </div>
 
         <div className="flex min-w-0 items-center gap-2">
-          <span className="whitespace-nowrap text-white/70">{countdown}</span>
+          {/*
+            Stable width locks the flex layout — without it, the countdown text
+            ("Resets hourly" → "Resets in 3m") changes width on hydrate + every
+            30s tick, redistributing the flex children (the middle Admin/Member
+            buttons visibly shift). `min-w-[7.5rem]` reserves enough room for
+            the widest reasonable text ("Resets in 60m"), `text-right` keeps
+            the right edge of the text against the right edge of the banner,
+            `tabular-nums` makes the digit width identical across "0".."9".
+          */}
+          <span className="inline-block min-w-[7.5rem] whitespace-nowrap text-right tabular-nums text-white/70">{countdown}</span>
           <Button
             asChild
             size="sm"

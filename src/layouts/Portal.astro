@@ -59,7 +59,7 @@ const cspValue = buildCspValue();
   {extraHead && <Fragment set:html={extraHead} />}
   {chrome.fontHead && <Fragment set:html={chrome.fontHead} />}
   {chrome.customCss && <style is:inline set:html={chrome.customCss}></style>}
-  <style id="wl-theme-vars" is:inline>:root {}</style>
+  <style id="wl-theme-vars" is:inline set:html={`:root { ${chrome.themeFontVarsCss} }`}></style>
   <link rel="stylesheet" href="/css/admin-editing.css">
   <ClientRouter />
   <script is:inline>

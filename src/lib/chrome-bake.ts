@@ -1,6 +1,6 @@
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 import { renderBlock, type BlockRenderContext, type Section } from './blocks.js';
-import { renderFontHead } from './theme/fonts.js';
+import { buildFontVarValue, renderFontHead } from './theme/fonts.js';
 import type { ProjectSeed } from '../seeds/types.js';
 
 export interface BakedChrome {
@@ -19,6 +19,16 @@ export interface BakedChrome {
    * critical path for first-image bytes.
    */
   cdnOrigin: string | null;
+  /**
+   * CSS declarations baked from the theme's font choices, ready for splice
+   * into `<style id="wl-theme-vars">:root { ... }`. Includes the
+   * `--font-heading`/`--font-body` vars with the project's design font +
+   * size-adjust fallback family + generic. Without this, the runtime
+   * `applyTheme()` is the only path that sets them — so first paint uses
+   * theme.css's default font (e.g. Inter) and the page repaints in the
+   * design font AFTER JS runs, producing a visible serif↔sans jump.
+   */
+  themeFontVarsCss: string;
   bakeCtx: BlockRenderContext;
 }
 
@@ -210,6 +220,11 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     stringFromSeed(seed, 'favicon_url') ||
     stringFromSeed(seed, 'brand_icon_url') ||
     '/favicon.svg';
+  const headingVar = buildFontVarValue(theme.font_heading as string | undefined, 'serif');
+  const bodyVar = buildFontVarValue(theme.font_body as string | undefined, 'sans-serif');
+  const themeFontVarLines: string[] = [];
+  if (headingVar) themeFontVarLines.push(`--font-heading: ${headingVar};`);
+  if (bodyVar) themeFontVarLines.push(`--font-body: ${bodyVar};`);
   return {
     headerHtml: renderGlobalZone(seed, 'header', bakeCtx),
     footerHtml: renderGlobalZone(seed, 'footer', bakeCtx),
@@ -222,6 +237,7 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     isSvgFavicon: isSvgFaviconUrl(faviconUrl),
     title: getBrandedTitle(pageTitle, bakeCtx.siteName || bakeCtx.brandText || ''),
     cdnOrigin: cdnOriginFromManifest(bakeCtx.manifest),
+    themeFontVarsCss: themeFontVarLines.join(' '),
     bakeCtx,
   };
 }
