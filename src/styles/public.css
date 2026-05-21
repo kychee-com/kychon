@@ -417,6 +417,25 @@ main [data-section] {
   width: 100%;
   height: auto;
   max-width: 100%;
+  /* Fade the WebP in over the blurhash LQIP `background-image` on the
+     `<img>`. Starts at opacity:0 (revealing the LQIP underneath), then
+     animates to opacity:1 over ~400ms. The browser begins decoding the
+     WebP in parallel — by the time the animation completes the real
+     image is usually painted, giving a Medium/Apple-style fade from
+     blurred preview to crisp image instead of a hard snap. `backwards`
+     fill-mode applies the initial keyframe even before the animation
+     officially starts, so first paint shows opacity:0 immediately.
+     `prefers-reduced-motion` skips the fade. */
+  animation: kychon-hero-fade-in 400ms ease-out backwards;
+}
+@keyframes kychon-hero-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-hero][data-hero-mode="foreground"] [data-hero-picture] > img {
+    animation: none;
+  }
 }
 [data-hero][data-hero-mode="foreground"] [data-hero-picture][data-hero-aspect="auto"] > img {
   aspect-ratio: auto;

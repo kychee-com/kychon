@@ -169,6 +169,33 @@ function lqipStyleString(ref: AssetRef | null | undefined): string {
   return `background-image:url(${dataUri});background-size:cover;background-repeat:no-repeat;`;
 }
 
+/**
+ * Splice helper for `<img>` tags in chrome blocks (brand_header, etc.) that
+ * don't go through `kychonImageHtml`. Returns a leading-space-prefixed
+ * attribute string carrying `width="..." height="..." style="..."` when the
+ * manifest has the image, or '' on miss. Use exactly once per `<img>`:
+ *
+ *   `<img data-brand-icon src="..."${kychonChromeImgAttrs('/assets/logo.png', ctx.manifest)} alt="...">`
+ *
+ * Closes the gap between chrome (sub-320 logos that bypass `kychonImageHtml`)
+ * and main-zone images: same LQIP background, same intrinsic dimensions, no
+ * CLS when the file arrives.
+ */
+export function kychonChromeImgAttrs(
+  url: string | undefined | null,
+  manifest: AssetManifest | null | undefined,
+): string {
+  const ref = lookupAssetRef(url, manifest);
+  if (!ref) return '';
+  const lqipDecls = lqipStyleString(ref);
+  const styleAttr = lqipDecls ? ` style="${lqipDecls}"` : '';
+  const w = ref.width_px;
+  const h = ref.height_px;
+  const widthAttr = typeof w === 'number' && Number.isFinite(w) ? ` width="${w}"` : '';
+  const heightAttr = typeof h === 'number' && Number.isFinite(h) ? ` height="${h}"` : '';
+  return `${widthAttr}${heightAttr}${styleAttr}`;
+}
+
 // `Omit<…, 'pictureAttrs'>` shadows v0.2.5's `Record<string,string>` form
 // because our HTML emitter still takes a pre-built leading-space-prefixed
 // attribute string for splice into the wrapping tag — different shape, same

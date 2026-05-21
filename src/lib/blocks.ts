@@ -26,7 +26,7 @@ import { constrainedContainerClass } from './ui/container.js';
 import { richTextContentClass } from './ui/rich-text.js';
 import { sanitizeRichHtmlServer } from './sanitize-html.js';
 import { renderStaticLinkButtonHtml } from './static-link-button.js';
-import { kychonImageHtml, lookupAssetRef, pickSingleVariantUrl } from './kychon-image.js';
+import { kychonImageHtml, kychonChromeImgAttrs, lookupAssetRef, pickSingleVariantUrl } from './kychon-image.js';
 import {
   adminDragHandleHtml,
   adminNavEditButtonHtml,
@@ -1163,6 +1163,11 @@ const BRAND_HEADER: BlockType = {
       ? ` data-editable="site_config.brand_text_short.value"`
       : '';
 
+    // Chrome image attrs (width/height + LQIP background-image) from the
+    // manifest — closes the CLS gap on the nav row when the logo PNG loads.
+    const iconChromeAttrs = iconUrl ? kychonChromeImgAttrs(iconUrl, ctx.manifest) : '';
+    const wordmarkChromeAttrs = wordmarkUrl ? kychonChromeImgAttrs(wordmarkUrl, ctx.manifest) : '';
+
     if (iconUrl) {
       // Mode 1: icon + text. Short text swaps in via CSS at narrow viewports.
       const shortSpan = brandTextShort
@@ -1171,12 +1176,12 @@ const BRAND_HEADER: BlockType = {
       const subtitleSpan = brandSubtitle
         ? `<span data-brand-subtitle>${escHtml(brandSubtitle)}</span>`
         : '';
-      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="icon" aria-label="${escAttr(brandText)}"><img data-brand-icon src="${escAttr(iconUrl)}" alt=""${editableIcon}><span data-brand-copy><span data-brand-text><span data-brand-text-full${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
+      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="icon" aria-label="${escAttr(brandText)}"><img data-brand-icon src="${escAttr(iconUrl)}" alt=""${iconChromeAttrs}${editableIcon}><span data-brand-copy><span data-brand-text><span data-brand-text-full${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
     }
     if (wordmarkUrl) {
       // Mode 2: wordmark alone — the image already contains the org name, so
       // no separate text element is rendered.
-      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${editableWordmark}></a>`;
+      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${wordmarkChromeAttrs}${editableWordmark}></a>`;
     }
     // Mode 3: text fallback (equivalent to today's logo_url=NULL behavior).
     return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="text"${editableText}>${escHtml(brandText)}</a>`;
