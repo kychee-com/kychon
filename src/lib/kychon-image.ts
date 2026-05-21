@@ -200,35 +200,14 @@ export interface KychonImageHtmlOptions extends Omit<Partial<RenderPictureOption
  * building here keeps the attribute splice surface clean and tracks the
  * same matrix (HEIC → display_jpeg, sub-320 → single `<img>`).
  */
-/**
- * admin-content-management Decision 8: detect AssetRef-shaped values stored
- * directly in block configs. When the field is an object with `cdn_url` and
- * `variants`, it IS the variant data — no manifest lookup needed. Strings
- * fall through to the legacy build-time manifest lookup.
- */
-function isAssetRefShape(value: unknown): value is AssetRef {
-  if (typeof value !== 'object' || value === null) return false;
-  const obj = value as Record<string, unknown>;
-  return typeof obj.cdn_url === 'string';
-}
-
 export function kychonImageHtml(
-  source: string | AssetRef | null | undefined,
+  url: string | undefined | null,
   alt: string,
   opts: KychonImageHtmlOptions = {},
   manifest: AssetManifest | null | undefined = null,
 ): string {
-  if (!source) return '';
-  // AssetRef-shaped → use directly (no manifest, no lookup, no cache).
-  let ref: AssetRef | null = null;
-  let url: string;
-  if (isAssetRefShape(source)) {
-    ref = source;
-    url = source.cdn_url;
-  } else {
-    url = source;
-    ref = lookupAssetRef(url, manifest);
-  }
+  if (!url) return '';
+  const ref = lookupAssetRef(url, manifest);
   const loadingAttr = opts.priority ? 'eager' : opts.loading ?? 'lazy';
   const sizesAttr = opts.sizes ?? '100vw';
   const classAttr = opts.class ? ` class="${escAttr(opts.class)}"` : '';
@@ -287,15 +266,8 @@ function formatDimAttrs(width: number | undefined, height: number | undefined): 
 // -------------------------------------------------------------------------
 
 export interface KychonImageProps {
-  /**
-   * Source URL OR an embedded AssetRef from a JSONB section config.
-   * admin-content-management Decision 8: MediaPicker writes full AssetRef
-   * objects into block configs. When the value is shaped like an AssetRef
-   * (has `cdn_url` + `variants`), the renderer uses it directly without a
-   * manifest lookup. Plain string URLs still go through the build-time
-   * manifest path for legacy seeded configs.
-   */
-  url: string | AssetRef | undefined | null;
+  /** Source URL — typically `/assets/X.jpg` from a JSONB section config. */
+  url: string | undefined | null;
   /** Required alt text. */
   alt: string;
   /** Manifest emitted by @run402/astro at build time. Null at build-time
@@ -331,18 +303,7 @@ export interface KychonImageProps {
 export function KychonImage(props: KychonImageProps): React.ReactNode {
   const { url, alt, manifest, sizes, priority, loading, className, style, width, height, decoding, imgDataAttrs, fallback = null } = props;
   if (!url) return fallback;
-  // admin-content-management Decision 8: AssetRef-shaped fields are emitted
-  // directly without a manifest lookup; string URLs go through the legacy
-  // build-time manifest path.
-  let ref: AssetRef | null;
-  let resolvedUrl: string;
-  if (isAssetRefShape(url)) {
-    ref = url;
-    resolvedUrl = url.cdn_url;
-  } else {
-    resolvedUrl = url;
-    ref = lookupAssetRef(url, manifest);
-  }
+  const ref = lookupAssetRef(url, manifest);
   const loadingAttr = priority ? 'eager' : loading ?? 'lazy';
   const fetchPriority = priority ? ('high' as const) : undefined;
   const resolvedDecoding = decoding ?? undefined;
@@ -370,7 +331,7 @@ export function KychonImage(props: KychonImageProps): React.ReactNode {
   };
 
   if (!ref || !hasVariantLadder(ref)) {
-    const src = ref?.display_url ?? ref?.cdn_url ?? resolvedUrl;
+    const src = ref?.display_url ?? ref?.cdn_url ?? url;
     const w = width ?? ref?.width_px;
     const h = height ?? ref?.height_px;
     return React.createElement('img', { ...imgProps, src, width: w, height: h });

@@ -10,8 +10,6 @@ import AuthModal from '../components/AuthModal.astro';
 import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
-import AdminBar from '../components/AdminBar.astro';
-import MediaPickerHost from '../components/MediaPickerHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
 import { resolveActiveProjectSeed } from '../seeds';
@@ -86,8 +84,6 @@ const cspValue = buildCspValue();
     class="absolute -top-full left-4 z-[1000] rounded-[var(--radius)] bg-[var(--color-primary)] px-6 py-3 text-sm font-semibold text-white no-underline transition-[top] duration-150 focus:top-3 focus:text-white"
   >Skip to main content</a>
   {renderDemoBanner && <DemoBanner />}
-  <AdminBar />
-  <MediaPickerHost />
   <div class="flex min-h-screen flex-col">
     <nav id="zone-header" data-nav-shell data-zone="header" aria-label="Primary navigation" transition:persist>
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>
