@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildI18nSpec, buildKychonReleaseSpec } from '../../scripts/_lib.ts';
+import {
+  buildI18nSpec,
+  buildKychonReleaseSpec,
+  formatI18nSlice,
+  i18nSpecMatchesReadback,
+} from '../../scripts/_lib.ts';
 import type { ProjectSeed } from '../../src/seeds/types.ts';
 
 interface SitePublicPaths {
@@ -137,5 +142,67 @@ describe('routed-locale-context i18n slice', () => {
     });
 
     expect(spec.i18n).toBeUndefined();
+  });
+});
+
+describe('i18n post-apply readback', () => {
+  it('formats a slice as defaultLocale/[locales]/detect=[sources]', () => {
+    expect(
+      formatI18nSlice({
+        defaultLocale: 'es',
+        locales: ['es', 'en'],
+        detect: ['cookie:wl_locale', 'accept-language'],
+      }),
+    ).toBe('es/[es,en]/detect=[cookie:wl_locale,accept-language]');
+  });
+
+  it('matches a readback that is byte-for-byte equal to the applied spec', () => {
+    const applied = {
+      defaultLocale: 'es',
+      locales: ['es', 'en'],
+      detect: ['cookie:wl_locale', 'accept-language'] as const,
+    };
+    // Same shape, different object identity — what we'd get back from the
+    // gateway after a successful apply.
+    const readback = {
+      defaultLocale: 'es',
+      locales: ['es', 'en'],
+      detect: ['cookie:wl_locale', 'accept-language'] as const,
+    };
+
+    expect(i18nSpecMatchesReadback(applied, readback)).toBe(true);
+  });
+
+  it('rejects a readback that differs by defaultLocale (silent coercion)', () => {
+    const applied = {
+      defaultLocale: 'es',
+      locales: ['es', 'en'],
+      detect: ['cookie:wl_locale', 'accept-language'] as const,
+    };
+    const readback = {
+      defaultLocale: 'en', // gateway flipped this — exactly the silent-coercion case the readback exists to catch
+      locales: ['es', 'en'],
+      detect: ['cookie:wl_locale', 'accept-language'] as const,
+    };
+
+    expect(i18nSpecMatchesReadback(applied, readback)).toBe(false);
+  });
+
+  it('rejects when locales array order differs (order is meaningful for fallback)', () => {
+    expect(
+      i18nSpecMatchesReadback(
+        { defaultLocale: 'en', locales: ['en', 'es'], detect: ['accept-language'] },
+        { defaultLocale: 'en', locales: ['es', 'en'], detect: ['accept-language'] },
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects when detect[] order differs (first-match-wins ordering)', () => {
+    expect(
+      i18nSpecMatchesReadback(
+        { defaultLocale: 'en', locales: ['en'], detect: ['cookie:wl_locale', 'accept-language'] },
+        { defaultLocale: 'en', locales: ['en'], detect: ['accept-language', 'cookie:wl_locale'] },
+      ),
+    ).toBe(false);
   });
 });

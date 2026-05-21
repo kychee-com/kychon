@@ -21,6 +21,7 @@ import type {
   FunctionSpec,
   I18nSpec,
   LocalDirRef,
+  ReleaseInventoryI18n,
   ReleaseSpec,
 } from "@run402/sdk/node";
 
@@ -221,6 +222,52 @@ export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
     locales,
     detect: ["cookie:wl_locale", "accept-language"],
   };
+}
+
+/**
+ * Compact one-line representation of an i18n slice for deploy logs.
+ * Examples:
+ *   `es/[es,en]/detect=[cookie:wl_locale,accept-language]`
+ *   `en/[en]/detect=[cookie:wl_locale,accept-language]`
+ *
+ * Accepts both the deploy-time `I18nSpec` (what we send) and the
+ * gateway-materialized `ReleaseInventoryI18n` (what we read back). The
+ * two have the same shape on the wire — the type split exists in the SDK
+ * because they have different lifecycles (input vs. observed state),
+ * not because the data differs.
+ */
+export function formatI18nSlice(slice: I18nSpec | ReleaseInventoryI18n): string {
+  const detect = (slice.detect ?? []).join(",");
+  return `${slice.defaultLocale}/[${slice.locales.join(",")}]/detect=[${detect}]`;
+}
+
+/**
+ * Compare an applied `I18nSpec` to a gateway `ReleaseInventoryI18n`
+ * readback, field-by-field. Returns true iff `defaultLocale`, `locales[]`
+ * (order-sensitive — order is meaningful for fallback in some platform
+ * implementations), and `detect[]` (also order-sensitive — first match
+ * wins per the gateway's negotiation contract) all match byte-for-byte.
+ *
+ * Used by the post-apply readback in `runDeploy` to confirm the gateway
+ * stored the slice we sent without coercion. apply() success is
+ * necessary but not sufficient — the readback is the positive proof.
+ */
+export function i18nSpecMatchesReadback(
+  applied: I18nSpec,
+  readback: ReleaseInventoryI18n,
+): boolean {
+  if (applied.defaultLocale !== readback.defaultLocale) return false;
+  if (applied.locales.length !== readback.locales.length) return false;
+  for (let i = 0; i < applied.locales.length; i++) {
+    if (applied.locales[i] !== readback.locales[i]) return false;
+  }
+  const appliedDetect = applied.detect ?? [];
+  const readbackDetect = readback.detect ?? [];
+  if (appliedDetect.length !== readbackDetect.length) return false;
+  for (let i = 0; i < appliedDetect.length; i++) {
+    if (appliedDetect[i] !== readbackDetect[i]) return false;
+  }
+  return true;
 }
 
 export interface MaterializedCustomPageFile {
@@ -694,6 +741,53 @@ export async function runDeploy(
   console.log(
     `  Diagnose clean route: run402 deploy diagnose --project ${opts.projectId} ${diagnoseBase}/search?q=hello&type=all --method GET`,
   );
+
+  // Positive readback for the i18n slice — apply() success means both
+  // validateI18nSpec (client) and the gateway validator accepted the
+  // input, but only the inventory readback proves the slice landed with
+  // the values we sent (no silent coercion, no carry-forward surprise).
+  // Implements the "verification readback rule" from
+  // kychee-com/run402#395-c4505724756; the inventory `i18n` field shipped
+  // in @run402/sdk@2.8.1.
+  //
+  // Best-effort. Three failure modes worth distinguishing:
+  //   1. Inventory fetch throws → log a `<fetch failed>` note, don't
+  //      block the deploy. Whatever caused the fetch to fail (transient
+  //      network, gateway hiccup) isn't a deploy-level problem because
+  //      apply() already succeeded.
+  //   2. `readback === undefined` → pre-2.8.1 gateway. Surface that the
+  //      readback isn't supported on this gateway version rather than
+  //      silently passing.
+  //   3. `readback === null` → gateway has no slice, but we just sent
+  //      one. Genuine bug; warn loud.
+  //   4. Field-by-field mismatch → gateway coerced/dropped something.
+  //      Warn loud with both values so the diff is obvious in the log.
+  try {
+    const inv = await project.deploy.getActiveRelease({ siteLimit: 1 });
+    const readback = inv?.i18n;
+    if (readback === undefined) {
+      console.log(
+        `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=<gateway too old to surface, requires v2.8.1+>`,
+      );
+    } else if (readback === null) {
+      console.warn(
+        `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=null  ⚠ slice not on live release`,
+      );
+    } else if (i18nSpecMatchesReadback(i18nSpec, readback)) {
+      console.log(
+        `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=${formatI18nSlice(readback)} ✓`,
+      );
+    } else {
+      console.warn(
+        `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=${formatI18nSlice(readback)}  ⚠ MISMATCH`,
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(
+      `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=<fetch failed: ${msg}>`,
+    );
+  }
 
   return {
     ok: true,
