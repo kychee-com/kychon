@@ -46,6 +46,10 @@ import {
 import { chooseNavigationSection } from '@/lib/admin/navigation-section';
 import { del, get, patch, post } from '@/lib/api';
 import { BLOCK_TYPES, getSupportedSpans } from '@/lib/blocks';
+import {
+  BlockListEditor,
+  LIST_BLOCK_SCHEMAS,
+} from '@/components/kychon/BlockListEditorIsland';
 import { PROVIDERS, type ParamSchemaEntry } from '@/lib/blocks/embed-providers';
 import { currentPageSlugFromLocation } from '@/lib/clean-routes';
 import { showToast } from '@/lib/toast-events';
@@ -717,6 +721,18 @@ function AdminEditorControls() {
   const [sourceSaving, setSourceSaving] = useState(false);
   const [sourceError, setSourceError] = useState('');
 
+  // admin-content-management Section 10: BlockListEditor host state.
+  // When SECTION_EDIT_EVENT fires for a block whose `editorType === 'list'`,
+  // we open the list-editor Dialog instead of the generic section settings
+  // popover. Generic settings (scope / span / visibility / delete) stay
+  // accessible via the existing settings affordance — this only routes the
+  // item-content editing surface.
+  const [listEditorOpen, setListEditorOpen] = useState(false);
+  const [listEditorSectionId, setListEditorSectionId] = useState<number | null>(null);
+  const [listEditorType, setListEditorType] = useState<string | null>(null);
+  const [listEditorConfig, setListEditorConfig] = useState<Record<string, unknown>>({});
+  const [listEditorIsGlobal, setListEditorIsGlobal] = useState(false);
+
   const spans = useMemo(() => (row ? getSupportedSpans(row.section_type) : []), [row]);
   const sectionDef = row ? BLOCK_TYPES[row.section_type] : null;
   const addCandidates = useMemo(
@@ -777,11 +793,46 @@ function AdminEditorControls() {
   useEffect(() => {
     const listener = (event: Event) => {
       const detail = (event as CustomEvent<SectionEditDetail>).detail;
-      if (Number.isFinite(detail?.sectionId)) void loadSection(detail.sectionId);
+      if (!Number.isFinite(detail?.sectionId)) return;
+      void routeSectionEdit(detail.sectionId);
     };
     window.addEventListener(SECTION_EDIT_EVENT, listener);
     return () => window.removeEventListener(SECTION_EDIT_EVENT, listener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // admin-content-management Section 10: route by editorType.
+  // For `editorType: 'list'` blocks with a known schema in LIST_BLOCK_SCHEMAS,
+  // open the BlockListEditor Dialog. Otherwise fall through to the legacy
+  // generic settings popover (`loadSection`).
+  async function routeSectionEdit(sectionId: number) {
+    try {
+      const rows = await get(`sections?id=eq.${sectionId}&limit=1`);
+      const fetched = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      if (!fetched) {
+        void loadSection(sectionId);
+        return;
+      }
+      const def = BLOCK_TYPES[fetched.section_type];
+      const schema = LIST_BLOCK_SCHEMAS[fetched.section_type as keyof typeof LIST_BLOCK_SCHEMAS];
+      if (def?.editorType === 'list' && schema) {
+        setListEditorSectionId(sectionId);
+        setListEditorType(fetched.section_type);
+        setListEditorConfig(
+          typeof fetched.config === 'object' && fetched.config !== null
+            ? (fetched.config as Record<string, unknown>)
+            : {},
+        );
+        setListEditorIsGlobal(fetched.scope === 'global');
+        setListEditorOpen(true);
+        return;
+      }
+      void loadSection(sectionId);
+    } catch (err: unknown) {
+      console.warn('routeSectionEdit failed, falling back to legacy editor', err);
+      void loadSection(sectionId);
+    }
+  }
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -2042,6 +2093,35 @@ function AdminEditorControls() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* admin-content-management Section 10: BlockListEditor for `editorType: 'list'` blocks.
+        * Opened by `routeSectionEdit` when SECTION_EDIT_EVENT fires for a list-type block;
+        * the legacy section-settings Dialog above handles every other block type. */}
+      {listEditorOpen && listEditorSectionId !== null && listEditorType !== null && LIST_BLOCK_SCHEMAS[listEditorType as keyof typeof LIST_BLOCK_SCHEMAS] ? (
+        <BlockListEditor
+          open={listEditorOpen}
+          onOpenChange={(next) => {
+            setListEditorOpen(next);
+            if (!next) {
+              setListEditorSectionId(null);
+              setListEditorType(null);
+              setListEditorConfig({});
+              setListEditorIsGlobal(false);
+            }
+          }}
+          sectionId={listEditorSectionId}
+          label={BLOCK_TYPES[listEditorType]?.label || listEditorType}
+          isGlobal={listEditorIsGlobal}
+          config={listEditorConfig}
+          {...LIST_BLOCK_SCHEMAS[listEditorType as keyof typeof LIST_BLOCK_SCHEMAS]}
+          onSaved={() => {
+            // Mirror loadSection's "sections changed" notification so the page
+            // re-hydrates with the new config and other admin surfaces refresh.
+            document.dispatchEvent(new CustomEvent('wl-sections-changed'));
+            document.dispatchEvent(new CustomEvent('wl-content-rendered'));
+          }}
+        />
+      ) : null}
     </>
   );
 }

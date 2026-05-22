@@ -6,11 +6,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   Input,
   Label,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Textarea,
   toast,
 } from '@/components/kychon/ui';
@@ -18,15 +19,21 @@ import { execOp } from '@/lib/api';
 import type { JsonObject } from '@/lib/capability-api';
 
 /**
- * BlockListEditor — Popover-driven CRUD for blocks whose config has a
+ * BlockListEditor — Dialog-driven CRUD for blocks whose config has a
  * top-level array (`editorType: 'list'` in the BlockType registry):
  * features, testimonials, faq, footer_links, promo_cards, image_accordion,
  * slideshow, footer_social.
  *
- * Section 10. The popover anchors to the block's edit affordance (caller
- * provides children that become the trigger). Items render as draggable
- * rows; clicking an item's Pencil expands an inline detail form. "Save
- * changes" writes the whole config in one PATCH via `sections.updateConfig`.
+ * Section 10. Opens in response to the block's edit affordance click
+ * (routed by AdminEditorControlsIsland's SECTION_EDIT_EVENT handler when
+ * the block's `editorType === 'list'`). Items render as draggable rows;
+ * clicking an item's Pencil expands an inline detail form. "Save changes"
+ * writes the whole config in one PATCH via `sections.updateConfig`.
+ *
+ * Controlled-only: `open` / `onOpenChange` are required props (the
+ * AdminEditorControlsIsland owns the lifecycle). The earlier
+ * Popover-with-trigger pattern was vestigial — every real caller goes
+ * through the event-bus path.
  */
 
 interface ItemFieldDef {
@@ -38,11 +45,15 @@ interface ItemFieldDef {
 }
 
 export interface BlockListEditorProps {
+  /** Controlled open state — owned by the parent host (AdminEditorControlsIsland). */
+  open: boolean;
+  /** Open-state change callback (close-by-overlay-click, ESC, "Cancel"). */
+  onOpenChange: (open: boolean) => void;
   /** The sections.id (numeric) — required for the PATCH. */
   sectionId: number;
-  /** Block display label for the popover header. */
+  /** Block display label for the dialog title. */
   label: string;
-  /** When true, the GLOBAL Badge is shown alongside the header. */
+  /** When true, the GLOBAL Badge is shown alongside the title. */
   isGlobal: boolean;
   /** Property name in `config` that holds the items array (e.g. `'items'`, `'cards'`, `'panels'`). */
   itemsKey: string;
@@ -54,8 +65,6 @@ export interface BlockListEditorProps {
   itemSummary: (item: Record<string, unknown>) => string;
   /** Current block config (full JSONB), used to seed local edit state. */
   config: Record<string, unknown>;
-  /** Trigger element — typically the block's edit affordance button. */
-  children: React.ReactNode;
   /** Optional callback after a successful save. */
   onSaved?: (nextConfig: Record<string, unknown>) => void;
 }
@@ -67,6 +76,8 @@ function readItems(config: Record<string, unknown>, key: string): Record<string,
 }
 
 export function BlockListEditor({
+  open,
+  onOpenChange,
   sectionId,
   label,
   isGlobal,
@@ -75,10 +86,9 @@ export function BlockListEditor({
   defaultItem,
   itemSummary,
   config,
-  children,
   onSaved,
 }: BlockListEditorProps) {
-  const [open, setOpen] = useState(false);
+  const setOpen = onOpenChange;
   const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -169,15 +179,16 @@ export function BlockListEditor({
   }, [sectionId, items, config, itemsKey, isGlobal, onSaved]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="start" className="w-96 max-w-[calc(100vw-2rem)]">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">{label}</p>
-          {isGlobal ? <Badge variant="secondary">GLOBAL</Badge> : null}
-        </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="text-base">{label}</DialogTitle>
+            {isGlobal ? <Badge variant="secondary">GLOBAL</Badge> : null}
+          </div>
+        </DialogHeader>
 
-        <div className="mt-3 flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           {items.length === 0 ? (
             <p className="px-1 py-2 text-xs text-muted-foreground">
               No items yet. Add one to get started.
@@ -209,14 +220,14 @@ export function BlockListEditor({
           )}
         </div>
 
-        <Button variant="outline" size="sm" className="mt-3 w-full" onClick={addItem}>
+        <Button variant="outline" size="sm" className="mt-1 w-full" onClick={addItem}>
           <Plus className="mr-1 h-3 w-3" aria-hidden="true" />
           Add item
         </Button>
 
-        {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
-        <div className="mt-3 flex gap-2 border-t pt-3">
+        <div className="mt-2 flex gap-2 border-t pt-3">
           <Button
             variant="outline"
             size="sm"
@@ -231,8 +242,8 @@ export function BlockListEditor({
             Save changes
           </Button>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
 

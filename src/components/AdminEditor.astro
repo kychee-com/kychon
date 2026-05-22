@@ -590,27 +590,34 @@ import { Input } from './kychon/ui';
       if (imageEl) activateEditableImage(imageEl, event);
     });
 
-    // admin-content-management Section 9: MediaPickerHost dispatches this
-    // after the admin confirms a selection. We update the image element's
-    // src and persist the URL through saveField — mirroring the file-upload
-    // success path. The full AssetRef in `detail.ref` is forwarded so block
-    // configs that want the structured form (Decision 8) can listen too.
-    // The legacy URL-string saveField call keeps backward compatibility with
-    // every existing block whose config field is still a string.
+    // admin-content-management Decision 8 (full AssetRef persistence):
+    // MediaPickerHost dispatches this after the admin confirms a selection.
+    // We update the image element's src for instant feedback AND persist
+    // the FULL AssetRef object (cdn_url + variants + blurhash + width_px/
+    // height_px + image_format + metadata) into the block config field.
+    // The renderer's AssetRef-shape detection in src/lib/kychon-image.ts
+    // emits <picture> directly from the embedded ref — no manifest lookup
+    // needed at render time. Per the "no backwards compatibility" stance,
+    // this writes the structured form unconditionally; seed data not yet
+    // migrated keeps working via the legacy string path in the renderer.
     document.addEventListener('kychon:media-picker-select', (event) => {
-      const detail = (event as CustomEvent<{ ref?: { cdn_url?: string }; url?: string; target?: HTMLElement | null }>).detail;
+      const detail = (event as CustomEvent<{ ref?: Record<string, unknown> & { cdn_url?: string }; url?: string; target?: HTMLElement | null }>).detail;
       if (!detail) return;
       const target = detail.target instanceof HTMLElement ? detail.target : pendingImageTarget;
       pendingImageTarget = null;
       if (!target) return;
-      const url = detail.url || detail.ref?.cdn_url;
+      const ref = detail.ref;
+      const url = (typeof ref?.cdn_url === 'string' ? ref.cdn_url : undefined) || detail.url;
       if (!url) return;
       const img = editableImageElement(target);
       if (img) img.src = url;
       const attr = target.dataset.editableImage;
       if (attr) {
         const parsed = parseEditTarget(attr);
-        if (parsed) void saveField(target, parsed, url);
+        // Save the full AssetRef when available; fall back to the bare URL
+        // for paths where the picker didn't surface a ref (e.g. legacy
+        // file-input upload flow that hasn't been re-routed yet).
+        if (parsed) void saveField(target, parsed, ref ?? url);
       }
     });
   }
