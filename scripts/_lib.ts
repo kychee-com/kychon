@@ -233,28 +233,21 @@ export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
     );
   }
 
-  // admin-content-management (Decision 9 — 2026-05-21 update):
-  // Run402 shipped `unknownLocalePolicy: 'pass-through'`. When set, the
-  // gateway returns unknown cookie/Accept-Language values verbatim as
-  // `ctx.locale` instead of falling back to `defaultLocale`. We opt in so
-  // the kitchen-sink pool no longer needs to be exhaustive — any locale
-  // outside the 50-entry pool also flows through, satisfying the original
-  // run402-private#413 motivation without a follow-up Kychon change.
-  //
-  // The LOCALE_POOL is kept as `locales[]` because (a) it preserves prefix
-  // matching for Accept-Language across the 50 common tags and (b) it
-  // signals "first-class supported" in the release inventory readback for
-  // observability consumers. Pass-through is the long-tail safety net.
-  //
-  // Cast: the v2.8.1 SDK type doesn't yet include `unknownLocalePolicy`.
-  // The gateway accepts the field today; the SDK type will catch up in a
-  // later release. Drop the cast when types land.
+  // admin-content-management (Decision 9):
+  // The kitchen-sink LOCALE_POOL is the load-bearing pattern — admins can
+  // add/remove any of these 50 locales via the AdminBar without redeploying
+  // (the per-portal active set is `site_config.languages_enabled`, runtime
+  // mutable). For locales OUTSIDE the pool, the gateway currently falls
+  // back to `defaultLocale`. The follow-up plan is `unknownLocalePolicy:
+  // 'pass-through'` once the apply-v1 validator accepts the field —
+  // deploy validation rejected it as `Unknown ReleaseSpec field` on the
+  // 2026-05-21 deploy, so the opt-in is held until the gateway/validator
+  // catches up. See run402-private#413 for the platform thread.
   return {
     defaultLocale,
     locales: [...LOCALE_POOL],
     detect: ["cookie:wl_locale", "accept-language"],
-    unknownLocalePolicy: "pass-through",
-  } as I18nSpec & { unknownLocalePolicy: "pass-through" };
+  };
 }
 
 /**
