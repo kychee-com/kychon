@@ -539,12 +539,25 @@ import { Input } from './kychon/ui';
       nearestElementWithAttribute(target, 'data-editable-rich')
     ) return;
     htmlEl.setAttribute('data-lpignore', 'true');
+
+    // admin-content-management Section 9: prefer the MediaPicker dialog when
+    // MediaPickerHost is mounted (it preventDefault()s the open event to
+    // signal "handled"). Fall back to the legacy hidden file input only when
+    // no host listener is registered — e.g. demo-mode builds where the
+    // admin chrome island isn't loaded.
+    const openEvent = new CustomEvent('kychon:media-picker-open', {
+      cancelable: true,
+      detail: { target: htmlEl },
+    });
+    pendingImageTarget = htmlEl;
+    document.dispatchEvent(openEvent);
+    if (openEvent.defaultPrevented) return;
+
     const input = imageUploadInput();
     if (!input) {
       showToast('Image upload unavailable', 'error');
       return;
     }
-    pendingImageTarget = htmlEl;
     input.value = '';
     input.click();
   }
@@ -575,6 +588,30 @@ import { Input } from './kychon/ui';
 
       const imageEl = adminEditableEventTarget(event, 'data-editable-image');
       if (imageEl) activateEditableImage(imageEl, event);
+    });
+
+    // admin-content-management Section 9: MediaPickerHost dispatches this
+    // after the admin confirms a selection. We update the image element's
+    // src and persist the URL through saveField — mirroring the file-upload
+    // success path. The full AssetRef in `detail.ref` is forwarded so block
+    // configs that want the structured form (Decision 8) can listen too.
+    // The legacy URL-string saveField call keeps backward compatibility with
+    // every existing block whose config field is still a string.
+    document.addEventListener('kychon:media-picker-select', (event) => {
+      const detail = (event as CustomEvent<{ ref?: { cdn_url?: string }; url?: string; target?: HTMLElement | null }>).detail;
+      if (!detail) return;
+      const target = detail.target instanceof HTMLElement ? detail.target : pendingImageTarget;
+      pendingImageTarget = null;
+      if (!target) return;
+      const url = detail.url || detail.ref?.cdn_url;
+      if (!url) return;
+      const img = editableImageElement(target);
+      if (img) img.src = url;
+      const attr = target.dataset.editableImage;
+      if (attr) {
+        const parsed = parseEditTarget(attr);
+        if (parsed) void saveField(target, parsed, url);
+      }
     });
   }
 

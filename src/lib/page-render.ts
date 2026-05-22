@@ -318,6 +318,115 @@ export function filterSectionsForPageSlug(sections: Section[], slug: string): Se
   return sections.filter((section) => sectionAppliesToPageSlug(section, slug));
 }
 
+// =============================================================================
+// admin-content-management: section_translations merge (Decision 9)
+//
+// When ctx.locale != ctx.defaultLocale AND the locale is in
+// `site_config.languages_enabled` (kitchen-sink pool), fetch
+// section_translations for the active locale and deep-merge each translated
+// row's partial config over the base section's config. Array fields merge
+// by index (translation.items[i] spreads over base.items[i]); missing items
+// fall back to the base config.
+//
+// On the client (static SPA build) `ctx.locale` is `getLocale()` which reads
+// localStorage; the gateway-resolved locale lives in `x-run402-locale` for
+// future routed-render paths. Behavior is identical for both today because
+// the cookie + localStorage are kept in sync by `setLanguage()`.
+// =============================================================================
+
+interface SectionTranslationRow {
+  section_id: number;
+  language: string;
+  config: Record<string, unknown>;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Deep-merge `override` onto `base`. Plain-object values merge recursively;
+ * arrays merge by index (untranslated items keep base values); scalars and
+ * non-object override values replace base. Returns a new object — neither
+ * input is mutated.
+ */
+export function deepMergeTranslation(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    const baseValue = base?.[key];
+    if (Array.isArray(value) && Array.isArray(baseValue)) {
+      const merged: unknown[] = [];
+      const len = Math.max(baseValue.length, value.length);
+      for (let i = 0; i < len; i++) {
+        const baseItem = baseValue[i];
+        const overrideItem = value[i];
+        if (overrideItem === undefined) {
+          merged.push(baseItem);
+        } else if (isPlainObject(baseItem) && isPlainObject(overrideItem)) {
+          merged.push(deepMergeTranslation(baseItem, overrideItem));
+        } else {
+          merged.push(overrideItem);
+        }
+      }
+      out[key] = merged;
+    } else if (isPlainObject(value) && isPlainObject(baseValue)) {
+      out[key] = deepMergeTranslation(baseValue, value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+function activeLocaleForTranslation(): string | null {
+  // Both checks: (1) non-default locale, (2) locale is enabled in the portal.
+  const locale = getLocale();
+  const defaultLocale = (siteConfig.default_language as string | undefined) || 'en';
+  if (!locale || locale === defaultLocale) return null;
+  const enabledRaw = siteConfig.languages_enabled ?? siteConfig.languages;
+  const enabled = Array.isArray(enabledRaw) ? enabledRaw : null;
+  if (enabled && !enabled.includes(locale)) return null;
+  return locale;
+}
+
+async function fetchSectionTranslationsForActiveLocale(): Promise<SectionTranslationRow[]> {
+  const locale = activeLocaleForTranslation();
+  if (!locale) return [];
+  try {
+    const rows = (await get(
+      `section_translations?language=eq.${encodeURIComponent(locale)}`,
+    )) as SectionTranslationRow[];
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    console.warn('Failed to fetch section translations:', e);
+    return [];
+  }
+}
+
+function applySectionTranslations(
+  sections: Section[],
+  translations: SectionTranslationRow[],
+): Section[] {
+  if (translations.length === 0) return sections;
+  const byId = new Map<number, SectionTranslationRow>();
+  for (const t of translations) {
+    if (t && typeof t.section_id === 'number') byId.set(t.section_id, t);
+  }
+  return sections.map((s) => {
+    const id = (s as Section & { id?: number }).id;
+    if (typeof id !== 'number') return s;
+    const t = byId.get(id);
+    if (!t || !isPlainObject(t.config)) return s;
+    return {
+      ...s,
+      config: deepMergeTranslation(s.config || {}, t.config),
+    };
+  });
+}
+
 export async function hydratePage(slug: string): Promise<void> {
   await ready;
   // Kick off the manifest fetch as early as possible. The cached-pass render
@@ -357,7 +466,7 @@ async function fetchAndUpdate(
   // parallel (fetchManifest() was kicked off at hydratePage's entry), so
   // the practical wait is the slower of the two — typically the sections
   // PostgREST query dominates.
-  const [_, fresh] = await Promise.all([
+  const [_, freshRaw, translations] = await Promise.all([
     fetchManifest(),
     (async () => {
       try {
@@ -368,8 +477,10 @@ async function fetchAndUpdate(
         return null;
       }
     })(),
+    fetchSectionTranslationsForActiveLocale(),
   ]);
-  if (!fresh) return;
+  if (!freshRaw) return;
+  const fresh = applySectionTranslations(freshRaw, translations);
 
   // Refresh the ctx so it picks up the just-fetched manifest. Sections
   // changes (admin uploads, role changes) are picked up too.

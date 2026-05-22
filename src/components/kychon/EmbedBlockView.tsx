@@ -40,6 +40,7 @@ function EmbedFrame({ height, responsive, sandbox, src, title }: EmbedFrameProps
         allowFullScreen
         className="block"
         loading="lazy"
+        referrerPolicy="strict-origin-when-cross-origin"
         sandbox={sandbox}
         src={src}
         style={iframeStyle}

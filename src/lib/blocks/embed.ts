@@ -108,6 +108,8 @@ const EMBED: BlockType = {
   label: 'Embed',
   icon: '\u{1F517}',
   dynamic: false,
+  editorType: 'custom',
+  translatableFields: [],
   zoneHints: ['main'],
   defaultConfig: {
     heading: '',

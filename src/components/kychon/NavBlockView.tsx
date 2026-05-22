@@ -436,6 +436,7 @@ function useNavRuntime(
   const [overflowedIndexes, setOverflowedIndexes] = React.useState<Set<number>>(() => new Set());
   const [pendingFocus, setPendingFocus] = React.useState<{ menuId: string; target: FocusTarget } | null>(null);
   const topItemRefs = React.useRef(new Map<number, HTMLElement>());
+  const topItemWidths = React.useRef(new Map<number, number>());
   const triggerRefs = React.useRef(new Map<string, HTMLButtonElement>());
   const menuItemRefs = React.useRef(new Map<string, FocusableElement[]>());
 
@@ -505,8 +506,13 @@ function useNavRuntime(
   }, [removeMenuAndDescendants]);
 
   const registerTopItem = React.useCallback((index: number, node: HTMLElement | null) => {
-    if (node) topItemRefs.current.set(index, node);
-    else topItemRefs.current.delete(index);
+    if (node) {
+      topItemRefs.current.set(index, node);
+      const width = node.getBoundingClientRect().width;
+      if (width > 0) topItemWidths.current.set(index, width);
+    } else {
+      topItemRefs.current.delete(index);
+    }
   }, []);
 
   const registerTrigger = React.useCallback((menuId: string, node: HTMLButtonElement | null) => {
@@ -586,10 +592,21 @@ function useNavRuntime(
         if (width > 0) available = Math.min(available, width);
         container = container.parentElement;
       }
-      const orderedItems = items.map((_, index) => topItemRefs.current.get(index)).filter((item): item is HTMLElement => !!item);
+      const orderedItems = items.map((_, index) => {
+        const node = topItemRefs.current.get(index);
+        return node ? { index, node } : null;
+      }).filter((item): item is { index: number; node: HTMLElement } => !!item);
       if (available > 0 && orderedItems.length) {
         const gap = readGap(links);
-        const total = orderedItems.reduce((sum, item, index) => sum + item.getBoundingClientRect().width + (index > 0 ? gap : 0), 0);
+        const widthForItem = (item: { index: number; node: HTMLElement }): number => {
+          const width = item.node.getBoundingClientRect().width;
+          if (width > 0) {
+            topItemWidths.current.set(item.index, width);
+            return width;
+          }
+          return topItemWidths.current.get(item.index) || 0;
+        };
+        const total = orderedItems.reduce((sum, item, index) => sum + widthForItem(item) + (index > 0 ? gap : 0), 0);
         if (total > available) {
           nextOverflow = true;
           const reserved = (toggleRef.current?.getBoundingClientRect().width || 36) + gap;
@@ -597,7 +614,7 @@ function useNavRuntime(
           let used = 0;
           let overflowing = false;
           orderedItems.forEach((item, index) => {
-            const width = item.getBoundingClientRect().width + (index > 0 ? gap : 0);
+            const width = widthForItem(item) + (index > 0 ? gap : 0);
             if (!overflowing && used + width <= fitWidth) {
               used += width;
             } else {

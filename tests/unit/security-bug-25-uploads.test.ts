@@ -20,7 +20,16 @@ const mockState = vi.hoisted(() => ({
   members: [] as JsonObject[],
   resources: [] as JsonObject[],
   fetchCalls: [] as Array<{ url: string; method: string }>,
-  assetPutCalls: [] as Array<{ key: string; size: number; contentType?: string }>,
+  assetPutCalls: [] as Array<{
+    key: string;
+    size: number;
+    contentType?: string;
+    metadata?: Record<string, unknown>;
+    exifPolicy?: string;
+  }>,
+  assetRmCalls: [] as string[],
+  assetLsCalls: [] as Array<Record<string, unknown>>,
+  assetLsResponse: { blobs: [] as unknown[], next_cursor: null as string | null },
   uploadResponse: { ok: true, url: '/storage/test', status: 200 },
   deleteResponse: { ok: true, status: 200 },
   sqlCalls: [] as Array<{ query: string; params: unknown[] }>,
@@ -60,13 +69,31 @@ vi.mock(
       },
     }),
     assets: {
-      // @run402/functions@2.2.0 surface. The runtime call hits
-      // /apply/v1/service-asset-put; here we just record the call and
-      // return a fake AssetRef shape so the handler's url-pick logic runs.
-      put(key: string, source: Uint8Array | string, opts?: { contentType?: string }) {
+      // @run402/functions surface. The runtime call hits
+      // /apply/v1/service-asset-put; here we record the call and return a
+      // fake AssetRef shape so the handler's url-pick logic runs. v1.50 +
+      // admin-content-management refactor: metadata + exifPolicy threaded
+      // through opts; width/height/format come from the platform.
+      put(
+        key: string,
+        source: Uint8Array | string,
+        opts?: {
+          contentType?: string;
+          metadata?: Record<string, unknown>;
+          exifPolicy?: string;
+        },
+      ) {
         const size = typeof source === 'string' ? source.length : source.byteLength;
-        const callRecord: { key: string; size: number; contentType?: string } = { key, size };
+        const callRecord: {
+          key: string;
+          size: number;
+          contentType?: string;
+          metadata?: Record<string, unknown>;
+          exifPolicy?: string;
+        } = { key, size };
         if (opts?.contentType) callRecord.contentType = opts.contentType;
+        if (opts?.metadata) callRecord.metadata = opts.metadata;
+        if (opts?.exifPolicy) callRecord.exifPolicy = opts.exifPolicy;
         mockState.assetPutCalls.push(callRecord);
         return Promise.resolve({
           key,
@@ -75,6 +102,10 @@ vi.mock(
           content_type: opts?.contentType || 'application/octet-stream',
           visibility: 'public',
           immutable: true,
+          width_px: 800,
+          height_px: 600,
+          metadata: opts?.metadata ?? null,
+          image_exif_policy: opts?.exifPolicy ?? 'strip',
           url: `https://cdn.example/blob/${key}`,
           immutable_url: `https://cdn.example/blob/${key}?sha=mockedsha`,
           cdn_url: `https://cdn.example/blob/${key}`,
@@ -89,6 +120,17 @@ vi.mock(
           contentType: opts?.contentType || 'application/octet-stream',
           contentSha256: 'mockedsha',
         });
+      },
+      rm(key: string) {
+        mockState.assetRmCalls.push(key);
+        if (mockState.deleteResponse.status >= 400 && mockState.deleteResponse.status !== 404) {
+          return Promise.reject(new Error(`mock rm failed: ${mockState.deleteResponse.status}`));
+        }
+        return Promise.resolve();
+      },
+      ls(opts: Record<string, unknown>) {
+        mockState.assetLsCalls.push(opts);
+        return Promise.resolve(mockState.assetLsResponse);
       },
     },
   }),
@@ -214,14 +256,18 @@ describe('bug #25 — upload-asset.js path traversal in delete', () => {
     expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
   });
 
-  it('accepts a clean asset path and hits the content-addressed delete endpoint (#28)', async () => {
+  it('accepts a clean asset path and delegates to assets.rm (#28; v1.50 refactor)', async () => {
     mockState.user = { id: 'admin-user' };
     mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
     const handler = (await import('../../functions/upload-asset.js')).default;
     const res = await handler(jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }));
     expect(res.status).toBe(200);
-    const deleteCall = mockState.fetchCalls.find((c) => c.method === 'DELETE');
-    expect(deleteCall?.url).toBe('https://api.run402.com/storage/v1/blob/assets/logo.png');
+    // The admin-content-management refactor switched the delete path from a
+    // raw fetch() against /storage/v1/blob/<key> to assets.rm(<key>). The
+    // platform handles variant revocation + CDN invalidation; we just call
+    // through with the prefixed key.
+    expect(mockState.assetRmCalls).toContain('assets/logo.png');
+    expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
   });
 });
 

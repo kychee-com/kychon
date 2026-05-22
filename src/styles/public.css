@@ -287,7 +287,7 @@ a:hover {
   grid-row: 2;
   justify-self: end;
   align-self: center;
-  display: none;
+  display: none !important;
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -608,6 +608,27 @@ main [data-section] {
      `[data-hero] h1` above — no override needed. */
 }
 
+@media (max-width: 768px) {
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-caption],
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-logo-overlay] {
+    display: none;
+  }
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] {
+    box-sizing: border-box;
+    padding: clamp(1rem, 4vw, 2rem);
+  }
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] h1 {
+    margin-bottom: 0.625rem;
+    font-size: clamp(2rem, 6vw, 2.6rem);
+    line-height: 1.05;
+  }
+  [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] p {
+    margin-bottom: 1rem;
+    font-size: clamp(0.95rem, 2.6vw, 1.08rem);
+    line-height: 1.45;
+  }
+}
+
 @media (max-width: 640px) {
   [data-hero][data-hero-mode="foreground"] {
     margin: 0;
@@ -727,7 +748,7 @@ tr:hover td {
 
 [data-nav-shell][data-nav-source-mobile="true"] [data-nav-toggle],
 [data-nav-toggle][data-nav-source-mobile="true"] {
-  display: block;
+  display: flex !important;
 }
 [data-nav-shell][data-nav-source-mobile="true"] [data-nav-links],
 [data-nav-links][data-nav-source-mobile="true"] {
@@ -751,7 +772,7 @@ tr:hover td {
 }
 [data-nav-shell][data-nav-overflow="true"] [data-nav-toggle],
 [data-nav-toggle][data-nav-overflow="true"] {
-  display: block;
+  display: flex !important;
 }
 [data-nav-shell][data-nav-overflow="true"] [data-nav-links],
 [data-nav-links][data-nav-overflow="true"] {

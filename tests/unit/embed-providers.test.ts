@@ -9,9 +9,22 @@ function provider(id: keyof typeof PROVIDERS) {
 }
 
 describe('PROVIDERS registry shape', () => {
-  it('includes the seven v1 providers', () => {
+  it('includes the v1 providers + admin-content-management expansion (12 total)', () => {
     const ids = Object.keys(PROVIDERS).sort();
-    expect(ids).toEqual(['calendly', 'iframe', 'map', 'tide_chart', 'vimeo', 'weather', 'youtube']);
+    expect(ids).toEqual([
+      'calendly',
+      'eventbrite',
+      'google_forms',
+      'iframe',
+      'map',
+      'soundcloud',
+      'spotify',
+      'tide_chart',
+      'typeform',
+      'vimeo',
+      'weather',
+      'youtube',
+    ]);
   });
 
   it('every provider has all required fields', () => {
@@ -31,7 +44,19 @@ describe('PROVIDERS registry shape', () => {
 
   it('only the iframe provider is generic', () => {
     expect(provider('iframe').trustLevel).toBe('generic');
-    for (const id of ['youtube', 'vimeo', 'calendly', 'map', 'weather', 'tide_chart'] as const) {
+    for (const id of [
+      'youtube',
+      'vimeo',
+      'calendly',
+      'map',
+      'weather',
+      'tide_chart',
+      'spotify',
+      'soundcloud',
+      'eventbrite',
+      'google_forms',
+      'typeform',
+    ] as const) {
       expect(provider(id).trustLevel, id).toBe('verified');
     }
   });
