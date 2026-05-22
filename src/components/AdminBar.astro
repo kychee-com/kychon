@@ -1,0 +1,10 @@
+---
+// AdminBar.astro — Persistent thin admin chrome injected by Portal.astro.
+// Self-hides for non-admins via the island's getRole() check, so this slot is
+// safe to render unconditionally (matches the DemoBanner pattern in
+// Portal.astro). admin-content-management Decision 1.
+import AdminBarIsland from './kychon/AdminBarIsland';
+---
+<div transition:persist>
+  <AdminBarIsland client:load />
+</div>

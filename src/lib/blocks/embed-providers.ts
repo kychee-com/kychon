@@ -253,6 +253,200 @@ const tideChart: EmbedProvider = {
   trustLevel: 'verified',
 };
 
+const spotify: EmbedProvider = {
+  id: 'spotify',
+  label: 'Spotify player',
+  icon: '\u{1F3B5}',
+  buildSrc(params) {
+    const uri = requireString(params, 'uri').trim();
+    // Accept either a spotify: URI ('spotify:track:4uLU...') or a https://open.spotify.com share URL.
+    let kind: string;
+    let id: string;
+    const spotifyUri = uri.match(/^spotify:(track|album|playlist|artist|episode|show):([A-Za-z0-9]+)$/);
+    if (spotifyUri) {
+      kind = spotifyUri[1];
+      id = spotifyUri[2];
+    } else {
+      let url: URL;
+      try {
+        url = new URL(uri);
+      } catch {
+        throw new Error('Spotify uri must be a `spotify:` URI or an https://open.spotify.com share URL');
+      }
+      if (url.hostname !== 'open.spotify.com') {
+        throw new Error('Spotify URL must be on open.spotify.com');
+      }
+      const match = url.pathname.match(/^\/(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]+)/);
+      if (!match) {
+        throw new Error('Spotify URL must be /track/, /album/, /playlist/, /artist/, /episode/, or /show/ followed by an id');
+      }
+      kind = match[1];
+      id = match[2];
+    }
+    return `https://open.spotify.com/embed/${kind}/${id}`;
+  },
+  paramsSchema: {
+    uri: {
+      type: 'text',
+      required: true,
+      label: 'Spotify URI or share URL',
+      placeholder: 'spotify:track:4uLU6hMCjMI75M1A2tKUQC',
+    },
+  },
+  sandbox: ['allow-scripts', 'allow-same-origin'],
+  frameAncestor: 'https://open.spotify.com',
+  defaultHeight: '152px',
+  responsive: false,
+  trustLevel: 'verified',
+};
+
+const soundcloud: EmbedProvider = {
+  id: 'soundcloud',
+  label: 'SoundCloud player',
+  icon: '\u{1F50A}',
+  buildSrc(params) {
+    const trackUrl = requireString(params, 'url').trim();
+    let parsed: URL;
+    try {
+      parsed = new URL(trackUrl);
+    } catch {
+      throw new Error('SoundCloud url must be a valid https URL');
+    }
+    if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('soundcloud.com')) {
+      throw new Error('SoundCloud url must be an https URL on soundcloud.com');
+    }
+    const embed = new URL('https://w.soundcloud.com/player/');
+    embed.searchParams.set('url', parsed.toString());
+    embed.searchParams.set('color', '%23ff5500');
+    embed.searchParams.set('auto_play', 'false');
+    embed.searchParams.set('hide_related', 'false');
+    embed.searchParams.set('show_comments', 'true');
+    embed.searchParams.set('show_user', 'true');
+    embed.searchParams.set('show_reposts', 'false');
+    embed.searchParams.set('show_teaser', 'true');
+    return embed.toString();
+  },
+  paramsSchema: {
+    url: {
+      type: 'text',
+      required: true,
+      label: 'SoundCloud track or playlist URL',
+      placeholder: 'https://soundcloud.com/artist/track-name',
+    },
+  },
+  sandbox: ['allow-scripts', 'allow-same-origin', 'allow-popups'],
+  frameAncestor: 'https://w.soundcloud.com',
+  defaultHeight: '166px',
+  responsive: false,
+  trustLevel: 'verified',
+};
+
+const eventbrite: EmbedProvider = {
+  id: 'eventbrite',
+  label: 'Eventbrite event',
+  icon: '\u{1F39F}',
+  buildSrc(params) {
+    const eventId = requireString(params, 'event_id').trim();
+    if (!/^\d{8,18}$/.test(eventId)) {
+      throw new Error('Eventbrite event_id must be 8-18 digits');
+    }
+    const url = new URL('https://www.eventbrite.com/tickets-external');
+    url.searchParams.set('eid', eventId);
+    url.searchParams.set('ref', 'kychon');
+    return url.toString();
+  },
+  paramsSchema: {
+    event_id: {
+      type: 'text',
+      required: true,
+      label: 'Eventbrite event ID',
+      help: 'The numeric id in the eventbrite.com/e/...-<id> URL',
+      placeholder: '1234567890',
+    },
+  },
+  sandbox: ['allow-scripts', 'allow-same-origin', 'allow-forms', 'allow-popups'],
+  frameAncestor: 'https://www.eventbrite.com',
+  defaultHeight: '500px',
+  responsive: false,
+  trustLevel: 'verified',
+};
+
+const googleForms: EmbedProvider = {
+  id: 'google_forms',
+  label: 'Google Form',
+  icon: '\u{1F4DD}',
+  buildSrc(params) {
+    const formUrl = requireString(params, 'form_url').trim();
+    let url: URL;
+    try {
+      url = new URL(formUrl);
+    } catch {
+      throw new Error('Google Form url must be a valid URL');
+    }
+    if (url.hostname !== 'docs.google.com') {
+      throw new Error('Google Form url must be on docs.google.com');
+    }
+    if (!url.pathname.startsWith('/forms/')) {
+      throw new Error('Google Form url must be a /forms/ path');
+    }
+    // Force the embed-friendly /viewform endpoint and add embedded=true.
+    if (!url.pathname.endsWith('/viewform')) {
+      // Allow short forms/d/<id> by normalising.
+      const match = url.pathname.match(/^\/forms\/d\/(?:e\/)?([A-Za-z0-9_-]+)/);
+      if (!match) {
+        throw new Error('Google Form url must include /viewform or /forms/d/<id>');
+      }
+      const id = match[1];
+      const embed = new URL(`https://docs.google.com/forms/d/e/${id}/viewform`);
+      embed.searchParams.set('embedded', 'true');
+      return embed.toString();
+    }
+    url.searchParams.set('embedded', 'true');
+    return url.toString();
+  },
+  paramsSchema: {
+    form_url: {
+      type: 'text',
+      required: true,
+      label: 'Google Form URL',
+      help: 'Paste the form’s public /viewform link',
+      placeholder: 'https://docs.google.com/forms/d/e/.../viewform',
+    },
+  },
+  sandbox: ['allow-scripts', 'allow-same-origin', 'allow-forms', 'allow-popups'],
+  frameAncestor: 'https://docs.google.com',
+  defaultHeight: '600px',
+  responsive: false,
+  trustLevel: 'verified',
+};
+
+const typeform: EmbedProvider = {
+  id: 'typeform',
+  label: 'Typeform',
+  icon: '\u{1F4CB}',
+  buildSrc(params) {
+    const formId = requireString(params, 'form_id').trim();
+    if (!/^[A-Za-z0-9]{6,20}$/.test(formId)) {
+      throw new Error('Typeform form_id must be 6-20 alphanumeric characters');
+    }
+    return `https://form.typeform.com/to/${formId}`;
+  },
+  paramsSchema: {
+    form_id: {
+      type: 'text',
+      required: true,
+      label: 'Typeform form ID',
+      help: 'The id after typeform.com/to/<id>',
+      placeholder: 'AbCdEf12',
+    },
+  },
+  sandbox: ['allow-scripts', 'allow-same-origin', 'allow-forms', 'allow-popups'],
+  frameAncestor: 'https://embed.typeform.com',
+  defaultHeight: '500px',
+  responsive: false,
+  trustLevel: 'verified',
+};
+
 const iframe: EmbedProvider = {
   id: 'iframe',
   label: 'Generic iframe (untrusted source)',
@@ -297,6 +491,11 @@ export const PROVIDERS: Record<string, EmbedProvider> = {
   map,
   weather,
   tide_chart: tideChart,
+  spotify,
+  soundcloud,
+  eventbrite,
+  google_forms: googleForms,
+  typeform,
   iframe,
 };
 

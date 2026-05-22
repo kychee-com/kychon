@@ -69,9 +69,13 @@ describe('deploy public paths', () => {
   });
 });
 
-describe('routed-locale-context i18n slice', () => {
-  it('reads languages and default_language from the seed site_config', () => {
-    // Mirrors barrio-unido.ts:120-121.
+describe('routed-locale-context i18n slice (kitchen-sink LOCALE_POOL — Decision 9)', () => {
+  it('emits the 50-entry LOCALE_POOL + unknownLocalePolicy=pass-through', () => {
+    // admin-content-management Decision 9: seeds no longer drive locales[];
+    // we deploy the full pool and control runtime visibility via
+    // site_config.languages_enabled. 2026-05-21 update: also opt in to
+    // `unknownLocalePolicy: 'pass-through'` so admins can enable locales
+    // outside the pool without redeploying (closes run402-private#413).
     const spec = buildI18nSpec(
       seedFor({
         languages: { value: ['es', 'en'], category: 'i18n' },
@@ -79,31 +83,36 @@ describe('routed-locale-context i18n slice', () => {
       }),
     );
 
-    expect(spec).toEqual({
-      defaultLocale: 'es',
-      locales: ['es', 'en'],
-      detect: ['cookie:wl_locale', 'accept-language'],
-    });
+    expect(spec.defaultLocale).toBe('es');
+    expect(spec.locales.length).toBe(50);
+    expect(spec.locales).toContain('en');
+    expect(spec.locales).toContain('es');
+    expect(spec.locales).toContain('fr');
+    expect(spec.locales).toContain('ja');
+    expect(spec.detect).toEqual(['cookie:wl_locale', 'accept-language']);
+    expect((spec as { unknownLocalePolicy?: string }).unknownLocalePolicy).toBe('pass-through');
   });
 
-  it('falls back to [en]/en when the seed declares no language keys', () => {
+  it('falls back to defaultLocale=en when the seed declares no language keys', () => {
     // Mirrors kychon.ts / eagles.ts / silver-pines.ts: no i18n category at all.
     const spec = buildI18nSpec(seedFor({ site_name: { value: 'Anywhere', category: 'branding' } }));
 
-    expect(spec).toEqual({
-      defaultLocale: 'en',
-      locales: ['en'],
-      detect: ['cookie:wl_locale', 'accept-language'],
-    });
+    expect(spec.defaultLocale).toBe('en');
+    expect(spec.locales.length).toBe(50);
+    expect(spec.detect).toEqual(['cookie:wl_locale', 'accept-language']);
   });
 
-  it('uses locales[0] when languages is declared but default_language is not', () => {
-    const spec = buildI18nSpec(seedFor({ languages: { value: ['pt', 'en'], category: 'i18n' } }));
+  it('honours per-seed defaultLocale as long as it is in the pool', () => {
+    const spec = buildI18nSpec(seedFor({ default_language: { value: 'pt', category: 'i18n' } }));
 
-    // First entry wins. Byte-identical invariant (defaultLocale must equal an
-    // entry of locales) is preserved.
     expect(spec.defaultLocale).toBe('pt');
     expect(spec.locales).toContain(spec.defaultLocale);
+  });
+
+  it('throws at build time when defaultLocale is outside the pool', () => {
+    expect(() => buildI18nSpec(seedFor({ default_language: { value: 'xx-not-real', category: 'i18n' } }))).toThrow(
+      /LOCALE_POOL/,
+    );
   });
 
   it('threads through buildKychonReleaseSpec when passed as opts.i18n', () => {

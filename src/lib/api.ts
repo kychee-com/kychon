@@ -583,6 +583,35 @@ export function get(path: string): Promise<any> {
   return queryPath(path);
 }
 
+/**
+ * admin-content-management: invoke an arbitrary capability mutation by name.
+ * Use when the operation isn't a generic table CRUD covered by post/patch/del
+ * (e.g. `media.list`, `media.delete`, `sections.translate`,
+ * `sections.getTranslation`). Returns the operation's `result` payload.
+ */
+export async function execOp(operation: string, input: JsonObject = {}): Promise<any> {
+  const result = await callCapability(() =>
+    capabilityClient().execute<ActionResult<JsonValue>>(operation, input, {
+      confirmed: true,
+      idempotencyKey: createIdempotencyKey(operation.replace(/\./g, '-')),
+    }),
+    true,
+  );
+  return (result as { result?: unknown } | null)?.result ?? null;
+}
+
+/**
+ * admin-content-management: invoke an arbitrary capability QUERY by name.
+ * For reads that aren't a PostgREST-style table path.
+ */
+export async function queryOp(operation: string, input: JsonObject = {}): Promise<any> {
+  const result = await callCapability(() =>
+    capabilityClient().request<JsonValue>(operation, 'query', input),
+    false,
+  );
+  return result;
+}
+
 export async function post(path: string, body: any): Promise<any> {
   const parsed = parsePath(path);
   const operation = parsed.table === 'site_config' ? 'config.set' : CREATE_OPERATION_BY_TABLE[parsed.table] || '';

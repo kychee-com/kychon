@@ -104,8 +104,8 @@ The thumbnail grid SHALL prefer `row.variants.thumb.cdn_url` (the 320w WebP thum
 
 - **WHEN** an admin clicks "Use this image →"
 - **THEN** the Dialog closes
-- **AND** the target image element's src is updated to the selected asset's `cdn_url` (or `variants.medium.cdn_url` if a smaller variant is more appropriate for the target's rendered width)
-- **AND** a PATCH is issued to save the new image path to the underlying data source
+- **AND** a PATCH is issued to save the full `AssetRef` object (not just the `cdn_url` string) to the underlying data source — see the "Block config image fields persist the full AssetRef" requirement below
+- **AND** the target image element re-renders via the block renderer, which detects the AssetRef shape and emits `<picture>` with variants
 
 #### Scenario: Uploading a new image from the picker
 
@@ -113,6 +113,7 @@ The thumbnail grid SHALL prefer `row.variants.thumb.cdn_url` (the 320w WebP thum
 - **THEN** the file is uploaded via `upload-asset.js` (which records `metadata.filename` + `uploaded_by` and applies `exifPolicy: 'strip'`)
 - **AND** the returned `AssetRef` is prepended to the local grid state (no need to refetch `media.list`)
 - **AND** the new asset is auto-selected in the grid and the "Use this image →" button is enabled
+- **AND** confirming "Use this image →" persists the full AssetRef to the block config (per the requirement below)
 
 #### Scenario: Load more fetches additional assets
 
@@ -138,3 +139,40 @@ The in-use check is informational only — see "media.delete calls `r.project(id
 
 - **WHEN** an admin attempts to delete an asset whose `cdn_url` does not appear in any config
 - **THEN** a simpler confirmation Dialog is shown without the in-use warning
+
+### Requirement: Block config image fields persist the full AssetRef, not the URL string
+
+When the MediaPicker writes an image selection back to a block's config field (via the `data-editable-image` flow or directly from a block editor that uses MediaPicker for image inputs), the persisted value SHALL be the full v1.49 `AssetRef` object as returned by `r.assets.put` / `r.assets.list`. This includes `cdn_url`, `width_px`, `height_px`, `blurhash`, `image_format`, and the `variants.{thumb, medium, large, display_jpeg}` ladder.
+
+The `kychonImageHtml` / `<KychonImage>` consumers in `src/lib/kychon-image.ts` SHALL accept either:
+- A string (legacy seeded image URL) — looked up in the build-time `@run402/astro` manifest as today, with fallback to plain `<img>` on miss.
+- An object with an `AssetRef` shape — passed directly to `renderPicture(ref, opts)` from `@run402/astro/manifest`. No manifest lookup. No localStorage cache. No runtime `r.assets.list?key=…` round-trip.
+
+This requirement intentionally rejects the alternative of storing only the `cdn_url` string in block config and resolving variants at render time via a runtime manifest endpoint or `r.assets.list` lookup. See design.md Decision 8 and the Run402 issue #396 discussion for the rationale (closed not-planned in favor of this application-side approach).
+
+#### Scenario: Saving via MediaPicker writes the full AssetRef
+
+- **WHEN** an admin selects an image in the MediaPicker and clicks "Use this image →"
+- **THEN** the underlying block config field is updated with the full AssetRef object (not just `cdn_url`)
+- **AND** the PATCH payload to `sections.updateConfig` contains the AssetRef shape in the corresponding field path
+
+#### Scenario: Renderer detects AssetRef-shaped field and emits variants
+
+- **WHEN** the block renderer encounters an image field whose value is an object with `cdn_url` + `variants`
+- **THEN** the renderer calls `renderPicture(field, opts)` directly from `@run402/astro/manifest`
+- **AND** the emitted HTML is `<picture>` with the WebP variant ladder and blurhash placeholder
+- **AND** no manifest lookup or runtime `r.assets.list` call is performed
+
+#### Scenario: Renderer detects string-shaped field and uses the legacy path
+
+- **WHEN** the block renderer encounters an image field whose value is a string URL (legacy seeded config)
+- **THEN** the renderer calls `kychonImageHtml(url, alt, opts, manifest)` which looks up the URL in the build-time `@run402/astro` manifest
+- **AND** on manifest hit, emits `<picture>` with the seeded image's variants
+- **AND** on manifest miss, falls back to a plain `<img src={url}>` (existing v0.2 behavior)
+
+#### Scenario: Re-upload to a fresh path does not silently stale embedded refs
+
+- **WHEN** an admin uploads new bytes via the MediaPicker
+- **THEN** the upload goes to a fresh storage path (key)
+- **AND** the new AssetRef is what gets persisted to the block config the admin is currently editing
+- **AND** any other block config that still holds the OLD AssetRef continues to render the old image via its embedded immutable variant URLs (content-addressed, intentional)

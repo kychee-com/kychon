@@ -1,0 +1,9 @@
+---
+// MediaPickerHost.astro — top-level mount of the MediaPicker dialog so any
+// admin UI can request an image via a `kychon:media-picker-open` event.
+// The island self-hides for non-admins. admin-content-management Section 9.
+import MediaPickerHost from './kychon/MediaPickerHost';
+---
+<div transition:persist>
+  <MediaPickerHost client:load />
+</div>

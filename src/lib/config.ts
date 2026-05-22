@@ -532,7 +532,11 @@ export async function init(): Promise<Record<string, any>> {
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
 
-    if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
+    // admin-content-management: prefer `languages_enabled` (runtime-mutable
+    // via the admin AddLanguage dialog); fall back to legacy `languages` for
+    // pre-change portals that haven't yet had the migration row added.
+    const enabledLocales = siteConfig.languages_enabled || siteConfig.languages;
+    if (enabledLocales) setAvailableLocales(enabledLocales);
     await loadLocale(null, siteConfig.default_language);
 
     await refreshMemberRecord();
@@ -565,7 +569,11 @@ export async function init(): Promise<Record<string, any>> {
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
 
-    if (siteConfig.languages) setAvailableLocales(siteConfig.languages);
+    // admin-content-management: prefer `languages_enabled` (runtime-mutable
+    // via the admin AddLanguage dialog); fall back to legacy `languages` for
+    // pre-change portals that haven't yet had the migration row added.
+    const enabledLocales = siteConfig.languages_enabled || siteConfig.languages;
+    if (enabledLocales) setAvailableLocales(enabledLocales);
     await loadLocale(null, siteConfig.default_language);
 
     await refreshMemberRecord();

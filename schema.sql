@@ -404,6 +404,42 @@ DO $$ BEGIN
     CHECK (column_span IN ('1', '1/2', '1/3', '2/3'));
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- admin-content-management (block-translation): per-locale partial config overrides
+-- for sections rows. JSONB stores only the translatable fields; the renderer
+-- deep-merges over sections.config when ctx.locale != ctx.defaultLocale AND
+-- locale is in site_config.languages_enabled (see specs/i18n/spec.md).
+CREATE TABLE IF NOT EXISTS section_translations (
+  id SERIAL PRIMARY KEY,
+  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  language TEXT NOT NULL,
+  config JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (section_id, language)
+);
+CREATE INDEX IF NOT EXISTS idx_section_translations_section_lang
+  ON section_translations (section_id, language);
+
+-- admin-content-management (Decision 9 — kitchen-sink locale pool):
+-- `site_config.languages_enabled` is the runtime-mutable JSONB array that
+-- controls which locales the AdminBar surfaces and which trigger the
+-- translation JOIN. Mirror the legacy `site_config.languages` value on first
+-- deploy so existing portals see their current configured set unchanged.
+-- Leave `site_config.languages` untouched (read-only legacy after this
+-- migration; nothing in admin-content-management reads it post-cut).
+INSERT INTO site_config (key, value, category)
+SELECT 'languages_enabled', value, 'i18n'
+FROM site_config
+WHERE key = 'languages'
+  AND NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
+
+-- Portal hadn't set `languages` either (default single-locale): seed
+-- `languages_enabled` to ["en"] so the admin bar's hide-when-one-language
+-- rule has a value to inspect.
+INSERT INTO site_config (key, value, category)
+SELECT 'languages_enabled', '["en"]'::jsonb, 'i18n'
+WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
+
 -- ported-event-registration + source-timezone-event-display: preserve richer
 -- imported event data without changing canonical timestamp storage.
 DO $$ BEGIN ALTER TABLE events ADD COLUMN source_timezone TEXT; EXCEPTION WHEN duplicate_column THEN NULL; END $$;

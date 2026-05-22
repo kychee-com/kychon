@@ -56,17 +56,21 @@ The admin bar SHALL include a `Button` labelled "+ Add Block". Clicking it SHALL
 - **WHEN** an admin clicks "+ Add Block" in the admin bar
 - **THEN** the block picker opens for the main zone of the current page
 
-### Requirement: Language switcher is hidden when the portal has only one configured language
+### Requirement: Language switcher is hidden when the portal has only one enabled language
 
-The language switcher `DropdownMenu` SHALL only render when `site_config` contains a `languages` array with more than one entry. When only one language is configured the switcher SHALL be absent from the admin bar DOM entirely.
+The language switcher `DropdownMenu` SHALL only render when `site_config.languages_enabled` (the runtime-mutable JSONB array — see design.md Decision 9 for why this is distinct from `spec.i18n.locales`) contains more than one entry. When only one language is enabled the switcher SHALL be absent from the admin bar DOM entirely.
 
-#### Scenario: Single-language portal hides the switcher
-- **WHEN** the portal's `site_config.languages` has exactly one entry (e.g. `["en"]`)
+The switcher SHALL list languages from `site_config.languages_enabled`, NOT from the gateway's `spec.i18n.locales` pool (which is the kitchen-sink 50-entry pre-allocation, irrelevant to UI).
+
+#### Scenario: Single-enabled-language portal hides the switcher
+- **WHEN** the portal's `site_config.languages_enabled` has exactly one entry (e.g. `["en"]`)
 - **THEN** no language switcher appears in the admin bar
+- **AND** the fact that the gateway accepts 50 locales is invisible to the admin
 
-#### Scenario: Multi-language portal shows the switcher
-- **WHEN** the portal's `site_config.languages` has two or more entries
+#### Scenario: Multi-enabled-language portal shows the switcher
+- **WHEN** the portal's `site_config.languages_enabled` has two or more entries
 - **THEN** a language switcher DropdownMenu labelled with the current locale appears in the admin bar
+- **AND** the dropdown lists only the languages in `languages_enabled` (not the 50-entry pool)
 
 ### Requirement: Language switcher activates translation mode for the selected locale
 

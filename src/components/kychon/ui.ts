@@ -35,6 +35,9 @@ export {
 } from '@/components/ui/dropdown-menu';
 export { Input } from '@/components/ui/input';
 export { Label } from '@/components/ui/label';
+// admin-content-management additions (Section 1.1):
+export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+export { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 export {
   Select,
   SelectContent,

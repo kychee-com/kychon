@@ -51,6 +51,8 @@ const READ_OPERATIONS = [
   'reactions.list',
   'moderation.queue',
   'translations.list',
+  'sections.getTranslation',
+  'media.list',
   'newsletters.drafts.list',
   'newsletters.drafts.get',
   'insights.list',
@@ -78,6 +80,8 @@ const MUTATION_OPERATIONS = [
   'sections.setScope',
   'sections.setColumnSpan',
   'sections.delete',
+  'sections.translate',
+  'media.delete',
   'members.updateProfile',
   'members.approve',
   'members.reject',
@@ -478,6 +482,13 @@ function handleQuery(correlationId, envelope, operation, actor) {
   if (operation.name === 'pollResults.get') {
     return handlePollResultsQuery(correlationId, envelope.input, actor);
   }
+  // admin-content-management
+  if (operation.name === 'sections.getTranslation') {
+    return handleSectionTranslationGet(correlationId, envelope.input, actor);
+  }
+  if (operation.name === 'media.list') {
+    return handleMediaList(correlationId, envelope.input, actor);
+  }
 
   const tableQuery = TABLE_QUERIES[operation.name];
   if (tableQuery) {
@@ -806,6 +817,12 @@ async function executeMutation(name, input, actor) {
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, actor);
   if (name === 'rsvps.cancel') return cancelRsvp(input, actor);
   if (name === 'members.changeRole') return changeMemberRole(input, actor);
+  // admin-content-management: custom page handlers with nav side-effects
+  if (name === 'pages.create') return createPageWithNav(input, actor);
+  if (name === 'pages.delete') return deletePageWithCascade(input, actor);
+  // admin-content-management: media library wrappers + section_translations
+  if (name === 'media.delete') return deleteMediaAsset(input, actor);
+  if (name === 'sections.translate') return upsertSectionTranslation(input, actor);
   return genericMutation(name, input, actor);
 }
 
@@ -1323,6 +1340,344 @@ async function upsertConfig(input) {
   const existing = (await selectRows('site_config')).find((row) => row.key === key);
   if (existing) return updateConfigRow(key, patch);
   return insertRow('site_config', { key, ...patch });
+}
+
+// =============================================================================
+// admin-content-management: custom page handlers + media/translation operations
+// =============================================================================
+
+const SLUG_RESERVED = new Set([
+  'admin',
+  'admin-members',
+  'admin-settings',
+  'index',
+  'events',
+  'event',
+  'directory',
+  'forum',
+  'committees',
+  'polls',
+  'profile',
+  'join',
+  'search',
+  'calendar',
+  'page',
+]);
+
+function slugify(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 63);
+}
+
+async function ensureUniqueSlug(slug) {
+  const pages = await selectRows('pages');
+  const taken = new Set(pages.map((p) => String(p.slug)));
+  if (!taken.has(slug) && !SLUG_RESERVED.has(slug)) return slug;
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${slug}-${n}`;
+    if (!taken.has(candidate) && !SLUG_RESERVED.has(candidate)) return candidate;
+  }
+  throw capabilityError('conflict.state', 'Could not allocate a unique slug after 1000 attempts.', { slug });
+}
+
+async function findGlobalNavBlock() {
+  const sections = await selectRows('sections');
+  return (
+    sections.find(
+      (s) => s.section_type === 'nav' && String(s.scope || '') === 'global' && String(s.zone || '') === 'header',
+    ) || null
+  );
+}
+
+function navItemsArray(navBlock) {
+  const cfg = navBlock?.config;
+  if (!cfg || typeof cfg !== 'object') return [];
+  const items = cfg.items;
+  return Array.isArray(items) ? items : [];
+}
+
+async function createPageWithNav(input, _actor) {
+  const rawSlug = typeof input.slug === 'string' && input.slug ? input.slug : slugify(input.title || '');
+  const baseSlug = slugify(rawSlug) || slugify(input.title || '');
+  if (!baseSlug) {
+    throw capabilityError('validation.failed', 'pages.create requires a non-empty title or slug.', {
+      slug: String(input.slug ?? ''),
+      title: String(input.title ?? ''),
+    });
+  }
+  const slug = await ensureUniqueSlug(baseSlug);
+  const title = String(input.title || baseSlug);
+  const showInNav = input.show_in_nav === true || input.showInNav === true;
+  const requiresAuth = input.requires_auth === true || input.requiresAuth === true;
+  const navPosition = Number.isFinite(input.nav_position) ? Number(input.nav_position) : null;
+
+  const page = await insertRow('pages', {
+    slug,
+    title,
+    content: typeof input.content === 'string' ? input.content : null,
+    requires_auth: requiresAuth,
+    show_in_nav: showInNav,
+    nav_position: navPosition,
+    published: input.published === false ? false : true,
+  });
+
+  const changed = [changedObject('page', page.id ?? slug)];
+  let navNotFound = false;
+  let navInserted = false;
+  if (showInNav) {
+    const nav = await findGlobalNavBlock();
+    if (!nav) {
+      navNotFound = true;
+    } else {
+      const items = navItemsArray(nav);
+      const href = `/${slug}`;
+      if (!items.some((item) => String(item?.href || '') === href)) {
+        const newItem = { label: title, href, public: true };
+        const nextItems = [...items, newItem];
+        const nextConfig = { ...nav.config, items: nextItems };
+        await updateRow('sections', nav.id, { config: nextConfig });
+        changed.push(changedObject('section', nav.id));
+        navInserted = true;
+      }
+    }
+  }
+  return actionResult(
+    { ...page, nav_not_found: navNotFound, nav_inserted: navInserted },
+    changed,
+    verification('pages.get', { id: page.id ?? slug }, changed[0]),
+  );
+}
+
+async function deletePageWithCascade(input, _actor) {
+  const id = input.id;
+  const slugInput = typeof input.slug === 'string' ? input.slug : null;
+  const pages = await selectRows('pages');
+  const page = id != null ? pages.find((p) => String(p.id) === String(id)) : pages.find((p) => p.slug === slugInput);
+  if (!page) {
+    throw capabilityError('notFound.object', 'Page not found.', {
+      object: changedObject('page', id ?? slugInput ?? 'unknown'),
+    });
+  }
+  if (SLUG_RESERVED.has(page.slug)) {
+    throw capabilityError('conflict.state', `Cannot delete reserved page "${page.slug}".`, {
+      object: changedObject('page', page.id),
+    });
+  }
+
+  // Cascade: page-scoped sections
+  const allSections = await selectRows('sections');
+  const pageSections = allSections.filter((s) => s.page_slug === page.slug && String(s.scope || 'page') === 'page');
+  for (const s of pageSections) {
+    await deleteRow('sections', s.id);
+  }
+
+  // Nav side-effect: remove matching href from the global nav block, if any
+  const navBlock = allSections.find(
+    (s) => s.section_type === 'nav' && String(s.scope || '') === 'global' && String(s.zone || '') === 'header',
+  );
+  let navRemoved = false;
+  if (navBlock) {
+    const items = navItemsArray(navBlock);
+    const href = `/${page.slug}`;
+    const nextItems = items.filter((item) => String(item?.href || '') !== href);
+    if (nextItems.length !== items.length) {
+      const nextConfig = { ...navBlock.config, items: nextItems };
+      await updateRow('sections', navBlock.id, { config: nextConfig });
+      navRemoved = true;
+    }
+  }
+
+  const deleted = await deleteRow('pages', page.id);
+  const changed = [changedObject('page', page.id)];
+  if (navRemoved) changed.push(changedObject('section', navBlock.id));
+  for (const s of pageSections) changed.push(changedObject('section', s.id));
+  return actionResult(
+    { ...(deleted || page), nav_removed: navRemoved, cascaded_sections: pageSections.length },
+    changed,
+    null,
+  );
+}
+
+// -- Media library: thin wrappers over upload-asset.js's storage delegation --
+//
+// `media.list` is a read-side handler (see handleMediaList below). `media.delete`
+// is a mutation that also runs an in-use check against sections.config /
+// site_config.value text. Both delegate the actual storage operations to
+// upload-asset.js via an internal HTTP hop.
+
+const UPLOAD_ASSET_FN = 'upload-asset';
+
+async function callUploadAssetFn(body) {
+  // The upload-asset function lives in the same project and is gated by the
+  // same admin role check (today via SELECT-role; future via declarative
+  // gate). Calling it via the gateway preserves the auth surface — we don't
+  // bypass admin checks by short-circuiting to assets.put here.
+  const url = `https://api.run402.com/functions/v1/${UPLOAD_ASSET_FN}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { error: 'invalid_json_response', raw: text };
+  }
+  if (!res.ok) {
+    throw capabilityError('internal.error', json?.error || `upload-asset ${body.action || 'invoke'} failed`, {
+      detail: json?.detail || null,
+      status: res.status,
+    });
+  }
+  return json;
+}
+
+async function handleMediaList(correlationId, input, actor) {
+  if (!isAdminLike(actor)) {
+    return errorResponse(correlationId, 403, {
+      code: 'auth.forbidden',
+      message: 'media.list requires admin role.',
+      detail: { actor: actor.state },
+      retryable: false,
+    });
+  }
+  try {
+    const result = await callUploadAssetFn({
+      action: 'list',
+      cursor: typeof input?.cursor === 'string' ? input.cursor : undefined,
+      filter: isPlainObject(input?.filter) ? input.filter : undefined,
+    });
+    return successResponse(correlationId, {
+      assets: Array.isArray(result?.assets) ? result.assets : [],
+      nextCursor: result?.nextCursor ?? null,
+    });
+  } catch (err) {
+    return errorResponse(correlationId, 500, {
+      code: err?.capabilityCode || 'internal.error',
+      message: err?.message || 'media.list failed',
+      detail: err?.detail || null,
+      retryable: true,
+    });
+  }
+}
+
+async function deleteMediaAsset(input, _actor) {
+  const path = typeof input.path === 'string' ? input.path : '';
+  if (!path) {
+    throw capabilityError('validation.failed', 'media.delete requires path.', { path });
+  }
+  // In-use check: scan sections.config + site_config.value for the asset's
+  // cdn_url substring. This is a Kychon-side warning, NOT a hard block —
+  // platform-side variant revocation + immutable retention handles the
+  // storage-side cleanup regardless.
+  const cdnUrl = typeof input.cdn_url === 'string' ? input.cdn_url : null;
+  let inUse = false;
+  if (cdnUrl) {
+    try {
+      const probe = await adminDb().sql(
+        "SELECT 1 FROM sections WHERE config::text LIKE '%' || $1 || '%' LIMIT 1 UNION ALL SELECT 1 FROM site_config WHERE value::text LIKE '%' || $1 || '%' LIMIT 1",
+        [cdnUrl],
+      );
+      inUse = (probe.rows?.length || 0) > 0;
+    } catch (err) {
+      console.warn('[media.delete] in-use probe failed; defaulting to inUse=false', err);
+    }
+  }
+  // If the UI flagged confirmed=false (i.e. preview the in-use check first),
+  // return the signal without deleting. UI then re-calls with confirmed=true.
+  if (inUse && input.confirmed !== true) {
+    return actionResult({ status: 'pending_confirmation', inUse: true, path }, [], null);
+  }
+  const result = await callUploadAssetFn({ action: 'delete', path });
+  return actionResult({ ...result, inUse }, [changedObject('asset', path)], null);
+}
+
+// -- section_translations: per-locale partial config overrides ---------------
+
+function normaliseLanguageTag(value) {
+  if (typeof value !== 'string') return null;
+  const v = value.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(v)) return null;
+  return v;
+}
+
+async function upsertSectionTranslation(input, _actor) {
+  const sectionId = Number(input.section_id ?? input.sectionId);
+  if (!Number.isFinite(sectionId) || sectionId <= 0) {
+    throw capabilityError('validation.failed', 'sections.translate requires numeric section_id.', {
+      section_id: String(input.section_id ?? input.sectionId ?? ''),
+    });
+  }
+  const language = normaliseLanguageTag(input.language);
+  if (!language) {
+    throw capabilityError('validation.failed', 'sections.translate requires a valid BCP-47 language tag.', {
+      language: String(input.language ?? ''),
+    });
+  }
+  if (!isPlainObject(input.config)) {
+    throw capabilityError('validation.failed', 'sections.translate requires `config` as a JSON object.', {});
+  }
+  const configJson = JSON.stringify(input.config);
+  // ON CONFLICT (section_id, language) DO UPDATE — single round-trip upsert.
+  const result = await adminDb().sql(
+    `INSERT INTO section_translations (section_id, language, config, created_at, updated_at)
+     VALUES ($1, $2, $3::jsonb, now(), now())
+     ON CONFLICT (section_id, language) DO UPDATE
+       SET config = EXCLUDED.config, updated_at = now()
+     RETURNING id, section_id, language, config, created_at, updated_at`,
+    [sectionId, language, configJson],
+  );
+  const row = (result.rows || [])[0] || { section_id: sectionId, language, config: input.config };
+  return actionResult(row, [changedObject('sectionTranslation', `${sectionId}:${language}`)], null);
+}
+
+async function handleSectionTranslationGet(correlationId, input, actor) {
+  if (!isAdminLike(actor)) {
+    return errorResponse(correlationId, 403, {
+      code: 'auth.forbidden',
+      message: 'sections.getTranslation requires admin role.',
+      detail: { actor: actor.state },
+      retryable: false,
+    });
+  }
+  const sectionId = Number(input?.section_id ?? input?.sectionId);
+  const language = normaliseLanguageTag(input?.language);
+  if (!Number.isFinite(sectionId) || sectionId <= 0 || !language) {
+    return errorResponse(correlationId, 400, {
+      code: 'validation.failed',
+      message: 'sections.getTranslation requires numeric section_id and a valid language tag.',
+      detail: {
+        section_id: String(input?.section_id ?? input?.sectionId ?? ''),
+        language: String(input?.language ?? ''),
+      },
+      retryable: false,
+    });
+  }
+  try {
+    const result = await adminDb().sql(
+      'SELECT id, section_id, language, config, created_at, updated_at FROM section_translations WHERE section_id = $1 AND language = $2 LIMIT 1',
+      [sectionId, language],
+    );
+    const row = (result.rows || [])[0] || null;
+    return successResponse(correlationId, { translation: row });
+  } catch (err) {
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: 'sections.getTranslation failed',
+      detail: { error: String(err?.message || err) },
+      retryable: true,
+    });
+  }
 }
 
 function rowForCreate(operation, input, actor) {

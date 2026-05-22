@@ -103,15 +103,39 @@ The `BlockTranslationEditor` Dialog SHALL include a "✨ Translate with AI" `But
 - **WHEN** the AI translation is in progress
 - **THEN** the button shows a `Loader2` spinner and is disabled
 
-### Requirement: Add Language dialog saves a new language to site_config
+### Requirement: Add Language dialog updates `site_config.languages_enabled` (no platform deploy required)
 
-The "+" Add language..." item in the admin bar language switcher SHALL open a `Dialog` with a `Select` listing available languages (filtered to exclude already-configured ones). Confirming SHALL UPSERT `site_config` key `'languages'` to append the new language code to the array. The language switcher SHALL then include the new language.
+The "+ Add language..." item in the admin bar language switcher SHALL open a `Dialog` with a `Select` listing the `LOCALE_POOL` filtered to exclude entries already in `site_config.languages_enabled`. Confirming SHALL UPSERT `site_config` key `'languages_enabled'` to append the new language code to the array. The language switcher SHALL then include the new language immediately — no deploy required, no platform API call. The Run402 gateway already accepts the locale because it was pre-declared in `spec.i18n.locales` at deploy time (kitchen-sink pattern, see design.md Decision 9).
 
-#### Scenario: New language added to site_config
-- **WHEN** an admin selects "Español" in the Add Language dialog and confirms
-- **THEN** `site_config.languages` is updated to include `'es'`
-- **AND** the language switcher now lists Español
+The Select's source list (the available locales to add) SHALL be a Kychon-side constant exposing the same 50-entry `LOCALE_POOL` used by `buildI18nSpec` in `scripts/_lib.ts`, with human-readable display labels mapped per code (e.g. `'es' → 'Español'`, `'zh-Hant' → '繁體中文'`).
 
-#### Scenario: Already-configured languages are excluded from the picker
-- **WHEN** the portal already has `languages: ["en", "es"]`
+Removing a language is symmetric: an admin SHALL be able to remove an entry from `languages_enabled` via the language switcher (e.g. a delete affordance per row in the dropdown, or a "Manage languages" sub-action). Removal does NOT delete `section_translations` rows for that locale — the rows linger so the admin can re-enable without re-translating. The render-path enabled check (see i18n spec) ensures visitors with cookies for the removed locale fall back to the default-locale content.
+
+#### Scenario: Add Language is a runtime-only operation (no deploy)
+- **WHEN** an admin selects "Français" in the Add Language dialog and confirms
+- **THEN** `site_config.languages_enabled` is upserted to include `'fr'`
+- **AND** no Run402 platform API is called (no `r.project(id).apply(...)`, no deploy)
+- **AND** the language switcher immediately lists Français on the next render
+
+#### Scenario: French visitor sees French content immediately after add (no deploy)
+- **WHEN** an admin adds `'fr'` to `languages_enabled` and then translates a hero block to French via the BlockTranslationEditor
+- **WHEN** a visitor with `Cookie: wl_locale=fr` then loads the page
+- **THEN** the gateway resolves `ctx.locale = 'fr'` (it's in the pre-allocated `spec.i18n.locales` pool)
+- **AND** the render path JOINs `section_translations` and serves the French translation
+- **AND** no deploy occurred between the admin's actions and the visitor's request
+
+#### Scenario: Already-enabled languages are excluded from the picker
+- **WHEN** the portal already has `languages_enabled: ["en", "es"]`
 - **THEN** the Add Language dialog's Select does not include English or Español
+
+#### Scenario: Pool-absent languages are NOT in the picker
+- **WHEN** an admin opens the Add Language dialog and the `LOCALE_POOL` is the 50-entry standard pool
+- **THEN** locales outside the pool (e.g. very-long-tail codes like `'haw'` for Hawaiian) do not appear
+- **AND** if a portal needs a locale outside the pool, the resolution path is to expand `LOCALE_POOL` in `scripts/_lib.ts` and redeploy (or wait for `run402-private#413` to ship a runtime-mutable mechanism)
+
+#### Scenario: Removing a language hides it from the switcher but preserves translations
+- **WHEN** an admin removes `'es'` from `languages_enabled`
+- **THEN** the language switcher no longer lists Español
+- **AND** `section_translations` rows with `language = 'es'` are retained (not deleted)
+- **AND** the render path's enabled check ensures visitors with `Cookie: wl_locale=es` see default-locale content (the JOIN is skipped per the i18n spec)
+- **AND** re-adding `'es'` later restores the full Spanish UX without re-translating

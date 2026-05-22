@@ -161,3 +161,11 @@ body[data-admin-dragging="true"] [data-zone] {
 body[data-admin-dragging="true"] [data-zone]:hover {
   outline-color: var(--color-primary, #6366f1);
 }
+
+/* admin-content-management: preview mode hides admin-only chrome so admins
+   can see the page exactly as members do, then restore by toggling off. */
+body[data-admin-preview="true"] [data-admin-bar],
+body[data-admin-preview="true"] [data-admin-zone-add-button],
+body[data-admin-preview="true"] [data-admin-edit-button] {
+  display: none !important;
+}

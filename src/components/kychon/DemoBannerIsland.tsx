@@ -211,7 +211,7 @@ export default function DemoBannerIsland({ defaultVisible = false }: Props) {
       ref={bannerRef}
       role="banner"
       aria-label="Demo mode"
-      className="sticky top-0 z-[1001] border-b border-white/10 bg-slate-950 text-slate-50 shadow-sm"
+      className="border-b border-white/10 bg-slate-950 text-slate-50 shadow-sm"
     >
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-2 px-3 py-2 text-xs sm:flex-nowrap sm:justify-between sm:px-4">
         <div className="flex min-w-0 items-center gap-2">

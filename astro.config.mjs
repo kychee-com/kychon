@@ -185,6 +185,11 @@ export default defineConfig({
     react(),
   ],
   vite: {
+    server: {
+      watch: {
+        ignored: ['**/packages/sdk/dist/**', '**/node_modules/@kychon/sdk/dist/**'],
+      },
+    },
     plugins: [
       tailwindcss(),
       localDemoAssetsPlugin(),

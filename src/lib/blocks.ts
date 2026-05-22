@@ -107,6 +107,29 @@ export interface BlockType {
    * height, which is exactly the wrong layout.
    */
   fullBleed?: boolean;
+  /**
+   * admin-content-management: declares which editor UI the admin should see
+   * when clicking the block's edit affordance.
+   *
+   * - `'inline'`: flat config — text/image fields are edited directly on the
+   *   rendered block via `data-editable*` attributes. Default.
+   * - `'list'`: config contains a top-level array of items — the
+   *   `BlockListEditor` Popover is the editing surface.
+   * - `'custom'`: bespoke editing UI (nav items editor, embed provider picker).
+   */
+  editorType?: 'inline' | 'list' | 'custom';
+  /**
+   * admin-content-management: dot-path strings identifying the text fields
+   * eligible for per-locale translation. Used by `BlockTranslationEditor`
+   * to render source/translation pairs and by `section_translations` to
+   * scope the partial config persisted. Empty array (or omitted) = not
+   * translatable (e.g. custom_html, embed, shape_divider, dynamic blocks
+   * whose data lives in other tables with their own translation flow).
+   *
+   * Array notation: `'items[].title'` matches `config.items[*].title`.
+   * Nested: `'columns[].items[].label'`.
+   */
+  translatableFields?: string[];
 }
 
 export interface InteractionStateConfig {
@@ -690,6 +713,8 @@ const HERO: BlockType = {
   label: 'Hero Banner',
   icon: '\u{1F3DE}',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['heading', 'subheading', 'cta_text'],
   zoneHints: ['main'],
   supportedSpans: ['1'],
   defaultConfig: {
@@ -711,6 +736,8 @@ const FEATURES: BlockType = {
   label: 'Features',
   icon: '✨',
   dynamic: false,
+  editorType: 'list',
+  translatableFields: ['items[].title', 'items[].desc'],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
@@ -732,6 +759,8 @@ const CTA: BlockType = {
   label: 'Call to Action',
   icon: '\u{1F4E2}',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['heading', 'text', 'cta_text'],
   zoneHints: ['main'],
   supportedSpans: ['1'],
   defaultConfig: {
@@ -755,6 +784,8 @@ const STATS: BlockType = {
   label: 'Stats',
   icon: '\u{1F4CA}',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['items[].label'],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
@@ -779,6 +810,8 @@ const TESTIMONIALS: BlockType = {
   label: 'Testimonials',
   icon: '\u{1F4AC}',
   dynamic: false,
+  editorType: 'list',
+  translatableFields: ['items[].name', 'items[].role', 'items[].text'],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
@@ -799,6 +832,8 @@ const FAQ: BlockType = {
   label: 'FAQ',
   icon: '❓',
   dynamic: false,
+  editorType: 'list',
+  translatableFields: ['items[].question', 'items[].answer'],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/2'],
   defaultConfig: {
@@ -819,6 +854,8 @@ const POLLS: BlockType = {
   label: 'Polls',
   icon: '\u{1F4CA}',
   dynamic: true,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/2'],
   defaultConfig: { heading: '', poll_ids: [] },
@@ -855,6 +892,8 @@ const EVENT_COUNTDOWN: BlockType = {
   label: 'Event Countdown',
   icon: '⏱️',
   dynamic: true,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/3', '1/2'],
   defaultConfig: { heading: 'Next Event' },
@@ -891,6 +930,8 @@ const ANNOUNCEMENTS_FEED: BlockType = {
   label: 'Announcements',
   icon: '\u{1F4E3}',
   dynamic: true,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['main'],
   supportedSpans: ['1', '2/3'],
   defaultConfig: { heading: 'Announcements', limit: 20 },
@@ -913,6 +954,8 @@ const ACTIVITY_FEED: BlockType = {
   label: 'Activity Feed',
   icon: '\u{1F4DD}',
   dynamic: true,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/3', '2/3'],
   defaultConfig: { heading: 'Recent Activity', limit: 15 },
@@ -1093,6 +1136,8 @@ const NAV: BlockType = {
   label: 'Navigation',
   icon: '\u{1F9ED}',
   dynamic: false,
+  editorType: 'custom',
+  translatableFields: ['items[].label', 'items[].children[].label'],
   zoneHints: ['header'],
   supportedSpans: ['1'],
   defaultConfig: {
@@ -1131,6 +1176,8 @@ const BRAND_HEADER: BlockType = {
   label: 'Brand / Logo',
   icon: '\u{1F3F7}️',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['header'],
   supportedSpans: ['1'],
   defaultConfig: {
@@ -1192,6 +1239,8 @@ const SIGN_IN_BAR: BlockType = {
   label: 'Sign-in Bar',
   icon: '\u{1F511}',
   dynamic: true,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['header'],
   supportedSpans: ['1'],
   defaultConfig: { show_lang_toggle: true, show_theme_toggle: true },
@@ -1208,6 +1257,8 @@ const SITE_SEARCH: BlockType = {
   label: 'Site Search',
   icon: '\u{1F50D}',
   dynamic: true,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['header', 'main'],
   supportedSpans: ['1', '1/2', '1/3'],
   defaultConfig: {
@@ -1248,6 +1299,8 @@ const FOOTER_ADDRESS: BlockType = {
   label: 'Address',
   icon: '\u{1F4CD}',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['name', 'street', 'city', 'phone', 'email'],
   zoneHints: ['footer'],
   supportedSpans: ['1', '1/2', '1/3'],
   defaultConfig: {
@@ -1286,6 +1339,8 @@ const FOOTER_LINKS: BlockType = {
   label: 'Footer Links',
   icon: '\u{1F517}',
   dynamic: false,
+  editorType: 'list',
+  translatableFields: ['columns[].heading', 'columns[].items[].label'],
   zoneHints: ['footer'],
   supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: {
@@ -1320,6 +1375,8 @@ const FOOTER_COPYRIGHT: BlockType = {
   label: 'Copyright',
   icon: '©',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['text', 'admin_contact_label'],
   zoneHints: ['footer'],
   supportedSpans: ['1'],
   defaultConfig: {
@@ -1351,6 +1408,8 @@ const FOOTER_SOCIAL: BlockType = {
   label: 'Social Links',
   icon: '\u{1F310}',
   dynamic: false,
+  editorType: 'list',
+  translatableFields: [],
   zoneHints: ['footer'],
   supportedSpans: ['1', '1/3'],
   defaultConfig: { icons: [] },
@@ -1365,6 +1424,8 @@ const FOOTER_ATTRIBUTION: BlockType = {
   label: 'Attribution',
   icon: '✨',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['text'],
   zoneHints: ['footer'],
   supportedSpans: ['1'],
   defaultConfig: {
@@ -1388,6 +1449,8 @@ const CUSTOM: BlockType = {
   label: 'Custom HTML',
   icon: '\u{1F9F1}',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['main'],
   supportedSpans: ['1', '1/2', '1/3', '2/3'],
   defaultConfig: { html: '<p>Custom HTML</p>' },
@@ -1404,6 +1467,8 @@ const CUSTOM: BlockType = {
 
 const TAGLINE_STRIP: BlockType = {
   label: 'Tagline Strip',
+  editorType: 'inline',
+  translatableFields: ['text'],
   icon: '\u{2766}', // ❦
   dynamic: false,
   zoneHints: ['main'],
@@ -1427,6 +1492,8 @@ const TAGLINE_STRIP: BlockType = {
 
 const PAGE_BANNER: BlockType = {
   label: 'Page Banner',
+  editorType: 'inline',
+  translatableFields: ['heading', 'subheading'],
   icon: '\u{1F5BC}', // 🖼
   dynamic: false,
   zoneHints: ['header'],
@@ -1458,6 +1525,8 @@ const PAGE_BANNER: BlockType = {
 
 const LINK_LIST: BlockType = {
   label: 'Link List',
+  editorType: 'list',
+  translatableFields: [],
   icon: '\u{1F4DC}', // 📜
   dynamic: true,
   zoneHints: ['main'],
@@ -1481,6 +1550,8 @@ const LINK_LIST: BlockType = {
 
 const PROMO_CARDS: BlockType = {
   label: 'Promo Cards',
+  editorType: 'list',
+  translatableFields: ['cards[].tag', 'cards[].title', 'cards[].description'],
   icon: '\u{25A6}', // ▦
   dynamic: false,
   zoneHints: ['main'],
@@ -1517,6 +1588,8 @@ const IMAGE_ACCORDION: BlockType = {
   label: 'Image Accordion',
   icon: '\u{1F5BC}',
   dynamic: false,
+  editorType: 'list',
+  translatableFields: ['panels[].title', 'panels[].description', 'panels[].cta_label'],
   zoneHints: ['main'],
   supportedSpans: ['1', '2/3', '1/2'],
   defaultConfig: {
@@ -1602,6 +1675,8 @@ const SHAPE_DIVIDER: BlockType = {
   label: 'Shape Divider',
   icon: '\u{3030}',
   dynamic: false,
+  editorType: 'inline',
+  translatableFields: [],
   zoneHints: ['main'],
   supportedSpans: ['1'],
   fullBleed: true,
@@ -1676,6 +1751,8 @@ const SHAPE_DIVIDER: BlockType = {
 
 const EVENTS_LIST: BlockType = {
   label: 'Events List',
+  editorType: 'inline',
+  translatableFields: [],
   icon: '\u{1F4C5}', // 📅
   dynamic: true,
   zoneHints: ['main'],
@@ -1707,6 +1784,8 @@ const EVENTS_LIST: BlockType = {
 
 const EVENTS_CALENDAR: BlockType = {
   label: 'Events Calendar',
+  editorType: 'inline',
+  translatableFields: [],
   icon: '\u{1F5D3}', // 🗓 spiral calendar pad — distinct from events_list (📅)
   dynamic: true,
   zoneHints: ['main'],
@@ -1745,6 +1824,8 @@ const EVENTS_CALENDAR: BlockType = {
 
 const SLIDESHOW: BlockType = {
   label: 'Slideshow',
+  editorType: 'list',
+  translatableFields: [],
   icon: '\u{1F5BC}', // 🖼 (shared with banner; ok)
   dynamic: true,
   zoneHints: ['main'],

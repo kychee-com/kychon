@@ -39,6 +39,15 @@ export interface UploadFileResult {
   url: string;
   warning?: string;
   dimensions?: { width: number; height: number };
+  /**
+   * admin-content-management: the full v1.50 AssetRef returned by
+   * `r.assets.put` server-side. Consumers (notably the MediaPicker)
+   * persist this whole object into block configs so the renderer can emit
+   * `<picture>` with variants without an extra lookup (Decision 8).
+   * Older deployments before the upload-asset.js refactor may not return
+   * this field — treat as `undefined` and fall back to the URL string.
+   */
+  ref?: Record<string, unknown>;
 }
 
 function getApiBase(): string {
@@ -113,6 +122,7 @@ export async function uploadFileContentAddressed(
     path?: string;
     warning?: string;
     dimensions?: { width: number; height: number };
+    ref?: Record<string, unknown>;
   };
   if (!json.url) {
     throw new Error('Upload response missing url field');
@@ -124,5 +134,6 @@ export async function uploadFileContentAddressed(
   };
   if (json.warning) result.warning = json.warning;
   if (json.dimensions) result.dimensions = json.dimensions;
+  if (json.ref) result.ref = json.ref;
   return result;
 }

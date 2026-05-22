@@ -13,6 +13,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { dir, fileSetFromDir, run402 } from "@run402/sdk/node";
+
+import { LOCALE_POOL } from "../src/lib/locale-pool.js";
 import type {
   ActiveReleaseInventory,
   ApplyOptions,
@@ -207,21 +209,52 @@ async function resolveDeployOutputSeed(
  * declared locale, the gateway falls back to `defaultLocale`.
  */
 export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
-  const langsEntry = seed.site_config?.languages;
+  // admin-content-management (Decision 9 — kitchen-sink locale pool):
+  // `spec.i18n.locales` is the fixed 50-entry LOCALE_POOL. The per-portal
+  // active set lives in `site_config.languages_enabled` at runtime, so
+  // admins can add/remove languages via the AdminBar without redeploying.
+  //
+  // `defaultLocale` is still per-project — read from the seed's
+  // `default_language`. It MUST be in LOCALE_POOL; we fail loud at build
+  // time if a seed picks a default outside the pool (better than a silent
+  // gateway 400 at deploy time).
   const defaultEntry = seed.site_config?.default_language;
-  const locales =
-    langsEntry && typeof langsEntry === "object" && "value" in langsEntry && Array.isArray((langsEntry as { value: unknown }).value)
-      ? ((langsEntry as { value: string[] }).value)
-      : ["en"];
   const defaultLocale =
     defaultEntry && typeof defaultEntry === "object" && "value" in defaultEntry && typeof (defaultEntry as { value: unknown }).value === "string"
-      ? ((defaultEntry as { value: string }).value)
-      : (locales[0] ?? "en");
+      ? (defaultEntry as { value: string }).value
+      : "en";
+
+  if (!LOCALE_POOL.includes(defaultLocale)) {
+    throw new Error(
+      `default_language "${defaultLocale}" is not in the LOCALE_POOL. ` +
+      `Add it to src/lib/locale-pool.ts (subject to the Run402 50-entry cap) ` +
+      `or change the seed's default_language to a pool entry. ` +
+      `Pool members: ${LOCALE_POOL.join(", ")}`,
+    );
+  }
+
+  // admin-content-management (Decision 9 — 2026-05-21 update):
+  // Run402 shipped `unknownLocalePolicy: 'pass-through'`. When set, the
+  // gateway returns unknown cookie/Accept-Language values verbatim as
+  // `ctx.locale` instead of falling back to `defaultLocale`. We opt in so
+  // the kitchen-sink pool no longer needs to be exhaustive — any locale
+  // outside the 50-entry pool also flows through, satisfying the original
+  // run402-private#413 motivation without a follow-up Kychon change.
+  //
+  // The LOCALE_POOL is kept as `locales[]` because (a) it preserves prefix
+  // matching for Accept-Language across the 50 common tags and (b) it
+  // signals "first-class supported" in the release inventory readback for
+  // observability consumers. Pass-through is the long-tail safety net.
+  //
+  // Cast: the v2.8.1 SDK type doesn't yet include `unknownLocalePolicy`.
+  // The gateway accepts the field today; the SDK type will catch up in a
+  // later release. Drop the cast when types land.
   return {
     defaultLocale,
-    locales,
+    locales: [...LOCALE_POOL],
     detect: ["cookie:wl_locale", "accept-language"],
-  };
+    unknownLocalePolicy: "pass-through",
+  } as I18nSpec & { unknownLocalePolicy: "pass-through" };
 }
 
 /**
