@@ -70,12 +70,12 @@ describe('deploy public paths', () => {
 });
 
 describe('routed-locale-context i18n slice (kitchen-sink LOCALE_POOL — Decision 9)', () => {
-  it('emits the 50-entry LOCALE_POOL + unknownLocalePolicy=pass-through', () => {
+  it('emits the 50-entry LOCALE_POOL regardless of seed languages', () => {
     // admin-content-management Decision 9: seeds no longer drive locales[];
     // we deploy the full pool and control runtime visibility via
-    // site_config.languages_enabled. 2026-05-21 update: also opt in to
-    // `unknownLocalePolicy: 'pass-through'` so admins can enable locales
-    // outside the pool without redeploying (closes run402-private#413).
+    // site_config.languages_enabled. The `unknownLocalePolicy: 'pass-through'`
+    // opt-in is currently held — the 2026-05-21 deploy validator returned
+    // `Unknown ReleaseSpec field` for it. Re-add when the gateway accepts it.
     const spec = buildI18nSpec(
       seedFor({
         languages: { value: ['es', 'en'], category: 'i18n' },
@@ -90,7 +90,7 @@ describe('routed-locale-context i18n slice (kitchen-sink LOCALE_POOL — Decisio
     expect(spec.locales).toContain('fr');
     expect(spec.locales).toContain('ja');
     expect(spec.detect).toEqual(['cookie:wl_locale', 'accept-language']);
-    expect((spec as { unknownLocalePolicy?: string }).unknownLocalePolicy).toBe('pass-through');
+    expect((spec as { unknownLocalePolicy?: string }).unknownLocalePolicy).toBeUndefined();
   });
 
   it('falls back to defaultLocale=en when the seed declares no language keys', () => {
