@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
+import { LIST_BLOCK_SCHEMAS } from '../../src/components/kychon/BlockListEditorIsland';
 import { BLOCK_TYPES, type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks';
 import {
   normalizeSocialLinkItems,
@@ -83,6 +84,8 @@ describe('social_links block rendering', () => {
   it('registers the generic social_links block for chrome zones', () => {
     expect(BLOCK_TYPES.social_links).toBeDefined();
     expect(BLOCK_TYPES.social_links.zoneHints).toEqual(['header', 'footer']);
+    expect(BLOCK_TYPES.social_links.editorType).toBe('list');
+    expect(LIST_BLOCK_SCHEMAS.social_links?.itemsKey).toBe('items');
   });
 
   it('renders supported providers as accessible SVG icon links', () => {
@@ -124,6 +127,33 @@ describe('social_links block rendering', () => {
     expect(html).toContain('href="mailto:info@example.org"');
     expect(html).toContain('aria-label="Email"');
     expect(html).not.toContain('target="_blank"');
+  });
+
+  it('keeps admin social links in the current tab for easier debugging', () => {
+    const html = renderBlock(
+      section('social_links', {
+        items: [{ platform: 'x', href: 'https://x.com/majortal' }],
+      }),
+      { ...ctx, admin: true },
+    );
+
+    expect(html).toContain('href="https://x.com/majortal"');
+    expect(html).toContain('data-section-edit="92"');
+    expect(html).not.toContain('target="_blank"');
+  });
+
+  it('keeps empty social links visible for admins', () => {
+    const html = renderBlock(section('social_links'), { ...ctx, admin: true });
+
+    expect(html).toContain('data-social-links-empty="true"');
+    expect(html).toContain('Social links');
+    expect(html).toContain('data-section-edit="92"');
+  });
+
+  it('does not show the empty admin placeholder publicly', () => {
+    const html = renderBlock(section('social_links'), ctx);
+
+    expect(html).not.toContain('data-social-links-empty');
   });
 
   it('emits copied presentation variables for admin-editable icon styling', () => {

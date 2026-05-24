@@ -16,7 +16,7 @@ import { getSession, getRole } from './auth';
 import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
 import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
-import { BLOCK_TYPES, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
+import { BLOCK_TYPES, dedupeSingletonSections, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { renderReactHtmlChildren } from './react-html-children';
 import {
   collectDescendantElements,
@@ -198,10 +198,13 @@ function renderZoneInto(
       : findDirectElementChild(containerWrapper, (child) => child.hasAttribute('data-layout-container'));
   if (!container) return;
 
-  const filtered = sections
-    .filter((s) => s.zone === zone)
-    .filter((s) => s.visible !== false)
-    .sort((a, b) => a.position - b.position);
+  const filtered = dedupeSingletonSections(
+    sections
+      .filter((s) => s.zone === zone)
+      .filter((s) => s.visible !== false)
+      .sort((a, b) => a.position - b.position),
+    currentPageSlug(),
+  );
 
   if (zone === 'main') {
     // Main is the page slot — only replace the existing #sections / page-section

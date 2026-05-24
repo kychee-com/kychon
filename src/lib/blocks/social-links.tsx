@@ -278,8 +278,9 @@ function renderSocialIcon(provider: SocialProvider): ReactElement {
   );
 }
 
-function renderSocialAnchor(item: NormalizedSocialLinkItem): string {
-  const target = item.target || (item.external ? '_blank' : '');
+function renderSocialAnchor(item: NormalizedSocialLinkItem, options: { openExternalInNewTab?: boolean } = {}): string {
+  const openExternalInNewTab = options.openExternalInNewTab !== false;
+  const target = item.target || (item.external && openExternalInNewTab ? '_blank' : '');
   const relTokens = new Set(
     String(item.rel || '')
       .split(/\s+/)
@@ -349,16 +350,25 @@ export function renderSocialLinksBlock(
   ]);
   const adminControls = buildAdminControls(section, ctx);
   const dragHandle = buildAdminDragHandle(section, ctx);
-  const links = items.map(renderSocialAnchor).join('');
+  const links = items
+    .map((item) => renderSocialAnchor(item, { openExternalInNewTab: !ctx.admin }))
+    .join('');
+  const emptyState = items.length === 0 && ctx.admin
+    ? `<div class="flex min-h-9 items-center justify-between gap-2 rounded-md border border-dashed border-[color:var(--border)] bg-muted/30 px-3 text-xs font-medium text-muted-foreground" data-social-links-empty="true"><span>Social links</span>${section.id != null ? adminSectionEditButtonHtml(section.id) : ''}</div>`
+    : '';
+  const inlineEdit = items.length > 0 && ctx.admin && section.id != null
+    ? adminSectionEditButtonHtml(section.id)
+    : '';
   const layoutAttr = ` data-social-links-zone="${escAttr(zone)}" data-social-links-layout="${escAttr(layout)}"`;
   const legacyAttr = options.legacyFooter ? ' data-legacy-footer-links data-footer-block' : '';
-  return `<section data-section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${dragHandle}${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links}</div></section>`;
+  return `<section data-section class="${escAttr(classes)}" data-social-links${layoutAttr}${legacyAttr}${attrs}${style}>${dragHandle}${adminControls}<div class="${escAttr(socialListClass)}" data-social-links-list>${links || emptyState}${inlineEdit}</div></section>`;
 }
 
 const SOCIAL_LINKS: BlockType = {
   label: 'Social Links',
   icon: '\u{1F310}',
   dynamic: false,
+  editorType: 'list',
   zoneHints: ['header', 'footer'],
   supportedSpans: ['1', '1/3'],
   defaultConfig: {

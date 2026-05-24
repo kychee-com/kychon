@@ -4,7 +4,7 @@
 // `hydrate(el, ctx)` is called with the `[data-block-hydrate]` host at runtime
 // to fetch data and replace the body.
 
-import { canonicalRouteKey, canonicalizeKychonHref } from './clean-routes.js';
+import { canonicalRouteKey, canonicalizeKychonHref, currentPageSlugFromLocation } from './clean-routes.js';
 import {
   renderMarketingBlockHtml,
   renderPageBannerBlockHtml,
@@ -96,6 +96,8 @@ export interface BlockType {
   icon: string;
   dynamic: boolean;
   zoneHints?: ('header' | 'main' | 'footer')[];
+  /** Zones where only one visible instance of this block type should render. */
+  singletonZones?: ('header' | 'main' | 'footer')[];
   /** column-span-rows: spans this block accepts; omit for "all four". */
   supportedSpans?: ColumnSpan[];
   /**
@@ -1139,6 +1141,7 @@ const NAV: BlockType = {
   editorType: 'custom',
   translatableFields: ['items[].label', 'items[].children[].label'],
   zoneHints: ['header'],
+  singletonZones: ['header'],
   supportedSpans: ['1'],
   defaultConfig: {
     items: [
@@ -1179,6 +1182,7 @@ const BRAND_HEADER: BlockType = {
   editorType: 'inline',
   translatableFields: [],
   zoneHints: ['header'],
+  singletonZones: ['header'],
   supportedSpans: ['1'],
   defaultConfig: {
     href: '/',
@@ -1242,6 +1246,7 @@ const SIGN_IN_BAR: BlockType = {
   editorType: 'inline',
   translatableFields: [],
   zoneHints: ['header'],
+  singletonZones: ['header'],
   supportedSpans: ['1'],
   defaultConfig: { show_lang_toggle: true, show_theme_toggle: true },
   render(_section, _ctx) {
@@ -1260,6 +1265,7 @@ const SITE_SEARCH: BlockType = {
   editorType: 'inline',
   translatableFields: [],
   zoneHints: ['header', 'main'],
+  singletonZones: ['header'],
   supportedSpans: ['1', '1/2', '1/3'],
   defaultConfig: {
     placeholder: 'Search this site',
@@ -1973,6 +1979,56 @@ export function getSupportedSpans(type: string): ColumnSpan[] {
   return BLOCK_TYPES[type]?.supportedSpans ?? ALL_SPANS;
 }
 
+export function isSingletonBlockType(type: string, zone?: Section['zone']): boolean {
+  const singletonZones = BLOCK_TYPES[type]?.singletonZones;
+  if (!singletonZones || singletonZones.length === 0) return false;
+  return zone ? singletonZones.includes(zone) : true;
+}
+
+function singletonSortValue(section: Section): number {
+  return Number.isFinite(section.position) ? section.position : Number.MAX_SAFE_INTEGER;
+}
+
+function singletonIdValue(section: Section): number {
+  return Number.isFinite(section.id) ? Number(section.id) : Number.MAX_SAFE_INTEGER;
+}
+
+function isPageSpecificSingleton(section: Section, currentSlug: string): boolean {
+  return Boolean(currentSlug) && section.scope !== 'global' && section.page_slug === currentSlug;
+}
+
+function compareSingletonSections(a: Section, b: Section, currentSlug: string): number {
+  const aPageSpecific = isPageSpecificSingleton(a, currentSlug);
+  const bPageSpecific = isPageSpecificSingleton(b, currentSlug);
+  if (aPageSpecific !== bPageSpecific) return aPageSpecific ? -1 : 1;
+  const positionDelta = singletonSortValue(a) - singletonSortValue(b);
+  if (positionDelta !== 0) return positionDelta;
+  return singletonIdValue(a) - singletonIdValue(b);
+}
+
+export function dedupeSingletonSections(sections: Section[], currentSlug = ''): Section[] {
+  const winnerByKey = new Map<string, Section>();
+  for (const section of sections) {
+    if (!isSingletonBlockType(section.section_type, section.zone)) continue;
+    const key = `${section.zone}:${section.section_type}`;
+    const current = winnerByKey.get(key);
+    if (!current || compareSingletonSections(section, current, currentSlug) < 0) {
+      winnerByKey.set(key, section);
+    }
+  }
+
+  return sections.filter((section) => {
+    if (!isSingletonBlockType(section.section_type, section.zone)) return true;
+    return winnerByKey.get(`${section.zone}:${section.section_type}`) === section;
+  });
+}
+
+function currentSlugFromRenderContext(ctx: BlockRenderContext): string {
+  if (!ctx.currentPath) return '';
+  const url = new URL(ctx.currentPath, 'https://kychon.local');
+  return currentPageSlugFromLocation(url.pathname, url.search);
+}
+
 /**
  * column-span-rows: attach `data-column-span="<value>"` to the leading element
  * of a rendered block. Single edit point so individual BlockType.render
@@ -2004,10 +2060,12 @@ export function renderBlock(section: Section, ctx: BlockRenderContext): string {
 }
 
 export function renderZone(sections: Section[], zone: 'header' | 'main' | 'footer', ctx: BlockRenderContext): string {
-  return sections
+  const filtered = sections
     .filter((s) => s.zone === zone)
     .filter((s) => s.visible !== false)
-    .sort((a, b) => a.position - b.position)
+    .sort((a, b) => a.position - b.position);
+
+  return dedupeSingletonSections(filtered, currentSlugFromRenderContext(ctx))
     .map((s) => renderBlock(s, ctx))
     .join('');
 }

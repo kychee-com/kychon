@@ -9,6 +9,9 @@ describe('admin editor controls source', () => {
     const source = await readFile(CONTROLS, 'utf8');
 
     expect(source).toContain('@/components/kychon/ui');
+    expect(source).toContain('isSingletonBlockType');
+    expect(source).toContain('unavailableReason');
+    expect(source).toContain('Already in this zone');
     expect(source).toContain('nextSectionPosition');
     expect(source).toContain("get('sections?visible=eq.true&order=zone.asc,position.asc')");
     expect(source).not.toContain('querySelector');
