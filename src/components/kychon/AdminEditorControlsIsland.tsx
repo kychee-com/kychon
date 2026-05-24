@@ -45,7 +45,7 @@ import {
 } from '@/lib/admin/copied-theme-editor';
 import { chooseNavigationSection } from '@/lib/admin/navigation-section';
 import { del, get, patch, post } from '@/lib/api';
-import { BLOCK_TYPES, getSupportedSpans } from '@/lib/blocks';
+import { BLOCK_TYPES, getSupportedSpans, isSingletonBlockType } from '@/lib/blocks';
 import {
   BlockListEditor,
   LIST_BLOCK_SCHEMAS,
@@ -337,6 +337,16 @@ function sectionAppliesToCurrentPage(section: SectionRow, slug: string): boolean
 async function nextSectionPosition(zone: Zone, slug: string): Promise<number> {
   const rows = (await get('sections?visible=eq.true&order=zone.asc,position.asc')) as SectionRow[];
   return rows.filter((section) => section.zone === zone && section.visible !== false && sectionAppliesToCurrentPage(section, slug)).length + 1;
+}
+
+function singletonSectionExistsForZone(rows: SectionRow[], type: string, zone: Zone, slug: string): boolean {
+  return rows.some(
+    (section) =>
+      section.zone === zone &&
+      section.visible !== false &&
+      section.section_type === type &&
+      sectionAppliesToCurrentPage(section, slug),
+  );
 }
 
 function currentPageSlugForNavEditor(): string {
@@ -692,6 +702,7 @@ function AdminEditorControls() {
   const [error, setError] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addZone, setAddZone] = useState<Zone>('main');
+  const [addRows, setAddRows] = useState<SectionRow[]>([]);
   const [addSaving, setAddSaving] = useState<string | null>(null);
   const [addError, setAddError] = useState('');
   const [navOpen, setNavOpen] = useState(false);
@@ -735,13 +746,20 @@ function AdminEditorControls() {
 
   const spans = useMemo(() => (row ? getSupportedSpans(row.section_type) : []), [row]);
   const sectionDef = row ? BLOCK_TYPES[row.section_type] : null;
-  const addCandidates = useMemo(
-    () =>
-      Object.entries(BLOCK_TYPES)
-        .filter(([, block]) => !block.zoneHints || block.zoneHints.includes(addZone))
-        .sort(([, a], [, b]) => a.label.localeCompare(b.label)),
-    [addZone],
-  );
+  const addCandidates = useMemo(() => {
+    const slug = typeof window === 'undefined' ? 'index' : currentPageSlugForNavEditor();
+    return Object.entries(BLOCK_TYPES)
+      .filter(([, block]) => !block.zoneHints || block.zoneHints.includes(addZone))
+      .map(([type, def]) => ({
+        def,
+        type,
+        unavailableReason:
+          isSingletonBlockType(type, addZone) && singletonSectionExistsForZone(addRows, type, addZone, slug)
+            ? 'Already in this zone'
+            : '',
+      }))
+      .sort((a, b) => a.def.label.localeCompare(b.def.label));
+  }, [addRows, addZone]);
   const currentScope: 'page' | 'global' = row?.scope === 'global' ? 'global' : 'page';
   const nextScope: 'page' | 'global' = currentScope === 'global' ? 'page' : 'global';
   const canEditHero = row?.section_type === 'hero';
@@ -840,12 +858,30 @@ function AdminEditorControls() {
       if (!isZone(detail?.zone)) return;
       setAddZone(detail.zone);
       setAddError('');
+      setAddRows([]);
       setAddSaving(null);
       setAddOpen(true);
     };
     window.addEventListener(ZONE_ADD_EVENT, listener);
     return () => window.removeEventListener(ZONE_ADD_EVENT, listener);
   }, []);
+
+  useEffect(() => {
+    if (!addOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = (await get('sections?visible=eq.true&order=zone.asc,position.asc')) as SectionRow[];
+        if (!cancelled) setAddRows(rows);
+      } catch (loadError) {
+        console.error('Failed to load existing sections for add dialog:', loadError);
+        if (!cancelled) setAddRows([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [addOpen, addZone]);
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -1002,6 +1038,16 @@ function AdminEditorControls() {
     }
 
     try {
+      if (isSingletonBlockType(type, addZone)) {
+        const rows = (await get('sections?visible=eq.true&order=zone.asc,position.asc')) as SectionRow[];
+        setAddRows(rows);
+        if (singletonSectionExistsForZone(rows, type, addZone, currentSlugFromPath)) {
+          const message = `${def.label} already exists in this zone`;
+          setAddError(message);
+          showToast({ type: 'error', message });
+          return;
+        }
+      }
       const position = await nextSectionPosition(addZone, currentSlugFromPath);
       await post('sections', {
         page_slug: pageSlug,
@@ -1841,13 +1887,14 @@ function AdminEditorControls() {
           ) : null}
 
           <div className="grid gap-2 sm:grid-cols-2">
-            {addCandidates.map(([type, def]) => (
+            {addCandidates.map(({ def, type, unavailableReason }) => (
               <Button
                 key={type}
                 type="button"
                 variant="outline"
                 className="h-auto justify-start gap-3 p-4 text-left"
-                disabled={addSaving !== null}
+                disabled={addSaving !== null || Boolean(unavailableReason)}
+                title={unavailableReason || undefined}
                 onClick={() => void addBlock(type)}
               >
                 <span className="text-xl leading-none" aria-hidden="true">
@@ -1855,7 +1902,9 @@ function AdminEditorControls() {
                 </span>
                 <span className="min-w-0">
                   <span className="block font-medium">{def.label}</span>
-                  <span className="block text-xs font-normal text-muted-foreground">{type}</span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {unavailableReason || type}
+                  </span>
                 </span>
               </Button>
             ))}

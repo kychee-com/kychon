@@ -12,6 +12,11 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
   toast,
 } from '@/components/kychon/ui';
@@ -22,7 +27,7 @@ import type { JsonObject } from '@/lib/capability-api';
  * BlockListEditor — Dialog-driven CRUD for blocks whose config has a
  * top-level array (`editorType: 'list'` in the BlockType registry):
  * features, testimonials, faq, footer_links, promo_cards, image_accordion,
- * slideshow, footer_social.
+ * slideshow, social_links, footer_social.
  *
  * Section 10. Opens in response to the block's edit affordance click
  * (routed by AdminEditorControlsIsland's SECTION_EDIT_EVENT handler when
@@ -39,9 +44,10 @@ import type { JsonObject } from '@/lib/capability-api';
 interface ItemFieldDef {
   key: string;
   label: string;
-  /** `'text'` = single-line Input, `'textarea'` = multi-line Textarea. */
-  kind: 'text' | 'textarea';
+  /** `'text'` = single-line Input, `'textarea'` = multi-line Textarea, `'select'` = fixed option set. */
+  kind: 'text' | 'textarea' | 'select';
   placeholder?: string;
+  options?: { label: string; value: string }[];
 }
 
 export interface BlockListEditorProps {
@@ -331,6 +337,14 @@ function ItemDetailForm({ item, schema, onChange, onDone }: ItemDetailFormProps)
       {schema.map((field) => {
         const value = item[field.key];
         const stringValue = typeof value === 'string' ? value : '';
+        const selectValue =
+          field.kind === 'select'
+            ? field.options?.find(
+                (option) =>
+                  option.value.toLowerCase() === stringValue.toLowerCase() ||
+                  option.label.toLowerCase() === stringValue.toLowerCase(),
+              )?.value
+            : undefined;
         return (
           <div key={field.key} className="grid gap-1">
             <Label htmlFor={`bl-${field.key}`} className="text-xs">
@@ -344,6 +358,19 @@ function ItemDetailForm({ item, schema, onChange, onDone }: ItemDetailFormProps)
                 placeholder={field.placeholder}
                 className="min-h-[60px] resize-none text-sm"
               />
+            ) : field.kind === 'select' ? (
+              <Select value={selectValue} onValueChange={(value) => onChange(field.key, value)}>
+                <SelectTrigger id={`bl-${field.key}`} className="h-8 text-sm">
+                  <SelectValue placeholder={field.placeholder || 'Select'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(field.options || []).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <Input
                 id={`bl-${field.key}`}
@@ -446,6 +473,30 @@ export const LIST_BLOCK_SCHEMAS: Record<
     ],
     defaultItem: () => ({ caption: '', image_url: '', href: '' }),
     itemSummary: (item) => String(item.caption ?? item.image_url ?? 'slide'),
+  },
+  social_links: {
+    itemsKey: 'items',
+    itemSchema: [
+      {
+        key: 'platform',
+        label: 'Platform',
+        kind: 'select',
+        placeholder: 'Select platform',
+        options: [
+          { label: 'Facebook', value: 'facebook' },
+          { label: 'X', value: 'x' },
+          { label: 'LinkedIn', value: 'linkedin' },
+          { label: 'Instagram', value: 'instagram' },
+          { label: 'YouTube', value: 'youtube' },
+          { label: 'Email', value: 'email' },
+          { label: 'Website', value: 'website' },
+        ],
+      },
+      { key: 'href', label: 'URL', kind: 'text', placeholder: 'https://…' },
+      { key: 'label', label: 'Label', kind: 'text', placeholder: 'Instagram' },
+    ],
+    defaultItem: () => ({ platform: '', href: '', label: '' }),
+    itemSummary: (item) => String(item.platform ?? item.label ?? item.href ?? ''),
   },
   footer_social: {
     itemsKey: 'items',
