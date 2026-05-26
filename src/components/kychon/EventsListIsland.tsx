@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { CalendarDays, MapPin } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/kychon/ui';
@@ -27,6 +28,16 @@ interface EventsListConfig {
 interface EventsListProps {
   config: EventsListConfig;
   headingEditablePath?: string;
+  /**
+   * Pre-loaded events from the build-time SSR pass (see
+   * `src/lib/build-events.ts` + `blocks.ts:EVENTS_LIST.render`). When
+   * present, the React island skips the initial loading skeleton and
+   * the first render matches the SSR HTML — eliminates the
+   * cards→skeleton→cards flicker that otherwise hits on hydration.
+   * The background refresh still runs to catch admin edits made
+   * between build and visit.
+   */
+  initialEvents?: EventRow[];
 }
 
 type EventsListState =
@@ -80,8 +91,14 @@ function safeImageSrc(value: unknown): string {
   return /^(https?:\/\/[^\s]+|\/[^\s]*|\.[./][^\s]*)$/i.test(src) ? src : '';
 }
 
-function EventsListIsland({ config, headingEditablePath }: EventsListProps) {
-  const [state, setState] = React.useState<EventsListState>({ status: 'loading' });
+function initialStateFromProps(initialEvents: EventRow[] | undefined): EventsListState {
+  if (!initialEvents) return { status: 'loading' };
+  if (initialEvents.length === 0) return { status: 'empty' };
+  return { status: 'ready', events: initialEvents };
+}
+
+function EventsListIsland({ config, headingEditablePath, initialEvents }: EventsListProps) {
+  const [state, setState] = React.useState<EventsListState>(() => initialStateFromProps(initialEvents));
   const layout = normalizeLayout(config.layout);
   const count = normalizeCount(config.count);
   const heading = String(config.heading || '').trim();
@@ -95,14 +112,17 @@ function EventsListIsland({ config, headingEditablePath }: EventsListProps) {
         setState(events.length > 0 ? { status: 'ready', events } : { status: 'empty' });
       } catch (error) {
         console.warn('events_list hydrate failed:', error);
-        if (!ignore) setState({ status: 'empty' });
+        // Drop back to loading→empty only if we don't already have
+        // SSR-baked events. With initialEvents we keep showing them
+        // rather than wiping the UI on a transient network blip.
+        if (!ignore && state.status === 'loading') setState({ status: 'empty' });
       }
     }
     void refresh();
     return () => {
       ignore = true;
     };
-  }, [config]);
+  }, [config, state.status]);
 
   return (
     <div className="space-y-4" data-events-list>
@@ -263,6 +283,7 @@ export function mountEventsListIsland(
   props: {
     config: EventsListConfig;
     headingEditablePath?: string;
+    initialEvents?: EventRow[];
   },
 ): void {
   let root = roots.get(element);
@@ -272,3 +293,35 @@ export function mountEventsListIsland(
   }
   root.render(<EventsListIsland {...props} />);
 }
+
+/**
+ * Build-time SSR: render the events-list block to a plain HTML string,
+ * using the same React components the runtime island uses. Called from
+ * `blocks.ts:EVENTS_LIST.render` when `getBuildEvents` returns a hit so
+ * the cards land in the initial HTML payload instead of the empty
+ * `data-block-hydrate` shell.
+ *
+ * Note: at build time `getGlobalManifest()` returns null (no `window`),
+ * so `EventCard`'s manifest-hit branch is skipped and grid-layout
+ * thumbnails fall through to plain `<img>`. The runtime React island
+ * hydrates with the same events (passed via `data-events-payload`) and
+ * its first render upgrades the thumbnails to `<picture>` via the
+ * window-resident manifest — a brief `<img>` → `<picture>` swap on
+ * grid pages, no visible change for the dominant sidebar/list layouts
+ * that don't show images.
+ */
+export function renderEventsListStaticHtml(props: {
+  events: EventRow[];
+  config: EventsListConfig;
+  headingEditablePath?: string;
+}): string {
+  return renderToStaticMarkup(
+    <EventsListIsland
+      config={props.config}
+      headingEditablePath={props.headingEditablePath}
+      initialEvents={props.events}
+    />,
+  );
+}
+
+export type { EventRow as EventsListEventRow };

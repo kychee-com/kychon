@@ -4,6 +4,7 @@ import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 import Portal from '../layouts/Portal.astro';
 import { resolveActiveProjectSeed } from '../seeds';
 import { renderMainZone, renderHeroPreloadLink, makeBakeContext } from '../lib/chrome-bake';
+import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
 
 // First-paint bake of the home page's page-scoped main-zone sections from the
 // active project's typed seed. Runtime hydrate (page-render.ts) still re-renders
@@ -11,7 +12,13 @@ import { renderMainZone, renderHeroPreloadLink, makeBakeContext } from '../lib/c
 // so first-ever visitors, link previews, and crawlers see the hero immediately
 // instead of an empty container until JS resolves.
 const { seed } = await resolveActiveProjectSeed();
-const bakeCtx = makeBakeContext(seed);
+// Pre-fetch the events list once per build so `blocks.ts:EVENTS_LIST.render`
+// can emit real `<EventCard>` HTML into the SSR document instead of the
+// empty `data-block-hydrate` shell that today only fills in post-hydration.
+// No-op when `KYCHON_ANON_KEY` isn't set (e.g. local `astro dev`), in which
+// case the cache stays empty and the block falls back to the skeleton path.
+await ensureBuildEventsLoaded();
+const bakeCtx = { ...makeBakeContext(seed), buildEvents: getAllBuildEvents() };
 // `renderMainZone` returns both the rendered HTML AND a content signature
 // of the (filtered sections, manifest.generated_at) tuple. The signature
 // stamps `<div id="sections" data-bake-signature="…">` so the client-side

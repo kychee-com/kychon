@@ -12,6 +12,7 @@ import {
   renderTaglineStripBlockHtml,
 } from '@/components/kychon/MarketingBlocksView';
 import { renderSlideshowBlockHtml, type SlideshowRenderItem } from '@/components/kychon/SlideshowBlockView';
+import { renderEventsListStaticHtml, type EventsListEventRow } from '@/components/kychon/EventsListIsland';
 import { renderEventsCalendarShellHtml } from '@/components/kychon/EventsCalendarBlockView';
 import { renderNavBlockHtml, type NavBlockItem, type NavBlockStyle } from '@/components/kychon/NavBlockView';
 import {
@@ -85,6 +86,17 @@ export interface BlockRenderContext {
    * original URL.
    */
   manifest?: import('./kychon-image').AssetManifest | null;
+  /**
+   * Build-time event rows fetched via `@kychon/sdk` in
+   * `src/lib/build-events.ts`, populated by pages that await
+   * `ensureBuildEventsLoaded()` before calling `renderMainZone`. The
+   * `EVENTS_LIST` block drains this per-block (filter + count) to emit
+   * real `<EventCard>` HTML in the first paint instead of the empty
+   * `data-block-hydrate` shell that today only fills in post-hydration.
+   * Undefined at runtime and on pages that don't pre-fetch — the block
+   * falls back to today's skeleton + client-fetch path.
+   */
+  buildEvents?: import('@/schemas/event').Event[] | null;
 }
 
 export interface BlockType {
@@ -1774,6 +1786,32 @@ const EVENTS_LIST: BlockType = {
   },
   render(section, ctx) {
     const cfg = section.config || {};
+    // Try the build-time SSR path: `index.astro` (and any page that
+    // awaits `ensureBuildEventsLoaded`) populates the events cache before
+    // `renderMainZone` runs; we drain it here per-block to produce real
+    // `<EventCard>` HTML in the first paint. The runtime hydrate still
+    // fires (`data-block-hydrate` stays in place), reads the pre-loaded
+    // events from `data-events-payload`, and uses them as React's initial
+    // state — so the first React render matches the SSR HTML and the
+    // background refresh fetches any admin edits made between build and
+    // visit. Cache miss → fall through to today's skeleton + client-fetch
+    // path, which is what every page outside index.astro still does.
+    const ssrEvents = ctx.buildEvents
+      ? selectBuildEvents(ctx.buildEvents, cfg)
+      : null;
+    if (ssrEvents) {
+      const ssrHtml = renderEventsListStaticHtml({
+        events: ssrEvents as EventsListEventRow[],
+        config: cfg,
+        // headingEditablePath is admin-only; build-time renders the
+        // public view so we deliberately omit it here.
+      });
+      const inner = constrainedContainerHtml(
+        ` data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}" data-events-payload="${jsonAttr(ssrEvents)}"`,
+        ssrHtml,
+      );
+      return adminWrap(section, ctx, inner, 'w-full py-6');
+    }
     const inner = constrainedContainerHtml(` data-block-hydrate="events_list" data-config="${jsonAttr(cfg)}"`);
     return adminWrap(section, ctx, inner, 'w-full py-6');
   },
@@ -1787,6 +1825,45 @@ const EVENTS_LIST: BlockType = {
     await hydrateEventsList(el, section, ctx);
   },
 };
+
+/**
+ * Filter+sort+slice the build-time event cache per a single block's
+ * config. Mirrors `eventsQuery` in `EventsListIsland.tsx` so the SSR
+ * output matches what the runtime fetch would return for the same
+ * config. Kept inline (rather than imported from `build-events.ts`)
+ * so `blocks.ts` doesn't pull the SDK transitively on the runtime
+ * bundle — `ctx.buildEvents` is provided by the build-time caller.
+ */
+function selectBuildEvents(
+  cache: NonNullable<BlockRenderContext['buildEvents']>,
+  cfg: Record<string, unknown>,
+): EventsListEventRow[] | null {
+  if (!Array.isArray(cache) || cache.length === 0) return null;
+  const rawFilter = String(cfg.filter || 'upcoming') as 'past' | 'this_week' | 'upcoming';
+  const filter = rawFilter === 'past' || rawFilter === 'this_week' ? rawFilter : 'upcoming';
+  const count = Math.max(1, Math.min(50, Math.floor(Number(cfg.count) || 4)));
+  const now = Date.now();
+  const horizon = now + 7 * 86400 * 1000;
+  let filtered: EventsListEventRow[];
+  if (filter === 'past') {
+    filtered = cache
+      .filter((e) => e.starts_at && Date.parse(e.starts_at) < now)
+      .sort((a, b) => Date.parse(b.starts_at!) - Date.parse(a.starts_at!));
+  } else if (filter === 'this_week') {
+    filtered = cache
+      .filter((e) => {
+        if (!e.starts_at) return false;
+        const ts = Date.parse(e.starts_at);
+        return ts >= now && ts < horizon;
+      })
+      .sort((a, b) => Date.parse(a.starts_at!) - Date.parse(b.starts_at!));
+  } else {
+    filtered = cache
+      .filter((e) => e.starts_at && Date.parse(e.starts_at) >= now)
+      .sort((a, b) => Date.parse(a.starts_at!) - Date.parse(b.starts_at!));
+  }
+  return filtered.length === 0 ? null : filtered.slice(0, count);
+}
 
 const EVENTS_CALENDAR: BlockType = {
   label: 'Events Calendar',
