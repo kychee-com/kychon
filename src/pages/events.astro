@@ -1,9 +1,22 @@
 ---
 import EventsPageApp from '../components/kychon/EventsPageApp';
 import Portal from '../layouts/Portal.astro';
+import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
+
+// Pre-fetch the full events list once at build so the React island
+// hydrates with real `<EventCard>` tiles in the SSR HTML instead of
+// the loading skeleton it otherwise paints for ~100-300ms while the
+// runtime `getEvents()` round-trips. Anon-key RLS-gates the fetch to
+// public rows — member-only events still surface via the post-hydrate
+// `loadEvents()` refresh once the visitor's session is in scope.
+// No-op when KYCHON_ANON_KEY isn't set (local `astro dev`): cache
+// stays empty, React falls back to its current "loading=true → fetch"
+// path.
+await ensureBuildEventsLoaded();
+const initialEvents = getAllBuildEvents();
 ---
 <Portal title="Events">
   <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-    <EventsPageApp client:load />
+    <EventsPageApp initialEvents={initialEvents ?? undefined} client:load />
   </div>
 </Portal>

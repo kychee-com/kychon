@@ -271,17 +271,38 @@ function CreateEventDialog({
   );
 }
 
-export default function EventsPageApp() {
-  const [events, setEvents] = useState<Event[]>([]);
+interface EventsPageAppProps {
+  /**
+   * Pre-fetched events from the build-time SSR pass — `events.astro`
+   * awaits `ensureBuildEventsLoaded()` and forwards `getAllBuildEvents()`
+   * here. When present, React's initial render uses these for the
+   * upcoming/past split so the SSR HTML already has real `<EventCard>`
+   * tiles (no skeleton). The runtime `loadEvents()` still runs to:
+   *   - apply the current visitor's locale via `translateItems`
+   *   - pull in member-only events visible only after sign-in
+   *   - catch admin edits made between build and visit
+   * RLS-gates the build-time fetch to public rows, so signed-in members
+   * see the extra member-only events appear in the post-hydrate refresh.
+   */
+  initialEvents?: Event[];
+}
+
+export default function EventsPageApp({ initialEvents }: EventsPageAppProps = {}) {
+  const [events, setEvents] = useState<Event[]>(() => initialEvents ?? []);
   const [admin, setAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Skip the skeleton when we hydrate from SSR-baked events — first
+  // render already shows real cards, the post-mount fetch refreshes.
+  const [loading, setLoading] = useState(() => !initialEvents);
   const [error, setError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<EventFormState>(EMPTY_FORM);
 
   const loadEvents = useCallback(async () => {
-    setLoading(true);
+    // Background refresh path. Avoid the skeleton flash when we already
+    // have SSR-baked events on screen — set `loading=true` only on the
+    // first ever fetch (when state is empty), so subsequent refreshes
+    // (locale change, auth change) update in place.
     setError('');
     try {
       await ready;
