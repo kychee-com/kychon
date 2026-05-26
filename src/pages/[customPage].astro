@@ -4,6 +4,8 @@ import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 import Portal from '../layouts/Portal.astro';
 import { safeCustomPageSlugs } from '../lib/clean-routes';
 import { resolveActiveProjectSeed } from '../seeds';
+import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
+import { renderMainZone, makeBakeContext } from '../lib/chrome-bake';
 
 export async function getStaticPaths() {
   const { seed } = await resolveActiveProjectSeed();
@@ -11,11 +13,32 @@ export async function getStaticPaths() {
     params: { customPage },
   }));
 }
+
+// SSR-bake the main-zone sections for each custom page (showcase,
+// getting-here, daily-schedule, etc.) using the same flow `index.astro`
+// uses for the home page. Without this, every custom page's section
+// blocks (`events_list`, `announcements_feed`, marketing tiles,
+// slideshow, etc.) renders as the empty `data-block-hydrate` shell at
+// first paint and only fills in after `page-render.ts:hydratePage` runs
+// — costing one full skeleton flash per page even when the seed-driven
+// content is fully baked-in-able.
+//
+// Pulls in build-time events (Step 1's `ensureBuildEventsLoaded`) so
+// `events_list` blocks on the showcase page get the same first-paint
+// cards the home page does. The runtime `hydratePage` still re-renders
+// from cached/live DB state — main-zone-signature short-circuits when
+// SSR HTML matches, so the typed-seed cases (most custom pages) avoid
+// the destructive `innerHTML` swap.
+const { seed } = await resolveActiveProjectSeed();
+const slug = String(Astro.params.customPage ?? '');
+await ensureBuildEventsLoaded();
+const bakeCtx = { ...makeBakeContext(seed), buildEvents: getAllBuildEvents() };
+const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seed, slug, bakeCtx);
 ---
 <Portal title="Page">
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
     <CustomPageApp client:load />
   </div>
-  <div id="sections" class="mt-8" data-sortable-group="page-sections" data-zone="main"></div>
+  <div id="sections" class="mt-8" data-sortable-group="page-sections" data-zone="main" data-bake-signature={bakeSignature} set:html={sectionsHtml}></div>
   <AdminZoneAddButton zone="main" />
 </Portal>
