@@ -28,7 +28,14 @@
  */
 import { resolveVariants, type AssetManifest, type RenderPictureOptions } from '@run402/astro/manifest';
 import { decodeBlurhashToDataUri } from '@run402/astro/blurhash';
-import type { AssetRef, AssetVariant } from '@run402/astro';
+// `AssetRef` from `@run402/astro` main entry now resolves to the broad
+// `@run402/functions` shape (visibility, immutable, content_digest, …) as of
+// @run402/astro@1.0.3 — `resolveVariants` still returns the narrower
+// manifest-pipeline shape that's now exported as
+// `Run402AstroManifestAssetRef`. We alias it locally to `AssetRef` so
+// every downstream import (`import { AssetRef } from '@/lib/kychon-image'`)
+// keeps seeing the narrow shape that `lookupAssetRef` actually returns.
+import type { Run402AstroManifestAssetRef as AssetRef, AssetVariant } from '@run402/astro';
 import * as React from 'react';
 
 export type { AssetManifest, AssetRef, AssetVariant };
