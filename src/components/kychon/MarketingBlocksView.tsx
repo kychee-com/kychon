@@ -21,7 +21,8 @@ import {
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/kychon/ui';
 import { canonicalizeKychonHref } from '@/lib/clean-routes';
-import { KychonImage, lookupAssetRef, pickSingleVariantUrl, type AssetManifest } from '@/lib/kychon-image';
+import { lookupAssetRef, pickSingleVariantUrl, type AssetManifest } from '@/lib/kychon-image';
+import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
 
 type MarketingBlockKind = 'features' | 'cta' | 'stats' | 'testimonials' | 'faq';
@@ -364,6 +365,10 @@ function PromoCardsBlock({ config, options }: { config: Record<string, unknown>;
           const href = cleanHref(item.cta_href, '#');
           const imageSrc = cleanImageSrc(item.image_url);
           const imageAlt = String(item.image_alt || '').trim();
+          // Manifest hit resolves to a typed AssetRef so we can route
+          // through `<Run402Image>` (variant ladder + v1.54 pre-decoded
+          // blurhash placeholder). Miss falls back to plain `<img>`.
+          const imageAsset = imageSrc ? lookupAssetRef(imageSrc, options.manifest) : null;
           const overlayColor = options.sanitizeCssValue?.(item.overlay_color) || '';
           const ariaLabel = `${title}${ctaText ? `, ${ctaText}` : ''}`.trim() || 'Promo card';
 
@@ -380,16 +385,30 @@ function PromoCardsBlock({ config, options }: { config: Record<string, unknown>;
                   className="relative aspect-[16/10] overflow-hidden bg-muted"
                   {...editableImageAttrs(index, options)}
                 >
-                  {imageSrc && (
-                    <KychonImage
-                      alt={imageAlt}
-                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      loading="lazy"
-                      manifest={options.manifest}
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                      url={imageSrc}
-                    />
-                  )}
+                  {imageSrc &&
+                    (imageAsset ? (
+                      // `className` lands on `<picture>` (outermost wrapper),
+                      // `style` always on the inner `<img>`. Aspect-fitting
+                      // requires the cover-fit on the img, not the picture
+                      // (which is `display: inline` and doesn't honor
+                      // `object-cover`). Without this split, non-16:10 source
+                      // images get stretched into the aspect box.
+                      <Run402Image
+                        asset={imageAsset}
+                        alt={imageAlt}
+                        className="block h-full w-full transition-transform duration-200 group-hover:scale-[1.02]"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        loading="lazy"
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      />
+                    ) : (
+                      <img
+                        alt={imageAlt}
+                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                        loading="lazy"
+                        src={imageSrc}
+                      />
+                    ))}
                   {overlayColor && (
                     <span
                       aria-hidden="true"

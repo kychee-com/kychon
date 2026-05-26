@@ -1128,51 +1128,23 @@ INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================
--- 11. HOMEPAGE SECTIONS
+-- 11. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
 -- ============================================
-
--- Clear existing homepage sections to avoid duplicates
-DELETE FROM sections WHERE page_slug = 'index';
-
-INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
-  ('index', 'hero', '{
-    "heading": "Welcome to Silver Pines",
-    "subheading": "Asheville''s community center for active adults. Classes, events, friends, and a warm cup of coffee — every day.",
-    "cta_text": "See What''s Happening",
-    "cta_href": "/events.html",
-    "bg_image": "/assets/hero.jpg"
-  }', 1, true),
-  ('index', 'stats', '{
-    "items": [
-      {"value": "22+", "label": "Active Members", "href": "/directory.html"},
-      {"value": "12+", "label": "Events This Month", "href": "/events.html"},
-      {"value": "5", "label": "Committees"},
-      {"value": "8", "label": "Years Serving Asheville"}
-    ]
-  }', 2, true),
-  ('index', 'features', '{
-    "columns": 3,
-    "items": [
-      {"icon": "calendar", "title": "Classes & Events", "desc": "Tai chi, watercolor, book club, tech help, movie nights, and more — there''s always something to do."},
-      {"icon": "users", "title": "A Real Community", "desc": "22 members and growing. Make friends, share skills, and look out for each other."},
-      {"icon": "home", "title": "Your Second Home", "desc": "A warm, accessible space in the heart of Asheville with a garden, art room, and the best coffee in town."}
-    ]
-  }', 3, true),
-  ('index', 'testimonials', '{
-    "items": [
-      {"quote": "Silver Pines gave me a reason to get out of the house every day. I have more friends now than I did at 40.", "name": "Grace Lee", "role": "Member since 2025"},
-      {"quote": "The Tech Buddies program changed my life. I can finally video call my grandkids in California!", "name": "Mary Jackson", "role": "Member since 2024"},
-      {"quote": "I was nervous about retiring. Now I''m busier than ever — garden committee, walking group, and I just started painting!", "name": "Richard Harris", "role": "Member since 2025"}
-    ]
-  }', 4, true),
-  ('index', 'activity_feed', '{}', 5, true),
-  ('index', 'cta', '{
-    "heading": "Come Visit Us",
-    "text": "Silver Pines is open Monday-Friday, 8am-5pm (6:30pm on Movie Fridays). Drop by for a tour, a cup of coffee, and meet your new neighbors.",
-    "cta_text": "How to Get Here",
-    "cta_href": "/page.html?slug=getting-here"
-  }', 6, true)
-ON CONFLICT DO NOTHING;
+--
+-- The homepage's main-zone sections (hero, stats, features, testimonials,
+-- slideshow, tagline_strip, promo_cards, events_list, announcements_feed,
+-- activity_feed, cta) are now defined in \`src/seeds/silver-pines.ts\` and
+-- emitted into the prepended block by \`scripts/generate-seed-sql.ts\`.
+--
+-- The legacy hand-written \`INSERT INTO sections ... VALUES (...) ON CONFLICT
+-- DO NOTHING\` block that used to live here also did a destructive
+-- \`DELETE FROM sections WHERE page_slug = 'index'\` before its INSERT, which
+-- ran AFTER the typed-seed block and silently overrode the typed sections
+-- with the legacy ones. Removing the block lets the typed seed be the
+-- single source of truth for homepage layout.
+--
+-- To edit the homepage layout, modify the \`sections\` array in
+-- \`src/seeds/silver-pines.ts\` (look for entries with \`page_slug: 'index'\`).
 
 -- ============================================
 -- 12. ACTIVITY LOG (seed some recent activity)

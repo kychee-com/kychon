@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/kychon/ui';
 import { get } from '@/lib/api';
 import { siteConfig } from '@/lib/config';
 import { formatEventDateTime } from '@/lib/event-display';
+import { getGlobalManifest, lookupAssetRef, onManifestChanged } from '@/lib/kychon-image';
+import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
 
 type EventsListLayout = 'grid' | 'list' | 'sidebar';
@@ -83,6 +85,12 @@ function EventsListIsland({ config, headingEditablePath }: EventsListProps) {
   const layout = normalizeLayout(config.layout);
   const count = normalizeCount(config.count);
   const heading = String(config.heading || '').trim();
+
+  // Re-render when manifest lands so the EventCard `<picture>` upgrade
+  // happens even if `page-render.ts:fetchManifest` resolves after this
+  // island's first commit. See `kychon-image.ts:setGlobalManifest`.
+  const [, setManifestVersion] = React.useState(0);
+  React.useEffect(() => onManifestChanged(() => setManifestVersion((v) => v + 1)), []);
 
   React.useEffect(() => {
     let ignore = false;
@@ -188,14 +196,43 @@ function EventCard({
           )}
           href={href}
         >
-          {showImageBlock && (
-            <img
-              alt=""
-              className="mb-3 aspect-video w-full rounded-md object-cover"
-              loading="lazy"
-              src={imageSrc}
-            />
-          )}
+          {showImageBlock && (() => {
+            // Manifest hit → `<Run402Image>` (variant ladder + v1.54
+            // placeholder for the events-list thumbnails). Miss → plain
+            // `<img>` for admin-uploaded URLs not in the assetsDir.
+            // `className` lands on `<picture>` (outermost), `style` on `<img>`.
+            // Aspect box on wrapper, cover-fit on img; otherwise non-aspect-video
+            // sources stretch into the box.
+            //
+            // `loading="eager"` (overriding the component default) because
+            // this island is fully React-hydrated: cards are injected into
+            // the DOM only after the events-list fetch resolves, AFTER the
+            // browser's initial intersection-observer pass. Native lazy
+            // loading never fires for those late-inserted in-viewport imgs
+            // and they stay stuck on the placeholder. Eager loading sidesteps
+            // the observer; the variant ladder still keeps bytes small.
+            const asset = lookupAssetRef(imageSrc, getGlobalManifest());
+            if (asset) {
+              return (
+                <Run402Image
+                  asset={asset}
+                  alt=""
+                  className="mb-3 block aspect-video w-full rounded-md"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  loading="eager"
+                  sizes={layout === 'grid' ? '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw' : '100vw'}
+                />
+              );
+            }
+            return (
+              <img
+                alt=""
+                className="mb-3 aspect-video w-full rounded-md object-cover"
+                loading="lazy"
+                src={imageSrc}
+              />
+            );
+          })()}
           <div className={cn('flex gap-3', layout === 'grid' && 'items-start')}>
             {dateTime.dateLabel && (
               <div className="flex w-24 shrink-0 flex-col rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">

@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Button, Card, CardContent } from '@/components/kychon/ui';
-import { KychonImage, type AssetManifest } from '@/lib/kychon-image';
+import { lookupAssetRef, type AssetManifest } from '@/lib/kychon-image';
+import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
 import { constrainedContainerClass } from '@/lib/ui/container';
 
@@ -84,20 +85,29 @@ function SlideImage({ item, manifest }: { item: SlideshowRenderItem; manifest: A
     );
   }
 
-  // Manifest hit → KychonImage emits `<picture>` with the v1.49 3-width
-  // WebP ladder. The legacy avifSrc/webpSrc pathway is kept as a fallback
-  // for slides where the seed pre-baked single-URL variant sources.
+  // Manifest hit → <Run402Image> emits `<picture>` with the v1.49 3-width
+  // WebP ladder PLUS reads the v1.54 `blurhash_data_url` field for the
+  // pre-decoded placeholder (no render-time DCT decode). The legacy
+  // avifSrc/webpSrc pathway is kept as a fallback for slides where the
+  // seed pre-baked single-URL variant sources OR where the manifest miss
+  // means we don't have a typed AssetRef to feed the component.
   const objectStyle = { objectFit: item.fit, objectPosition: item.objectPosition };
-  if (manifest) {
+  const asset = lookupAssetRef(item.src, manifest);
+  if (asset) {
+    // `style` lands on the inner `<img>` (per spec); pass the slideshow's
+    // `fit` (cover/contain) + `objectPosition` through so the img fills
+    // the slide box correctly. Without this, the `className` lands on
+    // `<picture>` where `object-fit` is meaningless and source images get
+    // stretched to h-full w-full.
     return (
-      <KychonImage
+      <Run402Image
+        asset={asset}
         alt={item.alt}
         className="block h-full w-full"
+        style={{ width: '100%', height: '100%', ...objectStyle }}
         loading={item.loading}
-        manifest={manifest}
         priority={item.fetchPriority === 'high'}
         sizes="100vw"
-        url={item.src}
       />
     );
   }

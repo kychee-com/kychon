@@ -27,6 +27,8 @@ import { getEvents, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
 import { formatEventDateTime } from '@/lib/event-display';
+import { getGlobalManifest, lookupAssetRef, onManifestChanged } from '@/lib/kychon-image';
+import { Run402Image } from '@/lib/run402-image-react';
 import { showToast } from '@/lib/toast-events';
 import type { Event } from '@/schemas/event';
 
@@ -64,6 +66,41 @@ function EventImage({ event }: { event: Event }) {
       <div className="flex aspect-[16/7] items-center justify-center bg-muted text-muted-foreground">
         <ImageIcon className="h-8 w-8" />
       </div>
+    );
+  }
+
+  // Manifest hit → `<Run402Image>` (variant ladder + v1.54 pre-decoded
+  // placeholder); miss → plain `<img>` against the original URL (admin
+  // uploads not yet covered by the build-time assetsDir walk).
+  //
+  // Class/style split (per the rev-4 spec): `<Run402Image>` forwards
+  // `className` to the outermost element (the `<picture>` wrapper) and
+  // `style` always to the inner `<img>`. So we put the aspect-ratio +
+  // width box on the `<picture>` (`block` because `<picture>` is
+  // `display: inline` by default — `w-full` is a no-op on inline), and
+  // the cover-crop fitting on the `<img>` via `style`. Without the
+  // `display: block` + `objectFit: cover` split, source images (e.g.
+  // 1024×1024 squares) get stretched into the 16:7 box.
+  //
+  // `loading="eager"` (not the component default `lazy`) because this
+  // grid is fully React-hydrated: the skeleton renders first, then
+  // `loadEvents()` resolves and React injects the `<picture>` nodes
+  // post-hydration. Chrome's native lazy-loading observer doesn't
+  // re-evaluate those late-inserted in-viewport imgs, leaving them
+  // stuck on the blurhash placeholder. Eager loading bypasses the
+  // observer entirely; bandwidth cost is small because the variant
+  // ladder picks the appropriate width.
+  const asset = lookupAssetRef(event.image_url, getGlobalManifest());
+  if (asset) {
+    return (
+      <Run402Image
+        asset={asset}
+        alt=""
+        className="block aspect-[16/7] w-full"
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        loading="eager"
+        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+      />
     );
   }
 
@@ -242,6 +279,15 @@ export default function EventsPageApp() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<EventFormState>(EMPTY_FORM);
+  // Force re-render when `window.__KYCHON_ASSET_MANIFEST` lands via the
+  // async fetch in `page-render.ts:fetchManifest`. Without this, a first-
+  // visit user (empty localStorage seed) gets the fallback `<img>` baked
+  // into DOM and never upgrades to the `<picture>` variant ladder, even
+  // after the manifest arrives a moment later. The `_manifestVersion`
+  // ref isn't read — it exists purely to make React's useState trigger a
+  // commit when the event fires.
+  const [, setManifestVersion] = useState(0);
+  useEffect(() => onManifestChanged(() => setManifestVersion((v) => v + 1)), []);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);

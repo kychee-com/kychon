@@ -47,22 +47,103 @@ export { resolveVariants };
  */
 const GLOBAL_MANIFEST_KEY = '__KYCHON_ASSET_MANIFEST';
 
+/**
+ * localStorage key the manifest seed lives under (mirrors
+ * `page-render.ts:ASSET_MANIFEST_CACHE_KEY`). Duplicated here — not
+ * imported — to avoid an import edge that would force every consumer
+ * of `lookupAssetRef` to also pull in `page-render.ts` (and its full
+ * Section/i18n/cache machinery).
+ */
+const ASSET_MANIFEST_CACHE_KEY = 'wl_cache_assets_manifest';
+
+/**
+ * Custom event dispatched on `window` when the manifest is updated via
+ * `setGlobalManifest` — emitted post-fetch so React islands rendered
+ * BEFORE the manifest arrived can re-render against the now-populated
+ * `<picture>` ladder instead of staying on the plain-`<img>` fallback.
+ */
+const MANIFEST_CHANGED_EVENT = 'kychon:manifest-changed';
+
+function readManifestSeed(): AssetManifest | null {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(ASSET_MANIFEST_CACHE_KEY) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || (parsed as { version?: unknown }).version !== 1) return null;
+    return parsed as AssetManifest;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the manifest. Order of precedence:
+ *
+ *   1. `window.__KYCHON_ASSET_MANIFEST` — populated by either
+ *      `page-render.ts`'s top-level module load (sync from localStorage
+ *      seed) or its async `/_assets-manifest.json` fetch resolution.
+ *   2. localStorage seed — fallback for the React-island bundles
+ *      (EventsPageApp, EventsListIsland, etc.) that import
+ *      `kychon-image` directly but NOT `page-render.ts`. Without this
+ *      seed-direct read, a repeat visitor's hydrated React island runs
+ *      its first render BEFORE the Portal-layout `<script>` finishes
+ *      bootstrapping page-render's top-level `setGlobalManifest`, so
+ *      `<Run402Image>` falls through to `<img>` and the variant ladder
+ *      is lost. The seed is identical bytes to what page-render writes
+ *      via `writeManifestToLocalStorage`.
+ *   3. `null` — first-ever visit pre-fetch. React islands fall back to
+ *      `<img>`; `<picture>` re-paints when the fetch completes and
+ *      the `kychon:manifest-changed` event fires (see `setGlobalManifest`).
+ */
 export function getGlobalManifest(): AssetManifest | null {
   if (typeof window === 'undefined') return null;
   const value = (window as unknown as Record<string, unknown>)[GLOBAL_MANIFEST_KEY];
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as AssetManifest)
-    : null;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as AssetManifest;
+  }
+  // Window unset — try localStorage as a synchronous fallback and
+  // self-populate window so subsequent lookups (and `setGlobalManifest`
+  // diff checks) see the same reference.
+  const seed = readManifestSeed();
+  if (seed) {
+    (window as unknown as Record<string, unknown>)[GLOBAL_MANIFEST_KEY] = seed;
+    return seed;
+  }
+  return null;
 }
 
 export function setGlobalManifest(manifest: AssetManifest | null): void {
   if (typeof window === 'undefined') return;
   const w = window as unknown as Record<string, unknown>;
+  const previous = w[GLOBAL_MANIFEST_KEY];
   if (manifest) {
     w[GLOBAL_MANIFEST_KEY] = manifest;
   } else {
     delete w[GLOBAL_MANIFEST_KEY];
   }
+  // Only dispatch when the manifest actually changed reference — guards
+  // against firing on every redundant seed-read (above) which would
+  // thrash any React subscriber.
+  if (previous !== w[GLOBAL_MANIFEST_KEY]) {
+    try {
+      window.dispatchEvent(new CustomEvent(MANIFEST_CHANGED_EVENT));
+    } catch {
+      // Old browsers without CustomEvent — fall through silently; the
+      // `<img>` fallback still works, just no live re-paint.
+    }
+  }
+}
+
+/**
+ * Subscribe to manifest changes. Returns an unsubscribe function. React
+ * islands rendered against `getGlobalManifest()` use this to re-evaluate
+ * once the async fetch path populates the manifest (otherwise the
+ * fallback `<img>` is committed and never gets upgraded to `<picture>`).
+ */
+export function onManifestChanged(handler: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(MANIFEST_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(MANIFEST_CHANGED_EVENT, handler);
 }
 
 /** v1.49 native widths — used to pick a sensible single-URL when CSS can't host a `<picture>`. */
@@ -83,13 +164,56 @@ function stripAssetsPrefix(url: string): string {
 /**
  * Look up a `/assets/X.jpg` URL in the manifest. Returns null when the
  * manifest is unset, the URL is empty, or there's no matching entry.
+ *
+ * Also normalizes camelCase URL fields (`cdnUrl`, `immutableUrl`,
+ * `cdnMutableUrl`) to their snake_case equivalents (`cdn_url`,
+ * `immutable_url`, etc.) when the snake_case fields are missing from
+ * the manifest entry. `@run402/astro@1.0.0`'s manifest pipeline emits
+ * top-level URL fields in camelCase ONLY (cdnUrl, immutableUrl) — but
+ * the `<Run402Image>` component AND the `AssetRef` type both expect
+ * snake_case (cdn_url, immutable_url) AND the variant entries within
+ * the SAME manifest entry use snake_case. The casing inconsistency
+ * crashes builds with `R402_ASTRO_IMAGE_ASSET_WRONG_SHAPE` (no cdn_url
+ * on top-level AssetRefs); normalize at the lookup boundary so every
+ * downstream consumer sees the snake_case shape.
+ *
+ * Flagged for `@run402/astro` follow-up: the manifest should emit
+ * consistent snake_case (matching variants + matching the `AssetRef`
+ * type definition) so this normalization is moot.
  */
 export function lookupAssetRef(
   url: string | undefined | null,
   manifest: AssetManifest | null | undefined,
 ): AssetRef | null {
   if (!manifest || !url) return null;
-  return resolveVariants(manifest, stripAssetsPrefix(url));
+  const ref = resolveVariants(manifest, stripAssetsPrefix(url));
+  return ref ? normalizeManifestAssetRef(ref) : null;
+}
+
+/**
+ * Fill snake_case URL fields from their camelCase counterparts when the
+ * snake_case fields are absent. Idempotent: an already-snake_case ref
+ * is returned unchanged.
+ */
+function normalizeManifestAssetRef(ref: AssetRef): AssetRef {
+  const raw = ref as AssetRef & {
+    cdnUrl?: string;
+    immutableUrl?: string;
+    cdnImmutableUrl?: string;
+    cdnMutableUrl?: string;
+  };
+  // Only fill when the canonical field is missing or empty — preserves
+  // any genuinely-snake_case sources untouched.
+  const cdnUrl = ref.cdn_url || raw.cdnUrl || raw.cdnMutableUrl;
+  const immutableUrl = ref.immutable_url || raw.immutableUrl;
+  if (cdnUrl === ref.cdn_url && immutableUrl === ref.immutable_url) {
+    return ref;
+  }
+  return {
+    ...ref,
+    ...(cdnUrl ? { cdn_url: cdnUrl } : {}),
+    ...(immutableUrl ? { immutable_url: immutableUrl } : {}),
+  };
 }
 
 /**
@@ -140,11 +264,48 @@ function buildSrcset(ref: AssetRef): string {
 // LQIP cache — keyed by blurhash string so repeated emissions (slideshow
 // frames, repeated hero references) share the ~600μs DCT decode. Cache is
 // process-scoped: keeps the bake hot, and runtime emits don't re-decode for
-// images already painted in this session.
+// images already painted in this session. Only the legacy fallback path
+// (AssetRefs without `blurhash_data_url`) populates this cache; v1.54+
+// AssetRefs short-circuit before reaching the decoder.
 const LQIP_CACHE = new Map<string, string>();
 
+/**
+ * v1.54 added `AssetRef.blurhash_data_url` — the gateway pre-decodes the
+ * blurhash to a PNG data URL at upload time, eliminating the render-time
+ * DCT decode. The field isn't typed in `@run402/astro@0.2.x`'s `AssetRef`
+ * (it ships in `@run402/astro@1.0`), so we read it defensively via
+ * property access keyed on a local type intersection.
+ *
+ * Behavior:
+ *   - `blurhash_data_url` is a non-empty string → use it directly (no decode)
+ *   - `blurhash_data_url` is null / undefined / empty string → fall back to
+ *     the existing decode-and-cache path against `blurhash`
+ *   - No `blurhash` either → return '' (no placeholder)
+ *
+ * The empty-string check is deliberate: the rev-2 sibling spec's
+ * `display_url` fallback rule called out that JS `??` only catches null /
+ * undefined, leaving an empty-string field to produce `<img src="">`
+ * (some browsers interpret that as the current page URL). Applying the
+ * same `typeof === 'string' && length > 0` guard here so a stored
+ * `blurhash_data_url: ""` field can't produce a broken inline data URL.
+ */
+type AssetRefV154 = AssetRef & { blurhash_data_url?: string | null };
+
 function lqipDataUri(ref: AssetRef | null | undefined): string {
-  const hash = ref?.blurhash;
+  if (!ref) return '';
+
+  // v1.54 fast path: gateway pre-decoded the blurhash at upload time.
+  const preDecoded = (ref as AssetRefV154).blurhash_data_url;
+  if (typeof preDecoded === 'string' && preDecoded.length > 0) {
+    return preDecoded;
+  }
+
+  // Fallback: decode the blurhash string client-side. Hit on legacy
+  // AssetRefs uploaded pre-v1.54, OR new uploads where the upload-time
+  // pre-decode failed (per the sibling spec's degrade-gracefully clause:
+  // the row keeps `blurhash` populated even when `blurhash_data_url` is
+  // null).
+  const hash = ref.blurhash;
   if (!hash) return '';
   let dataUri = LQIP_CACHE.get(hash);
   if (dataUri === undefined) {

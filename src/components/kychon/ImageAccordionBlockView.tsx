@@ -3,7 +3,8 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Badge, Card, CardContent } from '@/components/kychon/ui';
-import { KychonImage, type AssetManifest } from '@/lib/kychon-image';
+import { lookupAssetRef, type AssetManifest } from '@/lib/kychon-image';
+import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
 import { constrainedContainerClass } from '@/lib/ui/container';
 
@@ -63,22 +64,47 @@ function PanelImage({ panel, index, manifest }: { index: number; panel: ImageAcc
     );
   }
 
-  const editableAttrs: Record<`data-${string}`, string | undefined> = {
-    'data-accordion-image': '',
-    'data-editable-image': panel.imageEditablePath,
-  };
+  const asset = lookupAssetRef(panel.imageUrl, manifest);
+  const objectStyle = {
+    objectFit: panel.objectFit,
+    objectPosition: panel.objectPosition,
+  } as CSSProperties;
 
+  if (asset) {
+    // `<Run402Image>` accepts arbitrary `data-*` attributes per the v1.0
+    // component spec (rev-3 DataAttributes mapped type). The reserved
+    // `data-run402-image` key the component sets itself; everything else
+    // passes through to the outermost rendered element. The accordion's
+    // `data-editable-image` plumbing lands here for the admin-side editor.
+    return (
+      <Run402Image
+        asset={asset}
+        alt={panel.imageAlt}
+        className="absolute inset-0 block h-full w-full"
+        loading={index === 0 ? 'eager' : 'lazy'}
+        priority={index === 0}
+        sizes="(min-width: 768px) 33vw, 100vw"
+        style={objectStyle}
+        data-accordion-image=""
+        data-editable-image={panel.imageEditablePath}
+      />
+    );
+  }
+
+  // Manifest miss → fall back to plain `<img>` with the same editable
+  // data-attrs the manifest-hit path emits. Matches the historical
+  // pre-migration behavior (KychonImage's miss-branch emitted a single
+  // `<img>` with the URL).
   return (
-    <KychonImage
+    <img
       alt={panel.imageAlt}
       className="absolute inset-0 block h-full w-full"
-      imgDataAttrs={editableAttrs}
       loading={index === 0 ? 'eager' : 'lazy'}
-      manifest={manifest}
-      priority={index === 0}
-      sizes="(min-width: 768px) 33vw, 100vw"
-      style={{ objectFit: panel.objectFit, objectPosition: panel.objectPosition } as CSSProperties}
-      url={panel.imageUrl}
+      fetchPriority={index === 0 ? 'high' : undefined}
+      src={panel.imageUrl}
+      style={objectStyle}
+      data-accordion-image=""
+      data-editable-image={panel.imageEditablePath}
     />
   );
 }
