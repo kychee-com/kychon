@@ -612,7 +612,25 @@ function RegistrationEditor({
   );
 }
 
-export default function EventDetailPageApp() {
+interface EventDetailPageAppProps {
+  /**
+   * Map of all events the build-time anon-key fetch could see, keyed by
+   * `String(event.id)`. `event.astro` populates this from
+   * `getAllBuildEvents()` so the React island can resolve `?id=X` from
+   * URL → event synchronously on first client render, eliminating the
+   * API round-trip and ~200-1000ms of skeleton. Falls back to the
+   * runtime `loadEvent()` path for IDs not in the map (events added
+   * post-deploy, member-only events anon-key RLS hid).
+   *
+   * O(N_events) embedded bytes per page (~10-30KB for demos). Acceptable
+   * for community-portal scale; the hybrid-SSR conversion (Step 4) would
+   * collapse this to one event per page, but that needs Astro
+   * `output: 'hybrid'` and is its own arc.
+   */
+  eventsById?: Record<string, Event>;
+}
+
+export default function EventDetailPageApp({ eventsById }: EventDetailPageAppProps = {}) {
   const [event, setEvent] = useState<Event | null>(null);
   const [rsvps, setRsvps] = useState<EventRSVPWithMember[]>([]);
   const [registrationOptions, setRegistrationOptions] = useState<EventRegistrationOption[]>([]);
@@ -630,7 +648,11 @@ export default function EventDetailPageApp() {
   const [deleting, setDeleting] = useState(false);
 
   const loadEvent = useCallback(async () => {
-    setLoading(true);
+    // Don't unconditionally flip `loading=true` — the post-mount fast
+    // path (below, in useEffect) may have already populated `event` from
+    // `eventsById`, and toggling the skeleton would re-paint over the
+    // SSR-baked hero card on every locale/auth change. The first-mount
+    // skeleton is still covered by the `useState(true)` initializer.
     setError('');
     setAccessDenied(false);
     try {
@@ -665,8 +687,14 @@ export default function EventDetailPageApp() {
         return;
       }
 
+      // Fetch event_rsvps + registration_options as best-effort — anonymous
+      // visitors typically hit `Permission denied for rsvps.listForEvent`
+      // (no anon read on that table by default). That's fine: the RSVP
+      // panel + Attendees just stay empty until sign-in; failing the
+      // whole `loadEvent` would replace the SSR-baked hero with an error
+      // alert, which is worse UX than a missing attendee list.
       const [loadedRsvps, loadedOptions] = await Promise.all([
-        get(`event_rsvps?event_id=eq.${encodeURIComponent(id)}&select=*,members(display_name,avatar_url)`),
+        get(`event_rsvps?event_id=eq.${encodeURIComponent(id)}&select=*,members(display_name,avatar_url)`).catch(() => []),
         getEventRegistrationOptions(Number(id)).catch(() => []),
       ]);
       setRsvps(loadedRsvps as EventRSVPWithMember[]);
@@ -680,6 +708,20 @@ export default function EventDetailPageApp() {
   }, []);
 
   useEffect(() => {
+    // Fast path: if the build-time `eventsById` map carries the event
+    // matching `?id=X`, paint the hero/title/date/description immediately
+    // and drop the skeleton — no API round-trip needed for first paint.
+    // The slow path (`loadEvent`) still runs to pick up admin edits made
+    // post-build, member-only events RLS hid from the anon-key fetch,
+    // and the relations (rsvps, registrationOptions) that aren't in
+    // `eventsById`.
+    if (eventsById) {
+      const id = eventIdFromLocation();
+      if (id && eventsById[id]) {
+        setEvent(eventsById[id]);
+        setLoading(false);
+      }
+    }
     void loadEvent();
     document.addEventListener('wl-auth-changed', loadEvent);
     document.addEventListener('wl-locale-changed', loadEvent);
@@ -687,7 +729,7 @@ export default function EventDetailPageApp() {
       document.removeEventListener('wl-auth-changed', loadEvent);
       document.removeEventListener('wl-locale-changed', loadEvent);
     };
-  }, [loadEvent]);
+  }, [loadEvent, eventsById]);
 
   const counts = useMemo(() => {
     return {
