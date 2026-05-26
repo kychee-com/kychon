@@ -31,6 +31,19 @@ export interface MediaAssetRef {
   content_type?: string;
   image_format?: string;
   blurhash?: string;
+  /** v1.51: pre-decoded blurhash PNG data URL emitted by the upload pipeline.
+   *  Used by `<Run402Image>` for the placeholder; surfaced here so admins
+   *  can verify it landed (a missing value triggers strict-mode warnings). */
+  blurhash_data_url?: string | null;
+  /** v1.51: gateway shape stamp. `"v1.49" | "v1.50" | "v1.54" | null`.
+   *  `null` for sub-threshold uploads (correctly unstamped per spec). */
+  asset_schema?: 'v1.49' | 'v1.50' | 'v1.54' | null;
+  /** v1.50: image-intrinsic facts the gateway extracts at upload time. */
+  image_info?: {
+    color_space?: string | null;
+    has_alpha?: boolean | null;
+    bit_depth?: number | null;
+  } | null;
   metadata?: {
     filename?: string;
     uploaded_by?: string;
@@ -300,6 +313,31 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
                       {selected.image_format ? ` · ${selected.image_format.toUpperCase()}` : ''}
                     </p>
                   ) : null}
+                  {/* v1.50/v1.54 image metadata — surfaced for admins so they can
+                      spot non-sRGB color spaces (may render differently on
+                      standard displays), alpha presence (matters when compositing
+                      on dark backgrounds), and the shape-contract stamp (helps
+                      diagnose strict-mode failures). Only renders when there's
+                      something notable to show. */}
+                  {(() => {
+                    const info = selected.image_info;
+                    const notes: string[] = [];
+                    if (info?.color_space && info.color_space.toLowerCase() !== 'srgb') {
+                      notes.push(info.color_space);
+                    }
+                    if (info?.has_alpha) {
+                      notes.push('transparent');
+                    }
+                    if (selected.asset_schema && selected.asset_schema !== 'v1.54') {
+                      notes.push(`shape ${selected.asset_schema}`);
+                    }
+                    if (!notes.length) return null;
+                    return (
+                      <p className="text-xs text-muted-foreground/80">
+                        {notes.join(' · ')}
+                      </p>
+                    );
+                  })()}
                 </div>
                 {confirmDelete ? (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">

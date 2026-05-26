@@ -25,6 +25,7 @@ import {
   nearestElementWithAttribute,
 } from './dom-structure';
 import { type AssetManifest, setGlobalManifest } from './kychon-image';
+import { computeMainZoneSignature } from './main-zone-signature';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -84,7 +85,15 @@ function fetchManifest(): Promise<AssetManifest | null> {
   if (manifestPromise) return manifestPromise;
   manifestPromise = (async () => {
     try {
-      const res = await fetch(ASSET_MANIFEST_URL, { cache: 'force-cache' });
+      // `cache: 'no-cache'` revalidates with the server (If-Modified-Since /
+      // If-None-Match) so a deploy that ships a new manifest invalidates the
+      // browser's HTTP cache on the next load. `force-cache` (the prior value)
+      // happily returned stale bytes — e.g. a manifest from before v1.54's
+      // `blurhash_data_url` + `asset_schema` fields shipped — even after a
+      // gateway redeploy. The localStorage seed (line 50) still handles
+      // synchronous first-paint without a network roundtrip; the no-cache
+      // here only governs the background revalidate.
+      const res = await fetch(ASSET_MANIFEST_URL, { cache: 'no-cache' });
       if (!res.ok) return null;
       const data = (await res.json()) as unknown;
       if (!data || typeof data !== 'object' || (data as { version?: unknown }).version !== 1) return null;
@@ -215,8 +224,35 @@ function renderZoneInto(
       // No #sections host — pages opting out of zone main rendering.
       return;
     }
+    // Bake-signature short-circuit: when the SSR-baked HTML was produced
+    // from data that matches what we'd render right now (same sections,
+    // same manifest.generated_at), skip the destructive DOM replace.
+    // Preserves SSR-rendered `<Run402Image>` content — variant ladder +
+    // v1.54 pre-decoded blurhash placeholder — instead of clobbering it
+    // with byte-identical bytes. Falls through to re-render when content
+    // or manifest drifts (admin edits, new uploads, demo reset).
+    const existingSignature = sectionsHost.getAttribute('data-bake-signature');
+    if (existingSignature) {
+      const currentSignature = computeMainZoneSignature({
+        sections: filtered,
+        manifestGeneratedAt: ctx.manifest?.generated_at ?? null,
+      });
+      if (currentSignature === existingSignature) {
+        return;
+      }
+    }
     const newHtml = filtered.map((s) => renderBlock(s, ctx)).join('');
     renderReactHtmlChildren(sectionsHost, newHtml);
+    // Update the signature attribute so subsequent renderZoneInto calls
+    // (fresh-pass after a cached-pass re-render) compare against the
+    // freshly-rendered state, not the stale SSR signature.
+    sectionsHost.setAttribute(
+      'data-bake-signature',
+      computeMainZoneSignature({
+        sections: filtered,
+        manifestGeneratedAt: ctx.manifest?.generated_at ?? null,
+      }),
+    );
     return;
   }
 

@@ -62,6 +62,8 @@ import {
   registrationPriceLabel,
   visibleRegistrationOptions,
 } from '@/lib/event-registration';
+import { getGlobalManifest, lookupAssetRef, onManifestChanged } from '@/lib/kychon-image';
+import { Run402Image } from '@/lib/run402-image-react';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { showToast as showKychonToast, type KychonToastType } from '@/lib/toast-events';
 import type { Event, EventRegistrationOption, EventRSVP } from '@/schemas/event';
@@ -626,6 +628,12 @@ export default function EventDetailPageApp() {
   const [savingRegistration, setSavingRegistration] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Force re-render when the manifest arrives via the async fetch path
+  // (see `kychon-image.ts:setGlobalManifest`) — without this, the hero
+  // `<img>` baked into DOM on first visit never upgrades to the v1.54
+  // `<picture>` ladder.
+  const [, setManifestVersion] = useState(0);
+  useEffect(() => onManifestChanged(() => setManifestVersion((v) => v + 1)), []);
 
   const loadEvent = useCallback(async () => {
     setLoading(true);
@@ -853,20 +861,46 @@ export default function EventDetailPageApp() {
       ) : null}
 
       <Card className="overflow-hidden">
-        {event.image_url ? (
-          <img
-            alt=""
-            className="aspect-[16/7] w-full object-cover"
-            data-editable-image={admin ? `events.${event.id}.image_url` : undefined}
-            height={360}
-            src={event.image_url}
-            width={960}
-          />
-        ) : (
-          <div className="flex aspect-[16/7] items-center justify-center bg-muted text-muted-foreground">
-            <ImageIcon className="h-10 w-10" />
-          </div>
-        )}
+        {(() => {
+          if (!event.image_url) {
+            return (
+              <div className="flex aspect-[16/7] items-center justify-center bg-muted text-muted-foreground">
+                <ImageIcon className="h-10 w-10" />
+              </div>
+            );
+          }
+          // Manifest hit → `<Run402Image>` (variant ladder + v1.54 placeholder;
+          // `priority` because the event hero is above-the-fold on event detail
+          // pages and drives LCP). Miss → plain `<img>` for admin-uploaded
+          // images not in the build-time assetsDir.
+          // `className` lands on `<picture>` (outermost), `style` on `<img>`
+          // (always). Aspect-ratio box on the wrapper, cover-fit on the img;
+          // otherwise non-16:7 source images stretch into the 16:7 box.
+          const asset = lookupAssetRef(event.image_url, getGlobalManifest());
+          if (asset) {
+            return (
+              <Run402Image
+                asset={asset}
+                alt=""
+                className="block aspect-[16/7] w-full"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                priority
+                data-editable-image={admin ? `events.${event.id}.image_url` : undefined}
+              />
+            );
+          }
+          return (
+            <img
+              alt=""
+              className="aspect-[16/7] w-full object-cover"
+              data-editable-image={admin ? `events.${event.id}.image_url` : undefined}
+              height={360}
+              src={event.image_url}
+              width={960}
+            />
+          );
+        })()}
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {event.is_members_only ? (

@@ -12,13 +12,20 @@ import { renderMainZone, renderHeroPreloadLink, makeBakeContext } from '../lib/c
 // instead of an empty container until JS resolves.
 const { seed } = await resolveActiveProjectSeed();
 const bakeCtx = makeBakeContext(seed);
-const sectionsHtml = renderMainZone(seed, 'index', bakeCtx);
+// `renderMainZone` returns both the rendered HTML AND a content signature
+// of the (filtered sections, manifest.generated_at) tuple. The signature
+// stamps `<div id="sections" data-bake-signature="…">` so the client-side
+// `renderZoneInto('main', ...)` can skip its destructive innerHTML
+// replacement when the live data would produce identical HTML. Preserves
+// SSR-baked `<Run402Image>` content (variant ladder + v1.54 pre-decoded
+// blurhash placeholder) when seed = DB.
+const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seed, 'index', bakeCtx);
 // Preload the home hero so the WebP download starts before the browser even
 // parses `<source srcset>` in document order — matches Apple-style preload.
 const heroPreloadLink = renderHeroPreloadLink(seed, 'index', bakeCtx.manifest);
 ---
 <Portal title="Home" extraHead={heroPreloadLink}>
   <HomePageApp client:load />
-  <div id="sections" data-sortable-group="homepage-sections" data-zone="main" set:html={sectionsHtml}></div>
+  <div id="sections" data-sortable-group="homepage-sections" data-zone="main" data-bake-signature={bakeSignature} set:html={sectionsHtml}></div>
   <AdminZoneAddButton zone="main" />
 </Portal>

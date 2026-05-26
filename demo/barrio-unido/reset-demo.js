@@ -889,66 +889,22 @@ SELECT 'Guía básica de tecnología para adultos', 'Cómo usar un smartphone, c
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Guía básica de tecnología para adultos');
 
 -- ============================================
--- 12. HOMEPAGE SECTIONS
+-- 12. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
 -- ============================================
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'hero', '{
-  "heading": "Bienvenidos a Barrio Unido",
-  "subheading": "Tu centro comunitario en el corazón de Boyle Heights. Clases de inglés, clínica legal, despensa de alimentos, eventos culturales y más — todo gratis, todo para ti.",
-  "cta_text": "Únete a la comunidad",
-  "cta_href": "/page.html?slug=nosotros",
-  "bg_image": "/assets/hero.jpg"
-}', 1, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'hero');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'stats', '{
-  "items": [
-    {"value": "2,400+", "label": "Familias servidas"},
-    {"value": "850+", "label": "Clases de inglés completadas"},
-    {"value": "340+", "label": "Consultas legales"},
-    {"value": "60+", "label": "Eventos al año"}
-  ]
-}', 2, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'stats');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'features', '{
-  "columns": 3,
-  "items": [
-    {"icon": "shield", "title": "Clínica Legal", "desc": "Consultas gratuitas con abogados de inmigración. DACA, permisos de trabajo, asilo, ciudadanía."},
-    {"icon": "book-open", "title": "Clases de Inglés", "desc": "ESL para adultos, desde principiante hasta avanzado. Clases de conversación y gramática."},
-    {"icon": "file-text", "title": "Ciudadanía", "desc": "Talleres mensuales de preparación para el examen. Simulacros de entrevista y ayuda con formularios."},
-    {"icon": "heart", "title": "Despensa de Alimentos", "desc": "Distribución semanal de alimentos frescos para familias del barrio. Martes y jueves, 4-7 PM."},
-    {"icon": "users", "title": "Jóvenes Unidos", "desc": "Mentoría, tutoría escolar, arte y deportes para jóvenes de 12 a 18 años."},
-    {"icon": "calendar", "title": "Cultura y Fiestas", "desc": "Día de los Muertos, Posada Navideña, mercaditos, noches de cine y más."}
-  ]
-}', 3, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'features');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'testimonials', '{
-  "items": [
-    {"quote": "Barrio Unido me ayudó a conseguir mi ciudadanía después de 18 años en este país. No tengo palabras para agradecer a Lucía y a Ana.", "name": "María Elena Ríos", "role": "Promotora"},
-    {"quote": "My kids found a second family in the youth program. Adriana and Óscar have been incredible mentors. This place changes lives.", "name": "Jennifer Tran", "role": "Social Worker & Volunteer"},
-    {"quote": "Llegué sin hablar una palabra de inglés. Ahora puedo hablar con el doctor, con la maestra de mis hijos, con mi jefe. Gracias, profesor Carlos.", "name": "Pedro Gutiérrez", "role": "Voluntario de construcción"}
-  ]
-}', 4, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'testimonials');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'activity_feed', '{"limit": 15}', 5, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'activity_feed');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'cta', '{
-  "heading": "El barrio te necesita — y tú nos necesitas a nosotros",
-  "text": "Ya seas vecino/a nuevo o de toda la vida, hay un lugar para ti en Barrio Unido. Ven a conocernos.",
-  "cta_text": "Hazte voluntario/a",
-  "cta_href": "/page.html?slug=nosotros"
-}', 6, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'cta');
+--
+-- The homepage's main-zone sections (hero, stats, features, testimonials,
+-- activity_feed, cta, and any newly-added blocks like slideshow /
+-- promo_cards) are now defined in \`src/seeds/barrio-unido.ts\` and emitted
+-- into the prepended block by \`scripts/generate-seed-sql.ts\`.
+--
+-- The legacy \`INSERT NOT EXISTS\` blocks that used to live here would
+-- duplicate sections at any position where the typed seed used a different
+-- \`section_type\` (the predicate keys on section_type, so different types
+-- at the same position both succeed). Removing the legacy block lets the
+-- typed seed be the single source of truth.
+--
+-- To edit the homepage layout, modify the \`sections\` array in
+-- \`src/seeds/barrio-unido.ts\` (look for entries with \`page_slug: 'index'\`).
 
 -- ============================================
 -- 13. CUSTOM PAGES

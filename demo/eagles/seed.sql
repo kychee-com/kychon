@@ -1768,45 +1768,19 @@ SELECT 'volunteer', 'Volunteer With Us', '
 WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'volunteer');
 
 -- ============================================
--- 17. HOMEPAGE SECTIONS
+-- 17. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
 -- ============================================
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'hero', '{
-  "heading": "Lifting Wichita, One Neighbor at a Time",
-  "subheading": "The Eagles are 200+ volunteers dedicated to food drives, habitat builds, youth mentoring, and community outreach across Sedgwick County.",
-  "cta_text": "Join The Eagles",
-  "cta_href": "/join",
-  "bg_image": "/assets/hero.jpg"
-}', 1, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'hero');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'features', '{
-  "columns": 3,
-  "items": [
-    {"icon": "heart", "title": "Volunteer", "desc": "Join food drives, habitat builds, park cleanups, and community meals. Every pair of hands makes a difference."},
-    {"icon": "trending-up", "title": "Community Impact", "desc": "5,000+ neighbors helped, 15,000+ volunteer hours logged, and 350 holiday food baskets delivered last year alone."},
-    {"icon": "users", "title": "Join Us", "desc": "Sign up for free, attend an orientation, and start making an impact this weekend. No experience necessary."}
-  ]
-}', 2, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'features');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'stats', '{
-  "items": [
-    {"value": "12 Years", "label": "Serving Wichita"},
-    {"value": "5,000+", "label": "Neighbors Helped"},
-    {"value": "15,000+", "label": "Volunteer Hours"}
-  ]
-}', 3, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'stats');
-
-INSERT INTO sections (page_slug, section_type, config, position, visible)
-SELECT 'index', 'cta', '{
-  "heading": "Ready to make a difference?",
-  "text": "Join The Eagles today and become part of something bigger. Whether you have an hour or a hundred, there is a place for you.",
-  "cta_text": "Get Started",
-  "cta_href": "/join"
-}', 4, true
-WHERE NOT EXISTS (SELECT 1 FROM sections WHERE page_slug = 'index' AND section_type = 'cta');
+--
+-- The homepage's main-zone sections (hero, features, stats, cta, and any
+-- additional blocks like slideshow / promo_cards / activity_feed) are now
+-- defined in `src/seeds/eagles.ts` and emitted into the prepended block by
+-- `scripts/generate-seed-sql.ts`.
+--
+-- The legacy `INSERT NOT EXISTS` blocks that used to live here would
+-- duplicate sections at any position where the typed seed used a different
+-- `section_type` (the predicate keys on section_type, so different types
+-- at the same position both succeed). Removing the legacy block lets the
+-- typed seed be the single source of truth.
+--
+-- To edit the homepage layout, modify the `sections` array in
+-- `src/seeds/eagles.ts` (look for entries with `page_slug: 'index'`).

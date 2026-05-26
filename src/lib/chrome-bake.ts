@@ -1,5 +1,6 @@
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 import { renderBlock, type BlockRenderContext, type Section } from './blocks.js';
+import { computeMainZoneSignature } from './main-zone-signature.js';
 import { buildFontVarValue, renderFontHead } from './theme/fonts.js';
 import type { ProjectSeed } from '../seeds/types.js';
 
@@ -117,12 +118,29 @@ export function renderGlobalZone(
 // Bake page-scoped main-zone sections for a specific slug. Mirrors
 // page-render.ts:renderZoneInto's 'main' branch — admin live-edits are still
 // applied by the runtime hydrate, so this only sets the first paint.
+//
+// Returns BOTH the rendered HTML AND a content signature of the (filtered
+// sections, manifest.generated_at) tuple. The astro template stamps the
+// signature on `<div id="sections" data-bake-signature="…">`; the client
+// reads it in `page-render.ts:renderZoneInto` and skips the destructive
+// re-render when the live data would produce the same signature.
+//
+// This preserves SSR-baked `<Run402Image>` content (variant ladder + v1.54
+// pre-decoded blurhash placeholder) when the seed and DB are in sync —
+// the common case for demo tenants after their reset cron AND production
+// tenants in steady state. When they diverge (admin edits, new uploads),
+// signatures differ → existing replace-innerHTML path fires unchanged.
+export interface MainZoneBake {
+  html: string;
+  signature: string;
+}
+
 export function renderMainZone(
   seed: ProjectSeed,
   pageSlug: string,
   ctx: BlockRenderContext = makeBakeContext(seed),
-): string {
-  return (seed.sections as unknown as Section[])
+): MainZoneBake {
+  const filtered = (seed.sections as unknown as Section[])
     .filter(
       (s) =>
         s.zone === 'main' &&
@@ -130,9 +148,13 @@ export function renderMainZone(
         s.page_slug === pageSlug &&
         s.visible !== false,
     )
-    .sort((a, b) => a.position - b.position)
-    .map((s) => renderBlock(s, ctx))
-    .join('');
+    .sort((a, b) => a.position - b.position);
+  const html = filtered.map((s) => renderBlock(s, ctx)).join('');
+  const signature = computeMainZoneSignature({
+    sections: filtered,
+    manifestGeneratedAt: ctx.manifest?.generated_at ?? null,
+  });
+  return { html, signature };
 }
 
 // Build the `<link rel="preload" as="image" imagesrcset=... fetchpriority="high">`
