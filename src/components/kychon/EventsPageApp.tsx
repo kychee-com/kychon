@@ -27,7 +27,7 @@ import { getEvents, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
 import { formatEventDateTime } from '@/lib/event-display';
-import { getGlobalManifest, lookupAssetRef, onManifestChanged } from '@/lib/kychon-image';
+import { getGlobalManifest, lookupAssetRef } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { showToast } from '@/lib/toast-events';
 import type { Event } from '@/schemas/event';
@@ -279,15 +279,6 @@ export default function EventsPageApp() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<EventFormState>(EMPTY_FORM);
-  // Force re-render when `window.__KYCHON_ASSET_MANIFEST` lands via the
-  // async fetch in `page-render.ts:fetchManifest`. Without this, a first-
-  // visit user (empty localStorage seed) gets the fallback `<img>` baked
-  // into DOM and never upgrades to the `<picture>` variant ladder, even
-  // after the manifest arrives a moment later. The `_manifestVersion`
-  // ref isn't read — it exists purely to make React's useState trigger a
-  // commit when the event fires.
-  const [, setManifestVersion] = useState(0);
-  useEffect(() => onManifestChanged(() => setManifestVersion((v) => v + 1)), []);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/kychon/ui';
 import { get } from '@/lib/api';
 import { siteConfig } from '@/lib/config';
 import { formatEventDateTime } from '@/lib/event-display';
-import { getGlobalManifest, lookupAssetRef, onManifestChanged } from '@/lib/kychon-image';
+import { getGlobalManifest, lookupAssetRef } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
 
@@ -85,12 +85,6 @@ function EventsListIsland({ config, headingEditablePath }: EventsListProps) {
   const layout = normalizeLayout(config.layout);
   const count = normalizeCount(config.count);
   const heading = String(config.heading || '').trim();
-
-  // Re-render when manifest lands so the EventCard `<picture>` upgrade
-  // happens even if `page-render.ts:fetchManifest` resolves after this
-  // island's first commit. See `kychon-image.ts:setGlobalManifest`.
-  const [, setManifestVersion] = React.useState(0);
-  React.useEffect(() => onManifestChanged(() => setManifestVersion((v) => v + 1)), []);
 
   React.useEffect(() => {
     let ignore = false;

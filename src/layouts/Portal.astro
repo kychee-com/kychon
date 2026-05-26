@@ -14,6 +14,8 @@ import AdminBar from '../components/AdminBar.astro';
 import MediaPickerHost from '../components/MediaPickerHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
+import { getBuildTimeManifest } from '@run402/astro/build-manifest';
+
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
 import { buildCspValue } from '../lib/csp';
@@ -42,6 +44,26 @@ const chrome = bakeChrome(seed, title);
 const renderDemoBanner = isDemoModeSeed(seed);
 
 const cspValue = buildCspValue();
+
+// --- Inline the asset manifest ---
+// Inlining `window.__KYCHON_ASSET_MANIFEST` synchronously into <head> means
+// every React island's first render — EventsPageApp, EventsListIsland,
+// EventDetailPageApp, the slideshow carousel — sees a populated manifest
+// before lookupAssetRef() ever runs. Without this, a first-visit hit
+// (empty localStorage seed) raced the async /_assets-manifest.json fetch
+// in page-render.ts:fetchManifest: React committed the fallback <img>,
+// the manifest landed 100-300ms later, and we needed an onManifestChanged
+// event listener to force the upgrade to <picture>. Inline kills the
+// race at the source — the manifest is in HTML before any JS module
+// even starts parsing. ~60KB raw, ~12KB gzipped per page; cost worth
+// paying to drop the timing workaround.
+//
+// `.replace(/</g, '\\u003c')` escapes any `</script>` in the data
+// (defensive — Vinyl assets shouldn't contain that, but cheap insurance).
+const inlineManifest = getBuildTimeManifest();
+const inlineManifestScript = inlineManifest
+  ? `window.__KYCHON_ASSET_MANIFEST = ${JSON.stringify(inlineManifest).replace(/</g, '\\u003c')};`
+  : '';
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -63,6 +85,7 @@ const cspValue = buildCspValue();
   {chrome.customCss && <style is:inline set:html={chrome.customCss}></style>}
   <style id="wl-theme-vars" is:inline set:html={`:root { ${chrome.themeFontVarsCss} }`}></style>
   <link rel="stylesheet" href="/css/admin-editing.css">
+  {inlineManifestScript && <script is:inline set:html={inlineManifestScript}></script>}
   <ClientRouter />
   <script is:inline>
     (function applyTheme() {

@@ -62,7 +62,7 @@ import {
   registrationPriceLabel,
   visibleRegistrationOptions,
 } from '@/lib/event-registration';
-import { getGlobalManifest, lookupAssetRef, onManifestChanged } from '@/lib/kychon-image';
+import { getGlobalManifest, lookupAssetRef } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { showToast as showKychonToast, type KychonToastType } from '@/lib/toast-events';
@@ -628,12 +628,6 @@ export default function EventDetailPageApp() {
   const [savingRegistration, setSavingRegistration] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // Force re-render when the manifest arrives via the async fetch path
-  // (see `kychon-image.ts:setGlobalManifest`) — without this, the hero
-  // `<img>` baked into DOM on first visit never upgrades to the v1.54
-  // `<picture>` ladder.
-  const [, setManifestVersion] = useState(0);
-  useEffect(() => onManifestChanged(() => setManifestVersion((v) => v + 1)), []);
 
   const loadEvent = useCallback(async () => {
     setLoading(true);
