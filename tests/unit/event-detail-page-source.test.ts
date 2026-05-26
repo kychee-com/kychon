@@ -8,7 +8,11 @@ const app = readFileSync(join(root, 'src/components/kychon/EventDetailPageApp.ts
 
 describe('event detail page source', () => {
   it('uses a shadcn React island instead of inline DOM rendering', () => {
-    expect(page).toContain('<EventDetailPageApp client:load />');
+    // The `<EventDetailPageApp ... client:load />` directive may now
+    // carry an `eventsById` prop wired from the build-time SSR fetch
+    // (`ensureBuildEventsLoaded`), so we match the directive + prop
+    // surface independently rather than pinning to one exact form.
+    expect(page).toMatch(/<EventDetailPageApp\b[\s\S]*?client:load\b[\s\S]*?\/>/);
     expect(page).not.toContain('<script>');
     expect(page).not.toContain('class="btn');
     expect(page).not.toContain('class="form-');

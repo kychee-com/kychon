@@ -1,10 +1,34 @@
 ---
 import EventDetailPageApp from '../components/kychon/EventDetailPageApp';
 import Portal from '../layouts/Portal.astro';
+import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
+
+// Single static `/event.html` serves all events; the React island reads
+// `?id=X` from `window.location` at mount and renders the matching event.
+// We can't render a specific event server-side because Astro doesn't know
+// the query string at build time — so instead we embed a `Map<id, event>`
+// of every event the build-time anon-key fetch could see, and the island
+// performs the lookup synchronously on first client render. Skeleton flash
+// shortens from "skeleton + fetch round-trip" (~300-1000ms) to "skeleton
+// + JS parse" (~50-200ms). useEffect still refetches in the background to
+// catch admin edits made between build and visit, and to pick up member-
+// only events that anon-key RLS hid at build (visible only after the
+// post-hydrate refetch sees the visitor's session).
+//
+// Costs O(N_events) bytes embedded in every event-detail page load —
+// ~10-30KB for a demo with 10-12 events, scales linearly. The full
+// hybrid-SSR conversion (per-request rendering, see Step 4) would
+// collapse this to one event per page, but that needs Astro's
+// `output: 'hybrid'` and `prerender = false` on this route — out of
+// scope here.
+await ensureBuildEventsLoaded();
+const eventsById = Object.fromEntries(
+  (getAllBuildEvents() ?? []).map((event) => [String(event.id), event]),
+);
 ---
 
 <Portal title="Event">
   <div class="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-    <EventDetailPageApp client:load />
+    <EventDetailPageApp eventsById={eventsById} client:load />
   </div>
 </Portal>
