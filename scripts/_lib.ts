@@ -592,7 +592,24 @@ export async function runDeploy(
   if (opts.chromeSnapshot !== undefined) {
     buildOptions.chromeSnapshot = opts.chromeSnapshot;
   }
-  buildAstro(buildOptions);
+  // Expose the project's anon_key + project_id to Astro's frontmatter so
+  // build-time data fetchers (`src/lib/build-events.ts`) can call the
+  // capability API via `@kychon/sdk` — same gateway the runtime hits, just
+  // earlier so cards appear in the SSR HTML instead of being client-fetched
+  // after hydration. Anon-key only sees public rows (RLS); member-gated
+  // content still arrives via the runtime hydrate path.
+  const previousAnonKey = process.env.KYCHON_ANON_KEY;
+  const previousProjectId = process.env.KYCHON_PROJECT_ID;
+  process.env.KYCHON_ANON_KEY = opts.anonKey;
+  process.env.KYCHON_PROJECT_ID = opts.projectId;
+  try {
+    buildAstro(buildOptions);
+  } finally {
+    if (previousAnonKey === undefined) delete process.env.KYCHON_ANON_KEY;
+    else process.env.KYCHON_ANON_KEY = previousAnonKey;
+    if (previousProjectId === undefined) delete process.env.KYCHON_PROJECT_ID;
+    else process.env.KYCHON_PROJECT_ID = previousProjectId;
+  }
 
   const project = await r.project(opts.projectId);
 

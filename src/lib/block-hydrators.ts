@@ -115,10 +115,27 @@ export async function hydrateEventsList(
   } catch {
     cfg = {};
   }
+  // SSR handoff: `blocks.ts:EVENTS_LIST.render` emits a `data-events-payload`
+  // attribute with the build-time event rows when `ctx.buildEvents` is
+  // populated. Passing them as `initialEvents` lets React's first render
+  // match the SSR HTML exactly (no cards→skeleton→cards flicker) — the
+  // background refresh in `EventsListIsland.useEffect` still fires to
+  // catch admin edits made between build and visit.
+  let initialEvents: unknown = undefined;
+  const payloadAttr = el.getAttribute('data-events-payload');
+  if (payloadAttr) {
+    try {
+      const parsed = JSON.parse(payloadAttr);
+      if (Array.isArray(parsed)) initialEvents = parsed;
+    } catch {
+      initialEvents = undefined;
+    }
+  }
   const { mountEventsListIsland } = await import('@/components/kychon/EventsListIsland');
   mountEventsListIsland(el, {
     config: cfg,
     headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
+    initialEvents: initialEvents as undefined,
   });
   el.dataset.hydrated = 'true';
 }
