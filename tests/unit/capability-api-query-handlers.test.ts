@@ -220,6 +220,52 @@ describe('Capability API query handlers', () => {
     expect((fields.rows as JsonObject[]).map((row) => row.field_name)).toEqual(['public']);
   });
 
+  it('gates members.list / members.get on site_config.directory_public for anonymous actors', async () => {
+    // Without directory_public set, anonymous is denied.
+    await expect(
+      runCapabilityQuery('members.list', {}, { actor: anonymousActor, db: sampleDb() }),
+    ).rejects.toThrow(/permission denied for members.list/i);
+
+    // With directory_public=true, anonymous can list — sensitive
+    // fields (email, custom_fields) stay redacted by memberRow.
+    const publicDb = new MemoryQueryDb({
+      site_config: [
+        { key: 'site_name', value: 'Kychon Club', category: 'general' },
+        { key: 'directory_public', value: true, category: 'features' },
+      ],
+      members: [
+        {
+          id: 10,
+          display_name: 'Member',
+          email: 'member@example.com',
+          avatar_url: null,
+          bio: 'Hello',
+          role: 'member',
+          status: 'active',
+          custom_fields: { phone: 'secret' },
+        },
+      ],
+    });
+    const anonList = (await runCapabilityQuery(
+      'members.list',
+      {},
+      { actor: anonymousActor, db: publicDb },
+    )) as JsonObject;
+    const rows = anonList.rows as JsonObject[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].display_name).toBe('Member');
+    expect(rows[0].email).toBeUndefined();
+    expect(rows[0].custom_fields).toBeUndefined();
+
+    // Active members always pass regardless of the flag.
+    const memberListPrivate = (await runCapabilityQuery(
+      'members.list',
+      {},
+      { actor: memberActor, db: sampleDb() },
+    )) as JsonObject;
+    expect((memberListPrivate.rows as JsonObject[])).toHaveLength(1);
+  });
+
   it('implements events, registration options, RSVPs, announcements, and resources', async () => {
     const anonEvents = (await runCapabilityQuery(
       'events.list',

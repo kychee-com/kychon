@@ -492,7 +492,7 @@ function handleQuery(correlationId, envelope, operation, actor) {
 
   const tableQuery = TABLE_QUERIES[operation.name];
   if (tableQuery) {
-    return handleTableQuery(correlationId, envelope.input, actor, tableQuery);
+    return handleTableQuery(correlationId, envelope.input, actor, tableQuery, operation.name);
   }
 
   return errorResponse(correlationId, 501, {
@@ -503,8 +503,30 @@ function handleQuery(correlationId, envelope, operation, actor) {
   });
 }
 
-async function handleTableQuery(correlationId, input, actor, spec) {
+async function handleTableQuery(correlationId, input, actor, spec, operationName) {
   try {
+    // Per-call directory-access gate for `members.list` / `members.get`.
+    // The capability registry now allows anonymous so portals with
+    // `site_config.directory_public === true` (silver-pines among the
+    // demos) work for unauthenticated visitors. Portals where the
+    // directory is member-gated (eagles, barrio) still reject anon
+    // with `permission.denied` here. Active members and admins
+    // bypass the check — they had directory access regardless of the
+    // public flag before this fix and still do.
+    if ((operationName === 'members.list' || operationName === 'members.get') && !canSeeMembersOnly(actor)) {
+      const configRows = await selectRows('site_config');
+      const flag = configRows.find((row) => row.key === 'directory_public');
+      const directoryPublic = flag?.value === true || flag?.value === 'true';
+      if (!directoryPublic) {
+        return errorResponse(correlationId, 403, {
+          code: 'permission.denied',
+          message: `Permission denied for ${operationName}.`,
+          detail: { reason: 'directory_private', actorState: actor.state },
+          retryable: false,
+        });
+      }
+    }
+
     const queryInput = spec.mode === 'listMine' ? { ...input, memberId: actor.member?.id || '__none__' } : input;
     const rows = await selectRows(spec.table);
     const visible = spec.visible || (() => true);
@@ -2384,14 +2406,23 @@ function minimumActorState(name) {
       'resources.get',
       'committees.list',
       'committees.get',
+      // members.list / members.get are anonymous at the registry level
+      // because `site_config.directory_public === true` is a real,
+      // supported deployment mode (silver-pines in the demos). The
+      // runtime handler still enforces `directory_public` per call
+      // via `assertDirectoryAccessibleForMembersList` — when the flag
+      // is false (eagles, barrio) the call rejects with
+      // `permission.denied` (reason: 'directory_private') the same
+      // way the previous registry-level 'active_member' floor did.
+      // Sensitive fields stay redacted by `memberRow` regardless.
+      'members.list',
+      'members.get',
     ].includes(name)
   ) {
     return 'anonymous';
   }
   if (
     [
-      'members.list',
-      'members.get',
       'rsvps.listForEvent',
       'rsvps.listMine',
       'forum.categories.list',

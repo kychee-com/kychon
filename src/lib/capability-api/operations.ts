@@ -91,8 +91,15 @@ const readDefinitions: readonly ReadDefinition[] = [
   ['pages.get', 'anonymous', 'Read one visible page.'],
   ['sections.list', 'anonymous', 'List visible page sections.'],
   ['sections.get', 'anonymous', 'Read one visible page section.'],
-  ['members.list', 'active_member', 'List members according to directory visibility rules.'],
-  ['members.get', 'active_member', 'Read one member profile according to visibility rules.'],
+  // Anonymous in the capability registry; the handler in
+  // `query-handlers.ts` enforces `site_config.directory_public` at
+  // call time. Portals with `directory_public: true` let anon view
+  // the directory (the previous `active_member` floor made that
+  // setting dead code); portals with `directory_public: false`
+  // still reject anon via the handler's explicit permission.denied.
+  // Sensitive fields stay redacted by `memberRow` regardless.
+  ['members.list', 'anonymous', 'List members according to directory visibility rules.'],
+  ['members.get', 'anonymous', 'Read one member profile according to visibility rules.'],
   ['tiers.list', 'anonymous', 'List membership tiers.'],
   ['memberFields.list', 'anonymous', 'List member profile field definitions visible to the caller.'],
   ['events.list', 'anonymous', 'List visible events.'],
