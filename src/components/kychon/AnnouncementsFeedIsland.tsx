@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { Loader2, Pin, Plus, Trash2, X } from 'lucide-react';
 
 import {
@@ -39,6 +40,17 @@ interface AnnouncementsFeedProps {
   role?: string | null;
   pollsEnabled?: boolean;
   headingEditablePath?: string;
+  /**
+   * Pre-loaded announcement rows from the build-time SSR pass — see
+   * `src/lib/build-announcements.ts` + `blocks.ts:ANNOUNCEMENTS_FEED.render`.
+   * Seeds the `LoadState` initializer so the React island's first render
+   * matches the SSR HTML (no skeleton flash). Polls land as `null` on
+   * each card initially; the background `refresh()` in useEffect
+   * resolves them per-card a moment later. Acceptable trade — most
+   * announcements don't have polls, and the alternative is a full
+   * skeleton flash on every page load.
+   */
+  initialAnnouncements?: Announcement[];
 }
 
 interface AnnouncementCardData {
@@ -376,8 +388,17 @@ function AnnouncementCard({
   );
 }
 
-function AnnouncementsFeedIsland({ config, role, pollsEnabled = true, headingEditablePath }: AnnouncementsFeedProps) {
-  const [state, setState] = React.useState<LoadState>({ status: 'loading' });
+function initialAnnouncementState(initial: Announcement[] | undefined): LoadState {
+  if (!initial) return { status: 'loading' };
+  if (initial.length === 0) return { status: 'ready', announcements: [] };
+  return {
+    status: 'ready',
+    announcements: initial.map((announcement) => ({ announcement, poll: null })),
+  };
+}
+
+function AnnouncementsFeedIsland({ config, role, pollsEnabled = true, headingEditablePath, initialAnnouncements }: AnnouncementsFeedProps) {
+  const [state, setState] = React.useState<LoadState>(() => initialAnnouncementState(initialAnnouncements));
   const [posting, setPosting] = React.useState(false);
   const [votingKey, setVotingKey] = React.useState('');
   const heading = String(config.heading || 'Announcements').trim();
@@ -385,7 +406,10 @@ function AnnouncementsFeedIsland({ config, role, pollsEnabled = true, headingEdi
   const admin = role === 'admin';
 
   const refresh = React.useCallback(async () => {
-    setState({ status: 'loading' });
+    // Don't flip back to 'loading' if the SSR pass (or a previous refresh)
+    // already produced 'ready' state — wiping to skeleton on every locale /
+    // auth change would re-paint over the SSR-baked cards on every refresh.
+    // The first-mount skeleton is still covered by the `useState` initializer.
     try {
       const items = await getAnnouncements(`order=is_pinned.desc,created_at.desc&limit=${Number.isFinite(limit) ? limit : 20}`);
       await translateItems('announcement', items, ['title', 'body']);
@@ -586,4 +610,26 @@ export function mountAnnouncementsFeedIsland(element: HTMLElement, props: Announ
     roots.set(element, root);
   }
   root.render(<AnnouncementsFeedIsland {...props} />);
+}
+
+/**
+ * Build-time SSR: render the announcements-feed block to a plain HTML
+ * string using the same React component the runtime island uses.
+ * Called from `blocks.ts:ANNOUNCEMENTS_FEED.render` when
+ * `getAllBuildAnnouncements()` returns a hit. Polls render as null on
+ * each card (build-time has no per-user session); the runtime
+ * `refresh()` resolves them after hydration.
+ */
+export function renderAnnouncementsFeedStaticHtml(props: {
+  announcements: Announcement[];
+  config: AnnouncementsFeedConfig;
+  headingEditablePath?: string;
+}): string {
+  return renderToStaticMarkup(
+    <AnnouncementsFeedIsland
+      config={props.config}
+      headingEditablePath={props.headingEditablePath}
+      initialAnnouncements={props.announcements}
+    />,
+  );
 }

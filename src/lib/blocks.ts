@@ -13,6 +13,7 @@ import {
 } from '@/components/kychon/MarketingBlocksView';
 import { renderSlideshowBlockHtml, type SlideshowRenderItem } from '@/components/kychon/SlideshowBlockView';
 import { renderEventsListStaticHtml, type EventsListEventRow } from '@/components/kychon/EventsListIsland';
+import { renderAnnouncementsFeedStaticHtml } from '@/components/kychon/AnnouncementsFeedIsland';
 import { renderEventsCalendarShellHtml } from '@/components/kychon/EventsCalendarBlockView';
 import { renderNavBlockHtml, type NavBlockItem, type NavBlockStyle } from '@/components/kychon/NavBlockView';
 import {
@@ -97,6 +98,15 @@ export interface BlockRenderContext {
    * falls back to today's skeleton + client-fetch path.
    */
   buildEvents?: import('@/schemas/event').Event[] | null;
+  /**
+   * Build-time announcement rows — symmetric with `buildEvents`. Source:
+   * `src/lib/build-announcements.ts:ensureBuildAnnouncementsLoaded`. The
+   * `ANNOUNCEMENTS_FEED` block emits real announcement cards in the
+   * first paint when this is populated; polls + per-user vote state
+   * still arrive via the runtime hydrate (per-user, can't SSR with
+   * anon key).
+   */
+  buildAnnouncements?: import('@/schemas/content').Announcement[] | null;
 }
 
 export interface BlockType {
@@ -951,6 +961,27 @@ const ANNOUNCEMENTS_FEED: BlockType = {
   defaultConfig: { heading: 'Announcements', limit: 20 },
   render(section, ctx) {
     const cfg = section.config || {};
+    // Symmetric with EVENTS_LIST.render: when build-time announcements
+    // are cached, emit real `<AnnouncementCard>` HTML and stash the
+    // pre-loaded rows in `data-announcements-payload` so the React
+    // hydrator can hand them to `useState` as `initialAnnouncements`
+    // (first React render matches SSR → no skeleton flash, no
+    // destructive create-root replace). Polls + per-user votes still
+    // arrive via the runtime refresh in `useEffect`.
+    const ssrAnnouncements = ctx.buildAnnouncements
+      ? selectBuildAnnouncements(ctx.buildAnnouncements, cfg)
+      : null;
+    if (ssrAnnouncements) {
+      const ssrHtml = renderAnnouncementsFeedStaticHtml({
+        announcements: ssrAnnouncements,
+        config: cfg,
+      });
+      const inner = constrainedContainerHtml(
+        ` data-block-hydrate="announcements_feed" data-config="${jsonAttr(cfg)}" data-announcements-payload="${jsonAttr(ssrAnnouncements)}"`,
+        ssrHtml,
+      );
+      return adminWrap(section, ctx, inner, 'w-full py-8');
+    }
     return adminWrap(
       section,
       ctx,
@@ -963,6 +994,22 @@ const ANNOUNCEMENTS_FEED: BlockType = {
     await hydrateAnnouncementsFeed(el, section, ctx);
   },
 };
+
+/**
+ * Slice the build-time announcements cache per a single block's `limit`
+ * config. Mirrors the runtime `getAnnouncements(...&limit=N)` query;
+ * the cache is already ordered (pinned-first, then newest) by the
+ * `announcements.list` capability, so we just truncate.
+ */
+function selectBuildAnnouncements(
+  cache: NonNullable<BlockRenderContext['buildAnnouncements']>,
+  cfg: Record<string, unknown>,
+): import('@/schemas/content').Announcement[] | null {
+  if (!Array.isArray(cache) || cache.length === 0) return null;
+  const raw = Number(cfg.limit);
+  const limit = Math.max(1, Math.min(100, Number.isFinite(raw) ? Math.floor(raw) : 20));
+  return cache.slice(0, limit);
+}
 
 const ACTIVITY_FEED: BlockType = {
   label: 'Activity Feed',
