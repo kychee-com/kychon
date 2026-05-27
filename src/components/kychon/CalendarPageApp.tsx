@@ -223,16 +223,35 @@ function CalendarGrid({
   );
 }
 
-export default function CalendarPageApp() {
-  const [events, setEvents] = useState<Event[]>([]);
+interface CalendarPageAppProps {
+  /**
+   * Pre-fetched events from the per-request SSR pass — see
+   * `src/lib/ssr-api.ts:ssrEventsList` + `calendar.astro`. Seeds
+   * `useState` so the React island's first render matches the SSR
+   * HTML byte-for-byte: month grid populates immediately, no
+   * "loading…" flash between hydration and the API roundtrip.
+   * Background `loadCalendar` still runs to pick up the current
+   * member's RSVPs (auth-gated, only meaningful once the visitor's
+   * session is in scope) and any admin edits made between request
+   * and hydrate.
+   */
+  initialEvents?: Event[];
+}
+
+export default function CalendarPageApp({ initialEvents }: CalendarPageAppProps = {}) {
+  const [events, setEvents] = useState<Event[]>(() => initialEvents ?? []);
   const [myRsvpEventIds, setMyRsvpEventIds] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<CalendarFilter>('all');
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialEvents);
   const [error, setError] = useState('');
 
   const loadCalendar = useCallback(async () => {
-    setLoading(true);
+    // Don't unconditionally flip loading=true — keeps the SSR-baked
+    // month grid on screen during the refresh (locale-change / auth-
+    // change events fire this; we want updates in place rather than
+    // a skeleton re-paint). The first-mount skeleton is still covered
+    // by the `useState` initializer when no `initialEvents` are present.
     setError('');
     try {
       await ready;

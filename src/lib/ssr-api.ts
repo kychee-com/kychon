@@ -67,3 +67,40 @@ export async function ssrSearchQuery<T = unknown>(params: SsrSearchParams): Prom
     return null;
   }
 }
+
+export interface SsrEventsListParams {
+  /** Request host (`Astro.request.headers.get('host')`). */
+  host: string;
+  /** PostgREST-style order — e.g. `'starts_at.asc'`. Defaults to ASC. */
+  order?: string;
+  /** Optional row cap. The capability defaults are usually high enough for
+   *  community-portal scale; this exists for safety on bigger tenants. */
+  limit?: number;
+}
+
+/**
+ * Server-side `events.list` call for routes that need the full events
+ * roster per-request (`/calendar` currently; future month-aware
+ * navigation). `events.list` is anonymous-min so member-only events
+ * are RLS-gated out — those still surface only via the runtime
+ * hydrate path once the visitor's session is in scope.
+ */
+export async function ssrEventsList<T = unknown>(params: SsrEventsListParams): Promise<T | null> {
+  try {
+    type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+    const order: JsonValue = params.order
+      ? params.order.split(',').map((entry) => {
+          const [field, dir] = entry.trim().split('.');
+          return { field, direction: dir === 'desc' ? 'desc' : 'asc' };
+        })
+      : [{ field: 'starts_at', direction: 'asc' }];
+    const input: Record<string, JsonValue> = { order };
+    if (params.limit != null) input.limit = params.limit;
+    // The capability returns `{ rows: Event[], count }`; type-erased
+    // here so consumers can constrain to their schema.
+    return await client(params.host).request<T>('events.list', 'query', input);
+  } catch (error) {
+    console.warn('[ssr-api] events.list failed:', error instanceof Error ? error.message : error);
+    return null;
+  }
+}
