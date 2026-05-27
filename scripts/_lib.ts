@@ -319,7 +319,16 @@ export function materializeCustomPageStaticFiles(
   for (const slug of slugs) {
     const file = customPageStaticFile(slug);
     if (!file) continue;
-    copyFileSync(pageShell, join(distDir, file));
+    const target = join(distDir, file);
+    // `[customPage].astro` already produces per-slug HTML at build time via
+    // `getStaticPaths`, and that HTML now carries the main-zone SSR bake
+    // (Step 1.5 — `data-bake-signature` + pre-rendered section blocks).
+    // Only fall back to copying `page.html` for slugs Astro didn't write
+    // out — keeps the SSR'd content from getting clobbered by the
+    // skeleton shell.
+    if (!existsSync(target)) {
+      copyFileSync(pageShell, target);
+    }
     materialized.push({ slug, file });
   }
   return materialized;
