@@ -452,6 +452,19 @@ DO $$ BEGIN
     CHECK (time_display_mode IN ('visitor', 'source'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- admin-roles: `members.status` drives the demo-account bootstrap (active vs
+-- pending) and the runtime member-state gate. `CREATE TABLE IF NOT EXISTS`
+-- above declares the column for fresh tenants, but skips when the table
+-- already exists from a pre-status provisioning — so existing project DBs
+-- never picked up the column, and the `bootstrap-demo.ts:patchMember(...,
+-- { role, status: 'active' })` call fails with PostgreSQL 42703
+-- `column "status" does not exist`. DEFAULT 'pending' (nullable) so this
+-- works even on tables that already have rows with NULL user_id or other
+-- pre-existing oddness — bootstrap-demo immediately PATCHes the demo
+-- accounts to 'active', and the runtime auth gate treats NULL like
+-- 'pending' (block) so the safety property is preserved.
+DO $$ BEGIN ALTER TABLE members ADD COLUMN status TEXT DEFAULT 'pending'; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
 -- ============================================
 -- SECTION: Native Site Search Migrations
 -- ============================================
