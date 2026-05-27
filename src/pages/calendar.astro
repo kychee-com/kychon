@@ -1,7 +1,31 @@
 ---
 import CalendarPageApp from '../components/kychon/CalendarPageApp';
 import Portal from '../layouts/Portal.astro';
+import { ssrEventsList } from '../lib/ssr-api';
+import type { Event } from '../schemas/event';
+
+// /calendar is per-request — the visitor's current month is implicitly
+// "now," so even though `events.list` is the same query every time,
+// the calendar grid that wraps it changes day-to-day. SSR'ing eliminates
+// the month-grid skeleton flash that hits between hydration and the
+// API roundtrip. `events.list` is anonymous-min, so no apikey needed
+// (the SSR bundle bakes the role:anon JWT anyway).
+//
+// Member-only events are RLS-gated out of the anonymous fetch — those
+// still surface only via the runtime `loadCalendar` refresh once
+// `localStorage.wl_session` is in scope. Member RSVPs (the "going"
+// dots on each day cell) are per-user and never come from this SSR
+// pass — they're populated in `loadCalendar`'s rsvp side-fetch.
+export const prerender = false;
+
+interface EventsListResult {
+  rows?: Event[];
+}
+
+const host = Astro.request.headers.get('host') ?? 'localhost';
+const result = await ssrEventsList<EventsListResult>({ host, order: 'starts_at.asc' });
+const initialEvents = result?.rows ?? [];
 ---
 <Portal title="Calendar">
-  <CalendarPageApp client:load />
+  <CalendarPageApp initialEvents={initialEvents} client:load />
 </Portal>
