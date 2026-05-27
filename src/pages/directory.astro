@@ -1,9 +1,49 @@
 ---
 import DirectoryPageApp from '../components/kychon/DirectoryPageApp';
 import Portal from '../layouts/Portal.astro';
+import { resolveActiveProjectSeed } from '../seeds';
+import {
+  ensureBuildMembersLoaded,
+  getAllBuildMembers,
+  getAllBuildMemberTiers,
+} from '../lib/build-members';
+
+// Pre-fetch members + tiers at build so DirectoryPageApp's React
+// island hydrates with real cards in the SSR HTML — no skeleton flash
+// on the largest data-driven page on the portal.
+//
+// **Privacy gate**: only run the fetch when the seed has
+// `directory_public: true`. Portals where the directory is member-
+// gated (eagles, barrio in the demos) skip the SSR fetch entirely.
+// The capability gate (`src/lib/capability-api/operations.ts:members.list`
+// + the runtime `assertCanListMembers` check) also enforces this
+// server-side, but skipping the fetch up-front avoids a wasted
+// permission-denied round-trip per deploy.
+const { seed } = await resolveActiveProjectSeed();
+const directoryPublic = (seed.site_config?.directory_public as { value?: unknown } | undefined)?.value === true;
+await ensureBuildMembersLoaded({ publicAccess: directoryPublic });
+
+// Join `tier_name` into each member here in Astro frontmatter so the
+// React island receives one already-joined `initialMembers` array
+// (matches the shape `useState<DirectoryMember[]>` expects) instead
+// of needing to repeat the join after hydration.
+const buildMembers = getAllBuildMembers() ?? [];
+const buildTiers = getAllBuildMemberTiers() ?? [];
+const tierMap = new Map(buildTiers.map((tier) => [String(tier.id), tier.name]));
+const initialMembers = directoryPublic && buildMembers.length > 0
+  ? buildMembers.map((member) => ({
+      ...member,
+      tier_name: member.tier_id != null ? tierMap.get(String(member.tier_id)) ?? '' : '',
+    }))
+  : undefined;
+const initialTiers = directoryPublic && buildTiers.length > 0 ? [...buildTiers] : undefined;
 ---
 <Portal title="Members">
   <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-    <DirectoryPageApp client:load />
+    <DirectoryPageApp
+      initialMembers={initialMembers}
+      initialTiers={initialTiers}
+      client:load
+    />
   </div>
 </Portal>

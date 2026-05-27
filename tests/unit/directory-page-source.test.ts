@@ -8,7 +8,12 @@ const app = readFileSync(join(root, 'src/components/kychon/DirectoryPageApp.tsx'
 
 describe('directory page source', () => {
   it('uses a shadcn React island instead of inline DOM scripting', () => {
-    expect(page).toContain('<DirectoryPageApp client:load />');
+    // The `<DirectoryPageApp ... client:load />` directive may now
+    // carry `initialMembers` / `initialTiers` props wired from the
+    // build-time SSR fetch (`ensureBuildMembersLoaded`), so we match
+    // the directive surface independently rather than pinning to one
+    // exact form.
+    expect(page).toMatch(/<DirectoryPageApp\b[\s\S]*?client:load\b[\s\S]*?\/>/);
     expect(page).not.toContain('<script>');
     expect(page).not.toContain('class="btn');
     expect(page).not.toContain('class="form-');

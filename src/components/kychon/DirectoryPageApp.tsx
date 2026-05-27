@@ -54,13 +54,29 @@ function visibleCustomFields(member: DirectoryMember): Array<[string, string]> {
     .map(([key, value]) => [key, String(value)]);
 }
 
-export default function DirectoryPageApp() {
-  const [members, setMembers] = useState<DirectoryMember[]>([]);
-  const [tiers, setTiers] = useState<MemberTier[]>([]);
+interface DirectoryPageAppProps {
+  /**
+   * Pre-joined directory rows from the build-time SSR pass — see
+   * `src/lib/build-members.ts` + `directory.astro`. Seeds `useState`
+   * so the React island's first render matches the SSR HTML (no
+   * skeleton flash). Background `load()` still runs to pick up admin
+   * edits and member-gated rows visible only after sign-in.
+   * Build-time fetch is **gated on `directory_public === true`** at
+   * `directory.astro` — eagles/barrio (non-public dirs) pass
+   * `undefined` here, and the island falls back to today's
+   * skeleton → sign-in-gate → fetch path.
+   */
+  initialMembers?: DirectoryMember[];
+  initialTiers?: MemberTier[];
+}
+
+export default function DirectoryPageApp({ initialMembers, initialTiers }: DirectoryPageAppProps = {}) {
+  const [members, setMembers] = useState<DirectoryMember[]>(() => initialMembers ?? []);
+  const [tiers, setTiers] = useState<MemberTier[]>(() => initialTiers ?? []);
   const [query, setQuery] = useState('');
   const [tierFilter, setTierFilter] = useState(ALL_TIERS);
   const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialMembers);
   const [requiresSignIn, setRequiresSignIn] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,7 +84,10 @@ export default function DirectoryPageApp() {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
+      // Don't unconditionally flip loading=true — keeps the SSR-baked
+      // cards on screen during locale/auth refreshes; the first-mount
+      // skeleton is still covered by the `useState` initializer for
+      // `loading` when no `initialMembers` are present.
       setError('');
       await ready;
 

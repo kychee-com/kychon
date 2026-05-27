@@ -21,8 +21,14 @@ const tableQueries: Record<string, QueryHandler> = {
   'pages.get': (input, ctx) => oneResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor)),
   'sections.list': (input, ctx) => listResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
   'sections.get': (input, ctx) => oneResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
-  'members.list': (input, ctx) => listResult(ctx, 'members', input, () => true, (row) => memberRow(row, ctx.actor)),
-  'members.get': (input, ctx) => oneResult(ctx, 'members', input, () => true, (row) => memberRow(row, ctx.actor)),
+  'members.list': async (input, ctx) => {
+    await assertCanListMembers(ctx);
+    return listResult(ctx, 'members', input, () => true, (row) => memberRow(row, ctx.actor));
+  },
+  'members.get': async (input, ctx) => {
+    await assertCanListMembers(ctx);
+    return oneResult(ctx, 'members', input, () => true, (row) => memberRow(row, ctx.actor));
+  },
   'tiers.list': (input, ctx) => listResult(ctx, 'membership_tiers', input),
   'memberFields.list': (input, ctx) => listResult(ctx, 'member_custom_fields', input, (row) => visibleMemberField(row, ctx.actor)),
   'events.list': (input, ctx) => listResult(ctx, 'events', input, (row) => visibleMembersOnly(row, ctx.actor)),
@@ -272,6 +278,32 @@ function matchesAttached(row: JsonObject, input: JsonObject): boolean {
 
 function canSeeMembersOnly(actor: CapabilityActor): boolean {
   return ['active_member', 'moderator', 'admin', 'project_admin'].includes(actor.state);
+}
+
+/**
+ * Gate for the `members.list` / `members.get` handlers. Allows the
+ * call when EITHER:
+ *   - `site_config.directory_public === true` (anyone can browse)
+ *   - the actor is at least `active_member` (the historical floor;
+ *     covers signed-in members + admins regardless of the flag)
+ * Otherwise throws `permission.denied`, matching the registry-level
+ * gate the call would have hit before this op opened up to anon.
+ *
+ * Reads `directory_public` per-call via `ctx.db.select('site_config')`.
+ * Site config is small (typically <50 rows) and the call is rare;
+ * not worth a per-context cache.
+ */
+async function assertCanListMembers(ctx: CapabilityQueryContext): Promise<void> {
+  if (canSeeMembersOnly(ctx.actor)) return;
+  const configRows = await ctx.db.select('site_config');
+  const row = configRows.find((entry) => entry.key === 'directory_public');
+  const directoryPublic = row?.value === true || row?.value === 'true';
+  if (directoryPublic) return;
+  throw new CapabilityQueryError(
+    'permission.denied',
+    'Permission denied for members.list.',
+    { reason: 'directory_private', actorState: ctx.actor.state } as unknown as JsonObject,
+  );
 }
 
 function isModeratorLike(actor: CapabilityActor): boolean {
