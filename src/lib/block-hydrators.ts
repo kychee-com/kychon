@@ -23,12 +23,28 @@ export async function hydrateAnnouncementsFeed(
   try {
     cfg = { ...cfg, ...JSON.parse(el.getAttribute('data-config') || '{}') };
   } catch {}
+  // SSR handoff: `blocks.ts:ANNOUNCEMENTS_FEED.render` stashes the build-
+  // time announcement rows on `data-announcements-payload` when the
+  // cache is populated. Passing them to the island as
+  // `initialAnnouncements` lets React's first render reuse the SSR
+  // HTML — no skeleton flash, no destructive replace.
+  let initialAnnouncements: unknown = undefined;
+  const payload = el.getAttribute('data-announcements-payload');
+  if (payload) {
+    try {
+      const parsed = JSON.parse(payload);
+      if (Array.isArray(parsed)) initialAnnouncements = parsed;
+    } catch {
+      initialAnnouncements = undefined;
+    }
+  }
   const { mountAnnouncementsFeedIsland } = await import('@/components/kychon/AnnouncementsFeedIsland');
   mountAnnouncementsFeedIsland(el, {
     config: cfg,
     role: ctx.role || null,
     pollsEnabled: ctx.isFeatureEnabled?.('feature_polls') !== false,
     headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
+    initialAnnouncements: initialAnnouncements as undefined,
   });
   el.dataset.hydrated = 'true';
 }

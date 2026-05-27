@@ -5,6 +5,7 @@ import Portal from '../layouts/Portal.astro';
 import { safeCustomPageSlugs } from '../lib/clean-routes';
 import { resolveActiveProjectSeed } from '../seeds';
 import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
+import { ensureBuildAnnouncementsLoaded, getAllBuildAnnouncements } from '../lib/build-announcements';
 import { renderMainZone, makeBakeContext } from '../lib/chrome-bake';
 
 export async function getStaticPaths() {
@@ -31,8 +32,12 @@ export async function getStaticPaths() {
 // the destructive `innerHTML` swap.
 const { seed } = await resolveActiveProjectSeed();
 const slug = String(Astro.params.customPage ?? '');
-await ensureBuildEventsLoaded();
-const bakeCtx = { ...makeBakeContext(seed), buildEvents: getAllBuildEvents() };
+await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded()]);
+const bakeCtx = {
+  ...makeBakeContext(seed),
+  buildEvents: getAllBuildEvents(),
+  buildAnnouncements: getAllBuildAnnouncements(),
+};
 const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seed, slug, bakeCtx);
 ---
 <Portal title="Page">
