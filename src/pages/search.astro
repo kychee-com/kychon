@@ -1,9 +1,47 @@
 ---
 import SearchPageApp from '../components/kychon/SearchPageApp';
 import Portal from '../layouts/Portal.astro';
+import { ssrSearchQuery } from '../lib/ssr-api';
+import type { SearchResponse, SearchType } from '../lib/search';
+
+// /search is per-request — query string is intrinsically dynamic and
+// can't be prerendered. Routes through the run402 SSR Lambda; the
+// gateway's catchall delivers unmatched-path requests to this
+// handler.
+//
+// We resolve `?q=`, `?type=`, `?page=` from `Astro.request.url` and
+// fire the `search.query` capability server-side (anonymous min, no
+// apikey needed). The result is passed as `initialResponse` to the
+// React island — first paint matches SSR, no "searching…" skeleton
+// between hydration and the client-side fetch.
+//
+// Falls back gracefully: empty query → no fetch → React island works
+// as today. Fetch error → null result → React island re-fetches on
+// mount via its existing useEffect.
+export const prerender = false;
+
+const FILTERS: ReadonlyArray<SearchType> = ['all', 'pages', 'resources', 'events'];
+function normalizeType(value: string | null): SearchType {
+  return FILTERS.includes(value as SearchType) ? (value as SearchType) : 'all';
+}
+
+const url = new URL(Astro.request.url);
+const q = (url.searchParams.get('q') ?? '').trim();
+const type = normalizeType(url.searchParams.get('type'));
+const page = Math.max(1, Number(url.searchParams.get('page') ?? '1') || 1);
+const host = Astro.request.headers.get('host') ?? 'localhost';
+
+const initialResponse = q
+  ? await ssrSearchQuery<SearchResponse>({ q, type, page, page_size: 10, host })
+  : null;
+const initialParams = { q, type, page };
 ---
 <Portal title="Search" robots="noindex,follow">
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <SearchPageApp client:load />
+    <SearchPageApp
+      initialResponse={initialResponse ?? undefined}
+      initialParams={initialParams}
+      client:load
+    />
   </div>
 </Portal>

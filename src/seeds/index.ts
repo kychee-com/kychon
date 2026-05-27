@@ -10,6 +10,21 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import type { ProjectSeed } from './types.js';
 
+// Static imports of every typed seed. esbuild walks static imports
+// and bundles them into the run402 SSR Lambda artifact — the previous
+// dynamic-import shape (`await import('./silver-pines.js')`) wasn't
+// followed by the slice helper's bundler, so SSR-route renders that
+// reach `loadTypedSeed` would throw at runtime with a missing-module
+// error. Static imports cost ~40KB of bundled SSR JS (the seed
+// modules are mostly JSON-shaped TS) but make every project's full
+// chrome reachable from any request-time render.
+import { seed as kychonSeed } from './kychon';
+import { buildFreshSeed } from './fresh';
+import { seed as eaglesSeed } from './eagles';
+import { seed as silverPinesSeed } from './silver-pines';
+import { seed as barrioUnidoSeed } from './barrio-unido';
+import { seed as neutralSeedRef } from './neutral';
+
 const PROJECTS = ['kychon', 'fresh', 'eagles', 'silver-pines', 'barrio-unido'] as const;
 export type ProjectName = (typeof PROJECTS)[number];
 
@@ -47,8 +62,20 @@ function parseSnapshot(path: string): ProjectSeed {
 }
 
 function requestedProjectName(): string | null {
-  const raw = process.env.KYCHON_PROJECT?.trim();
-  return raw || null;
+  // Build time: `process.env.KYCHON_PROJECT` set by the deploy script
+  // before invoking `astro build` → resolves to the active project.
+  // SSR Lambda runtime: that env var isn't present (build-time vars
+  // don't propagate into the Lambda), but Vite's `define` config in
+  // `astro.config.mjs` substitutes `import.meta.env.KYCHON_PROJECT`
+  // with the build-time literal, so the runtime read picks up the
+  // same project name. Order — process.env first (live dev / CLI
+  // contexts), then the baked literal, then null.
+  const fromProcess = process.env.KYCHON_PROJECT?.trim();
+  if (fromProcess) return fromProcess;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const baked = (import.meta as any).env?.KYCHON_PROJECT;
+  if (typeof baked === 'string' && baked.trim()) return baked.trim();
+  return null;
 }
 
 export function getProjectName(): ProjectName {
@@ -60,18 +87,18 @@ export function getProjectName(): ProjectName {
   );
 }
 
-async function loadTypedSeed(name: ProjectName): Promise<ProjectSeed> {
+function loadTypedSeed(name: ProjectName): ProjectSeed {
   switch (name) {
     case 'kychon':
-      return (await import('./kychon.js')).seed;
+      return kychonSeed;
     case 'fresh':
-      return (await import('./fresh.js')).buildFreshSeed();
+      return buildFreshSeed();
     case 'eagles':
-      return (await import('./eagles.js')).seed;
+      return eaglesSeed;
     case 'silver-pines':
-      return (await import('./silver-pines.js')).seed;
+      return silverPinesSeed;
     case 'barrio-unido':
-      return (await import('./barrio-unido.js')).seed;
+      return barrioUnidoSeed;
   }
 }
 
@@ -90,7 +117,7 @@ export async function resolveActiveProjectSeed(): Promise<ActiveProjectSeed> {
   const requested = requestedProjectName();
   if (!requested) {
     return {
-      seed: await loadTypedSeed('kychon'),
+      seed: loadTypedSeed('kychon'),
       source: { kind: 'typed-seed', project: 'kychon' },
     };
   }
@@ -98,7 +125,7 @@ export async function resolveActiveProjectSeed(): Promise<ActiveProjectSeed> {
   if ((PROJECTS as readonly string[]).includes(requested)) {
     const project = requested as ProjectName;
     return {
-      seed: await loadTypedSeed(project),
+      seed: loadTypedSeed(project),
       source: { kind: 'typed-seed', project },
     };
   }
@@ -107,7 +134,7 @@ export async function resolveActiveProjectSeed(): Promise<ActiveProjectSeed> {
     `KYCHON_PROJECT="${requested}" is not a typed seed; using neutral first-byte chrome fallback.`,
   );
   return {
-    seed: (await import('./neutral.js')).seed,
+    seed: neutralSeedRef,
     source: { kind: 'neutral-fallback', requestedProject: requested },
   };
 }

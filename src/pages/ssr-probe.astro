@@ -9,16 +9,11 @@
 //   curl https://silver-pines.kychon.com/ssr-probe          # snapshot 2
 //
 // If `server time` differs across the two calls AND `user agent` shows
-// `curl/...`, per-request SSR is live. If they're identical, the route
-// is being served from a cache or fell back to prerender.
+// `curl/...`, per-request SSR is live.
 //
 // Deliberately self-contained — no Portal layout, no chrome bake, no
-// manifest, no API calls. The point is a clean signal from the
-// platform runtime, not pretty UI. Once we trust the runtime, real
-// route conversions (`/search`, `/forum/[topic]`) can use the full
-// chrome stack — this stays as a debugging canary.
-//
-// Privacy note: anon key surfaced only by length, never the value.
+// manifest, no API calls. Stays as a debugging canary independent of
+// the Portal SSR-safety work; if Portal regresses, this still resolves.
 export const prerender = false;
 
 const now = new Date().toISOString();
@@ -38,7 +33,7 @@ const requestMethod = Astro.request.method;
   </head>
   <body style="font-family: ui-monospace, monospace; padding: 2rem;">
     <h1>SSR probe</h1>
-    <p>If <code>server time</code> differs across reloads and <code>user agent</code> reflects the current client, this route is being rendered per-request by the run402 Astro SSR runtime. Otherwise it's served from a static cache.</p>
+    <p>If <code>server time</code> differs across reloads and <code>user agent</code> reflects the current client, this route is being rendered per-request by the run402 Astro SSR runtime.</p>
     <pre>
 server time:      {now}
 project id:       {projectId}

@@ -10,7 +10,10 @@ const css = readFileSync(join(root, 'src/styles/public.css'), 'utf8');
 describe('search results page source', () => {
   it('defines the native route with robots metadata and URL state', () => {
     expect(page).toContain('<Portal title="Search" robots="noindex,follow">');
-    expect(page).toContain('<SearchPageApp client:load />');
+    // SearchPageApp now carries `initialResponse` / `initialParams` props
+    // from the per-request SSR pass; match the directive surface
+    // independently rather than pinning to one exact form.
+    expect(page).toMatch(/<SearchPageApp\b[\s\S]*?client:load\b[\s\S]*?\/>/);
     expect(app).toContain('id="search-page-q"');
     expect(app).toContain('id="search-page-type-input"');
     expect(app).toContain("params.get('q')");

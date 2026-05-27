@@ -99,8 +99,25 @@ export function makeBakeContext(seed: ProjectSeed): BlockRenderContext {
     // emitters fall through to plain `<img>` in that case, identical to
     // pre-bake first-paint behavior. Chrome blocks don't consult the manifest
     // (sub-320 icons), but main-zone bakes do — see renderMainZone.
-    manifest: getBuildTimeManifest(),
+    //
+    // `getBuildTimeManifest` is build-time-only per its docs (reads from the
+    // integration's Vite virtual module). At request time inside the run402
+    // SSR Lambda the virtual module isn't available and the call throws.
+    // Catch + null-out so SSR-route renders (`/search`, future
+    // `/forum/[topic]`) still get a valid `BlockRenderContext`; image
+    // emitters fall through to plain `<img>` for the chrome bake (sub-320
+    // icons anyway). The runtime hydrate path still upgrades any
+    // image-pipeline assets to `<picture>` via the inlined / fetched manifest.
+    manifest: tryGetBuildTimeManifest(),
   };
+}
+
+function tryGetBuildTimeManifest(): ReturnType<typeof getBuildTimeManifest> {
+  try {
+    return getBuildTimeManifest();
+  } catch {
+    return null;
+  }
 }
 
 export function renderGlobalZone(

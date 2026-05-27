@@ -18,9 +18,17 @@ import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
-import { buildCspValue } from '../lib/csp';
+import { buildCspValueFromTemplate } from '../lib/csp';
 import { isDemoModeSeed } from '../lib/demo-mode';
 import { constrainedContainerClass } from '../lib/ui/container';
+
+// CSP template inlined via Vite `?raw` — the file is read from disk at
+// build time and baked into the bundle as a string literal. Necessary
+// for SSR routes: `readFileSync('public/_headers')` at request time
+// inside the run402 SSR Lambda would throw (the file isn't bundled
+// into the SSR artifact). `?raw` works for both build-time
+// prerendering and the runtime path with the same byte content.
+import headersTemplate from '../../public/_headers?raw';
 
 interface Props {
   title: string;
@@ -36,14 +44,25 @@ interface Props {
 
 const { title, robots, extraHead } = Astro.props;
 
-// --- Build-time bake of chrome zones ---
-// The bake can come from a typed seed, an external port snapshot, or a neutral
-// fallback. Runtime hydrate still replaces this with live DB state.
+// --- Chrome bake ---
+// Works at both build time (every prerendered route — silver-pines's
+// home, /events grid, etc.) and request time (every `prerender = false`
+// SSR route — `/search`, future `/forum/[topic]`). The bake source can be:
+//   1. external `KYCHON_CHROME_SNAPSHOT` JSON (ports without typed seeds)
+//   2. typed seed for the active project (build-time-resolved via
+//      `process.env.KYCHON_PROJECT`, runtime-resolved via the
+//      Vite-baked `import.meta.env.KYCHON_PROJECT` literal)
+//   3. neutral fallback (unknown project name)
+//
+// Runtime hydrate still replaces the main zone with live DB state per
+// `page-render.ts:hydratePage`; this layout owns the very first paint
+// for every route — prerendered ones via the build-time bake, SSR ones
+// via the per-request bake.
 const { seed } = await resolveActiveProjectSeed();
 const chrome = bakeChrome(seed, title);
 const renderDemoBanner = isDemoModeSeed(seed);
 
-const cspValue = buildCspValue();
+const cspValue = buildCspValueFromTemplate(headersTemplate);
 
 // --- Inline the asset manifest ---
 // Inlining `window.__KYCHON_ASSET_MANIFEST` synchronously into <head> means
@@ -60,7 +79,19 @@ const cspValue = buildCspValue();
 //
 // `.replace(/</g, '\\u003c')` escapes any `</script>` in the data
 // (defensive — Vinyl assets shouldn't contain that, but cheap insurance).
-const inlineManifest = getBuildTimeManifest();
+// `getBuildTimeManifest` is build-time-only per its docs (reads from
+// the integration's Vite virtual module). At request time inside the
+// run402 SSR Lambda the virtual module isn't available and the call
+// throws — catch + null-out so SSR routes still render. The runtime
+// `page-render.ts:fetchManifest` path picks up the manifest from
+// `/_assets-manifest.json` after hydration (the file IS on disk at
+// the deployed origin, just not via the virtual-module accessor).
+let inlineManifest: ReturnType<typeof getBuildTimeManifest> = null;
+try {
+  inlineManifest = getBuildTimeManifest();
+} catch {
+  // Request-time render; fall through to client-side manifest fetch.
+}
 const inlineManifestScript = inlineManifest
   ? `window.__KYCHON_ASSET_MANIFEST = ${JSON.stringify(inlineManifest).replace(/</g, '\\u003c')};`
   : '';
