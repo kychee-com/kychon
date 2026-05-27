@@ -2,7 +2,7 @@ import { copyFileSync, createReadStream, existsSync, mkdirSync, readdirSync, rea
 import { extname, join, resolve, sep } from 'node:path';
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
-import { run402 } from '@run402/astro';
+import { run402, createRun402Adapter } from '@run402/astro';
 import tailwindcss from '@tailwindcss/vite';
 
 const rootDir = new URL('.', import.meta.url).pathname;
@@ -189,8 +189,36 @@ function localDemoAssetsPlugin() {
 // instead of letting them silently render degraded.
 const useRun402Integration = Boolean(integrationAssetsDir && process.env.RUN402_PROJECT_ID);
 
+// Hybrid mode: `output: 'static'` + the run402 SSR adapter on the
+// top-level `adapter:` field. Routes default to prerendered; individual
+// routes opt into per-request SSR via `export const prerender = false`
+// in their frontmatter. Build produces a two-slice layout
+// (`dist/run402/client/` static + `dist/run402/server/` SSR entry,
+// esbuild-bundled to a single `source` string by the helper);
+// `scripts/_lib.ts:runDeploy` consumes it via
+// `buildAstroReleaseSlice` from `@run402/astro/release-slice`.
+//
+// Requires `@run402/astro@>=1.2.2` (SSR handler now accepts Web
+// Request and lets the gateway's `buildEntryWrapper` own ALS +
+// envelope translation; pre-1.2.2 the adapter expected the raw
+// envelope and crashed on every invocation) and `@run402/sdk@>=2.18.0`
+// (local validator knows the `class` field). Pairs with gateway's
+// implicit-mode `<path>.html` resolver shipped same day — clean URLs
+// `/events` resolve to `events.html` before falling through to the
+// SSR catchall, so Astro's `format: 'file'` builds work without
+// switching to `format: 'directory'`.
+//
+// First deploy after the switch emits a
+// `PUBLIC_PATH_MODE_WIDENS_TO_IMPLICIT` warning — covered by
+// `RUN402_ALLOW_WARNINGS=true`.
+//
+// Skipped when `useRun402Integration` is false — pure-static builds
+// (integration tests, neutral fallback, local `astro dev` without env
+// vars) keep the pre-adapter pipeline + the original `dist/` layout
+// unchanged.
 export default defineConfig({
   output: 'static',
+  ...(useRun402Integration ? { adapter: createRun402Adapter() } : {}),
   devToolbar: {
     enabled: false,
   },

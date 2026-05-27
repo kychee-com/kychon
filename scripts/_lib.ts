@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { dir, fileSetFromDir, run402 } from "@run402/sdk/node";
+import { buildAstroReleaseSlice } from "@run402/astro/release-slice";
 
 import { LOCALE_POOL } from "../src/lib/locale-pool.js";
 import type {
@@ -623,10 +624,32 @@ export async function runDeploy(
   const project = await r.project(opts.projectId);
 
   const distDir = join(ROOT, "dist");
-  injectEnvJs(distDir, opts.anonKey);
-  generateAndValidateHeaders(distDir);
+  // Hybrid-mode detection: @run402/astro@1.0.4+'s SSR adapter writes
+  // `dist/run402/adapter.json` and reorganizes the build into
+  // `dist/run402/client/` (prerendered HTML) + `dist/run402/server/`
+  // (SSR entry, esbuild-bundled into a single `source` string by
+  // 1.2.0+'s `buildAstroReleaseSlice`). When the manifest is present
+  // we delegate site/routes/SSR-function assembly to the helper;
+  // without it the pre-1.0.4 flat-dist layout is unchanged.
+  const adapterManifestPath = join(distDir, "run402", "adapter.json");
+  const adapterActive = existsSync(adapterManifestPath);
+  const clientDir = adapterActive ? join(distDir, "run402", "client") : distDir;
+
+  injectEnvJs(clientDir, opts.anonKey);
+  generateAndValidateHeaders(clientDir);
   const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
-  const materializedCustomPages = materializeCustomPageStaticFiles(distDir, deploySeed);
+  // With the adapter, `[customPage].astro`'s `getStaticPaths` already
+  // produces per-slug HTML under `dist/run402/client/`. The legacy
+  // `materializeCustomPageStaticFiles` copy step is unnecessary; we
+  // still need the slug list for downstream logging.
+  const materializedCustomPages = adapterActive
+    ? safeCustomPageSlugs(deploySeed.pages)
+        .map((slug) => {
+          const file = customPageStaticFile(slug);
+          return file ? { slug, file } : null;
+        })
+        .filter((entry): entry is MaterializedCustomPageFile => entry !== null)
+    : materializeCustomPageStaticFiles(distDir, deploySeed);
 
   const sql = readMigrations(ROOT, opts.seedFile);
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
@@ -636,22 +659,31 @@ export async function runDeploy(
   };
   if (opts.seedFile !== undefined) releaseManifestOptions.seedFile = opts.seedFile;
   const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
-  writeEngineReleaseManifest(distDir, releaseManifest);
+  writeEngineReleaseManifest(clientDir, releaseManifest);
 
-  // dir() registers distDir as a lazy LocalDirRef — the SDK walks and hashes
-  // each file at apply time rather than upfront. readdir gives us the flat
-  // file list we need for public-path registration and for the count log,
-  // without creating per-file FsFileSource objects in the JS heap.
-  const siteDir = dir(distDir);
-  const dirents = await readdir(distDir, { recursive: true, withFileTypes: true });
+  // Adapter-aware: delegate site + routes + SSR-function fragments to
+  // the helper.
+  const astroSlice = adapterActive
+    ? await buildAstroReleaseSlice(distDir)
+    : null;
+
+  // dir() registers the served dir as a lazy LocalDirRef. When adapter
+  // is active, astroSlice.site already carries the LocalDirRef +
+  // public_paths (implicit mode), so we skip the manual walk.
+  const siteDir = adapterActive ? null : dir(clientDir);
+  const dirents = adapterActive
+    ? []
+    : await readdir(clientDir, { recursive: true, withFileTypes: true });
   const distFiles = dirents
     .filter(d => d.isFile())
-    .map(d => join(d.parentPath, d.name).slice(distDir.length + 1).replaceAll("\\", "/"));
-  const fileCount = distFiles.length;
-  const publicPaths = buildExplicitPublicPathSpecs({
-    files: distFiles,
-    pageSlugs: materializedCustomPages.map((page) => page.slug),
-  });
+    .map(d => join(d.parentPath, d.name).slice(clientDir.length + 1).replaceAll("\\", "/"));
+  const fileCount = adapterActive ? -1 : distFiles.length;
+  const publicPaths = adapterActive
+    ? {}
+    : buildExplicitPublicPathSpecs({
+        files: distFiles,
+        pageSlugs: materializedCustomPages.map((page) => page.slug),
+      });
   const publicPathEntries = Object.entries(publicPaths);
 
   const collectOpts: CollectFunctionsOptions = {};
@@ -685,15 +717,31 @@ export async function runDeploy(
 
   const i18nSpec = buildI18nSpec(deploySeed);
 
+  // When adapter is active, merge the slice's SSR-Lambda entry into the
+  // functions map so existing functions/ (kychon-api, reset-demo, ...)
+  // and the new SSR entry deploy as one coherent set. Function carries
+  // `class: "ssr"` — gateway routes every unmatched-path request to it.
+  const finalFunctionsMap = astroSlice
+    ? { ...functionsMap, ...astroSlice.functions.replace }
+    : functionsMap;
+
   const spec = buildKychonReleaseSpec({
     database,
-    fileSet: siteDir,
+    // Placeholder fileSet — replaced by spec.site = astroSlice.site
+    // below when adapter is active.
+    fileSet: siteDir ?? dir(clientDir),
     publicPaths,
     subdomain: opts.subdomain,
     functionsSpec: fnDiff?.spec,
-    functionsMap,
+    functionsMap: finalFunctionsMap,
+    routes: astroSlice ? astroSlice.routes.replace : undefined,
     i18n: i18nSpec,
   });
+  if (astroSlice) {
+    // Swap in the adapter's full site spec (LocalDirRef to
+    // dist/run402/client + `public_paths: { mode: 'implicit' }`).
+    spec.site = astroSlice.site;
+  }
 
   const fnSummary = fnDiff
     ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped (patch)`

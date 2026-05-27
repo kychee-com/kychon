@@ -1,0 +1,52 @@
+---
+// SSR probe — opts THIS route into per-request rendering on the
+// run402 platform's Astro SSR runtime. Every other route in
+// `src/pages/` stays prerendered (build-time static).
+//
+// Smoke test:
+//   curl https://silver-pines.kychon.com/ssr-probe          # snapshot 1
+//   sleep 5
+//   curl https://silver-pines.kychon.com/ssr-probe          # snapshot 2
+//
+// If `server time` differs across the two calls AND `user agent` shows
+// `curl/...`, per-request SSR is live. If they're identical, the route
+// is being served from a cache or fell back to prerender.
+//
+// Deliberately self-contained — no Portal layout, no chrome bake, no
+// manifest, no API calls. The point is a clean signal from the
+// platform runtime, not pretty UI. Once we trust the runtime, real
+// route conversions (`/search`, `/forum/[topic]`) can use the full
+// chrome stack — this stays as a debugging canary.
+//
+// Privacy note: anon key surfaced only by length, never the value.
+export const prerender = false;
+
+const now = new Date().toISOString();
+const projectId = process.env.RUN402_PROJECT_ID ?? 'unset';
+const anonKeyLen = (process.env.KYCHON_ANON_KEY ?? '').length;
+const userAgent = Astro.request.headers.get('user-agent') ?? 'unknown';
+const acceptLang = Astro.request.headers.get('accept-language') ?? 'unknown';
+const requestUrl = Astro.request.url;
+const requestMethod = Astro.request.method;
+---
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>SSR probe</title>
+    <meta name="robots" content="noindex">
+  </head>
+  <body style="font-family: ui-monospace, monospace; padding: 2rem;">
+    <h1>SSR probe</h1>
+    <p>If <code>server time</code> differs across reloads and <code>user agent</code> reflects the current client, this route is being rendered per-request by the run402 Astro SSR runtime. Otherwise it's served from a static cache.</p>
+    <pre>
+server time:      {now}
+project id:       {projectId}
+anon key length:  {anonKeyLen}
+request method:   {requestMethod}
+request url:      {requestUrl}
+user agent:       {userAgent}
+accept-language:  {acceptLang}
+    </pre>
+  </body>
+</html>
