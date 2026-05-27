@@ -1,7 +1,7 @@
 'use client';
 
 import { Loader2, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -74,12 +74,39 @@ function facetCount(facets: SearchFacets | undefined, type: SearchType): number 
   return facets?.[type] ?? 0;
 }
 
-export default function SearchPageApp() {
-  const [params, setParams] = useState<SearchParams>(DEFAULT_PARAMS);
+interface SearchPageAppProps {
+  /**
+   * Pre-fetched search response from the per-request SSR pass — see
+   * `src/lib/ssr-api.ts:ssrSearchQuery` + `search.astro`. Seeds
+   * `useState` so the React island's first render matches the SSR
+   * HTML byte-for-byte: no skeleton, no "searching…" flash between
+   * hydration and the post-mount fetch. Background `useEffect` still
+   * re-fetches on URL change (typing pushes new history entries that
+   * trigger a refetch).
+   *
+   * `initialParams` carries the `?q=/?type=/?page=` the server
+   * resolved from `Astro.request.url` so React's initial state
+   * matches the SSR HTML without reading `window.location` until
+   * after hydration.
+   */
+  initialResponse?: SearchResponse;
+  initialParams?: SearchParams;
+}
+
+export default function SearchPageApp({ initialResponse, initialParams }: SearchPageAppProps = {}) {
+  const [params, setParams] = useState<SearchParams>(() => initialParams ?? DEFAULT_PARAMS);
   const [draft, setDraft] = useState(params.q);
-  const [response, setResponse] = useState<SearchResponse>(() => emptyResponse(params));
+  const [response, setResponse] = useState<SearchResponse>(
+    () => initialResponse ?? emptyResponse(params),
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Track whether the initial render came from SSR so the first
+  // useEffect run can skip the redundant refetch. useRef so it
+  // doesn't pull into the effect dep array — the effect still
+  // re-runs on `params` changes (typing, navigation), it just
+  // short-circuits its first run when SSR primed the state.
+  const ssrPrimeRef = useRef(Boolean(initialResponse));
 
   useEffect(() => {
     setDraft(params.q);
@@ -104,6 +131,15 @@ export default function SearchPageApp() {
 
     if (!params.q) {
       setResponse(emptyResponse({ ...params, page: 1 }));
+      setLoading(false);
+      return;
+    }
+
+    // Skip the first refetch when SSR primed the response — it's
+    // already the freshest the server could produce. Mark consumed
+    // so subsequent params changes still trigger refetch.
+    if (ssrPrimeRef.current) {
+      ssrPrimeRef.current = false;
       setLoading(false);
       return;
     }

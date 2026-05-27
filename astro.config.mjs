@@ -236,6 +236,24 @@ export default defineConfig({
     react(),
   ],
   vite: {
+    // Bake build-time env vars into the SSR Lambda bundle. `astro build`
+    // runs in a process with `KYCHON_PROJECT=silver-pines` (set by
+    // `runDeploy`); the SSR Lambda runtime has neither that var nor
+    // any way to recover it from the deploy spec. Vite's `define`
+    // substitutes the literal at compile time, so request-time renders
+    // (e.g. `seeds/index.ts:requestedProjectName`) can read
+    // `import.meta.env.KYCHON_PROJECT` and get the right project's
+    // typed seed without falling back to neutral chrome.
+    define: {
+      'import.meta.env.KYCHON_PROJECT': JSON.stringify(process.env.KYCHON_PROJECT ?? ''),
+      // Anon-key JWT for SSR-time API calls. The browser reads this
+      // from `window.__KYCHON_ANON_KEY` (injected via `dist/js/env.js`
+      // by `runDeploy`), but the SSR Lambda has neither `window` nor
+      // that file in its bundle. Bake the literal at compile time so
+      // `src/lib/ssr-api.ts` can hand it to the SDK at request time.
+      // Same value the browser uses — role:anon JWT, safe to embed.
+      'import.meta.env.KYCHON_ANON_KEY': JSON.stringify(process.env.KYCHON_ANON_KEY ?? ''),
+    },
     server: {
       watch: {
         ignored: ['**/packages/sdk/dist/**', '**/node_modules/@kychon/sdk/dist/**'],

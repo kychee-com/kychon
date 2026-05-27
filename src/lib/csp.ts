@@ -24,6 +24,28 @@ export function readHeadersTemplate(cwd?: string): string {
   return readFileSync(headersTemplatePath(cwd), 'utf-8');
 }
 
+/** Build the CSP directive value from a pre-loaded template string. Pure
+ *  function — no filesystem access. Use this from contexts where the
+ *  template was loaded via Vite `?raw` import (e.g. `Portal.astro`, which
+ *  needs to run at both build time AND inside the run402 SSR Lambda where
+ *  `readFileSync('public/_headers')` would throw — the file isn't bundled
+ *  into the SSR Lambda artifact). The pre-`?raw` shape (`buildCspValue`
+ *  below) stays available for CLI deploy paths where `cwd` is the repo
+ *  root and `public/_headers` is reachable on disk. */
+export function buildCspValueFromTemplate(template: string): string {
+  if (!template.includes(PLACEHOLDER)) {
+    throw new Error(
+      `_headers template is missing the ${PLACEHOLDER} placeholder; expected it inside the frame-src directive`,
+    );
+  }
+  const generated = substituteProviderHosts(template, getProviderHosts());
+  const csp = extractCsp(generated);
+  if (!csp) {
+    throw new Error('_headers template does not declare a Content-Security-Policy directive');
+  }
+  return csp;
+}
+
 /** Substitute `{PROVIDER_HOSTS}` in a `_headers` template with the given
  *  hosts. When `hosts` is empty, the placeholder is replaced with `'none'`
  *  so the directive remains valid (and explicit) instead of malformed. */
