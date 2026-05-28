@@ -1,6 +1,20 @@
 ---
+// SSR-guarded: auth.requireUser() throws AuthRequiredError on anon (platform
+// 303-redirects to /auth/sign-in?return_to=/admin). For Kychon-admin we
+// manually consult members.role — the platform's actor envelope doesn't carry
+// project-defined roles, so requireRole('admin') wouldn't match.
+export const prerender = false;
+import { auth, adminDb } from '@run402/functions';
 import AdminDashboardApp from '../components/kychon/AdminDashboardApp';
 import Portal from '../layouts/Portal.astro';
+
+const user = await auth.requireUser();
+// run402-allow-user-filter: adminDb() bypasses RLS for the admin role lookup
+const rows = await adminDb().from('members').select('role,status').eq('user_id', user.id).limit(1);
+const member = rows?.[0];
+if (member?.role !== 'admin' || member?.status !== 'active') {
+  return new Response('Admin access required', { status: 403 });
+}
 ---
 <Portal title="Admin Dashboard">
   <AdminDashboardApp client:load />
