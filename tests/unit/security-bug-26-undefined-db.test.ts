@@ -54,6 +54,7 @@ vi.mock(
   '@run402/functions',
   () => ({
     getUser: vi.fn(async () => ({ id: 'auth-user-1', email: 'new@example.com' })),
+    auth: { user: vi.fn(async () => ({ id: 'auth-user-1', email: 'new@example.com' })) },
     adminDb: () => ({
       from: table,
       sql(query: string) {

@@ -1,5 +1,5 @@
 // schedule: none (triggered by client on resource upload)
-import { adminDb, assets, getUser } from '@run402/functions';
+import { adminDb, assets, auth } from '@run402/functions';
 
 // File names that flow into the storage path must be limited to safe ASCII
 // segments — `..`, `/`, NUL, and other surprises would let a caller place
@@ -12,7 +12,7 @@ function pickAssetUrl(ref, fallbackKey) {
 }
 
 export default async (req) => {
-  const user = await getUser(req);
+  const user = await auth.user();
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
@@ -20,6 +20,7 @@ export default async (req) => {
   // Admin-only — mirror the role check in upload-asset.js. The legacy "any
   // authenticated user can upload" surface let arbitrary signed-in Run402
   // users write to the project's resources bucket. (#25)
+  // run402-allow-user-filter: adminDb() raw SQL bypasses RLS; user.id binding required
   const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
   const role = memberResult?.rows?.[0]?.role;
   if (role !== 'admin') {

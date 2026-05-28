@@ -1,6 +1,6 @@
 // Lifecycle hook: called automatically by Run402 after first signup (fire-and-forget).
 // Also supports direct invocation with auth token for backward compatibility.
-import { adminDb, getUser } from '@run402/functions';
+import { adminDb, auth } from '@run402/functions';
 
 export default async (req) => {
   // Determine user identity from lifecycle hook payload or auth token
@@ -17,8 +17,11 @@ export default async (req) => {
       return new Response(JSON.stringify({ error: 'Missing user.id in hook payload' }), { status: 400 });
     }
   } else {
-    // Direct invocation: use auth token
-    const user = await getUser(req);
+    // Direct invocation: read actor from the platform's verified envelope.
+    // Returns null for anonymous; we preserve the legacy `{ error: 'Unauthorized' }`
+    // response shape rather than letting auth.requireUser() throw, because the
+    // platform's 401 envelope shape differs and BC callers parse this body.
+    const user = await auth.user();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }

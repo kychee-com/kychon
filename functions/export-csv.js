@@ -1,8 +1,8 @@
 // schedule: none (triggered manually from admin UI)
-import { adminDb, getUser } from '@run402/functions';
+import { adminDb, auth } from '@run402/functions';
 
 export default async (req) => {
-  const user = await getUser(req);
+  const user = await auth.user();
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }

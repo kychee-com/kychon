@@ -1,5 +1,5 @@
 // schedule: none (canonical Kychon Capability API gateway at POST /functions/v1/kychon-api)
-import { adminDb, getUser } from '@run402/functions';
+import { adminDb, auth } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
 const SUPPORTED_API_VERSIONS = [API_VERSION];
@@ -2271,13 +2271,11 @@ function objectRefJson(ref) {
   };
 }
 
-async function resolveActor(req) {
-  let user = null;
-  try {
-    user = await getUser(req);
-  } catch {
-    user = null;
-  }
+async function resolveActor(_req) {
+  // auth.user() returns Actor | null and never throws on anon — drop the try/catch.
+  // The platform-verified actor envelope is the only trusted source; legacy
+  // Bearer-header path is forwarded by the gateway into the same ALS context.
+  const user = await auth.user();
   if (!user?.id) return { state: 'anonymous', authenticated: false, user: null, member: null, authority: {} };
 
   const projectAdmin = isProjectAdmin(user);
@@ -2297,6 +2295,7 @@ async function resolveActor(req) {
 
 async function findMember(user) {
   const db = adminDb();
+  // run402-allow-user-filter: adminDb() bypasses RLS to bootstrap actor → member mapping
   const byUserId = await db
     .from('members')
     .select('id,user_id,email,display_name,role,status')

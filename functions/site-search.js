@@ -1,5 +1,5 @@
 // schedule: none (native site search endpoint)
-import { adminDb, getUser } from '@run402/functions';
+import { adminDb, auth } from '@run402/functions';
 
 const SEARCH_TYPES = new Set(['all', 'pages', 'resources', 'events']);
 const TYPE_TO_SOURCE = { pages: 'page', resources: 'resource', events: 'event' };
@@ -71,14 +71,11 @@ function emptyResponse(query, type, page, pageSize) {
   };
 }
 
-async function isActiveMember(req) {
-  let user = null;
-  try {
-    user = await getUser(req);
-  } catch {
-    user = null;
-  }
+async function isActiveMember(_req) {
+  // auth.user() returns Actor | null and never throws — no try/catch needed.
+  const user = await auth.user();
   if (!user?.id) return false;
+  // run402-allow-user-filter: adminDb() bypasses RLS to look up member by raw user.id
   const rows = await adminDb().from('members').select('id,status,role').eq('user_id', user.id).limit(1);
   const member = rows?.[0];
   return member?.status === 'active' && ['member', 'moderator', 'admin'].includes(member.role);

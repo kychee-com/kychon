@@ -29,6 +29,7 @@ vi.mock(
   '@run402/functions',
   () => ({
     getUser: vi.fn(async () => mockState.user),
+    auth: { user: vi.fn(async () => mockState.user) },
     adminDb: () => ({
       from(table: string) {
         return {
