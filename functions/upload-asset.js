@@ -4,7 +4,7 @@
 // dimensions, blurhash, variants, exif policy) via `internal.blobs.metadata`
 // + intrinsic image columns — Kychon no longer keeps a shadow `media_assets`
 // table. See `openspec/changes/admin-content-management/design.md` Decision 3.
-import { adminDb, assets, getUser } from '@run402/functions';
+import { adminDb, assets, auth } from '@run402/functions';
 
 // Aspect-ratio heuristic for the brand_icon_url upload target. Per
 // brand-identity-fields/design.md §3, when an icon upload's intrinsic width
@@ -39,7 +39,7 @@ const STORAGE_PREFIX = 'assets/';
 const MEDIA_LIST_LIMIT = 40;
 
 export default async (req) => {
-  const user = await getUser(req);
+  const user = await auth.user();
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
@@ -48,11 +48,10 @@ export default async (req) => {
   // safe today because Run402 issues UUIDs, but a future auth path that
   // produces a different `sub` shape could turn this into SQL injection. (#25)
   //
-  // TODO(verify): Run402 v2.9.0 ships declarative function-level role gates
-  // (requireAuth + requireRole). When the existing per-function role checks
-  // are swept (see `migrate-to-declarative-role-gates` follow-up change), this
-  // block is replaced by `ctx.user` + `ctx.role` populated by the gateway.
-  // Left as-is for this change per the agreed scope.
+  // TODO(auth-aware-ssr): once @run402/astro v2 ships and we drop bearer-token
+  // auth, swap to `await auth.requireRole('admin')` and let the platform's
+  // R402_AUTH_INSUFFICIENT_ROLE bubble up as the 403.
+  // run402-allow-user-filter: adminDb() raw SQL bypasses RLS; user.id binding required
   const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
   if (!memberResult.rows?.length || memberResult.rows[0].role !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });

@@ -93,6 +93,7 @@ vi.mock(
   '@run402/functions',
   () => ({
     getUser: vi.fn(async () => mockState.user),
+    auth: { user: vi.fn(async () => mockState.user) },
     adminDb: () => ({
       sql(query: string, params: unknown[] = []) {
         return mockSql(query, params);
