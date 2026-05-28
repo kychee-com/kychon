@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/kychon/ui';
-import { getSession, signOut as authSignOut } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
 import { getAvailableLocales, getLocale, setLanguage, t } from '@/lib/i18n';
 
@@ -112,14 +112,10 @@ function SignInBarIsland({ showLangToggle, showThemeToggle }: SignInBarProps) {
     document.dispatchEvent(new CustomEvent('wl-locale-changed', { detail: { locale: next } }));
   }
 
-  async function signOut(): Promise<void> {
-    // Routes through @/lib/auth.signOut so the server-side sign-out POST
-    // happens and the HttpOnly cookie is killed at the gateway, not just
-    // the localStorage cache. Fires wl-auth-changed before the redirect
-    // so any synchronous subscribers (e.g. AdminBar) update before we
-    // navigate away.
+  function signOut(): void {
+    localStorage.removeItem('wl_session');
     document.dispatchEvent(new CustomEvent('wl-auth-changed'));
-    await authSignOut();
+    window.location.href = '/';
   }
 
   const showLanguage = showLangToggle && locales.length >= 2;
