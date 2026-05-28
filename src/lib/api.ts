@@ -83,6 +83,7 @@ async function refreshToken(): Promise<any> {
   if (!session?.refresh_token) return null;
   const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', apikey: getAnonKey() },
     body: JSON.stringify({ refresh_token: session.refresh_token }),
   });
