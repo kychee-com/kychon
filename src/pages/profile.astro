@@ -1,16 +1,6 @@
 ---
-// SSR-guarded. auth.user() + Astro.redirect rather than auth.requireUser()
-// (Astro catches thrown exceptions and renders 500 instead of letting the
-// platform translate the AuthRequiredError into a 303).
-export const prerender = false;
-import { auth } from '@run402/functions';
 import ProfilePageApp from '../components/kychon/ProfilePageApp';
 import Portal from '../layouts/Portal.astro';
-
-const user = await auth.user();
-if (!user) {
-  return Astro.redirect(`/join?return_to=${encodeURIComponent(Astro.url.pathname)}`, 303);
-}
 ---
 <Portal title="Profile">
   <div class="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 lg:px-8">
