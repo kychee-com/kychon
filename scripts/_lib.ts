@@ -933,11 +933,25 @@ export async function patchDeploy(
 
   const project = await r.project(opts.projectId);
   const distDir = join(ROOT, "dist");
+  // Mirror runDeploy's adapter detection: when @run402/astro@1.0.4+'s SSR
+  // adapter is active, `[customPage].astro`'s `getStaticPaths` writes
+  // per-slug HTML directly under `dist/run402/client/` and `dist/page.html`
+  // no longer exists. Skip `materializeCustomPageStaticFiles` (which would
+  // otherwise throw on the missing shell) and synthesize the same slug list
+  // from the seed — downstream code only needs the `{slug, file}` shape.
+  const adapterActive = existsSync(join(distDir, "run402", "adapter.json"));
 
   injectEnvJs(distDir, opts.anonKey);
   generateAndValidateHeaders(distDir);
   const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
-  const materializedCustomPages = materializeCustomPageStaticFiles(distDir, deploySeed);
+  const materializedCustomPages = adapterActive
+    ? safeCustomPageSlugs(deploySeed.pages)
+        .map((slug) => {
+          const file = customPageStaticFile(slug);
+          return file ? { slug, file } : null;
+        })
+        .filter((entry): entry is MaterializedCustomPageFile => entry !== null)
+    : materializeCustomPageStaticFiles(distDir, deploySeed);
 
   const sql = readMigrations(ROOT, opts.seedFile);
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;

@@ -7,12 +7,22 @@ const ROOT = process.cwd();
 const SNAPSHOT = join(ROOT, 'fixtures/chrome/odbc.chrome-snapshot.json');
 const BRAND = 'Old Dominion Boat Club';
 const FORBIDDEN_BRAND = 'Kychon Community';
+// The @run402/astro adapter relocates prerendered HTML from `dist/` to
+// `dist/run402/client/`. The adapter is unconditional in astro.config.mjs
+// because calendar / search / ssr-probe export `prerender = false` — without
+// the adapter `astro build` throws NoAdapterInstalled. Static pages still
+// prerender, just under the client dir.
+const CLIENT_DIR = join(ROOT, 'dist', 'run402', 'client');
 
+// Representative prerendered pages. admin* and profile are STATIC with
+// client-side access gating (the ADMIN_PAGES assertions below verify the
+// "Checking access" placeholder is baked but the real admin content is not).
+// calendar / search / ssr-probe are SSR-only (prerender = false), never
+// appear as static HTML, and are covered by the SSR entry's render path.
 const REPRESENTATIVE_PAGES = [
   'index.html',
   'page.html',
   'events.html',
-  'calendar.html',
   'directory.html',
   'committees.html',
   'forum.html',
@@ -40,7 +50,7 @@ function buildPortal(): void {
 }
 
 function readRepresentativeHtml(): Map<string, string> {
-  return new Map(REPRESENTATIVE_PAGES.map((page) => [page, readFileSync(join(ROOT, 'dist', page), 'utf8')]));
+  return new Map(REPRESENTATIVE_PAGES.map((page) => [page, readFileSync(join(CLIENT_DIR, page), 'utf8')]));
 }
 
 function requireSnapshotHtml(snapshot: Map<string, string>, page: string): string {
@@ -72,6 +82,9 @@ describe('Portal first-byte build output', () => {
       expect(html, page).toContain('/js/env.js');
       expect(html, page).not.toContain('/js/env.js?');
 
+      // Static admin pages must bake only the client-side access-checking
+      // placeholder, never the real admin UI — admin content is gated in the
+      // React island at runtime, so it must not leak into public static HTML.
       if (ADMIN_PAGES.has(page)) {
         expect(html, page).toContain('data-admin-access-checking');
         expect(html, page).toContain('Checking access');
@@ -82,7 +95,7 @@ describe('Portal first-byte build output', () => {
     buildPortal();
 
     for (const [page, html] of firstBuildHtml) {
-      expect(normalizeAstroAssetUrls(readFileSync(join(ROOT, 'dist', page), 'utf8')), page).toBe(
+      expect(normalizeAstroAssetUrls(readFileSync(join(CLIENT_DIR, page), 'utf8')), page).toBe(
         normalizeAstroAssetUrls(html),
       );
     }
