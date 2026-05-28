@@ -212,13 +212,17 @@ const useRun402Integration = Boolean(integrationAssetsDir && process.env.RUN402_
 // `PUBLIC_PATH_MODE_WIDENS_TO_IMPLICIT` warning — covered by
 // `RUN402_ALLOW_WARNINGS=true`.
 //
-// Skipped when `useRun402Integration` is false — pure-static builds
-// (integration tests, neutral fallback, local `astro dev` without env
-// vars) keep the pre-adapter pipeline + the original `dist/` layout
-// unchanged.
+// The adapter is unconditional: several routes (admin*, profile,
+// calendar, search, ssr-probe) export `prerender = false`, so any
+// `astro build` without an adapter throws NoAdapterInstalled. The
+// adapter itself has no auth requirements — it just emits
+// `dist/run402/{client,server,adapter.json}` locally — so it's safe
+// to register in test / neutral-fallback builds. The image-upload
+// integration stays gated on `useRun402Integration` so non-deploy
+// builds don't reach for Run402 gateway credentials.
 export default defineConfig({
   output: 'static',
-  ...(useRun402Integration ? { adapter: createRun402Adapter() } : {}),
+  adapter: createRun402Adapter(),
   devToolbar: {
     enabled: false,
   },
