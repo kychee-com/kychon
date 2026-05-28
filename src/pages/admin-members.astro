@@ -4,7 +4,10 @@ import { auth, adminDb } from '@run402/functions';
 import AdminMembersApp from '../components/kychon/AdminMembersApp';
 import Portal from '../layouts/Portal.astro';
 
-const user = await auth.requireUser();
+const user = await auth.user();
+if (!user) {
+  return Astro.redirect(`/join?return_to=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
 // run402-allow-user-filter: adminDb() bypasses RLS for the admin role lookup
 const rows = await adminDb().from('members').select('role,status').eq('user_id', user.id).limit(1);
 const member = rows?.[0];
