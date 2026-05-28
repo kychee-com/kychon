@@ -292,7 +292,6 @@ export async function signInWithGoogle(): Promise<void> {
 
   const res = await fetch(`${getAPI()}/auth/v1/oauth/google/start`, {
     method: 'POST',
-    credentials: 'include',
     headers,
     body: JSON.stringify({
       redirect_url: `${window.location.origin}/`,
@@ -334,7 +333,6 @@ export async function handleOAuthCallback(): Promise<any> {
 
   const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=authorization_code`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json', apikey: getAnonKey() },
     body: JSON.stringify({ code, code_verifier: verifier }),
   });
@@ -399,7 +397,6 @@ export async function handleMagicLinkCallback(): Promise<any> {
   window.history.replaceState(null, '', cleanMagicLinkCallbackUrl());
   const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=magic_link`, {
     method: 'POST',
-    credentials: 'include',
     headers: publicAuthHeaders(),
     body: JSON.stringify({ token }),
   });
@@ -425,7 +422,6 @@ export async function requestGoogleConnectionLink(email: string): Promise<void> 
   const redirectUrl = `${window.location.origin}${currentUrlWithParam(GOOGLE_LINK_RESUME_PARAM, '1')}`;
   const res = await fetch(`${getAPI()}/auth/v1/magic-link`, {
     method: 'POST',
-    credentials: 'include',
     headers: publicAuthHeaders(),
     body: JSON.stringify({
       email: normalizedEmail,
@@ -445,7 +441,6 @@ export async function requestGoogleConnectionLink(email: string): Promise<void> 
 export async function signUp(email: string, password: string): Promise<any> {
   const res = await fetch(`${getAPI()}/auth/v1/signup`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json', apikey: getAnonKey() },
     body: JSON.stringify({ email, password }),
   });
@@ -459,7 +454,6 @@ export async function signUp(email: string, password: string): Promise<any> {
 export async function signIn(email: string, password: string): Promise<any> {
   const res = await fetch(`${getAPI()}/auth/v1/token?grant_type=password`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json', apikey: getAnonKey() },
     body: JSON.stringify({ email, password }),
   });
@@ -478,7 +472,6 @@ export async function setPassword(newPassword: string, currentPassword?: string)
 
   const res = await fetch(`${getAPI()}/auth/v1/user/password`, {
     method: 'PUT',
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       apikey: getAnonKey(),
@@ -506,7 +499,6 @@ export async function getCurrentUser(appOrigin = window.location.origin): Promis
   const url = new URL(`${getAPI()}/auth/v1/user`);
   if (appOrigin) url.searchParams.set('app_origin', appOrigin);
   const res = await fetch(url.toString(), {
-    credentials: 'include',
     headers: {
       apikey: getAnonKey(),
       Authorization: `Bearer ${requireAccessToken()}`,
@@ -550,7 +542,6 @@ export function passkeysSupported(): boolean {
 
 export async function listPasskeys(): Promise<any[]> {
   const res = await fetch(`${getAPI()}/auth/v1/passkeys`, {
-    credentials: 'include',
     headers: {
       apikey: getAnonKey(),
       Authorization: `Bearer ${requireAccessToken()}`,
@@ -568,7 +559,6 @@ export async function registerPasskey(label = 'Kychon admin passkey'): Promise<a
   const accessToken = requireAccessToken();
   const optionsRes = await fetch(`${getAPI()}/auth/v1/passkeys/register/options`, {
     method: 'POST',
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       apikey: getAnonKey(),
@@ -588,7 +578,6 @@ export async function registerPasskey(label = 'Kychon admin passkey'): Promise<a
 
   const verifyRes = await fetch(`${getAPI()}/auth/v1/passkeys/register/verify`, {
     method: 'POST',
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       apikey: getAnonKey(),
@@ -613,7 +602,6 @@ export async function signInWithPasskey(email?: string): Promise<any> {
   }
   const optionsRes = await fetch(`${getAPI()}/auth/v1/passkeys/login/options`, {
     method: 'POST',
-    credentials: 'include',
     headers: publicAuthHeaders(),
     body: JSON.stringify({
       app_origin: window.location.origin,
@@ -632,7 +620,6 @@ export async function signInWithPasskey(email?: string): Promise<any> {
 
   const verifyRes = await fetch(`${getAPI()}/auth/v1/passkeys/login/verify`, {
     method: 'POST',
-    credentials: 'include',
     headers: publicAuthHeaders(),
     body: JSON.stringify({
       challenge_id: optionsBody?.challenge_id,
@@ -710,27 +697,7 @@ function credentialToJSON(credential: PublicKeyCredential): any {
   return json;
 }
 
-export async function signOut(): Promise<void> {
-  // Server-side sign-out so the HttpOnly cookie is killed at the gateway,
-  // not just the localStorage cache. We send credentials so the gateway
-  // can identify the session to invalidate. Best-effort: even if the POST
-  // fails we still clear the local cache and redirect — a stale server
-  // session is worse than a stale client cache, but better than neither.
-  try {
-    const session = getSession();
-    const headers: Record<string, string> = { apikey: getAnonKey() };
-    if (typeof session?.access_token === 'string' && session.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
-    await fetch(`${getAPI()}/auth/v1/sign-out`, {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-    });
-  } catch {
-    // Network failure during sign-out is not user-actionable. Continue to
-    // clear local state so the UI reflects signed-out.
-  }
+export function signOut(): void {
   localStorage.removeItem('wl_session');
   window.location.href = '/';
 }

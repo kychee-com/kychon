@@ -479,18 +479,13 @@ describe('auth.js', () => {
   });
 
   describe('signOut', () => {
-    it('clears session and POSTs server-side sign-out', async () => {
+    it('clears session', () => {
       localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok' }));
-      global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
       // Mock window.location
       delete global.window.location;
       global.window.location = { href: '' };
-      await auth.signOut();
+      auth.signOut();
       expect(localStorage.getItem('wl_session')).toBeNull();
-      const [url, init] = global.fetch.mock.calls[0] ?? [];
-      expect(String(url)).toContain('/auth/v1/sign-out');
-      expect(init?.method).toBe('POST');
-      expect(init?.credentials).toBe('include');
     });
   });
 });

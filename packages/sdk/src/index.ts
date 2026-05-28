@@ -628,10 +628,6 @@ export function createKychonClient(options: KychonClientOptions) {
 
     const res = await fetchImpl(transport.endpoint, {
       method: 'POST',
-      // include cookies so the platform's HttpOnly `__Host-Http-r402_session`
-      // travels alongside the Bearer header from requestHeaders(). v3 gateway
-      // accepts either; sending both is defense-in-depth during the BC window.
-      credentials: 'include',
       headers: await requestHeaders(true),
       body: JSON.stringify(envelope),
     });
