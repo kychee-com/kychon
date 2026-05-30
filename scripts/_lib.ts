@@ -725,6 +725,21 @@ export async function runDeploy(
     ? { ...functionsMap, ...astroSlice.functions.replace }
     : functionsMap;
 
+  // Same-origin capability route. Mount the Kychon Capability function under
+  // the tenant host at `/api/kychon` so the browser can reach it WITHOUT going
+  // cross-origin to api.run402.com. This is load-bearing for cookie-session
+  // auth: the host-only `__Host-Http-r402_session` cookie only travels to the
+  // tenant origin, and the gateway only attaches the verified actor envelope
+  // (which `auth.user()` reads) when the function is invoked same-origin on the
+  // tenant host. Proven end-to-end on eagles (signed cookie → envelope →
+  // auth.user() resolves the actor). Prepended before the adapter's SSR `/*`
+  // catchall — the gateway resolves explicit routes ahead of the catchall.
+  // Additive/safe alongside the legacy cross-origin Bearer path during the
+  // client migration; both hit the same function with the same per-op checks.
+  const baseRoutes = astroSlice ? astroSlice.routes.replace : undefined;
+  const sameOriginApiRoute = { pattern: "/api/kychon", target: { type: "function", name: "kychon-api" } as const };
+  const routes = baseRoutes ? [sameOriginApiRoute, ...baseRoutes] : baseRoutes;
+
   const spec = buildKychonReleaseSpec({
     database,
     // Placeholder fileSet — replaced by spec.site = astroSlice.site
@@ -734,7 +749,7 @@ export async function runDeploy(
     subdomain: opts.subdomain,
     functionsSpec: fnDiff?.spec,
     functionsMap: finalFunctionsMap,
-    routes: astroSlice ? astroSlice.routes.replace : undefined,
+    routes,
     i18n: i18nSpec,
   });
   if (astroSlice) {
