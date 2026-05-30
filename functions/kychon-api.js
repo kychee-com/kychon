@@ -1,4 +1,11 @@
 // schedule: none (canonical Kychon Capability API gateway at POST /functions/v1/kychon-api)
+// auth.user() verifies the gateway's signed actor-context envelope using a key
+// the bundled @run402/functions fetches at runtime — this requires the platform
+// to bundle >= 3.2.0. This file's source had been unchanged since the 3.0.0-era
+// deploy, so the gateway noop-skipped re-bundling it and the function kept an
+// older runtime that could not verify the envelope (cookie sessions resolved as
+// anonymous). The marker below changes the source digest to force a one-time
+// re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
 import { adminDb, auth } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
