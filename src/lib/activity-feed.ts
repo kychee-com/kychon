@@ -20,7 +20,7 @@ export function canReadActivityFeed(session: any, role: string | null | undefine
     role === 'member' ||
     member?.status === 'active' ||
     (!member?.status && !!member?.id) ||
-    !!session?.user
+    !!session?.access_token
   );
 }
 

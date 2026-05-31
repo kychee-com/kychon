@@ -98,7 +98,7 @@ function canReadMemberOnlyCapabilities(session: any, role: string | null | undef
     role === 'member' ||
     member?.status === 'active' ||
     (!member?.status && !!member?.id) ||
-    !!session?.user
+    !!session?.access_token
   );
 }
 
