@@ -1,0 +1,83 @@
+/* Theme bridge for the hosted @run402/astro auth components.
+ *
+ * The components (<SignIn>, <SignUp>, <UserButton>, <AccountSecurity>) render
+ * semantic .r402-* markup and expose CSS-variable hooks for theming. We only
+ * map those hooks (and fill the input fg/bg the defaults leave to the UA) to
+ * Kychon's existing theme tokens — no custom primitive CSS — so the hosted
+ * forms inherit each tenant's brand automatically. */
+
+.r402-sign-in,
+.r402-sign-in-methods,
+.r402-account-security {
+  --r402-radius: var(--radius-md, 0.5rem);
+  --r402-border: var(--color-input, var(--color-border, #e5e7eb));
+  --r402-button-bg: var(--color-primary);
+  --r402-button-fg: var(--color-primary-foreground);
+  --r402-button-hover-bg: var(--color-primary-hover, var(--color-primary));
+  width: 100%;
+  max-width: none;
+  font-family: var(--font-body, inherit);
+}
+
+.r402-field {
+  gap: 0.375rem;
+}
+
+.r402-label {
+  color: var(--color-foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.r402-input {
+  width: 100%;
+  background: var(--color-background, #fff);
+  color: var(--color-foreground, #111);
+  border-color: var(--color-input, var(--color-border, #e5e7eb));
+}
+
+.r402-input::placeholder {
+  color: var(--color-muted-foreground);
+}
+
+.r402-input:focus-visible {
+  outline: 2px solid var(--color-ring, var(--color-primary));
+  outline-offset: 1px;
+  border-color: var(--color-ring, var(--color-primary));
+}
+
+.r402-submit {
+  width: 100%;
+  transition: background-color 0.15s ease;
+}
+
+/* Secondary method buttons (Google / magic-link / passkey) render via the
+ * component's global EXTRA_METHOD_CSS as <button>/<a> inside the methods
+ * wrapper. Give them a themed "outline/secondary" look consistent with the
+ * primary submit. */
+.r402-sign-in-methods button:not(.r402-submit),
+.r402-sign-in-methods a[role='button'],
+.r402-sign-in-methods .r402-method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+  background: var(--color-card, transparent);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 0.5rem);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.r402-sign-in-methods button:not(.r402-submit):hover,
+.r402-sign-in-methods a[role='button']:hover,
+.r402-sign-in-methods .r402-method:hover {
+  background: var(--color-muted, rgba(0, 0, 0, 0.04));
+  border-color: var(--color-ring, var(--color-primary));
+}
