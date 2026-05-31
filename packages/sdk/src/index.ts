@@ -630,6 +630,9 @@ export function createKychonClient(options: KychonClientOptions) {
       method: 'POST',
       headers: await requestHeaders(true),
       body: JSON.stringify(envelope),
+      // Same-origin cookie session: the capability endpoint is mounted on the
+      // tenant host (/api/kychon), so the __Host- session cookie rides along.
+      credentials: 'same-origin',
     });
     const body = (await res.json()) as CapabilityResponseEnvelope<Data>;
     if (!body.ok) throw new KychonApiError(body.correlationId, body.error);

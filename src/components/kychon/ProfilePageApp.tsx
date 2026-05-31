@@ -21,7 +21,7 @@ import {
   Textarea,
 } from '@/components/kychon/ui';
 import { get, patch } from '@/lib/api';
-import { getSession, isAuthenticated } from '@/lib/auth';
+import { getSession, isAuthenticated, setSessionMember } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
 import { ready } from '@/lib/config';
 import { uploadFileContentAddressed } from '@/lib/storage-upload';
@@ -54,11 +54,10 @@ function memberFromSession(): Member | null {
 }
 
 function writeMemberToSession(member: Member): void {
-  const session = getSession();
-  if (!session) return;
-  if (!session.user || typeof session.user !== 'object') session.user = {};
-  session.user.member = member;
-  localStorage.setItem('wl_session', JSON.stringify(session));
+  // Overlay the saved profile onto the actor-backed session view so getSession()
+  // (chrome avatar / name, gated islands) reflects the edit without a reload.
+  if (!getSession()) return;
+  setSessionMember(member);
 }
 
 export default function ProfilePageApp() {

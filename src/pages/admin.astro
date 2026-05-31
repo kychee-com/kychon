@@ -1,6 +1,24 @@
 ---
+// SSR-guarded. Use auth.user() + Astro.redirect rather than
+// auth.requireUser() — Astro's render pipeline catches thrown
+// exceptions and renders its own 500/404 template instead of letting
+// the platform translate AuthRequiredError into a 303. Going via
+// Astro.redirect avoids the auto-translation entirely.
+export const prerender = false;
+import { auth, adminDb } from '@run402/functions';
 import AdminDashboardApp from '../components/kychon/AdminDashboardApp';
 import Portal from '../layouts/Portal.astro';
+
+const user = await auth.user();
+if (!user) {
+  return Astro.redirect(`/join?returnTo=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+// run402-allow-user-filter: adminDb() bypasses RLS for the admin role lookup
+const rows = await adminDb().from('members').select('role,status').eq('user_id', user.id).limit(1);
+const member = rows?.[0];
+if (member?.role !== 'admin' || member?.status !== 'active') {
+  return new Response('Admin access required', { status: 403 });
+}
 ---
 <Portal title="Admin Dashboard">
   <AdminDashboardApp client:load />

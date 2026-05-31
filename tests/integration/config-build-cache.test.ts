@@ -73,7 +73,7 @@ describe('site_config cache build awareness', () => {
     store.wl_cache_i18n_en = JSON.stringify({ data: {}, ts: Date.now() });
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/functions/v1/kychon-api') {
+      if (url.includes('/api/kychon')) {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
@@ -88,7 +88,7 @@ describe('site_config cache build awareness', () => {
 
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://api.test/functions/v1/kychon-api',
+        expect.stringContaining('/api/kychon'),
         expect.objectContaining({
           method: 'POST',
           body: expect.stringContaining('"operation":"config.get"'),
@@ -122,7 +122,7 @@ describe('site_config cache build awareness', () => {
     };
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/functions/v1/kychon-api') {
+      if (url.includes('/api/kychon')) {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
@@ -162,14 +162,14 @@ describe('site_config cache build awareness', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { init } = await import('../../src/lib/config');
+    const { getSession } = await import('../../src/lib/auth');
 
     await init();
 
-    const session = JSON.parse(store.wl_session);
-    expect(session.user.member).toMatchObject({ id: 2, role: 'admin', email: 'major.tal@gmail.com' });
+    expect(getSession()?.user?.member).toMatchObject({ id: 2, role: 'admin', email: 'major.tal@gmail.com' });
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://api.test/functions/v1/kychon-api',
+        expect.stringContaining('/api/kychon'),
         expect.objectContaining({
           method: 'POST',
           body: expect.stringContaining('"operation":"members.linkUser"'),
@@ -196,7 +196,7 @@ describe('site_config cache build awareness', () => {
     };
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/functions/v1/kychon-api') {
+      if (url.includes('/api/kychon')) {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
@@ -245,26 +245,18 @@ describe('site_config cache build awareness', () => {
       ]),
     );
     expect(fetchMock).not.toHaveBeenCalledWith(
-      'https://api.test/functions/v1/kychon-api',
+      expect.stringContaining('/api/kychon'),
       expect.objectContaining({
         body: expect.stringContaining('"operation":"members.linkUser"'),
       }),
     );
   });
 
-  it('clears a stored session when the server resolves it as anonymous', async () => {
-    const store = installLocalStorage();
-    store.wl_session = JSON.stringify({
-      access_token: 'stale-token',
-      refresh_token: 'stale-refresh',
-      user: {
-        id: 'stale-user-id',
-        email: 'demo-member@kychon.com',
-      },
-    });
+  it('resolves anonymous when the server rejects the cookie session', async () => {
+    installLocalStorage();
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/functions/v1/kychon-api') {
+      if (url.includes('/api/kychon')) {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
@@ -288,10 +280,12 @@ describe('site_config cache build awareness', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { init } = await import('../../src/lib/config');
+    const { getSession, isAuthenticated } = await import('../../src/lib/auth');
 
     await init();
 
-    expect(store.wl_session).toBeUndefined();
+    expect(getSession()).toBeNull();
+    expect(isAuthenticated()).toBe(false);
   });
 
   it('bypasses stale member cache on admin pages before checking access', async () => {
@@ -316,7 +310,7 @@ describe('site_config cache build awareness', () => {
     });
 
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url === 'https://api.test/functions/v1/kychon-api') {
+      if (url.includes('/api/kychon')) {
         const envelope = envelopeFrom(init);
         if (envelope.operation === 'config.get')
           return capabilityResponse({ rows: freshConfig, count: freshConfig.length });
@@ -362,10 +356,11 @@ describe('site_config cache build awareness', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { init } = await import('../../src/lib/config');
+    const { getSession } = await import('../../src/lib/auth');
 
     await init();
 
-    expect(JSON.parse(store.wl_session).user.member).toMatchObject({
+    expect(getSession()?.user?.member).toMatchObject({
       id: 2,
       role: 'admin',
       status: 'active',

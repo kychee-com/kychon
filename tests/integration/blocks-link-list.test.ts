@@ -94,7 +94,7 @@ describe('hydrateLinkListResources', () => {
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const [calledUrl, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(calledUrl).toContain('/functions/v1/kychon-api');
+    expect(calledUrl).toContain('/api/kychon');
     const envelope = JSON.parse(String(calledInit.body));
     expect(envelope).toMatchObject({
       operation: 'resources.list',

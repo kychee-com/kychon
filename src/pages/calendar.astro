@@ -12,8 +12,8 @@ import type { Event } from '../schemas/event';
 // (the SSR bundle bakes the role:anon JWT anyway).
 //
 // Member-only events are RLS-gated out of the anonymous fetch — those
-// still surface only via the runtime `loadCalendar` refresh once
-// `localStorage.wl_session` is in scope. Member RSVPs (the "going"
+// still surface only via the runtime `loadCalendar` refresh once the
+// cookie session is resolved. Member RSVPs (the "going"
 // dots on each day cell) are per-user and never come from this SSR
 // pass — they're populated in `loadCalendar`'s rsvp side-fetch.
 export const prerender = false;

@@ -58,11 +58,6 @@ function callEnvelope(index = 0) {
   return JSON.parse(mockFetch.mock.calls[index][1].body);
 }
 
-function tokenWithClaims(claims) {
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode(claims)}.sig`;
-}
-
 describe('api.js', () => {
   beforeEach(() => {
     mockFetch.mockReset();
@@ -73,7 +68,7 @@ describe('api.js', () => {
     mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [], count: 0 }));
     await get('members');
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.test/functions/v1/kychon-api',
+      expect.stringContaining('/api/kychon'),
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ apikey: 'test_key' }),
@@ -119,61 +114,16 @@ describe('api.js', () => {
     });
   });
 
-  it('includes Authorization header when session exists', async () => {
-    localStorage.setItem('wl_session', JSON.stringify({ access_token: 'tok123', refresh_token: 'ref123' }));
+  it('sends the anon key with same-origin cookie credentials and no bearer token', async () => {
     mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [], count: 0 }));
     await get('members');
-    expect(mockFetch.mock.calls[0][1].headers.Authorization).toBe('Bearer tok123');
+    const init = mockFetch.mock.calls[0][1];
+    expect(init.headers.apikey).toBe('test_key');
+    expect(init.headers.Authorization).toBeUndefined();
+    expect(init.credentials).toBe('same-origin');
   });
 
-  it('attempts token refresh when the capability call is denied for a refreshable session', async () => {
-    localStorage.setItem('wl_session', JSON.stringify({ access_token: 'expired', refresh_token: 'ref123' }));
-
-    mockFetch.mockResolvedValueOnce(capabilityError('permission.denied'));
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ access_token: 'new_tok', refresh_token: 'new_ref' }),
-    });
-    mockFetch.mockResolvedValueOnce(capabilityOk({ rows: [], count: 0 }));
-
-    await get('members');
-
-    // Should have made 3 calls: original, refresh, retry
-    expect(mockFetch).toHaveBeenCalledTimes(3);
-    // Refresh endpoint
-    expect(mockFetch.mock.calls[1][0]).toContain('/auth/v1/token?grant_type=refresh_token');
-  });
-
-  it('refreshes once on denied mutations when a stored session has a refresh token', async () => {
-    localStorage.setItem(
-      'wl_session',
-      JSON.stringify({
-        access_token: tokenWithClaims({ role: 'project_admin' }),
-        refresh_token: 'ref123',
-      }),
-    );
-
-    mockFetch.mockResolvedValueOnce(capabilityError('permission.denied'));
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ access_token: 'new_tok', refresh_token: 'new_ref' }),
-    });
-    mockFetch.mockResolvedValueOnce(capabilityOk({ result: { id: 1 }, changed: [], audit: null, verify: null }));
-
-    await patch('sections?id=eq.1', { title: 'Fresh' });
-
-    expect(mockFetch).toHaveBeenCalledTimes(3);
-    expect(mockFetch.mock.calls[1][0]).toContain('/auth/v1/token?grant_type=refresh_token');
-    expect(mockFetch.mock.calls[2][1].headers.Authorization).toBe('Bearer new_tok');
-  });
-
-  it('does not refresh denied responses without a refresh token', async () => {
-    localStorage.setItem(
-      'wl_session',
-      JSON.stringify({
-        access_token: tokenWithClaims({ role: 'authenticated' }),
-      }),
-    );
+  it('throws permission.denied without retrying (cookie sessions need no client refresh)', async () => {
     mockFetch.mockResolvedValueOnce(capabilityError('permission.denied', 'Forbidden'));
 
     await expect(patch('sections?id=eq.1', { title: 'Fresh' })).rejects.toThrow('Forbidden');
