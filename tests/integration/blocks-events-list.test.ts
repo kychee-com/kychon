@@ -47,22 +47,8 @@ function capabilityResponse(rows: unknown[]) {
   };
 }
 
-// Select THIS test's events.list call by its unique `limit` (each filter test
-// uses a distinct `count`). EventsListIsland mounts a React island whose
-// useEffect fetches asynchronously and is not unmounted between tests, so a
-// prior test's island can land a stray call in the shared mock — keying off
-// limit makes the assertion immune to that leak instead of trusting calls[0].
-function eventsCall(fetchMock: ReturnType<typeof vi.fn>, limit: number) {
-  const call = fetchMock.mock.calls.find((entry) => {
-    try {
-      const body = JSON.parse(String((entry[1] as RequestInit).body));
-      return body.operation === 'events.list' && body.input?.limit === limit;
-    } catch {
-      return false;
-    }
-  });
-  if (!call) throw new Error(`no events.list call with limit ${limit}`);
-  return { url: call[0] as string, body: JSON.parse(String((call[1] as RequestInit).body)) };
+function envelope(fetchMock: ReturnType<typeof vi.fn>) {
+  return JSON.parse(fetchMock.mock.calls[0][1].body);
 }
 
 describe('hydrateEventsList', () => {
@@ -79,8 +65,8 @@ describe('hydrateEventsList', () => {
     );
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const { url, body } = eventsCall(fetchMock, 3);
-    expect(url).toContain('/api/kychon');
+    const body = envelope(fetchMock);
+    expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/kychon-api');
     expect(body).toMatchObject({ operation: 'events.list', phase: 'query', input: { limit: 3 } });
     expect(body.input.filters).toEqual(
       expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]),
@@ -103,7 +89,7 @@ describe('hydrateEventsList', () => {
     );
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const { body } = eventsCall(fetchMock, 4);
+    const body = envelope(fetchMock);
     expect(body.input.filters).toEqual(
       expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]),
     );
@@ -125,7 +111,7 @@ describe('hydrateEventsList', () => {
     );
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const filters = eventsCall(fetchMock, 5).body.input.filters;
+    const filters = envelope(fetchMock).input.filters;
     expect(filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'gte' })]));
     expect(filters).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'starts_at', op: 'lt' })]));
   });

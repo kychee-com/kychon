@@ -1,19 +1,6 @@
 ---
-export const prerender = false;
-import { auth, adminDb } from '@run402/functions';
 import AdminSettingsApp from '../components/kychon/AdminSettingsApp';
 import Portal from '../layouts/Portal.astro';
-
-const user = await auth.user();
-if (!user) {
-  return Astro.redirect(`/join?returnTo=${encodeURIComponent(Astro.url.pathname)}`, 303);
-}
-// run402-allow-user-filter: adminDb() bypasses RLS for the admin role lookup
-const rows = await adminDb().from('members').select('role,status').eq('user_id', user.id).limit(1);
-const member = rows?.[0];
-if (member?.role !== 'admin' || member?.status !== 'active') {
-  return new Response('Admin access required', { status: 403 });
-}
 ---
 <Portal title="Site Settings">
   <AdminSettingsApp client:load />

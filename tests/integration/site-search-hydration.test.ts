@@ -72,7 +72,7 @@ describe('site_search hydration', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await vi.advanceTimersByTimeAsync(220);
 
-    expect(fetchMock.mock.calls[0][0]).toContain('/api/kychon');
+    expect(fetchMock.mock.calls[0][0]).toContain('/functions/v1/kychon-api');
     const envelope = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(envelope).toMatchObject({
       operation: 'search.suggest',

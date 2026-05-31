@@ -4,7 +4,7 @@ import { ExternalLink, Loader2, ShieldCheck, UserRound, UsersRound } from 'lucid
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Button } from '@/components/kychon/ui';
 import { get } from '@/lib/api';
-import { getRole, getSession } from '@/lib/auth';
+import { getRole, getSession, signIn } from '@/lib/auth';
 
 const DEMO_CREDS = {
   admin: { email: 'demo-admin@kychon.com', password: 'demo123' },
@@ -182,20 +182,8 @@ export default function DemoBannerIsland({ defaultVisible = false }: Props) {
     setPendingRole(nextRole);
     setFailedRole(null);
     try {
-      // Re-sign-in through the platform-hosted route (same content-type the
-      // hosted <SignIn> form posts). The 303 response Set-Cookies the
-      // __Host- session; reload then resolves the new actor via whoami.
-      const res = await fetch('/auth/sign-in', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        credentials: 'same-origin',
-        body: new URLSearchParams({
-          email: DEMO_CREDS[nextRole].email,
-          password: DEMO_CREDS[nextRole].password,
-          returnTo: `${window.location.pathname}${window.location.search}`,
-        }),
-      });
-      if (!res.ok) throw new Error(`sign-in ${res.status}`);
+      localStorage.removeItem('wl_session');
+      await signIn(DEMO_CREDS[nextRole].email, DEMO_CREDS[nextRole].password);
       window.location.reload();
     } catch {
       setFailedRole(nextRole);
@@ -204,10 +192,8 @@ export default function DemoBannerIsland({ defaultVisible = false }: Props) {
   }
 
   function browseAsVisitor() {
-    // Sign-out requires the gateway double-submit CSRF token, which a client
-    // island can't mint — navigate to the hosted sign-out page (renders the
-    // token-bearing form and clears the cookie).
-    window.location.href = '/auth/sign-out';
+    localStorage.removeItem('wl_session');
+    window.location.reload();
   }
 
   if (!demo.visible) return null;

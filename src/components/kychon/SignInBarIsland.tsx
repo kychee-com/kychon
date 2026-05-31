@@ -112,6 +112,12 @@ function SignInBarIsland({ showLangToggle, showThemeToggle }: SignInBarProps) {
     document.dispatchEvent(new CustomEvent('wl-locale-changed', { detail: { locale: next } }));
   }
 
+  function signOut(): void {
+    localStorage.removeItem('wl_session');
+    document.dispatchEvent(new CustomEvent('wl-auth-changed'));
+    window.location.href = '/';
+  }
+
   const showLanguage = showLangToggle && locales.length >= 2;
 
   return (
@@ -152,7 +158,7 @@ function SignInBarIsland({ showLangToggle, showThemeToggle }: SignInBarProps) {
       )}
 
       {session ? (
-        <AccountMenu session={session} />
+        <AccountMenu session={session} onSignOut={signOut} />
       ) : (
         <Button
           className="h-8 whitespace-nowrap px-3 text-xs"
@@ -170,8 +176,10 @@ function SignInBarIsland({ showLangToggle, showThemeToggle }: SignInBarProps) {
 
 function AccountMenu({
   session,
+  onSignOut,
 }: {
   session: PortalSession;
+  onSignOut: () => void;
 }) {
   const label = accountLabel(session);
   const avatarUrl = session.user?.avatar_url || '';
@@ -206,11 +214,9 @@ function AccountMenu({
             {t('nav.profile')}
           </a>
         </DropdownMenuItem>
-        <DropdownMenuItem id="logout-btn" asChild>
-          <a href="/auth/sign-out">
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            {t('nav.sign_out')}
-          </a>
+        <DropdownMenuItem id="logout-btn" onSelect={onSignOut}>
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+          {t('nav.sign_out')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

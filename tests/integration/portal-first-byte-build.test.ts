@@ -14,11 +14,11 @@ const FORBIDDEN_BRAND = 'Kychon Community';
 // prerender, just under the client dir.
 const CLIENT_DIR = join(ROOT, 'dist', 'run402', 'client');
 
-// Representative prerendered pages. The cookie-auth cutover made admin*,
-// profile, and join SSR (prerender = false): they read auth.user() server-side
-// for redirect guards / hosted <SignIn> returnTo, so they never appear as
-// static HTML and are covered by the SSR entry's render path. calendar /
-// search / ssr-probe are likewise SSR-only.
+// Representative prerendered pages. admin* and profile are STATIC with
+// client-side access gating (the ADMIN_PAGES assertions below verify the
+// "Checking access" placeholder is baked but the real admin content is not).
+// calendar / search / ssr-probe are SSR-only (prerender = false), never
+// appear as static HTML, and are covered by the SSR entry's render path.
 const REPRESENTATIVE_PAGES = [
   'index.html',
   'page.html',
@@ -28,8 +28,15 @@ const REPRESENTATIVE_PAGES = [
   'forum.html',
   'resources.html',
   'polls.html',
+  'profile.html',
+  'join.html',
   'event.html',
+  'admin.html',
+  'admin-members.html',
+  'admin-settings.html',
 ];
+
+const ADMIN_PAGES = new Set(['admin.html', 'admin-members.html', 'admin-settings.html']);
 
 function buildPortal(): void {
   execFileSync('npm', ['run', 'build'], {
@@ -74,6 +81,15 @@ describe('Portal first-byte build output', () => {
       expect(html, page).not.toContain('/css/a11y.css');
       expect(html, page).toContain('/js/env.js');
       expect(html, page).not.toContain('/js/env.js?');
+
+      // Static admin pages must bake only the client-side access-checking
+      // placeholder, never the real admin UI — admin content is gated in the
+      // React island at runtime, so it must not leak into public static HTML.
+      if (ADMIN_PAGES.has(page)) {
+        expect(html, page).toContain('data-admin-access-checking');
+        expect(html, page).toContain('Checking access');
+        expect(html, page).not.toContain('data-admin-content');
+      }
     }
 
     buildPortal();

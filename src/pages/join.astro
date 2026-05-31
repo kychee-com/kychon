@@ -1,19 +1,9 @@
 ---
-// SSR so we can read `returnTo` from the query and hand it to the hosted
-// <SignIn> form server-side. The component itself is no-JS (passkey adds a
-// small WebAuthn script); the platform mints the cookie + 303s to returnTo.
-export const prerender = false;
-import { SignIn } from '@run402/astro/components';
+import JoinPageApp from '../components/kychon/JoinPageApp';
 import Portal from '../layouts/Portal.astro';
-import '../styles/auth-hosted.css';
-
-// Set by the openAuthModal nav shim and the SSR redirect guards. Sanitize to a
-// same-origin path (gateway rejects anything else with R402_AUTH_RETURN_TO_INVALID).
-const raw = Astro.url.searchParams.get('returnTo') ?? Astro.url.searchParams.get('return_to') ?? '/';
-const returnTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
 ---
-<Portal title="Sign In">
+<Portal title="Join">
   <div class="mx-auto w-full max-w-md px-4 py-16 sm:px-6">
-    <SignIn returnTo={returnTo} methods={["password", "google", "magic_link", "passkey"]} />
+    <JoinPageApp client:load />
   </div>
 </Portal>
