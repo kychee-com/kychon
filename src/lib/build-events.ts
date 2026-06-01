@@ -163,10 +163,12 @@ export function getBuildEvents(filter: BuildEventsFilter, count: number): Event[
  * stamp `ctx.buildEvents` once per page render so each `events_list`
  * block can apply its own filter+count synchronously. Prefer
  * `getBuildEvents(filter, count)` when you want a single block's
- * sliced view — this is the raw cache.
+ * sliced view. Returns a shallow copy so callers (mutable
+ * `BlockRenderContext.buildEvents`, `EventsPageApp` props) can't mutate the
+ * shared cache.
  */
-export function getAllBuildEvents(): readonly Event[] | null {
-  return cache;
+export function getAllBuildEvents(): Event[] | null {
+  return cache ? cache.slice() : null;
 }
 
 /** Test-only: clear the cache between test runs. */

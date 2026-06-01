@@ -15,15 +15,15 @@
  * These tests assert that behavior at the `kychonImageHtml` boundary
  * (`lqipDataUri` is internal to the module and not exported separately).
  */
-import { describe, expect, it } from 'vitest';
+
 import type { AssetRef } from '@run402/astro';
+import { describe, expect, it } from 'vitest';
 import { kychonImageHtml } from '../../src/lib/kychon-image';
 
 // A well-formed PNG data URL that's deliberately distinct from anything
 // the blurhash decoder would actually produce — lets the assertion confirm
 // the value came from the AssetRef field, not from a decode.
-const SENTINEL_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAQElEQVRFAEQOPYHa0eTL';
+const SENTINEL_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAQElEQVRFAEQOPYHa0eTL';
 
 // A real-shape blurhash string the decoder can process. Used to exercise
 // the fallback path; the test asserts on the data-URL prefix, not the
@@ -79,8 +79,7 @@ describe('kychon-image v1.54 blurhash_data_url fast path', () => {
     // `blurhash_data_url` is a v1.54 field not yet in @run402/astro@0.2.5's
     // AssetRef type; cast locally to attach it. `blurhash` is also set to
     // prove the fast path WINS over the fallback when both are available.
-    (ref as AssetRef & { blurhash_data_url?: string | null }).blurhash_data_url =
-      SENTINEL_DATA_URL;
+    (ref as AssetRef & { blurhash_data_url?: string | null }).blurhash_data_url = SENTINEL_DATA_URL;
     ref.blurhash = SAMPLE_BLURHASH;
 
     const html = kychonImageHtml(ref, 'hero', { sizes: '100vw' });

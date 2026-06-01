@@ -1452,7 +1452,7 @@ async function createPageWithNav(input, _actor) {
     requires_auth: requiresAuth,
     show_in_nav: showInNav,
     nav_position: navPosition,
-    published: input.published === false ? false : true,
+    published: input.published !== false,
   });
 
   const changed = [changedObject('page', page.id ?? slug)];

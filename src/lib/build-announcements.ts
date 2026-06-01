@@ -109,10 +109,12 @@ export async function ensureBuildAnnouncementsLoaded(): Promise<void> {
  * Return the unfiltered build-time announcements cache. Used by
  * `.astro` frontmatter to stamp `ctx.buildAnnouncements` once per
  * page render; `blocks.ts:ANNOUNCEMENTS_FEED.render` slices it
- * (`limit` from the block's config) synchronously.
+ * (`limit` from the block's config) synchronously. Returns a shallow copy so
+ * callers (mutable `BlockRenderContext.buildAnnouncements`) can't mutate the
+ * shared cache.
  */
-export function getAllBuildAnnouncements(): readonly Announcement[] | null {
-  return cache;
+export function getAllBuildAnnouncements(): Announcement[] | null {
+  return cache ? cache.slice() : null;
 }
 
 /** Test-only: clear the cache between test runs. */

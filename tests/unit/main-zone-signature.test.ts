@@ -65,7 +65,10 @@ describe('computeMainZoneSignature', () => {
     const b = baseSection({ id: 'sec-2', position: 1, section_type: 'promo_cards' });
     const sig1 = computeMainZoneSignature({ sections: [a, b], manifestGeneratedAt: null });
     const sig2 = computeMainZoneSignature({
-      sections: [{ ...a, position: 1 }, { ...b, position: 0 }],
+      sections: [
+        { ...a, position: 1 },
+        { ...b, position: 0 },
+      ],
       manifestGeneratedAt: null,
     });
     expect(sig1).not.toBe(sig2);
