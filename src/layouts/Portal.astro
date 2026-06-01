@@ -6,7 +6,6 @@ import { ClientRouter } from 'astro:transitions';
 import '../styles/globals.css';
 import ConfigProvider from '../components/ConfigProvider.astro';
 import AuthProvider from '../components/AuthProvider.astro';
-import AuthModal from '../components/AuthModal.astro';
 import Toast from '../components/Toast.astro';
 import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
@@ -158,7 +157,6 @@ const inlineManifestScript = inlineManifest
       <div data-fullbleed-host></div>
       <AdminZoneAddButton zone="footer" />
     </footer>
-    <AuthModal />
   </div>
 
   <AuthProvider />

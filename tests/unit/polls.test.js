@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { appendBodyFixture, clearBodyFixture } from '../helpers/dom-fixture.js';
 
 const { PollCard } = await import('../../src/components/kychon/PollsBlockIsland.tsx');
+const { setActor, clearActor } = await import('../../src/lib/auth.ts');
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,8 +33,29 @@ const baseOptions = [
 ];
 
 function setSession(session) {
-  if (session) localStorage.setItem('wl_session', JSON.stringify(session));
-  else localStorage.removeItem('wl_session');
+  // Auth state is the in-memory actor cache now (not localStorage). Translate
+  // the test session shape into a whoami-style actor.
+  if (!session) {
+    clearActor();
+    return;
+  }
+  const member = session.user?.member;
+  setActor({
+    state: member?.role === 'admin' ? 'admin' : member ? 'active_member' : 'authenticated_non_member',
+    authenticated: true,
+    user: { id: session.user?.id || 'test-user', email: session.user?.email || '' },
+    member: member
+      ? {
+          id: member.id,
+          userId: member.user_id ?? session.user?.id ?? null,
+          email: member.email ?? '',
+          displayName: member.display_name ?? '',
+          role: member.role ?? 'member',
+          status: member.status ?? 'active',
+          avatarUrl: member.avatar_url ?? null,
+        }
+      : null,
+  });
 }
 
 async function renderPollCard({
@@ -58,6 +80,7 @@ afterEach(() => {
     act(() => root.unmount());
   }
   clearBodyFixture();
+  clearActor();
   localStorage.clear();
 });
 
