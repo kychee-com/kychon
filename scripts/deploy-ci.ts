@@ -96,7 +96,10 @@ try {
 
   const elapsed = ((result.elapsedMs ?? 0) / 1000).toFixed(1);
   console.log(`\n=== ${config.displayName} CI deploy complete (${elapsed}s) ===`);
-  console.log(`  Site:      ${result.siteFilesChanged} changed, ${result.siteFilesSkipped} skipped`);
+  // siteFilesChanged is -1 under the @run402/astro slice (CAS dedupes unchanged
+  // bytes server-side, so the client-side changed count is unknown).
+  const siteChangedLabel = result.siteFilesChanged < 0 ? "(astro slice, CAS-deduped)" : `${result.siteFilesChanged} changed, ${result.siteFilesSkipped} skipped`;
+  console.log(`  Site:      ${siteChangedLabel}`);
   console.log(`  Functions: ${result.functionsChanged} changed, ${result.functionsSkipped} skipped`);
   console.log(`  Live at:   ${config.liveUrl}`);
 } finally {
