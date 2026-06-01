@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { dir, fileSetFromDir, run402 } from "@run402/sdk/node";
-import { buildAstroReleaseSlice } from "@run402/astro/release-slice";
+import { buildAstroReleaseSlice, type AstroReleaseSlice } from "@run402/astro/release-slice";
 
 import { LOCALE_POOL } from "../src/lib/locale-pool.js";
 import type {
@@ -583,6 +583,42 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Kyc
 }
 
 /**
+ * Adapter-aware release artifacts, shared by runDeploy + patchDeploy.
+ *
+ * With the @run402/astro SSR adapter active (`dist/run402/adapter.json`), the
+ * build is reorganized into `dist/run402/client/` (prerendered HTML) +
+ * `dist/run402/server/` (SSR entry). Two things MUST therefore happen against
+ * the CLIENT dir, not `dist/`:
+ *   - env.js / _headers / the engine release manifest are written into
+ *     `clientDir` so they land in the served site;
+ *   - the served site + the SSR renderer function come from
+ *     `buildAstroReleaseSlice(distDir)` (client-rooted LocalDirRef + implicit
+ *     public_paths), NOT a flat `dist/` walk.
+ *
+ * patchDeploy diverging from runDeploy here — writing to `dist/`, hand-rolling
+ * explicit public_paths that matched zero `run402/client/`-prefixed pages, and
+ * never deploying the SSR function — was the root cause of run402#411 (a
+ * "successful" apply that 404'd every route site-wide). Both deploy paths now
+ * route through this helper so they can't re-diverge.
+ *
+ * Returns the @run402/astro slice (`site` + `functions.replace` [+ optional
+ * `routes`]) when the adapter is active, or `null` for the pre-adapter flat
+ * layout (callers fall back to their own `dist/`-rooted handling).
+ */
+async function writeAdapterAwareArtifacts(opts: {
+  distDir: string;
+  clientDir: string;
+  adapterActive: boolean;
+  anonKey: string;
+  releaseManifest: EngineReleaseManifest;
+}): Promise<AstroReleaseSlice | null> {
+  injectEnvJs(opts.clientDir, opts.anonKey);
+  generateAndValidateHeaders(opts.clientDir);
+  writeEngineReleaseManifest(opts.clientDir, opts.releaseManifest);
+  return opts.adapterActive ? buildAstroReleaseSlice(opts.distDir) : null;
+}
+
+/**
  * High-level deploy: build Astro, assemble the v2 ReleaseSpec, and call
  * `r.project(id).apply()` (the v2.0 "Unified Apply" hero). Used by both
  * `deploy.ts` (production) and `deploy-demo.ts` (per-demo orchestration).
@@ -635,8 +671,6 @@ export async function runDeploy(
   const adapterActive = existsSync(adapterManifestPath);
   const clientDir = adapterActive ? join(distDir, "run402", "client") : distDir;
 
-  injectEnvJs(clientDir, opts.anonKey);
-  generateAndValidateHeaders(clientDir);
   const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
   // With the adapter, `[customPage].astro`'s `getStaticPaths` already
   // produces per-slug HTML under `dist/run402/client/`. The legacy
@@ -659,13 +693,16 @@ export async function runDeploy(
   };
   if (opts.seedFile !== undefined) releaseManifestOptions.seedFile = opts.seedFile;
   const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
-  writeEngineReleaseManifest(clientDir, releaseManifest);
 
-  // Adapter-aware: delegate site + routes + SSR-function fragments to
-  // the helper.
-  const astroSlice = adapterActive
-    ? await buildAstroReleaseSlice(distDir)
-    : null;
+  // Adapter-aware artifacts (env.js, _headers, engine manifest into clientDir)
+  // + the @run402/astro release slice. Shared with patchDeploy.
+  const astroSlice = await writeAdapterAwareArtifacts({
+    distDir,
+    clientDir,
+    adapterActive,
+    anonKey: opts.anonKey,
+    releaseManifest,
+  });
 
   // dir() registers the served dir as a lazy LocalDirRef. When adapter
   // is active, astroSlice.site already carries the LocalDirRef +
@@ -736,7 +773,9 @@ export async function runDeploy(
   // catchall — the gateway resolves explicit routes ahead of the catchall.
   // Additive/safe alongside the legacy cross-origin Bearer path during the
   // client migration; both hit the same function with the same per-op checks.
-  const baseRoutes = astroSlice ? astroSlice.routes.replace : undefined;
+  // @run402/astro@2.3.0 omits `routes` from the slice (optional, not `{ replace: [] }`):
+  // base-release routes carry forward. Default to [] so we still prepend /api/kychon.
+  const baseRoutes = astroSlice ? (astroSlice.routes?.replace ?? []) : undefined;
   const sameOriginApiRoute = { pattern: "/api/kychon", target: { type: "function", name: "kychon-api" } as const };
   const routes = baseRoutes ? [sameOriginApiRoute, ...baseRoutes] : baseRoutes;
 
@@ -955,9 +994,8 @@ export async function patchDeploy(
   // otherwise throw on the missing shell) and synthesize the same slug list
   // from the seed — downstream code only needs the `{slug, file}` shape.
   const adapterActive = existsSync(join(distDir, "run402", "adapter.json"));
+  const clientDir = adapterActive ? join(distDir, "run402", "client") : distDir;
 
-  injectEnvJs(distDir, opts.anonKey);
-  generateAndValidateHeaders(distDir);
   const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
   const materializedCustomPages = adapterActive
     ? safeCustomPageSlugs(deploySeed.pages)
@@ -976,31 +1014,32 @@ export async function patchDeploy(
   };
   if (opts.seedFile !== undefined) releaseManifestOptions.seedFile = opts.seedFile;
   const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
-  writeEngineReleaseManifest(distDir, releaseManifest);
 
-  // Collect all local content first so both the patch and the fallback paths
-  // can use it without duplicating work.
+  // Adapter-aware artifacts (env.js, _headers, engine manifest into clientDir)
+  // + the @run402/astro release slice — SHARED with runDeploy. Writing these to
+  // dist/ and hand-rolling explicit public_paths off a flat dist/ walk (so they
+  // matched zero run402/client/-prefixed pages), plus never deploying the SSR
+  // renderer function, was the run402#411 site-wide 404. The SSR function is
+  // merged into the deployed set below.
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
   if (opts.extraFunction) collectOpts.extraFunction = opts.extraFunction;
 
-  const [newFileSet, functionsMap] = await Promise.all([
-    fileSetFromDir(distDir),
+  const [astroSlice, functionsMap] = await Promise.all([
+    writeAdapterAwareArtifacts({ distDir, clientDir, adapterActive, anonKey: opts.anonKey, releaseManifest }),
     collectFunctionsMap(join(ROOT, "functions"), collectOpts),
   ]);
-
-  const publicPaths = buildExplicitPublicPathSpecs({
-    files: Object.keys(newFileSet),
-    pageSlugs: materializedCustomPages.map(p => p.slug),
-  });
+  const finalFunctionsMap = astroSlice
+    ? { ...functionsMap, ...astroSlice.functions.replace }
+    : functionsMap;
 
   const database: ReleaseSpec["database"] = {
     migrations: [{ id: migrationId, sql }],
     expose: { version: "1", tables: [...EXPOSE_TABLES] },
   };
 
-  const fnNames = Object.keys(functionsMap);
-  const scheduledFns = fnNames.filter(n => functionsMap[n]?.schedule);
+  const fnNames = Object.keys(finalFunctionsMap);
+  const scheduledFns = fnNames.filter(n => finalFunctionsMap[n]?.schedule);
 
   // Try to fetch the active release for diffing. CI sessions (deploy-only
   // scope) cannot read release inventory, so this will throw in CI — that's
@@ -1012,51 +1051,65 @@ export async function patchDeploy(
     liveRelease = null;
   }
 
-  // Build site and functions specs — smart patch when a baseline is
-  // available, full replace when it isn't. Either way: no subdomains,
-  // no routes (content-only, CI-compatible).
+  // Site spec. With the SSR adapter active, the served site is the slice's
+  // client-rooted LocalDirRef + implicit public_paths; the CAS substrate
+  // dedupes unchanged bytes on apply, so a slice `replace` only uploads what
+  // changed — the hand-rolled patch diff is unnecessary (and was wrong under
+  // the adapter: it's what 404'd the site). The flat-dist patch/replace path is
+  // retained for the pre-adapter layout. Either way: no subdomains, no routes.
   let siteSpec: KychonReleaseSpec["site"];
-  let siteChanged: number;
+  let siteChanged = -1;
   let siteSkipped = 0;
   let patchDeleteCount = 0;
+  let siteTotal = -1;
 
-  if (liveRelease) {
-    const livePaths = new Map(liveRelease.site.paths.map(p => [p.path, p.content_sha256]));
-    const patchPut: FileSet = {};
-    const patchDelete: string[] = [];
+  if (astroSlice) {
+    siteSpec = astroSlice.site;
+  } else {
+    const newFileSet = await fileSetFromDir(distDir);
+    siteTotal = Object.keys(newFileSet).length;
+    const publicPaths = buildExplicitPublicPathSpecs({
+      files: Object.keys(newFileSet),
+      pageSlugs: materializedCustomPages.map(p => p.slug),
+    });
+    if (liveRelease) {
+      const livePaths = new Map(liveRelease.site.paths.map(p => [p.path, p.content_sha256]));
+      const patchPut: FileSet = {};
+      const patchDelete: string[] = [];
 
-    await Promise.all(
-      Object.entries(newFileSet).map(async ([path, source]) => {
-        const liveSha = livePaths.get(path);
-        if (!liveSha) {
-          patchPut[path] = source;
-        } else {
-          const localSha = await hashFileBytes((source as FsFileSource).path);
-          if (localSha !== liveSha) {
+      await Promise.all(
+        Object.entries(newFileSet).map(async ([path, source]) => {
+          const liveSha = livePaths.get(path);
+          if (!liveSha) {
             patchPut[path] = source;
           } else {
-            siteSkipped++;
+            const localSha = await hashFileBytes((source as FsFileSource).path);
+            if (localSha !== liveSha) {
+              patchPut[path] = source;
+            } else {
+              siteSkipped++;
+            }
           }
-        }
-      }),
-    );
-    for (const path of livePaths.keys()) {
-      if (!newFileSet[path]) patchDelete.push(path);
+        }),
+      );
+      for (const path of livePaths.keys()) {
+        if (!newFileSet[path]) patchDelete.push(path);
+      }
+      patchDeleteCount = patchDelete.length;
+      siteChanged = Object.keys(patchPut).length;
+      siteSpec = {
+        patch: { put: patchPut, delete: patchDelete },
+        public_paths: { mode: "explicit", replace: publicPaths },
+      };
+    } else {
+      console.warn("  No active release available — using site.replace.");
+      siteChanged = Object.keys(newFileSet).length;
+      siteSpec = { replace: newFileSet, public_paths: { mode: "explicit", replace: publicPaths } };
     }
-    patchDeleteCount = patchDelete.length;
-    siteChanged = Object.keys(patchPut).length;
-    siteSpec = {
-      patch: { put: patchPut, delete: patchDelete },
-      public_paths: { mode: "explicit", replace: publicPaths },
-    };
-  } else {
-    console.warn("  No active release available — using site.replace.");
-    siteChanged = Object.keys(newFileSet).length;
-    siteSpec = { replace: newFileSet, public_paths: { mode: "explicit", replace: publicPaths } };
   }
 
   const fnDiff = liveRelease
-    ? diffFunctionsMap(functionsMap, new Map(liveRelease.functions.map(f => [f.name, f.code_hash])), opts.excludeFunctions ?? [])
+    ? diffFunctionsMap(finalFunctionsMap, new Map(liveRelease.functions.map(f => [f.name, f.code_hash])), opts.excludeFunctions ?? [])
     : null;
 
   // The i18n slice is INTENTIONALLY omitted in patchDeploy. The Run402 SDK's
@@ -1070,13 +1123,16 @@ export async function patchDeploy(
   const spec: KychonReleaseSpec = {
     site: siteSpec,
     database,
-    functions: fnDiff?.spec ?? { replace: functionsMap },
+    functions: fnDiff?.spec ?? { replace: finalFunctionsMap },
   };
 
-  const modeSuffix = liveRelease ? "patch" : "replace (no baseline)";
+  const modeSuffix = astroSlice ? "astro slice" : liveRelease ? "patch" : "replace (no baseline)";
+  const siteLine = astroSlice
+    ? "  Site: @run402/astro slice (client-rooted, implicit public_paths; CAS dedupes unchanged bytes on apply)"
+    : `  Site: ${siteChanged} changed + ${patchDeleteCount} removed, ${siteSkipped} skipped (of ${siteTotal} total)`;
   console.log(
     `Patch deploy to ${opts.projectId} (subdomain: ${opts.subdomain}) [${modeSuffix}]\n` +
-    `  Site: ${siteChanged} changed + ${patchDeleteCount} removed, ${siteSkipped} skipped (of ${Object.keys(newFileSet).length} total)\n` +
+    `${siteLine}\n` +
     `  Functions: ${fnDiff ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped` : `${fnNames.length} (replace)`} (of ${fnNames.length} total, ${scheduledFns.length} scheduled)\n` +
     `  i18n: (omitted — CI OIDC forbids; carries forward from base release)\n` +
     `  ${sql.length} migration bytes (id: ${migrationId})`,
