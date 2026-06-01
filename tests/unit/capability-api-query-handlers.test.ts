@@ -222,9 +222,9 @@ describe('Capability API query handlers', () => {
 
   it('gates members.list / members.get on site_config.directory_public for anonymous actors', async () => {
     // Without directory_public set, anonymous is denied.
-    await expect(
-      runCapabilityQuery('members.list', {}, { actor: anonymousActor, db: sampleDb() }),
-    ).rejects.toThrow(/permission denied for members.list/i);
+    await expect(runCapabilityQuery('members.list', {}, { actor: anonymousActor, db: sampleDb() })).rejects.toThrow(
+      /permission denied for members.list/i,
+    );
 
     // With directory_public=true, anonymous can list — sensitive
     // fields (email, custom_fields) stay redacted by memberRow.
@@ -263,7 +263,7 @@ describe('Capability API query handlers', () => {
       {},
       { actor: memberActor, db: sampleDb() },
     )) as JsonObject;
-    expect((memberListPrivate.rows as JsonObject[])).toHaveLength(1);
+    expect(memberListPrivate.rows as JsonObject[]).toHaveLength(1);
   });
 
   it('implements events, registration options, RSVPs, announcements, and resources', async () => {

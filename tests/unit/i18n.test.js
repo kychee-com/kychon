@@ -33,10 +33,10 @@ describe('i18n.js', () => {
     vi.resetModules();
     mockFetch.mockReset();
     localStorage._data = {};
-    // biome-ignore lint/suspicious/noDocumentCookie: this is a mocked document
-    // for unit tests, not a real browser context — the Cookie Store API isn't
-    // available here. Production cookie write at src/lib/i18n.ts:setLanguage
-    // is in biome's ignore list.
+    // Mocked document for unit tests, not a real browser context — the Cookie
+    // Store API isn't available here. Production cookie write at
+    // src/lib/i18n.ts:setLanguage is in biome's ignore list.
+    // biome-ignore lint/suspicious/noDocumentCookie: mocked document for unit tests
     document.cookie = '';
 
     // Default mock: brand.json returns en
