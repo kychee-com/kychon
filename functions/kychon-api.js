@@ -2305,7 +2305,7 @@ async function findMember(user) {
   // run402-allow-user-filter: adminDb() bypasses RLS to bootstrap actor → member mapping
   const byUserId = await db
     .from('members')
-    .select('id,user_id,email,display_name,role,status')
+    .select('id,user_id,email,display_name,role,status,avatar_url')
     .eq('user_id', user.id)
     .limit(1);
   if (byUserId?.[0]) return normalizeMember(byUserId[0], 'user_id');
@@ -2314,7 +2314,7 @@ async function findMember(user) {
   if (email) {
     const byEmail = await db
       .from('members')
-      .select('id,user_id,email,display_name,role,status')
+      .select('id,user_id,email,display_name,role,status,avatar_url')
       .eq('email', email)
       .limit(1);
     if (byEmail?.[0]) return normalizeMember(byEmail[0], 'email');
@@ -2331,6 +2331,7 @@ function normalizeMember(row, lookup) {
     userId: row.user_id || null,
     email: normalizeEmail(row.email) || null,
     displayName,
+    avatarUrl: row.avatar_url || null,
     role: String(row.role || 'member').toLowerCase(),
     status: String(row.status || 'pending').toLowerCase(),
     lookup,

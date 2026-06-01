@@ -12,6 +12,7 @@ import { Input } from './kychon/ui';
 
 <script>
   import { del, get, patch } from '../lib/api';
+  import { getRole } from '../lib/auth';
   import { clearCache, ready, refreshMemberRecord } from '../lib/config';
   import {
     collectDescendantElements,
@@ -915,8 +916,8 @@ import { Input } from './kychon/ui';
   async function initAdminEditor() {
     await ready;
     await refreshMemberRecord();
-    const session = JSON.parse(localStorage.getItem('wl_session') || 'null');
-    if (session?.user?.member?.role !== 'admin') return;
+    // refreshMemberRecord populates the actor cache; gate the inline editor on it.
+    if (getRole() !== 'admin') return;
     document.body.dataset.admin = 'true';
     void ensureAdminEditorControls();
     void ensureAdminActionPrompts();

@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../src/lib/auth-modal-events', () => ({ openAuthModal: vi.fn() }));
+
+import { clearActor } from '../../src/lib/auth';
+import { openAuthModal } from '../../src/lib/auth-modal-events';
 import type { Section } from '../../src/lib/blocks';
 import { bodyFixture, clearBodyFixture } from '../helpers/dom-fixture.js';
 
@@ -160,6 +164,10 @@ async function hydrateFromCachedSections(sections: Section[], session?: unknown)
 describe('sign_in_bar hydration', () => {
   beforeEach(() => {
     document.documentElement.removeAttribute('data-theme');
+    // Reset the in-memory actor cache + memoized whoami between tests (this
+    // file does not vi.resetModules, so the auth module persists).
+    clearActor();
+    vi.mocked(openAuthModal).mockClear();
   });
 
   afterEach(() => {
@@ -232,13 +240,8 @@ describe('sign_in_bar hydration', () => {
     });
   });
 
-  it('opens auth through the Kychon event boundary', async () => {
+  it('routes the sign-in button through the hosted /join nav shim', async () => {
     await hydrateFromCachedSections([signInBarSection({ show_lang_toggle: false, show_theme_toggle: false })]);
-
-    const events: CustomEvent[] = [];
-    document.addEventListener('kychon:auth-open', ((event: CustomEvent) => {
-      events.push(event);
-    }) as EventListener);
 
     let login: HTMLButtonElement | null = null;
     await vi.waitFor(() => {
@@ -247,10 +250,7 @@ describe('sign_in_bar hydration', () => {
     });
     login?.click();
 
-    await vi.waitFor(() => {
-      expect(events).toHaveLength(1);
-    });
-    expect(events[0]?.detail.trigger).toBe(login);
+    expect(openAuthModal).toHaveBeenCalledWith({ trigger: login });
   });
 
   it('renders full-bleed header banners outside the sticky nav shell', async () => {

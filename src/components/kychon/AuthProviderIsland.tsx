@@ -1,86 +1,41 @@
 'use client';
 
 import { useEffect } from 'react';
-import {
-  consumeAuthReturnTo,
-  consumeGoogleLinkResumeIntent,
-  consumeOAuthCallbackErrorDetail,
-  handleMagicLinkCallback,
-  handleOAuthCallback,
-  hasMagicLinkCallback,
-  signInWithGoogle,
-} from '@/lib/auth';
-import { openAuthModal } from '@/lib/auth-modal-events';
-import { init } from '@/lib/config';
-import { currentPageSlug, hydratePage } from '@/lib/page-render';
+import { clearActor, loadActor } from '@/lib/auth';
 
-function hasOAuthCallback(): boolean {
-  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const queryParams = new URLSearchParams(window.location.search.replace(/^\?/, ''));
-  return hashParams.has('code') || hashParams.has('error') || queryParams.has('code') || queryParams.has('error');
-}
-
-function showAuthError(message: string) {
-  openAuthModal({ error: message });
-}
-
-async function refreshAuthenticatedPage(): Promise<void> {
-  await init();
-  await hydratePage(currentPageSlug());
-  document.dispatchEvent(new CustomEvent('wl-auth-changed'));
-}
-
+// Cookie-session populate. The platform-hosted /auth/* routes own every
+// sign-in / OAuth / magic-link / passkey callback now, so this island no
+// longer handles callbacks. On mount it resolves the cookie actor via whoami
+// (over the same-origin /api/kychon route), force-logs-out any stale
+// pre-cutover localStorage session, and fans out `wl-auth-changed` so the
+// chrome + gated islands repaint with the resolved actor.
 export default function AuthProviderIsland() {
   useEffect(() => {
     let cancelled = false;
 
-    async function handleCallback() {
-      if (hasMagicLinkCallback()) {
+    async function resolveActor(): Promise<void> {
+      const actor = await loadActor();
+      if (cancelled) return;
+
+      // A leftover `wl_session` (written by the pre-cutover Bearer build) has
+      // no cookie, so whoami resolves it as anonymous. Clear it once so the
+      // user re-signs-in through the hosted flow instead of seeing a ghost
+      // signed-in state from stale storage.
+      if (!actor?.authenticated) {
         try {
-          const resumeGoogleLink = consumeGoogleLinkResumeIntent();
-          const session = await handleMagicLinkCallback();
-          if (session && !cancelled) {
-            await refreshAuthenticatedPage();
-            if (resumeGoogleLink) await signInWithGoogle();
+          if (localStorage.getItem('wl_session')) {
+            localStorage.removeItem('wl_session');
+            clearActor();
           }
-        } catch (err) {
-          showAuthError(
-            err instanceof Error
-              ? err.message
-              : 'This secure sign-in link could not be used. Please request a new link.',
-          );
+        } catch {
+          // localStorage unavailable — nothing to clear.
         }
-        return;
       }
 
-      if (!hasOAuthCallback()) return;
-
-      const callbackError = consumeOAuthCallbackErrorDetail();
-      if (callbackError) {
-        openAuthModal({
-          error: callbackError.message,
-          ...(callbackError.flow ? { flow: callbackError.flow } : {}),
-        });
-        return;
-      }
-
-      try {
-        const session = await handleOAuthCallback();
-        if (!session || cancelled) return;
-
-        const returnTo = consumeAuthReturnTo();
-        const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}`;
-        if (returnTo && returnTo !== currentPath) {
-          window.location.replace(returnTo);
-        } else {
-          await refreshAuthenticatedPage();
-        }
-      } catch (err) {
-        showAuthError(err instanceof Error ? err.message : 'Google sign-in could not be completed. Please try again.');
-      }
+      document.dispatchEvent(new CustomEvent('wl-auth-changed'));
     }
 
-    void handleCallback();
+    void resolveActor();
     return () => {
       cancelled = true;
     };

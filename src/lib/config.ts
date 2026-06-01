@@ -3,8 +3,8 @@
 // (src/lib/blocks.ts) and per-block hydrators (src/lib/block-hydrators.ts).
 // This module no longer touches #nav-links / #nav-user.
 
-import { get, getCurrentActorContext, patch } from './api.js';
-import { getSession, getSessionEmail } from './auth.js';
+import { get, patch } from './api.js';
+import { clearActor, loadActor, memberViewFromActor, setSessionMember } from './auth.js';
 import { canonicalRouteKey } from './clean-routes.js';
 import { findDirectElementChild } from './dom-structure.js';
 import { loadLocale, setAvailableLocales } from './i18n.js';
@@ -384,29 +384,16 @@ export function applyBranding(config: Record<string, any>): void {
 }
 
 // --- Member record ---
+// The session view is the in-memory actor cache (src/lib/auth.ts).
+// applyMemberToSession overlays the full member DB row onto
+// getSession().user.member; clearStoredSession force-logs-out.
 function applyMemberToSession(member: any): void {
-  const session = getSession();
-  if (!session) return;
-  if (!session.user || typeof session.user !== 'object') session.user = {};
-  session.user.member = member;
-  localStorage.setItem('wl_session', JSON.stringify(session));
+  setSessionMember(member);
 }
 
 function clearStoredSession(): void {
-  localStorage.removeItem('wl_session');
+  clearActor();
   document.dispatchEvent(new CustomEvent('wl-auth-changed'));
-}
-
-function actorMemberToSessionMember(member: any): any | null {
-  if (!member?.id) return null;
-  return {
-    id: member.id,
-    user_id: member.userId || null,
-    email: member.email || '',
-    display_name: member.displayName || '',
-    role: member.role || 'member',
-    status: member.status || 'pending',
-  };
 }
 
 function actorCanReadMembers(actor: any): boolean {
@@ -418,17 +405,13 @@ function isAuthOrPermissionError(error: unknown): boolean {
   return code === 'permission.denied' || (typeof code === 'string' && code.startsWith('auth.'));
 }
 
-async function findMemberForSession(session: any): Promise<any | null> {
-  const userId = session?.user?.id;
-
-  const context = await getCurrentActorContext();
-  const actor = context?.actor;
+async function findMemberForActor(actor: any): Promise<any | null> {
   if (!actor?.authenticated) {
     clearStoredSession();
     return null;
   }
 
-  const actorMember = actorMemberToSessionMember(actor.member);
+  const actorMember = memberViewFromActor(actor.member);
   if (!actorMember) return null;
 
   let member = actorMember;
@@ -441,9 +424,10 @@ async function findMemberForSession(session: any): Promise<any | null> {
     }
   }
 
+  const userId = actor.user?.id;
   if (member && userId && member.user_id !== userId && member.role === 'admin') {
     try {
-      await patchMemberUserId(member.id, userId, session);
+      await patchMemberUserId(member.id, userId);
       member = { ...member, user_id: userId };
     } catch {
       // Keep the existing session usable; linking can be retried on a later load.
@@ -452,24 +436,23 @@ async function findMemberForSession(session: any): Promise<any | null> {
   return member;
 }
 
-async function patchMemberUserId(memberId: unknown, userId: string, session: any): Promise<void> {
+async function patchMemberUserId(memberId: unknown, userId: string): Promise<void> {
   if (!memberId || !userId) return;
-  await patch(`members?id=eq.${memberId}`, { user_id: userId }, session);
+  await patch(`members?id=eq.${memberId}`, { user_id: userId });
 }
 
 export async function refreshMemberRecord(): Promise<void> {
-  const session = getSession();
-  if (!session) return;
+  const actor = await loadActor();
+  if (!actor?.authenticated) return;
 
-  const userId = session?.user?.id;
-  const sessionKey = userId || getSessionEmail(session) || String(session?.access_token || '').slice(0, 16);
+  const sessionKey = actor.user?.id || actor.user?.email || 'anon';
   const cacheKey = WL_CACHE_MEMBER_PREFIX + sessionKey;
   const useMemberCache = !ADMIN_PATHS.includes(window.location.pathname);
   const cached = useMemberCache ? readCache(cacheKey) : null;
   if (cached) {
     applyMemberToSession(cached);
     if (!isFresh(cacheKey, MEMBER_TTL)) {
-      findMemberForSession(session).then((member) => {
+      findMemberForActor(actor).then((member) => {
         if (member) {
           writeCache(cacheKey, member);
           if (JSON.stringify(member) !== JSON.stringify(cached)) {
@@ -484,7 +467,7 @@ export async function refreshMemberRecord(): Promise<void> {
   }
 
   try {
-    const member = await findMemberForSession(session);
+    const member = await findMemberForActor(actor);
     if (member) {
       applyMemberToSession(member);
       writeCache(cacheKey, member);
