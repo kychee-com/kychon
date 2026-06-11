@@ -47,6 +47,14 @@ export interface DemoConfig {
   kychonProject: string;
   /** Path to the demo's reset-demo.js (relative to repo root). */
   resetDemoFile: string;
+  /**
+   * Cron schedule for the hourly demo reset. Staggered across demos so the
+   * three resets don't all fire at :00 and stack their PostgREST schema-cache
+   * reloads on the shared Aurora writer (run402-private#494). Passed verbatim
+   * to scripts/generate-reset-function.js and parsed back out of the emitted
+   * `// schedule: "..."` directive by scripts/_lib.ts at deploy time.
+   */
+  resetSchedule: string;
 }
 
 export interface DeployOneDemoOptions {
@@ -66,6 +74,7 @@ export const DEMOS: Record<string, DemoConfig> = {
     assetsDir: "demo/eagles/assets",
     kychonProject: "eagles",
     resetDemoFile: "demo/eagles/reset-demo.js",
+    resetSchedule: "0 * * * *",
   },
   "silver-pines": {
     displayName: "Silver Pines",
@@ -76,6 +85,7 @@ export const DEMOS: Record<string, DemoConfig> = {
     assetsDir: "demo/silver-pines/assets",
     kychonProject: "silver-pines",
     resetDemoFile: "demo/silver-pines/reset-demo.js",
+    resetSchedule: "20 * * * *",
   },
   barrio: {
     displayName: "Barrio Unido",
@@ -86,6 +96,7 @@ export const DEMOS: Record<string, DemoConfig> = {
     assetsDir: "demo/barrio-unido/assets",
     kychonProject: "barrio-unido",
     resetDemoFile: "demo/barrio-unido/reset-demo.js",
+    resetSchedule: "40 * * * *",
   },
 };
 
@@ -259,7 +270,7 @@ export async function deployOneDemo(
     });
     console.log(`Regenerating ${config.resetDemoFile} from full seed.sql...`);
     execSync(
-      `node scripts/generate-reset-function.js seed.sql > ${config.resetDemoFile}`,
+      `node scripts/generate-reset-function.js seed.sql "${config.resetSchedule}" > ${config.resetDemoFile}`,
       { stdio: "inherit", cwd: ROOT },
     );
 
