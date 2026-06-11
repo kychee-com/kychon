@@ -6,11 +6,22 @@ import { safeCustomPageSlugs } from '../lib/clean-routes';
 import { resolveActiveProjectSeed } from '../seeds';
 import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
 import { ensureBuildAnnouncementsLoaded, getAllBuildAnnouncements } from '../lib/build-announcements';
+import { ensureBuildPagesLoaded, getAllBuildPages, getBuildPageBySlug } from '../lib/build-pages';
 import { renderMainZone, makeBakeContext } from '../lib/chrome-bake';
 
 export async function getStaticPaths() {
   const { seed } = await resolveActiveProjectSeed();
-  return safeCustomPageSlugs(seed.pages).map((customPage) => ({
+  // Union the typed-seed pages with the deployed project's DB-backed pages
+  // (kychon#126): ported sites carry their pages only in the database, so
+  // without the build-time fetch they would get no per-slug static HTML at
+  // all — let alone SSR'd bodies.
+  await ensureBuildPagesLoaded();
+  const slugs = new Set(safeCustomPageSlugs(seed.pages));
+  const buildPages = getAllBuildPages();
+  if (buildPages) {
+    for (const slug of safeCustomPageSlugs(buildPages)) slugs.add(slug);
+  }
+  return [...slugs].map((customPage) => ({
     params: { customPage },
   }));
 }
@@ -32,17 +43,23 @@ export async function getStaticPaths() {
 // the destructive `innerHTML` swap.
 const { seed } = await resolveActiveProjectSeed();
 const slug = String(Astro.params.customPage ?? '');
-await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded()]);
+await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded(), ensureBuildPagesLoaded()]);
 const bakeCtx = {
   ...makeBakeContext(seed),
   buildEvents: getAllBuildEvents(),
   buildAnnouncements: getAllBuildAnnouncements(),
 };
 const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seed, slug, bakeCtx);
+// SSR the page body itself (kychon#126): with `initialPage` the island
+// server-renders the real title + sanitized rich-text content instead of
+// the loading skeleton, so the served HTML carries the page body for
+// no-JS readers, crawlers, and the concierge parity gate. The runtime
+// still silently refreshes from the live DB after hydration.
+const buildPage = getBuildPageBySlug(slug);
 ---
-<Portal title="Page">
+<Portal title={buildPage?.title ?? 'Page'}>
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <CustomPageApp client:load />
+    <CustomPageApp client:load initialPage={buildPage} />
   </div>
   <div id="sections" class="mt-8" data-sortable-group="page-sections" data-zone="main" data-bake-signature={bakeSignature} set:html={sectionsHtml}></div>
   <AdminZoneAddButton zone="main" />

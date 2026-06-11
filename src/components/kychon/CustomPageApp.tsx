@@ -28,18 +28,31 @@ function PageSkeleton() {
   );
 }
 
-export default function CustomPageApp() {
-  const [page, setPage] = useState<Page | null>(null);
-  const [loading, setLoading] = useState(true);
+interface CustomPageAppProps {
+  /**
+   * Build-time page row baked by `[customPage].astro` (kychon#126). When
+   * present, the island server-renders the real title + content instead of
+   * the loading skeleton, so the served HTML carries the page body; the
+   * client then refreshes silently from the live DB (auth, translations,
+   * admin edit affordances) without flashing back to a skeleton.
+   */
+  initialPage?: Page | null;
+}
+
+export default function CustomPageApp({ initialPage = null }: CustomPageAppProps) {
+  const [page, setPage] = useState<Page | null>(initialPage);
+  const [loading, setLoading] = useState(!initialPage);
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [admin, setAdmin] = useState(false);
 
   const loadPage = useCallback(async () => {
-    setLoading(true);
+    // Silent refresh when SSR already painted the page: keep the baked
+    // content on screen instead of flashing the skeleton.
+    setLoading(!initialPage);
     setError('');
     setNotFound(false);
-    setPage(null);
+    if (!initialPage) setPage(null);
     try {
       await ready;
       const slug = currentSlug();
@@ -68,7 +81,7 @@ export default function CustomPageApp() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [initialPage]);
 
   useEffect(() => {
     void loadPage();

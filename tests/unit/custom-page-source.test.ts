@@ -10,12 +10,20 @@ const app = readFileSync(join(root, 'src/components/kychon/CustomPageApp.tsx'), 
 describe('custom page source', () => {
   it('uses a shared React island instead of inline DOM scripting', () => {
     for (const source of [pageRoute, customPageRoute]) {
-      expect(source).toContain('<CustomPageApp client:load />');
+      expect(source).toMatch(/<CustomPageApp client:load(?: initialPage=\{buildPage\})? \/>/);
       expect(source).not.toContain('<script>');
       expect(source).not.toContain('ky-container');
       expect(source).not.toContain('id="page-title"');
       expect(source).not.toContain('id="page-content"');
     }
+  });
+
+  it('SSR-bakes the page body on clean-route custom pages (kychon#126)', () => {
+    expect(customPageRoute).toContain('ensureBuildPagesLoaded');
+    expect(customPageRoute).toContain('initialPage={buildPage}');
+    expect(app).toContain('initialPage');
+    // The island must not flash a skeleton over baked content.
+    expect(app).toContain('setLoading(!initialPage)');
   });
 
   it('keeps slug resolution, auth redirect, translations, and editor hooks', () => {
