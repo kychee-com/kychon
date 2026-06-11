@@ -447,6 +447,53 @@ const typeform: EmbedProvider = {
   trustLevel: 'verified',
 };
 
+const mailchimp: EmbedProvider = {
+  id: 'mailchimp',
+  label: 'Mailchimp signup',
+  icon: '\u{1F4E7}',
+  buildSrc(params) {
+    // Accepts the action/hosted URL from a Mailchimp embed
+    // (https://<audience>.<dc>.list-manage.com/subscribe/post?u=…&id=…)
+    // and normalises it to the hosted, iframe-able subscribe page
+    // (verified: Mailchimp serves it without X-Frame-Options or
+    // frame-ancestors). Copied websites keep feeding the club's existing
+    // Mailchimp audience instead of losing the form.
+    const raw = requireString(params, 'signup_url').trim();
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new Error('Mailchimp signup_url must be a valid URL');
+    }
+    if (!/^[a-z0-9][a-z0-9.-]*\.list-manage\.com$/.test(url.hostname)) {
+      throw new Error('Mailchimp signup_url must be on *.list-manage.com');
+    }
+    const u = url.searchParams.get('u');
+    const id = url.searchParams.get('id');
+    if (!u || !id || !/^[A-Za-z0-9]+$/.test(u) || !/^[A-Za-z0-9]+$/.test(id)) {
+      throw new Error('Mailchimp signup_url must include the u and id audience params');
+    }
+    const embed = new URL(`https://${url.hostname}/subscribe`);
+    embed.searchParams.set('u', u);
+    embed.searchParams.set('id', id);
+    return embed.toString();
+  },
+  paramsSchema: {
+    signup_url: {
+      type: 'text',
+      required: true,
+      label: 'Mailchimp signup URL',
+      help: 'The form action or hosted signup link (…list-manage.com/subscribe…?u=…&id=…)',
+      placeholder: 'https://example.us15.list-manage.com/subscribe/post?u=…&id=…',
+    },
+  },
+  sandbox: ['allow-scripts', 'allow-same-origin', 'allow-forms', 'allow-popups'],
+  frameAncestor: 'https://*.list-manage.com',
+  defaultHeight: '600px',
+  responsive: false,
+  trustLevel: 'verified',
+};
+
 const iframe: EmbedProvider = {
   id: 'iframe',
   label: 'Generic iframe (untrusted source)',
@@ -496,6 +543,7 @@ export const PROVIDERS: Record<string, EmbedProvider> = {
   eventbrite,
   google_forms: googleForms,
   typeform,
+  mailchimp,
   iframe,
 };
 
