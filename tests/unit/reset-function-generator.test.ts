@@ -36,10 +36,11 @@ describe('reset-demo generator', () => {
   });
 
   it('wipes mutable tables in one multi-table TRUNCATE, not a per-table loop', () => {
-    // Each per-table TRUNCATE is its own transaction and forces a full
-    // PostgREST schema-cache reload; 18 of them x 3 demos firing at :00 pegged
-    // the shared Aurora writer to 100% (run402-private#494). One multi-table
-    // statement collapses that to a single reload.
+    // Each per-table TRUNCATE was its own admin-SQL round-trip; 18 x 3 demos
+    // firing at :00 piled concurrent reset work on the shared 2-ACU writer
+    // (run402-private#494). One multi-table statement is a single round-trip.
+    // (TRUNCATE itself triggers no PostgREST reload — it doesn't fire
+    // ddl_command_end.)
     const source = execFileSync('node', ['scripts/generate-reset-function.js', 'demo/eagles/seed.sql'], {
       cwd: root,
       encoding: 'utf8',
