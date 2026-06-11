@@ -9,13 +9,14 @@ function provider(id: keyof typeof PROVIDERS) {
 }
 
 describe('PROVIDERS registry shape', () => {
-  it('includes the v1 providers + admin-content-management expansion (12 total)', () => {
+  it('includes the v1 providers + expansions (13 total)', () => {
     const ids = Object.keys(PROVIDERS).sort();
     expect(ids).toEqual([
       'calendly',
       'eventbrite',
       'google_forms',
       'iframe',
+      'mailchimp',
       'map',
       'soundcloud',
       'spotify',
@@ -56,6 +57,7 @@ describe('PROVIDERS registry shape', () => {
       'eventbrite',
       'google_forms',
       'typeform',
+      'mailchimp',
     ] as const) {
       expect(provider(id).trustLevel, id).toBe('verified');
     }
@@ -259,5 +261,38 @@ describe('sandbox tokens are exact and minimal', () => {
 
   it('iframe (generic) has the strict default', () => {
     expect(provider('iframe').sandbox).toEqual(['allow-scripts', 'allow-same-origin']);
+  });
+});
+
+describe('mailchimp buildSrc', () => {
+  const { buildSrc } = provider('mailchimp');
+
+  it('normalises a classic embed action URL to the hosted subscribe page', () => {
+    expect(
+      buildSrc({
+        signup_url:
+          'https://mywsmta.us15.list-manage.com/subscribe/post?u=8f3d8f4db0f5983f562cb9f4f&id=82a9fb946b&f_id=00a2a7e1f0',
+      }),
+    ).toBe('https://mywsmta.us15.list-manage.com/subscribe?u=8f3d8f4db0f5983f562cb9f4f&id=82a9fb946b');
+  });
+
+  it('accepts an already-hosted subscribe link', () => {
+    expect(buildSrc({ signup_url: 'https://x.us2.list-manage.com/subscribe?u=abc123&id=def456' })).toBe(
+      'https://x.us2.list-manage.com/subscribe?u=abc123&id=def456',
+    );
+  });
+
+  it('rejects non-list-manage hosts', () => {
+    expect(() => buildSrc({ signup_url: 'https://evil.example.com/subscribe?u=a1&id=b2' })).toThrow(
+      /list-manage\.com/,
+    );
+    expect(() => buildSrc({ signup_url: 'https://list-manage.com.evil.example/subscribe?u=a1&id=b2' })).toThrow();
+  });
+
+  it('rejects missing or malformed audience params', () => {
+    expect(() => buildSrc({ signup_url: 'https://x.us2.list-manage.com/subscribe/post' })).toThrow(/u and id/);
+    expect(() =>
+      buildSrc({ signup_url: 'https://x.us2.list-manage.com/subscribe/post?u=<script>&id=b2' }),
+    ).toThrow(/u and id/);
   });
 });
