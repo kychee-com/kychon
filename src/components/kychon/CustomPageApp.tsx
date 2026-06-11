@@ -64,7 +64,10 @@ export default function CustomPageApp({ initialPage = null }: CustomPageAppProps
 
       const rows = (await get(`pages?slug=eq.${encodeURIComponent(slug)}&published=eq.true&limit=1`)) as Page[];
       if (!rows.length) {
-        setNotFound(true);
+        // Never downgrade SSR-baked content to a not-found card on a
+        // client-side slug-resolution miss (aliased/nested copied-site
+        // paths especially). Only pages with nothing baked show 404.
+        if (!initialPage) setNotFound(true);
         return;
       }
 
@@ -77,7 +80,12 @@ export default function CustomPageApp({ initialPage = null }: CustomPageAppProps
       document.title = translated.title;
       setPage(translated);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Error loading page.');
+      // Same principle for transient refresh errors: keep baked content.
+      if (initialPage) {
+        console.warn('[custom-page] refresh failed; keeping baked content:', loadError);
+      } else {
+        setError(loadError instanceof Error ? loadError.message : 'Error loading page.');
+      }
     } finally {
       setLoading(false);
     }

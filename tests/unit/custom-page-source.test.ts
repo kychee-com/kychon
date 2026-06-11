@@ -26,6 +26,11 @@ describe('custom page source', () => {
     expect(app).toContain('setLoading(!initialPage)');
   });
 
+  it('never downgrades baked content to not-found or error on refresh misses', () => {
+    expect(app).toContain('if (!initialPage) setNotFound(true)');
+    expect(app).toContain('keeping baked content');
+  });
+
   it('keeps slug resolution, auth redirect, translations, and editor hooks', () => {
     expect(app).toContain('resolveCustomPageSlugFromLocation');
     expect(app).toContain('translateItems');
