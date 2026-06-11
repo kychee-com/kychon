@@ -278,9 +278,10 @@ function StatsBlock({ config, options }: { config: Record<string, unknown>; opti
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(14rem,100%),1fr))] gap-4">
         {items.map((item, index) => {
           const content = (
-            <Card className="h-full transition-colors hover:bg-accent/40">
+            <Card className="h-full transition-[background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-accent/40 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
               <CardHeader>
-                <CardTitle className="text-4xl tracking-normal text-primary" {...editableAttrs(`items.${index}.value`, options)}>
+                {/* data-stat-value: count-up hook for src/lib/delight.ts */}
+                <CardTitle data-stat-value="" className="text-4xl tracking-normal text-primary" {...editableAttrs(`items.${index}.value`, options)}>
                   {item.value || '0'}
                 </CardTitle>
                 <CardDescription className="text-base" {...editableAttrs(`items.${index}.label`, options)}>
@@ -380,7 +381,7 @@ function PromoCardsBlock({ config, options }: { config: Record<string, unknown>;
               href={href}
               key={`${title || 'promo'}-${index}`}
             >
-              <Card className="h-full overflow-hidden transition-colors group-hover:border-primary/30 group-hover:shadow-md">
+              <Card className="h-full overflow-hidden transition-[border-color,transform,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
                 <div
                   className="relative aspect-[16/10] overflow-hidden bg-muted"
                   {...editableImageAttrs(index, options)}
