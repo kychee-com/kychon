@@ -1,0 +1,42 @@
+---
+import { ssrConfigValue } from '../lib/ssr-api';
+
+export const prerender = false;
+
+// Source-path alias resolver for copied websites (kychon#128). Ported pages
+// are emitted as single-segment slug routes (`/gr-news-13604666`), but the
+// source site's inbound links and the concierge parity harness expect the
+// original nested paths (`/gr-news/13604666`) to keep working. The porter
+// seeds a `path_aliases` site_config map (publicly visible category) from
+// source path → port path; this rest-param route — lowest Astro precedence,
+// so it only sees otherwise-unmatched requests — 301s matched paths and
+// serves a minimal noindex 404 for everything else.
+const host = Astro.request.headers.get('host') ?? Astro.url.host;
+const path = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const aliases = await ssrConfigValue<Record<string, unknown>>({ key: 'path_aliases', host });
+const target = aliases && typeof aliases === 'object' ? aliases[path] : undefined;
+
+// Same-site relative targets only: a leading single slash, never `//host`,
+// so a mis-seeded map can't become an open redirect.
+if (typeof target === 'string' && target.startsWith('/') && !target.startsWith('//')) {
+  return Astro.redirect(target, 301);
+}
+
+Astro.response.status = 404;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Page not found</title>
+  </head>
+  <body>
+    <main style="font-family: system-ui, sans-serif; padding: 4rem 1rem; text-align: center;">
+      <h1>404</h1>
+      <p>Page not found.</p>
+      <p><a href="/">Go to the homepage</a></p>
+    </main>
+  </body>
+</html>
