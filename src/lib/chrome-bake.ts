@@ -39,6 +39,9 @@ export interface BakedChrome {
    * for token-driven native sites.
    */
   colorScheme: 'light' | 'dark' | 'auto';
+  /** theme.motion: 'subtle' (default — scroll-reveal + stat count-up via
+   *  src/lib/delight.ts) or 'none' to keep every page static. */
+  motion: 'subtle' | 'none';
   bakeCtx: BlockRenderContext;
 }
 
@@ -287,6 +290,7 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     cdnOrigin: cdnOriginFromManifest(bakeCtx.manifest),
     themeFontVarsCss: themeFontVarLines.join(' '),
     colorScheme: colorSchemeFromTheme(theme),
+    motion: theme.motion === 'none' ? 'none' : 'subtle',
     bakeCtx,
   };
 }
