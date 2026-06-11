@@ -117,12 +117,13 @@ const inlineManifestScript = inlineManifest
   <link rel="stylesheet" href="/css/admin-editing.css">
   {inlineManifestScript && <script is:inline set:html={inlineManifestScript}></script>}
   <ClientRouter />
-  <script is:inline define:vars={{ pinnedColorScheme: chrome.colorScheme }}>
+  <script is:inline define:vars={{ pinnedColorScheme: chrome.colorScheme, motionMode: chrome.motion }}>
     // theme.color_scheme pins single-design sites (copied websites
     // especially) to their baked scheme: honoring the visitor's OS
     // dark-mode preference would flip the tokens out from under a design
     // whose imagery and custom CSS are pinned light, producing unreadable
     // white-on-white text. 'auto' keeps OS/localStorage behavior.
+    document.documentElement.setAttribute('data-motion', motionMode);
     function resolveTheme() {
       if (pinnedColorScheme === 'light' || pinnedColorScheme === 'dark') return pinnedColorScheme;
       var t = localStorage.getItem('wl_theme');
@@ -179,7 +180,8 @@ const inlineManifestScript = inlineManifest
 
   <script>
     import { hydratePage, currentPageSlug } from '../lib/page-render';
-    function hydrateChrome() { void hydratePage(currentPageSlug()); }
+    import { initDelight } from '../lib/delight';
+    function hydrateChrome() { void hydratePage(currentPageSlug()).finally(initDelight); }
     hydrateChrome();
     document.addEventListener('astro:after-swap', hydrateChrome);
     document.addEventListener('wl-locale-changed', hydrateChrome);
