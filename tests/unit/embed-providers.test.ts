@@ -283,16 +283,14 @@ describe('mailchimp buildSrc', () => {
   });
 
   it('rejects non-list-manage hosts', () => {
-    expect(() => buildSrc({ signup_url: 'https://evil.example.com/subscribe?u=a1&id=b2' })).toThrow(
-      /list-manage\.com/,
-    );
+    expect(() => buildSrc({ signup_url: 'https://evil.example.com/subscribe?u=a1&id=b2' })).toThrow(/list-manage\.com/);
     expect(() => buildSrc({ signup_url: 'https://list-manage.com.evil.example/subscribe?u=a1&id=b2' })).toThrow();
   });
 
   it('rejects missing or malformed audience params', () => {
     expect(() => buildSrc({ signup_url: 'https://x.us2.list-manage.com/subscribe/post' })).toThrow(/u and id/);
-    expect(() =>
-      buildSrc({ signup_url: 'https://x.us2.list-manage.com/subscribe/post?u=<script>&id=b2' }),
-    ).toThrow(/u and id/);
+    expect(() => buildSrc({ signup_url: 'https://x.us2.list-manage.com/subscribe/post?u=<script>&id=b2' })).toThrow(
+      /u and id/,
+    );
   });
 });
