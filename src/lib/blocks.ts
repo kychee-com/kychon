@@ -208,6 +208,9 @@ export interface NavPresentationConfig {
   transition?: string;
   mobile_menu_bg?: string;
   mobile_menu_padding?: string;
+  /** 'static' lets the header scroll with the page (copied-site source
+   *  behavior parity); default is the sticky header. */
+  header_position?: string;
 }
 
 export interface NavBehaviorConfig {
@@ -1176,6 +1179,7 @@ function renderNavPresentationProps(cfg: NavConfig): {
   setNavStyle(style, '--nav-transition', p.transition || hover.duration);
   setNavStyle(style, '--nav-mobile-menu-bg', p.mobile_menu_bg);
   setNavStyle(style, '--nav-mobile-menu-padding', p.mobile_menu_padding);
+  setNavStyle(style, '--nav-header-position', p.header_position);
 
   let mobileBreakpoint: number | null = null;
   if (b.mobile_breakpoint != null) {

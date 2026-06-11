@@ -88,7 +88,9 @@ a:hover {
   border-bottom: var(--nav-header-border-bottom, 1px solid var(--border, var(--color-border)));
   box-shadow: var(--nav-header-shadow, none);
   padding: var(--nav-header-padding, 0.5rem 0);
-  position: sticky;
+  /* Copied sites whose source header scrolls with the page set
+     header_position: static in the nav block config (kychon#130). */
+  position: var(--nav-header-position, sticky);
   top: var(--demo-banner-height, 0px);
   z-index: 100;
 }
