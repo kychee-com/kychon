@@ -68,7 +68,7 @@ try {
   console.log("Generating seed.sql for reset-demo embed...");
   execSync("npx tsx scripts/generate-seed-sql.ts", { stdio: "inherit", cwd: ROOT });
   console.log(`Regenerating ${config.resetDemoFile}...`);
-  execSync(`node scripts/generate-reset-function.js seed.sql > ${config.resetDemoFile}`, {
+  execSync(`node scripts/generate-reset-function.js seed.sql "${config.resetSchedule}" > ${config.resetDemoFile}`, {
     stdio: "inherit",
     cwd: ROOT,
   });
