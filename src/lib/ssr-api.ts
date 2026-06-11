@@ -104,3 +104,31 @@ export async function ssrEventsList<T = unknown>(params: SsrEventsListParams): P
     return null;
   }
 }
+
+export interface SsrConfigParams {
+  /** site_config key to read (must be in a publicly visible category). */
+  key: string;
+  /** Request host (`Astro.request.headers.get('host')`). */
+  host: string;
+}
+
+/**
+ * Read one public `site_config` value per request. Returns the raw JSONB
+ * value or `null` when the key is absent, non-public, or the gateway call
+ * fails. Used by `[...alias].astro` to resolve copied-site source-path
+ * aliases (kychon#128).
+ */
+export async function ssrConfigValue<T = unknown>(params: SsrConfigParams): Promise<T | null> {
+  try {
+    const row = await client(params.host).request<{ key: string; value: T } | null>(
+      'config.get',
+      'query',
+      { key: params.key },
+    );
+    if (row && typeof row === 'object' && 'value' in row) return row.value;
+    return null;
+  } catch (error) {
+    console.warn('[ssr-api] config.get failed:', error instanceof Error ? error.message : error);
+    return null;
+  }
+}
