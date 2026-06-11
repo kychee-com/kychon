@@ -82,6 +82,29 @@ a:hover {
   color: var(--ky-color-primary-hover, var(--color-primary-hover));
 }
 
+/* Subtle motion (src/lib/delight.ts). The hidden pre-state is keyed off a
+   JS-applied attribute so no-JS readers always see full content; reduced
+   motion collapses everything to static. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(8px);
+}
+[data-reveal='in'] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal='in'] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 /* Nav */
 [data-nav-shell] {
   background: var(--nav-header-bg, var(--background, var(--color-bg)));
