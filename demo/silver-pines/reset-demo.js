@@ -1228,10 +1228,13 @@ export default async (_req) => {
   const adminUserId = demoAccounts.admin_user_id;
   const memberUserId = demoAccounts.member_user_id;
 
-  // 2. Wipe mutable content tables in ONE multi-table TRUNCATE. A single
-  //    statement is one transaction = one PostgREST schema-cache reload, vs
-  //    one reload per table: 18 per-table TRUNCATEs x 3 demos all firing at
-  //    :00 pegged the shared Aurora writer to 100% (run402-private#494).
+  // 2. Wipe mutable content tables in ONE multi-table TRUNCATE — one
+  //    statement / one transaction / one admin-SQL round-trip instead of 18
+  //    separate calls. (TRUNCATE doesn't change the schema and doesn't fire
+  //    ddl_command_end, so it triggers no PostgREST reload either way — the
+  //    win is fewer round-trips + one lock-set acquisition. The real
+  //    run402-private#494 fix is staggering the three demos' reset crons so
+  //    they don't all run at once; see the schedule directive at the top.)
   //    CASCADE + the FK-safe ordering of MUTABLE_TABLES preserve the prior
   //    semantics (multi-table TRUNCATE is order-independent anyway).
   await adminDb().sql(`TRUNCATE ${MUTABLE_TABLES.join(', ')} CASCADE`);

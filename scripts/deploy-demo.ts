@@ -49,10 +49,11 @@ export interface DemoConfig {
   resetDemoFile: string;
   /**
    * Cron schedule for the hourly demo reset. Staggered across demos so the
-   * three resets don't all fire at :00 and stack their PostgREST schema-cache
-   * reloads on the shared Aurora writer (run402-private#494). Passed verbatim
-   * to scripts/generate-reset-function.js and parsed back out of the emitted
-   * `// schedule: "..."` directive by scripts/_lib.ts at deploy time.
+   * three resets don't all run concurrently — each is a full DB wipe + reseed,
+   * and three at once at :00 piled onto the shared Aurora writer
+   * (run402-private#494). Passed verbatim to scripts/generate-reset-function.js
+   * and parsed back out of the emitted `// schedule: "..."` directive by
+   * scripts/_lib.ts at deploy time.
    */
   resetSchedule: string;
 }
