@@ -34,7 +34,7 @@ describe('delight wiring invariants', () => {
   it('the hidden pre-state is JS-applied, never static CSS on sections', () => {
     // Static CSS may only hide [data-reveal] (set by delight.ts at runtime);
     // a bare [data-section] must never be hidden for no-JS readers.
-    expect(css).toContain("[data-reveal] {");
+    expect(css).toContain('[data-reveal] {');
     expect(css).not.toMatch(/\[data-section\][^{]*\{[^}]*opacity:\s*0/);
   });
 
