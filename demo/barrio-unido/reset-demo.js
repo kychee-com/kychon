@@ -1,4 +1,4 @@
-// schedule: "0 * * * *"
+// schedule: "40 * * * *"
 // Reset demo site to seed state — auto-generated, do not edit manually
 // Regenerate with: node scripts/generate-reset-function.js <seed.sql>
 import { adminDb } from '@run402/functions';
@@ -1691,10 +1691,13 @@ export default async (_req) => {
   const adminUserId = demoAccounts.admin_user_id;
   const memberUserId = demoAccounts.member_user_id;
 
-  // 2. TRUNCATE mutable content tables (order matters for FK constraints)
-  for (const table of MUTABLE_TABLES) {
-    await adminDb().sql(`TRUNCATE ${table} CASCADE`);
-  }
+  // 2. Wipe mutable content tables in ONE multi-table TRUNCATE. A single
+  //    statement is one transaction = one PostgREST schema-cache reload, vs
+  //    one reload per table: 18 per-table TRUNCATEs x 3 demos all firing at
+  //    :00 pegged the shared Aurora writer to 100% (run402-private#494).
+  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES preserve the prior
+  //    semantics (multi-table TRUNCATE is order-independent anyway).
+  await adminDb().sql(`TRUNCATE ${MUTABLE_TABLES.join(', ')} CASCADE`);
 
   // 3. Delete non-demo members (keep demo accounts by user_id)
   // First nullify tier_id on kept members to avoid FK constraint on membership_tiers

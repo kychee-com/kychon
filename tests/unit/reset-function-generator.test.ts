@@ -34,4 +34,47 @@ describe('reset-demo generator', () => {
     expect(source).toContain('Annual Spring Food Drive');
     expect(source).not.toContain('Barrio Unido');
   });
+
+  it('wipes mutable tables in one multi-table TRUNCATE, not a per-table loop', () => {
+    // Each per-table TRUNCATE is its own transaction and forces a full
+    // PostgREST schema-cache reload; 18 of them x 3 demos firing at :00 pegged
+    // the shared Aurora writer to 100% (run402-private#494). One multi-table
+    // statement collapses that to a single reload.
+    const source = execFileSync('node', ['scripts/generate-reset-function.js', 'demo/eagles/seed.sql'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(source).toMatch(/TRUNCATE \$\{MUTABLE_TABLES\.join\(', '\)\} CASCADE/);
+    expect(source).not.toMatch(/for \(const table of MUTABLE_TABLES\)/);
+  });
+
+  it('emits the cron schedule from argv, defaulting to top-of-hour', () => {
+    const staggered = execFileSync(
+      'node',
+      ['scripts/generate-reset-function.js', 'demo/eagles/seed.sql', '20 * * * *'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    expect(staggered.startsWith('// schedule: "20 * * * *"')).toBe(true);
+
+    const defaulted = execFileSync('node', ['scripts/generate-reset-function.js', 'demo/eagles/seed.sql'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(defaulted.startsWith('// schedule: "0 * * * *"')).toBe(true);
+  });
+
+  it('staggers the three committed demo reset schedules across the hour', () => {
+    const schedOf = (p: string) => readFileSync(join(root, p), 'utf8').match(/^\/\/ schedule: "([^"]+)"/)?.[1];
+    const schedules = [
+      schedOf('demo/eagles/reset-demo.js'),
+      schedOf('demo/silver-pines/reset-demo.js'),
+      schedOf('demo/barrio-unido/reset-demo.js'),
+    ];
+
+    expect(schedules).toEqual(['0 * * * *', '20 * * * *', '40 * * * *']);
+    // Distinct minute offsets — the whole point is that they don't stack at :00.
+    const minutes = schedules.map((s) => s?.split(' ')[0]);
+    expect(new Set(minutes).size).toBe(3);
+  });
 });
