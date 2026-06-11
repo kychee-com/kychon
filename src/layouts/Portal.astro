@@ -117,19 +117,24 @@ const inlineManifestScript = inlineManifest
   <link rel="stylesheet" href="/css/admin-editing.css">
   {inlineManifestScript && <script is:inline set:html={inlineManifestScript}></script>}
   <ClientRouter />
-  <script is:inline>
-    (function applyTheme() {
+  <script is:inline define:vars={{ pinnedColorScheme: chrome.colorScheme }}>
+    // theme.color_scheme pins single-design sites (copied websites
+    // especially) to their baked scheme: honoring the visitor's OS
+    // dark-mode preference would flip the tokens out from under a design
+    // whose imagery and custom CSS are pinned light, producing unreadable
+    // white-on-white text. 'auto' keeps OS/localStorage behavior.
+    function resolveTheme() {
+      if (pinnedColorScheme === 'light' || pinnedColorScheme === 'dark') return pinnedColorScheme;
       var t = localStorage.getItem('wl_theme');
       if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
-      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      return t;
+    }
+    function applyTheme() {
+      if (resolveTheme() === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
       else document.documentElement.removeAttribute('data-theme');
-    })();
-    document.addEventListener('astro:after-swap', function () {
-      var t = localStorage.getItem('wl_theme');
-      if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
-      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      else document.documentElement.removeAttribute('data-theme');
-    });
+    }
+    applyTheme();
+    document.addEventListener('astro:after-swap', applyTheme);
   </script>
   <script is:inline src="/js/env.js"></script>
 </head>

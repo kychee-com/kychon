@@ -30,6 +30,15 @@ export interface BakedChrome {
    * design font AFTER JS runs, producing a visible serif↔sans jump.
    */
   themeFontVarsCss: string;
+  /**
+   * Color-scheme pin from `site_config.theme.color_scheme`. Copied sites
+   * have one design baked into imagery and custom CSS, so honoring the
+   * visitor's OS dark-mode preference flips the tokens out from under that
+   * design (white-on-white text for dark-mode visitors). `'light'`/`'dark'`
+   * pin the scheme; `'auto'` (default) keeps the OS/localStorage behavior
+   * for token-driven native sites.
+   */
+  colorScheme: 'light' | 'dark' | 'auto';
   bakeCtx: BlockRenderContext;
 }
 
@@ -277,6 +286,12 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     title: getBrandedTitle(pageTitle, bakeCtx.siteName || bakeCtx.brandText || ''),
     cdnOrigin: cdnOriginFromManifest(bakeCtx.manifest),
     themeFontVarsCss: themeFontVarLines.join(' '),
+    colorScheme: colorSchemeFromTheme(theme),
     bakeCtx,
   };
+}
+
+function colorSchemeFromTheme(theme: Record<string, unknown>): 'light' | 'dark' | 'auto' {
+  const value = theme.color_scheme;
+  return value === 'light' || value === 'dark' ? value : 'auto';
 }
