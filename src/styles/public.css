@@ -271,6 +271,27 @@ a:hover {
   width: 100%;
   margin-left: 0;
 }
+/* Dropdown panel + items honor the nav block's dropdown_* config (these
+   vars were set by blocks.ts but previously consumed nowhere — dead
+   config forced ports into !important custom-CSS hammers that bled bar
+   colors onto the light popover; wsmta white-on-white #2). The doubled
+   attribute selector outranks single-class utility styles so the config
+   wins over the component defaults; !important custom CSS still beats
+   everything, which is why the concierge skill bans it for chrome. */
+[data-nav-shell] [data-nav-menu][data-nav-menu] {
+  background: var(--nav-dropdown-bg, var(--popover, var(--color-surface)));
+  color: var(--nav-dropdown-color, var(--muted-foreground, var(--color-text-muted)));
+}
+[data-nav-shell] [data-nav-menu] [data-nav-menuitem][data-nav-menuitem],
+[data-nav-shell] [data-nav-menu] [data-nav-menuitem-parent][data-nav-menuitem-parent] {
+  color: var(--nav-dropdown-color, var(--muted-foreground, var(--color-text-muted)));
+}
+[data-nav-shell] [data-nav-menu] [data-nav-menuitem][data-nav-menuitem]:hover,
+[data-nav-shell] [data-nav-menu] [data-nav-menuitem][data-nav-menuitem]:focus {
+  background: var(--nav-dropdown-hover-bg, var(--accent, var(--color-surface)));
+  color: var(--nav-dropdown-hover-color, var(--accent-foreground, var(--color-text)));
+}
+
 [data-nav-link],
 [data-nav-parent-trigger] {
   padding: var(--nav-link-padding, 0.5rem 0.75rem);
