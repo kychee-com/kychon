@@ -3,7 +3,7 @@
 **Version**: 0.3.0 (Astro rewrite)
 **Platform**: Run402 (Postgres + static hosting + edge functions)
 **Framework**: Astro SSG (static output, no server-side rendering)
-**Deploy**: `npx tsx scripts/deploy.ts` (builds Astro → assembles ReleaseSpec → `r.project(id).apply` via @run402/sdk@2.2.0)
+**Deploy**: `npx tsx scripts/deploy.ts` (builds Astro -> assembles ReleaseSpec -> `r.project(id).apply` via @run402/sdk@2.46.0)
 
 ## File Structure
 
