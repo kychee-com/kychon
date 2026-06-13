@@ -69,15 +69,15 @@ The dedicated `tsconfig.scripts.json` extends `astro/tsconfigs/strictest` and ad
 
 ## SDK pin
 
-`@run402/sdk` is exact-pinned (not `^` / `~`) because the SDK is <2 months old and has shipped breaking minor changes — and one major (2.0 "Unified Apply" on 2026-05-18, which removed `r.deploy.apply` in favor of the project-scoped `r.project(id).apply` hero; 2.0.1 patched a release-time bug where the new hero still hit the retired `/storage/v1/uploads/:id/complete` route; 2.1.0 completed the SDK side by routing `r.assets.put` / `uploadDir` / `syncDir` / `prepareDir` / `putMany` through the same unified-apply substrate and making the legacy `initUploadSession` / `getUploadSession` / `completeUploadSession` methods throw `LocalError`; 2.2.0 added `assets.put()` to `@run402/functions` so edge functions get the helper from the in-runtime library without bundling the full SDK; earlier breakage: 1.50.x removed the legacy `apps.bundleDeploy` path's compat semantics; 1.44.0 removed `sites.deploy()` before that). Bump the pin in a deliberate PR with a diff review of the SDK changelog. CI catches signature drift via the smoke-test workflow (`.github/workflows/deploy-smoke.yml`).
+`@run402/sdk` is exact-pinned (not `^` / `~`) during the pre-launch API stabilization period. Bump the pin in a deliberate PR with a diff review of the SDK changelog. CI catches signature drift via the smoke-test workflow (`.github/workflows/deploy-smoke.yml`).
 
 When npm refuses to install a recently-published SDK release because of a `before=` cutoff in your local config, override with `npm install --before=null`.
 
 ## Single-shot deploy
 
-The deploy goes through `r.project(id).apply(spec)` — the v2.0 "Unified Apply" hero. The SDK builds a `ReleaseSpec` (migrations, expose manifest, functions, site, subdomains, optional assets), uploads bytes through CAS (only the SHAs the gateway hasn't seen), commits, and polls until `ready`. Re-deploying an unchanged tree issues no S3 PUTs. (Pre-2.0 used `r.deploy.apply(spec)` — removed in 2.0; see `openspec/changes/upgrade-run402-sdk-v2`.)
+The deploy goes through `r.project(id).apply(spec)`. The SDK builds a `ReleaseSpec` (migrations, expose manifest, functions, site, subdomains, optional assets), uploads bytes through CAS (only the SHAs the gateway hasn't seen), commits, and polls until `ready`. Re-deploying an unchanged tree issues no S3 PUTs.
 
-Static files use Run402 v1.69 `site.public_paths` in explicit mode. Release assets such as `events.html` and `search.html` are still present in the site bundle, but browser-visible paths are clean entries such as `/events` and `/search`; implementation paths like `/events.html` are intentionally not public unless a future compatibility path declares them.
+Static files use `site.public_paths` in explicit mode. Release assets such as `events.html` and `search.html` are still present in the site bundle, but browser-visible paths are clean entries such as `/events` and `/search`; implementation paths like `/events.html` are intentionally not public unless a future compatibility path declares them.
 
 Deploy logs and dry-runs print representative public path mappings. For deployed checks, inspect `static_public_paths` in the active release inventory and confirm `reachability_authority: "explicit_public_path"` for page routes:
 
@@ -87,7 +87,7 @@ run402 deploy diagnose --project <project_id> https://example.kychon.com/events 
 npx tsx scripts/verify-first-byte-chrome.ts --base https://example.kychon.com --brand "Example Club"
 ```
 
-We migrated off `apps.bundleDeploy()` in 1.50.1 (kychee-com/run402#154) because its compat shim was emitting an `expose.tables` shape the v2 deploy validator briefly rejected. The gateway validator was relaxed in 2026-04-30 to delegate to the same `validateManifest()` the imperative `/expose` route uses, so both bare strings and the rich `{name, expose, policy}` shape now work. We send the rich shape (matches the published schema, type-checks cleanly, and pins the policy explicitly). In 2.0 "Unified Apply" (2026-05-18), `r.deploy.apply` itself was removed in favor of the project-scoped `r.project(id).apply` — see `openspec/changes/upgrade-run402-sdk-v2`. 2.0.1 fixed the broken completion call introduced in 2.0.0; 2.1.0 rewrote `r.assets.put` etc. onto the same unified substrate so single-key uploads are ergonomic again; 2.2.0 added `assets.put()` to `@run402/functions` so edge-function uploads can use the helper without bundling the SDK.
+Database exposure uses the rich `{ name, expose, policy }` shape from the published schema. Asset writes use the apply substrate through the SDK for deploy-time tooling and `assets.put()` from `@run402/functions` inside edge functions.
 
 ## Engine release metadata
 

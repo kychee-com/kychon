@@ -74,9 +74,9 @@ Alternative considered: store a static `routes` config per seed. Rejected becaus
 1. Add route/canonicalization helpers and tests.
 2. Generate custom page slug files after `astro build` and before `fileSetFromDir()`.
 3. Build a Run402 static route table from standard Kychon HTML files plus generated page aliases.
-4. Add the route table to the `r.deploy.apply()` release spec.
+4. Add the route table to the `r.project(id).apply()` release spec.
 5. Update search, nav, page slug detection, and seed SQL generation to prefer clean URLs while accepting legacy URLs.
-6. Bump `@run402/sdk` to `1.66.0`, refresh lockfile, and run type checks.
+6. Bump `@run402/sdk`, refresh lockfile, and run type checks.
 7. Deploy one demo and validate representative URLs with `run402 deploy diagnose --project <project_id> https://eagles.kychon.com/<path> --method GET`.
 
 Rollback: revert the release spec route generation and deploy again. The underlying `.html` files remain in the site bundle, so legacy URLs keep serving during and after rollback.

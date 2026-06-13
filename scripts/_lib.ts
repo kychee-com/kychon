@@ -625,10 +625,8 @@ async function writeAdapterAwareArtifacts(opts: {
  *
  * For asset writes (member photos, resources, admin uploads) use
  * `r.project(id).assets.put(key, source, opts)` (single key) or
- * `r.project(id).assets.uploadDir(path, opts)` (Node batches) — both route
- * through the apply substrate as of `@run402/sdk@2.1.0`. The legacy
- * `initUploadSession` / `getUploadSession` / `completeUploadSession`
- * methods throw `LocalError` since 2.1.0; don't call them.
+ * `r.project(id).assets.uploadDir(path, opts)` (Node batches). Both route
+ * through the apply substrate.
  */
 export async function runDeploy(
   r: Run402Instance,
@@ -733,7 +731,7 @@ export async function runDeploy(
   const [functionsMap, liveRelease] = await Promise.all([
     collectFunctionsMap(join(ROOT, "functions"), collectOpts),
     opts.patchFunctions
-      ? project.deploy.getActiveRelease({ siteLimit: 0 }).catch(() => null)
+      ? project.apply.getActiveRelease({ siteLimit: 0 }).catch(() => null)
       : Promise.resolve(null),
   ]);
 
@@ -773,8 +771,8 @@ export async function runDeploy(
   // catchall — the gateway resolves explicit routes ahead of the catchall.
   // Additive/safe alongside the legacy cross-origin Bearer path during the
   // client migration; both hit the same function with the same per-op checks.
-  // @run402/astro@2.3.0 omits `routes` from the slice (optional, not `{ replace: [] }`):
-  // base-release routes carry forward. Default to [] so we still prepend /api/kychon.
+  // If the Astro slice omits `routes`, base-release routes carry forward.
+  // Default to [] so we still prepend /api/kychon.
   const baseRoutes = astroSlice ? (astroSlice.routes?.replace ?? []) : undefined;
   const sameOriginApiRoute = { pattern: "/api/kychon", target: { type: "function", name: "kychon-api" } as const };
   const routes = baseRoutes ? [sameOriginApiRoute, ...baseRoutes] : baseRoutes;
@@ -901,27 +899,25 @@ export async function runDeploy(
   // input, but only the inventory readback proves the slice landed with
   // the values we sent (no silent coercion, no carry-forward surprise).
   // Implements the "verification readback rule" from
-  // kychee-com/run402#395-c4505724756; the inventory `i18n` field shipped
-  // in @run402/sdk@2.8.1.
+  // kychee-com/run402#395-c4505724756.
   //
   // Best-effort. Three failure modes worth distinguishing:
   //   1. Inventory fetch throws → log a `<fetch failed>` note, don't
   //      block the deploy. Whatever caused the fetch to fail (transient
   //      network, gateway hiccup) isn't a deploy-level problem because
   //      apply() already succeeded.
-  //   2. `readback === undefined` → pre-2.8.1 gateway. Surface that the
-  //      readback isn't supported on this gateway version rather than
-  //      silently passing.
+  //   2. `readback === undefined` → the gateway did not include this field.
+  //      Surface that rather than silently passing.
   //   3. `readback === null` → gateway has no slice, but we just sent
   //      one. Genuine bug; warn loud.
   //   4. Field-by-field mismatch → gateway coerced/dropped something.
   //      Warn loud with both values so the diff is obvious in the log.
   try {
-    const inv = await project.deploy.getActiveRelease({ siteLimit: 1 });
+    const inv = await project.apply.getActiveRelease({ siteLimit: 1 });
     const readback = inv?.i18n;
     if (readback === undefined) {
       console.log(
-        `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=<gateway too old to surface, requires v2.8.1+>`,
+        `  i18n: applied=${formatI18nSlice(i18nSpec)} / readback=<not surfaced by gateway>`,
       );
     } else if (readback === null) {
       console.warn(
@@ -1046,7 +1042,7 @@ export async function patchDeploy(
   // expected and handled below.
   let liveRelease: ActiveReleaseInventory | null = null;
   try {
-    liveRelease = await project.deploy.getActiveRelease({ siteLimit: 25000 });
+    liveRelease = await project.apply.getActiveRelease({ siteLimit: 25000 });
   } catch {
     liveRelease = null;
   }

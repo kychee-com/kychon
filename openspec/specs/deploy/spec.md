@@ -81,14 +81,14 @@ The schema SHALL include the new tables: `events`, `event_rsvps`, `resources`, `
 - **THEN** new content tables are present in the deployed schema
 - **AND** no legacy policy-template name is required for them to be usable through Kychon workflows
 
-### Requirement: Deploy uses Run402 v1.69 public paths
+### Requirement: Deploy uses current Run402 Unified Apply
 
-The deploy entry point SHALL use an exact-pinned `@run402/sdk` version that supports Run402 `site.public_paths` explicit mode. For this change, the exact pin SHALL be `1.69.0`.
+The deploy entry point SHALL use an exact-pinned `@run402/sdk` version that supports scoped Unified Apply, `site.public_paths` explicit mode, static route aliases, subdomain binding, and SDK-owned HTTP naming translation. For this change, the exact pin SHALL be `2.46.0`.
 
-#### Scenario: SDK pin exposes public path types
+#### Scenario: SDK pin exposes current apply types
 - **WHEN** a contributor installs dependencies from `package-lock.json`
-- **THEN** `@run402/sdk` resolves to version `1.69.0`
-- **AND** TypeScript accepts `site.public_paths` in the `ReleaseSpec` used by `r.deploy.apply()`
+- **THEN** `@run402/sdk` resolves to version `2.46.0`
+- **AND** TypeScript accepts the `ReleaseSpec` used by `r.project(id).apply()`
 
 #### Scenario: SDK remains exact-pinned
 - **WHEN** a dependency update changes `@run402/sdk`
@@ -130,7 +130,7 @@ The deploy entry point SHALL NOT use `routes.replace` for ordinary clean static 
 
 #### Scenario: Old static route aliases are cleared
 - **WHEN** the current base release contains v1.66 static route aliases
-- **THEN** the next v1.69 deploy replaces the route table rather than carrying those aliases forward
+- **THEN** the next `r.project(id).apply()` deploy replaces the route table rather than carrying those aliases forward
 - **AND** the release has no stale route-static aliases for ordinary static pages
 
 #### Scenario: Function routes remain possible

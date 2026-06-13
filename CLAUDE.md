@@ -112,7 +112,7 @@ kychon/
 - **Astro build step** - `astro build` outputs static HTML/JS/CSS to `dist/`, deployed to Run402
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
-- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. The `@run402/sdk` devDep is exact-pinned because the SDK is <1 month old and has shipped breaking minor bumps. See `openspec/changes/deploy-sdk-migration/` for the migration record.
+- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. The `@run402/sdk` devDep is exact-pinned during the pre-launch API stabilization period. See `openspec/changes/deploy-sdk-migration/` for the migration record.
   - **Local-only**: this machine's `npm` config has a `before=` cutoff that filters out recently-published packages. Bumping the SDK to a release published after the cutoff requires `npm install --before=null @run402/sdk@<version>` (or temporarily `npm config delete before`). Not a Run402 issue — a personal sandbox knob.
 
 ## Build Phases
