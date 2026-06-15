@@ -894,18 +894,10 @@ async function executeMutation(name, input, actor) {
   if (name === 'pollVotes.clearMine') return clearMinePollVotes(input, actor);
   if (name === 'reactions.toggle') return toggleReaction(input, actor);
   if (name === 'resources.upload') return uploadResource(input, actor);
-  if (name === 'assets.upload')
-    return actionResult(
-      { status: 'uploaded', path: input.path || null },
-      [changedObject('asset', input.path || 'asset')],
-      null,
-    );
-  if (name === 'translations.translateText')
-    return actionResult({ translatedText: input.text || '' }, [changedObject('translation', 'text')], null);
+  if (name === 'assets.upload' || name === 'translations.translateText') return notImplementedAction(name);
   if (name === 'translations.translateContent') return translateContent(input);
   if (name === 'newsletters.drafts.generate') return generateNewsletterDraft(input);
-  if (name.startsWith('jobs.'))
-    return actionResult({ status: 'queued', job: name.replace(/^jobs\./, '') }, [changedObject('job', name)], null);
+  if (name.startsWith('jobs.') || name.startsWith('exports.')) return notImplementedAction(name);
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, actor);
   if (name === 'rsvps.cancel') return cancelRsvp(input, actor);
   if (name === 'members.changeRole') return changeMemberRole(input, actor);
@@ -2255,20 +2247,35 @@ function capabilityError(code, message, detail) {
   return error;
 }
 
+// These capability operations have no backing implementation on the portal
+// gateway (translation/storage/jobs run as separate functions; exports were
+// never wired). An honest notImplemented error beats a fake ok:true — or, for
+// exports, the retryable internal.error the capability_executions insert used to
+// produce. (#110)
+function notImplementedAction(name) {
+  throw capabilityError('notImplemented', `${name} is not implemented on this portal.`, { operation: name });
+}
+
 function mutationStatus(code) {
   if (code === 'permission.denied') return 403;
   if (code === 'validation.failed') return 400;
   if (code === 'notFound.object') return 404;
   if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
+  if (code === 'notImplemented') return 501;
   return 501;
 }
 
 function mutationErrorCode(code) {
   if (
-    ['permission.denied', 'validation.failed', 'notFound.object', 'conflict.idempotencyKey', 'conflict.state'].includes(
-      code,
-    )
+    [
+      'permission.denied',
+      'validation.failed',
+      'notFound.object',
+      'conflict.idempotencyKey',
+      'conflict.state',
+      'notImplemented',
+    ].includes(code)
   )
     return code;
   return 'internal.error';

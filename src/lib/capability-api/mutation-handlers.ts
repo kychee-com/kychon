@@ -213,6 +213,7 @@ export async function executeCapabilityMutation(
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, ctx);
   if (name === 'rsvps.cancel') return cancelRsvp(input, ctx);
   if (name === 'members.changeRole') return changeMemberRole(input, ctx);
+  if (name.startsWith('exports.')) notImplemented(name);
 
   return genericMutation(name, input, ctx);
 }
@@ -507,10 +508,17 @@ async function toggleReaction(input: JsonObject, ctx: CapabilityMutationContext)
   return actionResult({ toggled: 'added', reaction }, [changedObject('reaction', String(reaction.id))], null);
 }
 
+// Operations with no backing service on this portal raise an honest
+// notImplemented error rather than returning a fake success. (#110)
+function notImplemented(operation: string): never {
+  throw new CapabilityMutationError('notImplemented', `${operation} is not implemented on this portal.`, { operation });
+}
+
 async function uploadAsset(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  const upload = await ctx.storage?.upload('asset', asObject(input.file), input);
-  const object = changedObject('asset', String(upload?.path || input.path || 'asset'));
-  return actionResult(upload || { status: 'uploaded', path: input.path || null }, [object], null);
+  if (!ctx.storage) notImplemented('assets.upload');
+  const upload = await ctx.storage.upload('asset', asObject(input.file), input);
+  const object = changedObject('asset', String(upload.path || input.path || 'asset'));
+  return actionResult(upload, [object], null);
 }
 
 const VALID_MEMBER_ROLES: ReadonlySet<string> = new Set(['member', 'moderator', 'admin']);
@@ -695,7 +703,8 @@ function isModeratorLike(ctx: CapabilityMutationContext): boolean {
 export { sanitizeRichHtmlServer };
 
 async function translateText(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  const result = (await ctx.ai?.translateText(input)) || { translatedText: input.text || '' };
+  if (!ctx.ai) notImplemented('translations.translateText');
+  const result = await ctx.ai.translateText(input);
   return actionResult(result, [changedObject('translation', String(result.id || 'text'))], null);
 }
 
@@ -726,7 +735,8 @@ async function generateNewsletterDraft(input: JsonObject, ctx: CapabilityMutatio
 
 async function runJob(operation: string, input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const name = operation.replace(/^jobs\./, '');
-  const result = (await ctx.jobs?.run(name, input)) || { status: 'queued', job: name };
+  if (!ctx.jobs) notImplemented(operation);
+  const result = await ctx.jobs.run(name, input);
   const object = changedObject('job', String(result.id || name));
   return actionResult(result, [object], verificationQuery(getOperation('jobs.status')!.name, { id: result.id || name }, object));
 }
