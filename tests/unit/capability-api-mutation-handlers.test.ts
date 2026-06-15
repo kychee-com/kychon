@@ -391,4 +391,37 @@ describe('Capability API mutation bug fixes', () => {
     await executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'going' }, { actor: memberActor, db });
     expect(db.tables.event_rsvps.some((row) => String(row.member_id) === '1' && row.status === 'going')).toBe(true);
   });
+
+  it('GH-111: rejects create mutations with empty/invalid input instead of coercing', async () => {
+    const db = makeDb();
+    await expect(
+      executeCapabilityMutation('forum.topics.create', { categoryId: 1 }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('events.create', {}, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation(
+        'events.create',
+        { title: 'Bad dates', starts_at: '2026-07-02T10:00:00Z', ends_at: '2026-07-01T10:00:00Z' },
+        { actor: adminActor, db },
+      ),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('events.create', { title: 'Bad cap', capacity: -3 }, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    expect(db.tables.forum_topics.some((row) => row.title === 'Untitled')).toBe(false);
+  });
+
+  it('GH-108: validate phase rejects a create op with missing required input', async () => {
+    const db = makeDb();
+    const result = await validateCapabilityMutation('forum.topics.create', {}, { actor: memberActor, db });
+    expect(result.accepted).toBe(false);
+    const ok = await validateCapabilityMutation(
+      'forum.topics.create',
+      { categoryId: 1, title: 'Real' },
+      { actor: memberActor, db },
+    );
+    expect(ok.accepted).toBe(true);
+  });
 });
