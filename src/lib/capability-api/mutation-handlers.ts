@@ -456,16 +456,54 @@ async function uploadAsset(input: JsonObject, ctx: CapabilityMutationContext): P
 
 const VALID_MEMBER_ROLES: ReadonlySet<string> = new Set(['member', 'moderator', 'admin']);
 
+const RSVP_STATUSES = ['going', 'maybe', 'cancelled'];
+
+// RSVP status is constrained to the documented enum — an unknown value is a
+// validation error rather than a silently persisted string. A missing status
+// defaults to 'going'; an empty/garbage value is rejected, not coerced. (#116)
+function normalizeRsvpStatus(value: JsonValue | undefined): string {
+  const status = value == null ? 'going' : value;
+  if (typeof status !== 'string' || !RSVP_STATUSES.includes(status)) {
+    throw new CapabilityMutationError(
+      'validation.failed',
+      `rsvps.setStatus status must be one of: ${RSVP_STATUSES.join(', ')}.`,
+      { status: String(status) },
+    );
+  }
+  return status;
+}
+
+// Capacity caps the number of `going` RSVPs. The member's own row is excluded so
+// re-confirming or switching to going never counts the member twice. Only
+// `going` is capped — `maybe`/`cancelled` are always allowed so a member can
+// step back and free a seat. (#115)
+function assertRsvpCapacity(eventRow: JsonObject, status: string, member: JsonValue, rsvps: JsonObject[]): void {
+  if (status !== 'going' || eventRow.capacity == null) return;
+  const goingCount = rsvps.filter(
+    (row) =>
+      String(row.event_id) === String(eventRow.id) &&
+      String(row.status) === 'going' &&
+      String(row.member_id) !== String(member),
+  ).length;
+  if (goingCount >= Number(eventRow.capacity)) {
+    throw new CapabilityMutationError('conflict.state', 'Event is full.', {
+      object: { type: 'event', id: String(eventRow.id) },
+    });
+  }
+}
+
 async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   // member_id is bound to the actor (admins act-as via dedicated admin paths,
   // not this capability) and an `id` from input must belong to that member —
   // otherwise an active member could update arbitrary RSVP rows. (#24)
   const member = memberId(ctx);
+  const status = normalizeRsvpStatus(input.status);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
 
   if (id != null) {
-    const target = (await ctx.db.select('event_rsvps')).find((row) => String(row.id) === String(id));
+    const rsvps = await ctx.db.select('event_rsvps');
+    const target = rsvps.find((row) => String(row.id) === String(id));
     if (!target) {
       throw new CapabilityMutationError('notFound.object', 'RSVP not found.', {
         object: { type: 'event.rsvp', id: String(id) },
@@ -476,9 +514,11 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
         object: { type: 'event.rsvp', id: String(id) },
       });
     }
+    const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(target.event_id));
+    if (eventRow) assertRsvpCapacity(eventRow, status, target.member_id, rsvps);
     const row =
       (await ctx.db.update('event_rsvps', String(id), {
-        status: input.status || 'going',
+        status,
         member_id: target.member_id,
       })) || target;
     const object = changedObject('event.rsvp', String(row.id ?? id));
@@ -498,18 +538,20 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
       object: { type: 'event', id: String(event) },
     });
   }
-  const existing = (await ctx.db.select('event_rsvps')).find(
+  const rsvps = await ctx.db.select('event_rsvps');
+  assertRsvpCapacity(eventRow, status, member, rsvps);
+  const existing = rsvps.find(
     (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
   );
   const row = existing
     ? (await ctx.db.update('event_rsvps', String(existing.id), {
-        status: input.status || 'going',
+        status,
         member_id: member,
       })) || existing
     : await ctx.db.insert('event_rsvps', {
         event_id: event,
         member_id: member,
-        status: input.status || 'going',
+        status,
       });
   const object = changedObject('event.rsvp', String(row.id));
   return actionResult(
