@@ -1775,7 +1775,7 @@ const FEATURE_PANELS: BlockType = {
     const headingText = typeof cfg.heading === 'string' ? cfg.heading.trim() : '';
     const headingHtml =
       headingText || ctx.admin
-        ? `<h2 data-feature-panels-heading${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(headingText)}</h2>`
+        ? `<h2 data-feature-panels-heading class="mb-6 text-2xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(headingText)}</h2>`
         : '';
 
     const panelsHtml = panels
@@ -1788,27 +1788,27 @@ const FEATURE_PANELS: BlockType = {
           ctx.admin && section.id != null ? `sections.${section.id}.config.panels.${index}.image_url` : undefined;
         const image =
           imageUrl || ctx.admin
-            ? `<img data-feature-panel-image src="${escAttr(imageUrl)}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" style="object-fit:${fit};object-position:${position}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
+            ? `<img data-feature-panel-image src="${escAttr(imageUrl)}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" class="aspect-[4/3] w-full bg-muted" style="object-fit:${fit};object-position:${position}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
             : '';
         const headingField =
           p.heading || ctx.admin
-            ? `<h3 data-feature-panel-heading${editableAttr(editablePath(section, `panels.${index}.heading`, ctx))}>${escHtml(p.heading || '')}</h3>`
+            ? `<h3 data-feature-panel-heading class="text-lg font-medium"${editableAttr(editablePath(section, `panels.${index}.heading`, ctx))}>${escHtml(p.heading || '')}</h3>`
             : '';
         const body =
           p.body || ctx.admin
-            ? `<p data-feature-panel-body${editableAttr(editablePath(section, `panels.${index}.body`, ctx))}>${escHtml(p.body || '')}</p>`
+            ? `<p data-feature-panel-body class="text-sm leading-relaxed text-muted-foreground"${editableAttr(editablePath(section, `panels.${index}.body`, ctx))}>${escHtml(p.body || '')}</p>`
             : '';
         const ctaLabel = typeof p.cta_label === 'string' ? p.cta_label.trim() : '';
         const cta =
           ctaLabel || ctx.admin
-            ? `<a data-feature-panel-cta href="${escAttr(cleanHref(p.cta_href) || '#')}"${editableAttr(editablePath(section, `panels.${index}.cta_label`, ctx))}>${escHtml(ctaLabel)}</a>`
+            ? `<a data-feature-panel-cta class="mt-auto inline-flex w-fit pt-1 text-sm font-medium text-primary hover:underline" href="${escAttr(cleanHref(p.cta_href) || '#')}"${editableAttr(editablePath(section, `panels.${index}.cta_label`, ctx))}>${escHtml(ctaLabel)}</a>`
             : '';
-        return `<article data-feature-panel>${image}<div data-feature-panel-copy>${headingField}${body}${cta}</div></article>`;
+        return `<article data-feature-panel class="flex flex-col overflow-hidden rounded-lg border border-border bg-card">${image}<div data-feature-panel-copy class="flex flex-1 flex-col gap-2 p-4">${headingField}${body}${cta}</div></article>`;
       })
       .join('');
 
-    const grid = `<div data-feature-panels-grid style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:1.5rem">${panelsHtml}</div>`;
-    const inner = `<div data-feature-panels>${headingHtml}${grid}</div>`;
+    const grid = `<div data-feature-panels-grid class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${panelsHtml}</div>`;
+    const inner = `<div data-feature-panels class="mx-auto max-w-5xl px-4">${headingHtml}${grid}</div>`;
     return adminWrap(section, ctx, inner, 'w-full py-8');
   },
 };
@@ -1841,40 +1841,40 @@ const MENU: BlockType = {
     const headingText = typeof cfg.heading === 'string' ? cfg.heading.trim() : '';
     const headingHtml =
       headingText || ctx.admin
-        ? `<h2 data-menu-heading${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(headingText)}</h2>`
+        ? `<h2 data-menu-heading class="mb-6 text-2xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(headingText)}</h2>`
         : '';
 
     const sectionsHtml = sections
       .map((menuSection, si) => {
         const s: any = menuSection || {};
         const items: any[] = Array.isArray(s.items) ? s.items : [];
-        const sectionName = `<h3 data-menu-section-name${editableAttr(editablePath(section, `sections.${si}.name`, ctx))}>${escHtml(s.name || '')}</h3>`;
+        const sectionName = `<h3 data-menu-section-name class="mb-3 border-b border-border pb-1 text-lg font-medium"${editableAttr(editablePath(section, `sections.${si}.name`, ctx))}>${escHtml(s.name || '')}</h3>`;
         const itemsHtml = items
           .map((item, ii) => {
             const it: any = item || {};
             const priceText = it.price == null ? '' : String(it.price).trim();
             const price =
               priceText || ctx.admin
-                ? `<span data-menu-item-price${editableAttr(editablePath(section, `sections.${si}.items.${ii}.price`, ctx))}>${escHtml(priceText)}</span>`
+                ? `<span data-menu-item-price class="shrink-0 tabular-nums text-muted-foreground"${editableAttr(editablePath(section, `sections.${si}.items.${ii}.price`, ctx))}>${escHtml(priceText)}</span>`
                 : '';
             const descText = typeof it.description === 'string' ? it.description.trim() : '';
             const desc =
               descText || ctx.admin
-                ? `<p data-menu-item-desc${editableAttr(editablePath(section, `sections.${si}.items.${ii}.description`, ctx))}>${escHtml(descText)}</p>`
+                ? `<p data-menu-item-desc class="text-sm text-muted-foreground"${editableAttr(editablePath(section, `sections.${si}.items.${ii}.description`, ctx))}>${escHtml(descText)}</p>`
                 : '';
             const tags: any[] = Array.isArray(it.dietary_tags) ? it.dietary_tags : [];
             const tagsHtml = tags.length
-              ? `<span data-menu-item-tags>${tags.map((t) => `<span data-menu-tag>${escHtml(String(t))}</span>`).join('')}</span>`
+              ? `<span data-menu-item-tags class="mt-1 flex flex-wrap gap-1">${tags.map((t) => `<span data-menu-tag class="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">${escHtml(String(t))}</span>`).join('')}</span>`
               : '';
-            const name = `<span data-menu-item-name${editableAttr(editablePath(section, `sections.${si}.items.${ii}.name`, ctx))}>${escHtml(it.name || '')}</span>`;
-            return `<li data-menu-item><div data-menu-item-head>${name}${price}</div>${desc}${tagsHtml}</li>`;
+            const name = `<span data-menu-item-name class="font-medium"${editableAttr(editablePath(section, `sections.${si}.items.${ii}.name`, ctx))}>${escHtml(it.name || '')}</span>`;
+            return `<li data-menu-item class="flex flex-col gap-0.5"><div data-menu-item-head class="flex items-baseline justify-between gap-3">${name}${price}</div>${desc}${tagsHtml}</li>`;
           })
           .join('');
-        return `<section data-menu-section>${sectionName}<ul data-menu-items>${itemsHtml}</ul></section>`;
+        return `<section data-menu-section class="mb-8 last:mb-0">${sectionName}<ul data-menu-items class="flex flex-col gap-3">${itemsHtml}</ul></section>`;
       })
       .join('');
 
-    const inner = `<div data-menu>${headingHtml}${sectionsHtml}</div>`;
+    const inner = `<div data-menu class="mx-auto max-w-3xl px-4">${headingHtml}${sectionsHtml}</div>`;
     return adminWrap(section, ctx, inner, 'w-full py-8');
   },
 };
@@ -1918,22 +1918,22 @@ const MEMBER_LOGIN: BlockType = {
     const botProtection = cfg.enable_bot_protection === true;
 
     const icon = iconUrl
-      ? `<img data-member-login-icon src="${escAttr(iconUrl)}" alt="" loading="lazy" decoding="async">`
+      ? `<img data-member-login-icon src="${escAttr(iconUrl)}" alt="" loading="lazy" decoding="async" class="h-12 w-12 rounded-full object-cover">`
       : '';
     const subtitleHtml =
       subtitle || ctx.admin
-        ? `<p data-member-login-subtitle${editableAttr(editablePath(section, 'subtitle', ctx))}>${escHtml(subtitle)}</p>`
+        ? `<p data-member-login-subtitle class="text-sm text-muted-foreground"${editableAttr(editablePath(section, 'subtitle', ctx))}>${escHtml(subtitle)}</p>`
         : '';
     // Source-style field labels shown for parity; the actual sign-in is the
     // hosted form the CTA links to — no fake, credential-capturing inputs here.
-    const fields = `<ul data-member-login-fields><li data-member-login-field${editableAttr(editablePath(section, 'username_label', ctx))}>${escHtml(usernameLabel)}</li><li data-member-login-field${editableAttr(editablePath(section, 'password_label', ctx))}>${escHtml(passwordLabel)}</li></ul>`;
-    const cta = `<a data-member-login-cta href="${escAttr(signInHref)}"${editableAttr(editablePath(section, 'submit_label', ctx))}>${escHtml(submitLabel)}</a>`;
+    const fields = `<ul data-member-login-fields class="flex list-none flex-col gap-1.5 text-sm text-muted-foreground"><li data-member-login-field class="rounded-md border border-border bg-background px-3 py-2"${editableAttr(editablePath(section, 'username_label', ctx))}>${escHtml(usernameLabel)}</li><li data-member-login-field class="rounded-md border border-border bg-background px-3 py-2"${editableAttr(editablePath(section, 'password_label', ctx))}>${escHtml(passwordLabel)}</li></ul>`;
+    const cta = `<a data-member-login-cta class="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90" href="${escAttr(signInHref)}"${editableAttr(editablePath(section, 'submit_label', ctx))}>${escHtml(submitLabel)}</a>`;
     // Bot protection is a Run402 platform hook; until it exists we emit a
     // machine-readable pending marker (no visible or faked widget) for the
     // coverage report to surface.
     const botMarker = botProtection ? '<div data-bot-protection="pending" aria-hidden="true" hidden></div>' : '';
 
-    const inner = `<div data-member-login>${icon}<h2 data-member-login-heading${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(heading)}</h2>${subtitleHtml}${fields}${cta}${botMarker}</div>`;
+    const inner = `<div data-member-login class="mx-auto flex max-w-sm flex-col gap-4 rounded-lg border border-border bg-card p-6">${icon}<h2 data-member-login-heading class="text-xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(heading)}</h2>${subtitleHtml}${fields}${cta}${botMarker}</div>`;
     return adminWrap(section, ctx, inner, 'w-full py-8');
   },
 };
@@ -1958,7 +1958,11 @@ const SAFETY_CTA: BlockType = {
     const variant = cfg.variant === 'outline' ? 'outline' : 'solid';
     const editable = editablePath(section, 'label', ctx);
     const editableAttr = editable ? ` data-editable="${escAttr(editable)}"` : '';
-    return `<a data-safety-cta data-variant="${variant}" href="${escAttr(href)}"${editableAttr}>${escHtml(label)}</a>`;
+    const variantClass =
+      variant === 'outline'
+        ? 'border border-border hover:bg-muted'
+        : 'bg-primary text-primary-foreground hover:bg-primary/90';
+    return `<a data-safety-cta data-variant="${variant}" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${variantClass}" href="${escAttr(href)}"${editableAttr}>${escHtml(label)}</a>`;
   },
 };
 
@@ -1987,10 +1991,10 @@ const SOCIAL_ROW: BlockType = {
           .replace(/[^a-z0-9_-]/g, '');
         const href = cleanHref(l.href);
         if (!network || !href) return '';
-        return `<a data-social-link data-network="${escAttr(network)}" href="${escAttr(href)}" rel="noopener" target="_blank" aria-label="${escAttr(network)}"><span data-social-icon aria-hidden="true"></span></a>`;
+        return `<a data-social-link data-network="${escAttr(network)}" class="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" href="${escAttr(href)}" rel="noopener" target="_blank" aria-label="${escAttr(network)}">${escHtml(network)}</a>`;
       })
       .join('');
-    return `<div data-social-row>${itemsHtml}</div>`;
+    return `<div data-social-row class="flex items-center gap-2">${itemsHtml}</div>`;
   },
 };
 
@@ -2019,11 +2023,11 @@ const UTILITY_BAR: BlockType = {
         const editableAttr = editable ? ` data-editable="${escAttr(editable)}"` : '';
         const href = cleanHref(it.href);
         return href
-          ? `<a data-utility-item href="${escAttr(href)}"${editableAttr}>${escHtml(label)}</a>`
+          ? `<a data-utility-item class="transition-colors hover:text-foreground" href="${escAttr(href)}"${editableAttr}>${escHtml(label)}</a>`
           : `<span data-utility-item${editableAttr}>${escHtml(label)}</span>`;
       })
       .join('');
-    return `<div data-utility-bar data-align="${align}">${itemsHtml}</div>`;
+    return `<div data-utility-bar data-align="${align}" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground ${align === 'left' ? 'justify-start' : 'justify-end'}">${itemsHtml}</div>`;
   },
 };
 
