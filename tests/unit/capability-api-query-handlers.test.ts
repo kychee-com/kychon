@@ -399,9 +399,9 @@ describe('Capability API query bug fixes', () => {
   });
 
   it('GH-107: .get without an identifier fails validation instead of returning row 0', async () => {
-    await expect(
-      runCapabilityQuery('events.get', {}, { actor: anonymousActor, db: sampleDb() }),
-    ).rejects.toMatchObject({ code: 'validation.failed' });
+    await expect(runCapabilityQuery('events.get', {}, { actor: anonymousActor, db: sampleDb() })).rejects.toMatchObject(
+      { code: 'validation.failed' },
+    );
     await expect(
       runCapabilityQuery('announcements.get', {}, { actor: anonymousActor, db: sampleDb() }),
     ).rejects.toMatchObject({ code: 'validation.failed' });

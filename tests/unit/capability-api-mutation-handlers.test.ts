@@ -259,9 +259,9 @@ describe('Capability API mutation handlers', () => {
     await executeCapabilityMutation('assets.upload', { file: { name: 'logo.png' }, path: 'logo.png' }, ctx);
     // exports.* is not wired — it now returns an honest notImplemented error
     // instead of a fake success / retryable internal.error. (#110)
-    await expect(
-      executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx),
-    ).rejects.toMatchObject({ code: 'notImplemented' });
+    await expect(executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx)).rejects.toMatchObject({
+      code: 'api.notImplemented',
+    });
 
     expect(db.tables.events.some((row) => row.title === 'New Event')).toBe(true);
     expect(db.tables.event_registration_options[0].is_disabled).toBe(true);
@@ -349,9 +349,7 @@ describe('Capability API mutation bug fixes', () => {
   it('GH-119: de-duplicates repeated optionIds in a multiple-choice vote', async () => {
     const db = makeDb();
     await executeCapabilityMutation('pollVotes.cast', { pollId: 2, optionIds: [3, 3] }, { actor: memberActor, db });
-    const votes = db.tables.poll_votes.filter(
-      (row) => String(row.poll_id) === '2' && String(row.member_id) === '1',
-    );
+    const votes = db.tables.poll_votes.filter((row) => String(row.poll_id) === '2' && String(row.member_id) === '1');
     expect(votes).toHaveLength(1);
     expect(votes[0].option_id).toBe(3);
   });
@@ -371,7 +369,11 @@ describe('Capability API mutation bug fixes', () => {
   it('GH-116: rejects an RSVP status outside the allowed enum (exact match)', async () => {
     const db = makeDb();
     await expect(
-      executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'not-a-real-status' }, { actor: memberActor, db }),
+      executeCapabilityMutation(
+        'rsvps.setStatus',
+        { eventId: 1, status: 'not-a-real-status' },
+        { actor: memberActor, db },
+      ),
     ).rejects.toBeInstanceOf(CapabilityMutationError);
     await expect(
       executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'Going' }, { actor: memberActor, db }),
@@ -401,9 +403,9 @@ describe('Capability API mutation bug fixes', () => {
     await expect(
       executeCapabilityMutation('forum.topics.create', { categoryId: 1 }, { actor: memberActor, db }),
     ).rejects.toBeInstanceOf(CapabilityMutationError);
-    await expect(
-      executeCapabilityMutation('events.create', {}, { actor: adminActor, db }),
-    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(executeCapabilityMutation('events.create', {}, { actor: adminActor, db })).rejects.toBeInstanceOf(
+      CapabilityMutationError,
+    );
     await expect(
       executeCapabilityMutation(
         'events.create',
@@ -444,9 +446,9 @@ describe('Capability API mutation bug fixes', () => {
       ['exports.membersCsv', {}],
     ];
     for (const [op, input] of cases) {
-      await expect(
-        executeCapabilityMutation(op, input, { actor: adminActor, db: makeDb() }),
-      ).rejects.toMatchObject({ code: 'notImplemented' });
+      await expect(executeCapabilityMutation(op, input, { actor: adminActor, db: makeDb() })).rejects.toMatchObject({
+        code: 'api.notImplemented',
+      });
     }
   });
 });
