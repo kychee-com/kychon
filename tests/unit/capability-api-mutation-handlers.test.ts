@@ -257,7 +257,11 @@ describe('Capability API mutation handlers', () => {
       ctx,
     );
     await executeCapabilityMutation('assets.upload', { file: { name: 'logo.png' }, path: 'logo.png' }, ctx);
-    await executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx);
+    // exports.* is not wired — it now returns an honest notImplemented error
+    // instead of a fake success / retryable internal.error. (#110)
+    await expect(
+      executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx),
+    ).rejects.toMatchObject({ code: 'notImplemented' });
 
     expect(db.tables.events.some((row) => row.title === 'New Event')).toBe(true);
     expect(db.tables.event_registration_options[0].is_disabled).toBe(true);
@@ -265,7 +269,7 @@ describe('Capability API mutation handlers', () => {
     expect(announcement.changed.map((ref) => ref.type)).toContain('poll');
     expect(db.tables.resources[0].file_url).toBe('/storage/guide.pdf');
     expect(storage.upload).toHaveBeenCalledTimes(2);
-    expect(db.tables.capability_executions).toHaveLength(1);
+    expect(db.tables.capability_executions).toHaveLength(0);
   });
 
   it('executes forum, poll, committee, reaction, and moderation mutations with domain semantics', async () => {
@@ -430,5 +434,19 @@ describe('Capability API mutation bug fixes', () => {
     db.tables.site_config = [{ id: 1, key: 'brand_text', value: 'Old', category: 'branding' }];
     await executeCapabilityMutation('config.set', { key: 'brand_text', value: 'New' }, { actor: adminActor, db });
     expect(db.tables.site_config[0]).toMatchObject({ value: 'New', category: 'branding' });
+  });
+
+  it('GH-110: unwired service/export ops return notImplemented, not fake success', async () => {
+    const cases: Array<[string, JsonObject]> = [
+      ['assets.upload', { file: { name: 'x.png' }, path: 'x.png' }],
+      ['translations.translateText', { text: 'Hi', target_language: 'es' }],
+      ['jobs.checkExpirations', {}],
+      ['exports.membersCsv', {}],
+    ];
+    for (const [op, input] of cases) {
+      await expect(
+        executeCapabilityMutation(op, input, { actor: adminActor, db: makeDb() }),
+      ).rejects.toMatchObject({ code: 'notImplemented' });
+    }
   });
 });
