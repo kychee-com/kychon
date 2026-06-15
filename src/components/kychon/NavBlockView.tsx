@@ -77,7 +77,16 @@ const nestedMenuListClass = cn(
   '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:pl-6',
 );
 
-const navMenuItemClass = 'block rounded-md px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none';
+// No base text-color utility here: globals.css imports public.css into
+// `@layer components` and Tailwind utilities into the later `@layer
+// utilities`, so a `text-muted-foreground` utility would win over the
+// config-driven dropdown/mobile color rules in public.css regardless of
+// their specificity (that shadowing is why the nav dropdown_* config was
+// dead on deploy). The resting color is owned by public.css
+// `[data-nav-menu] [data-nav-menuitem]` (desktop = --nav-dropdown-color,
+// mobile/overflow = --nav-link-color); the hover/focus accent utilities
+// stay as a deliberate legible pairing.
+const navMenuItemClass = 'block rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none';
 
 function Chevron() {
   return (
