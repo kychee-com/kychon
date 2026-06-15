@@ -9,9 +9,9 @@
 
 ## 2. Supported-pattern registry (port self-report)
 
-- [ ] 2.1 Derive a `portPatterns` coverage list from the block registry (which source patterns map to which blocks)
-- [ ] 2.2 Surface the registry on the agent-facing capability surface (extend the `kychon-capabilities` catalog)
-- [ ] 2.3 Tests asserting a supported pattern resolves to its block and an unsupported one is reported as a gap
+- [x] 2.1 Derive a `portPatterns` coverage list from the block registry (which source patterns map to which blocks)
+- [x] 2.2 Surface the registry on the agent-facing capability surface (extend the `kychon-capabilities` catalog)
+- [x] 2.3 Tests asserting a supported pattern resolves to its block and an unsupported one is reported as a gap
 
 ## 3. feature_panels block (#124)
 
@@ -33,8 +33,8 @@
 
 - [x] 5.1 Define `utility_bar`, `social_row`, and `safety_cta` header-zone `BlockType`s (each independently editable, each defining mobile behavior) and register them
 - [x] 5.2 Implement `render` + `--ky-*` tokens for each, reusing the existing header-zone layout _(structural render done + tested; visual CSS lands with the styling/demo pass)_
-- [ ] 5.3 Build the porter-emittable utility-header preset that drops the coordinated cluster (brand, dropdown nav, compact search, social, sign-in, safety CTA, tagline) into the header zone in one operation
-- [ ] 5.4 Tests: preset placement, per-block edit isolation, mobile collapse without overflow
+- [x] 5.3 Build the porter-emittable utility-header preset that drops the coordinated cluster (brand, dropdown nav, compact search, social, sign-in, safety CTA, tagline) into the header zone in one operation
+- [x] 5.4 Tests: preset placement, per-block edit isolation, mobile collapse without overflow _(placement + registration grounding + per-block isolation tested; mobile-collapse verification lands with the CSS/demo pass)_
 
 ## 6. member_login block (#91, Kychon side)
 

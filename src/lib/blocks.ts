@@ -1846,12 +1846,12 @@ const MENU: BlockType = {
 
     const sectionsHtml = sections
       .map((menuSection, si) => {
-        const s = menuSection || {};
-        const items = Array.isArray(s.items) ? s.items : [];
+        const s: any = menuSection || {};
+        const items: any[] = Array.isArray(s.items) ? s.items : [];
         const sectionName = `<h3 data-menu-section-name${editableAttr(editablePath(section, `sections.${si}.name`, ctx))}>${escHtml(s.name || '')}</h3>`;
         const itemsHtml = items
           .map((item, ii) => {
-            const it = item || {};
+            const it: any = item || {};
             const priceText = it.price == null ? '' : String(it.price).trim();
             const price =
               priceText || ctx.admin
@@ -1862,7 +1862,7 @@ const MENU: BlockType = {
               descText || ctx.admin
                 ? `<p data-menu-item-desc${editableAttr(editablePath(section, `sections.${si}.items.${ii}.description`, ctx))}>${escHtml(descText)}</p>`
                 : '';
-            const tags = Array.isArray(it.dietary_tags) ? it.dietary_tags : [];
+            const tags: any[] = Array.isArray(it.dietary_tags) ? it.dietary_tags : [];
             const tagsHtml = tags.length
               ? `<span data-menu-item-tags>${tags.map((t) => `<span data-menu-tag>${escHtml(String(t))}</span>`).join('')}</span>`
               : '';
