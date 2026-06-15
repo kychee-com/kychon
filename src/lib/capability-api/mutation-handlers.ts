@@ -511,7 +511,9 @@ async function toggleReaction(input: JsonObject, ctx: CapabilityMutationContext)
 // Operations with no backing service on this portal raise an honest
 // notImplemented error rather than returning a fake success. (#110)
 function notImplemented(operation: string): never {
-  throw new CapabilityMutationError('notImplemented', `${operation} is not implemented on this portal.`, { operation });
+  throw new CapabilityMutationError('api.notImplemented', `${operation} is not implemented on this portal.`, {
+    operation,
+  });
 }
 
 async function uploadAsset(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {

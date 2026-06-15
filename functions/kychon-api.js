@@ -509,7 +509,7 @@ function handleQuery(correlationId, envelope, operation, actor) {
   }
 
   if (operation.name === 'pollVotes.list') {
-    return handlePollVotesList(correlationId, envelope.input, actor);
+    return handlePollVotesList(correlationId, envelope.input);
   }
 
   const tableQuery = TABLE_QUERIES[operation.name];
@@ -657,7 +657,7 @@ async function handleSearchQuery(correlationId, input, actor, suggest) {
   }
 }
 
-async function handlePollVotesList(correlationId, input, actor) {
+async function handlePollVotesList(correlationId, input) {
   try {
     const votes = (await selectRows('poll_votes')).filter((row) => matchesInput(row, input));
     const rows = await redactAnonymousVotes(votes);
@@ -681,9 +681,7 @@ async function redactAnonymousVotes(votes) {
     (await selectRows('polls')).filter((poll) => poll.is_anonymous === true).map((poll) => String(poll.id)),
   );
   if (anonymousPollIds.size === 0) return votes;
-  return votes.map((vote) =>
-    anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote,
-  );
+  return votes.map((vote) => (anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote));
 }
 
 async function handlePollResultsQuery(correlationId, input, actor) {
@@ -947,7 +945,9 @@ function validateEventDates(input) {
   }
   if (ends != null) {
     if (Number.isNaN(Date.parse(String(ends)))) {
-      throw capabilityError('validation.failed', 'events.create ends_at must be a valid date.', { ends_at: String(ends) });
+      throw capabilityError('validation.failed', 'events.create ends_at must be a valid date.', {
+        ends_at: String(ends),
+      });
     }
     if (starts != null && Date.parse(String(ends)) < Date.parse(String(starts))) {
       throw capabilityError('validation.failed', 'events.create ends_at must be on or after starts_at.', {});
@@ -2253,7 +2253,7 @@ function capabilityError(code, message, detail) {
 // exports, the retryable internal.error the capability_executions insert used to
 // produce. (#110)
 function notImplementedAction(name) {
-  throw capabilityError('notImplemented', `${name} is not implemented on this portal.`, { operation: name });
+  throw capabilityError('api.notImplemented', `${name} is not implemented on this portal.`, { operation: name });
 }
 
 function mutationStatus(code) {
@@ -2262,7 +2262,7 @@ function mutationStatus(code) {
   if (code === 'notFound.object') return 404;
   if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
-  if (code === 'notImplemented') return 501;
+  if (code === 'api.notImplemented') return 501;
   return 501;
 }
 
@@ -2274,7 +2274,7 @@ function mutationErrorCode(code) {
       'notFound.object',
       'conflict.idempotencyKey',
       'conflict.state',
-      'notImplemented',
+      'api.notImplemented',
     ].includes(code)
   )
     return code;

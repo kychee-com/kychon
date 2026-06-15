@@ -215,5 +215,6 @@ export const ERROR_CODES = [
   'confirmation.required',
   'rateLimit.exceeded',
   'cost.limitExceeded',
+  'api.notImplemented',
   'internal.error',
 ] as const;
