@@ -363,4 +363,32 @@ describe('Capability API mutation bug fixes', () => {
     ).rejects.toBeInstanceOf(CapabilityMutationError);
     expect(db.tables.polls.length).toBe(before);
   });
+
+  it('GH-116: rejects an RSVP status outside the allowed enum (exact match)', async () => {
+    const db = makeDb();
+    await expect(
+      executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'not-a-real-status' }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'Going' }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+  });
+
+  it('GH-115: blocks a going RSVP at capacity, and a cancellation frees a seat', async () => {
+    const db = makeDb();
+    db.tables.events[0].capacity = 1;
+    db.tables.event_rsvps = [{ id: 1, event_id: 1, member_id: 99, status: 'going' }];
+
+    // A different member cannot go while the single seat is taken.
+    await expect(
+      executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'going' }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+
+    // The seated member cancels (admin acts on the row) — freeing the seat.
+    await executeCapabilityMutation('rsvps.setStatus', { id: 1, status: 'cancelled' }, { actor: adminActor, db });
+
+    // Now the member can go.
+    await executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'going' }, { actor: memberActor, db });
+    expect(db.tables.event_rsvps.some((row) => String(row.member_id) === '1' && row.status === 'going')).toBe(true);
+  });
 });

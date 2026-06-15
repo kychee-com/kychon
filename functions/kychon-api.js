@@ -1261,16 +1261,52 @@ async function clearMinePollVotes(input, actor) {
   );
 }
 
+const RSVP_STATUSES = ['going', 'maybe', 'cancelled'];
+
+// RSVP status is constrained to the documented enum — an unknown value is a
+// validation error rather than a silently persisted string. A missing status
+// defaults to 'going'; an empty/garbage value is rejected, not coerced. (#116)
+function normalizeRsvpStatus(value) {
+  const status = value == null ? 'going' : value;
+  if (!RSVP_STATUSES.includes(status)) {
+    throw capabilityError('validation.failed', `rsvps.setStatus status must be one of: ${RSVP_STATUSES.join(', ')}.`, {
+      status: String(status),
+    });
+  }
+  return status;
+}
+
+// Capacity caps the number of `going` RSVPs. The member's own row is excluded so
+// re-confirming or switching to going never counts the member twice. Only
+// `going` is capped — `maybe`/`cancelled` are always allowed so a member can
+// step back and free a seat. (#115)
+function assertRsvpCapacity(eventRow, status, member, rsvps) {
+  if (status !== 'going' || eventRow.capacity == null) return;
+  const goingCount = rsvps.filter(
+    (row) =>
+      String(row.event_id) === String(eventRow.id) &&
+      String(row.status) === 'going' &&
+      String(row.member_id) !== String(member),
+  ).length;
+  if (goingCount >= Number(eventRow.capacity)) {
+    throw capabilityError('conflict.state', 'Event is full.', {
+      object: { type: 'event', id: String(eventRow.id) },
+    });
+  }
+}
+
 async function setRsvpStatus(input, actor) {
   // member_id is bound to the actor (admins act-as via dedicated admin paths,
   // not this capability) and an `id` from input must belong to that member —
   // otherwise an active member could update arbitrary RSVP rows. (#24)
   const member = memberId(actor);
+  const status = normalizeRsvpStatus(input.status);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
 
   if (id != null) {
-    const target = (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id));
+    const rsvps = await selectRows('event_rsvps');
+    const target = rsvps.find((row) => String(row.id) === String(id));
     if (!target)
       throw capabilityError('notFound.object', 'RSVP not found.', { object: { type: 'event.rsvp', id: String(id) } });
     if (String(target.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
@@ -1278,7 +1314,9 @@ async function setRsvpStatus(input, actor) {
         object: { type: 'event.rsvp', id: String(id) },
       });
     }
-    const row = await updateRow('event_rsvps', id, { status: input.status || 'going', member_id: target.member_id });
+    const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(target.event_id));
+    if (eventRow) assertRsvpCapacity(eventRow, status, target.member_id, rsvps);
+    const row = await updateRow('event_rsvps', id, { status, member_id: target.member_id });
     const object = changedObject('event.rsvp', row.id ?? id);
     return actionResult(
       row,
@@ -1297,12 +1335,14 @@ async function setRsvpStatus(input, actor) {
       object: { type: 'event', id: String(event) },
     });
   }
-  const existing = (await selectRows('event_rsvps')).find(
+  const rsvps = await selectRows('event_rsvps');
+  assertRsvpCapacity(eventRow, status, member, rsvps);
+  const existing = rsvps.find(
     (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
   );
   const row = existing
-    ? await updateRow('event_rsvps', existing.id, { status: input.status || 'going', member_id: member })
-    : await insertRow('event_rsvps', { event_id: event, member_id: member, status: input.status || 'going' });
+    ? await updateRow('event_rsvps', existing.id, { status, member_id: member })
+    : await insertRow('event_rsvps', { event_id: event, member_id: member, status });
   const object = changedObject('event.rsvp', row.id);
   return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: event }, object));
 }
