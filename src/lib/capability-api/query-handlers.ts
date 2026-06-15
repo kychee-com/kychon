@@ -16,7 +16,7 @@ export interface CapabilityQueryContext {
 type QueryHandler = (input: JsonObject, ctx: CapabilityQueryContext) => Promise<JsonValue>;
 
 const tableQueries: Record<string, QueryHandler> = {
-  'config.get': (input, ctx) => tableResult(ctx, 'site_config', input, configRow),
+  'config.get': (input, ctx) => configGet(input, ctx),
   'pages.list': (input, ctx) => listResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor)),
   'pages.get': (input, ctx) => oneResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor), undefined, ['id', 'slug']),
   'sections.list': (input, ctx) => listResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
@@ -99,20 +99,6 @@ export class CapabilityQueryError extends Error {
     this.code = code;
     this.detail = detail;
   }
-}
-
-async function tableResult(
-  ctx: CapabilityQueryContext,
-  table: string,
-  input: JsonObject,
-  map: (row: JsonObject) => JsonObject = (row) => row,
-): Promise<JsonValue> {
-  const rows = await ctx.db.select(table);
-  if (typeof input.key === 'string') {
-    const row = rows.find((item) => item.key === input.key);
-    return row ? map(row) : null;
-  }
-  return { rows: rows.map(map), count: rows.length };
 }
 
 async function listResult(
@@ -243,6 +229,30 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
     if (rowKey in row && String(row[rowKey]) !== String(value)) return false;
   }
   return true;
+}
+
+const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
+// Brand-identity keys are always anonymously readable so hydrated chrome matches
+// baked chrome even when written under a non-public category. Key-scoped. (#125)
+const PUBLIC_CONFIG_KEYS = new Set(['brand_text', 'brand_text_short', 'brand_icon_url', 'brand_wordmark_url', 'favicon_url']);
+
+async function configGet(input: JsonObject, ctx: CapabilityQueryContext): Promise<JsonValue> {
+  const rows = await ctx.db.select('site_config');
+  const visible = (row: JsonObject) =>
+    isAdminLike(ctx.actor) ||
+    PUBLIC_CONFIG_CATEGORIES.has(row.category as string) ||
+    PUBLIC_CONFIG_KEYS.has(row.key as string);
+  if (typeof input.key === 'string') {
+    const row = rows.find((item) => item.key === input.key && visible(item));
+    return row ? configRow(row) : null;
+  }
+  // Honor an optional category filter — previously ignored. (#112)
+  const category = typeof input.category === 'string' ? input.category : null;
+  const mapped = rows
+    .filter(visible)
+    .filter((row) => category == null || row.category === category)
+    .map(configRow);
+  return { rows: mapped, count: mapped.length };
 }
 
 function configRow(row: JsonObject): JsonObject {

@@ -771,7 +771,7 @@ async function upsertConfig(input: JsonObject, ctx: CapabilityMutationContext): 
   }
   const key = String(requiredAny(input.key, 'config.set requires key.'));
   const existing = (await ctx.db.select('site_config')).find((row) => row.key === key);
-  if (existing?.id != null) return (await ctx.db.update('site_config', String(existing.id), configPatch(input))) || existing;
+  if (existing?.id != null) return (await ctx.db.update('site_config', String(existing.id), configPatch(input, existing))) || existing;
   return ctx.db.insert('site_config', { key, ...configPatch(input) });
 }
 
@@ -912,10 +912,12 @@ function objectTypeLabel(objectType: ObjectType): string {
   return 'Object';
 }
 
-function configPatch(input: JsonObject): JsonObject {
+function configPatch(input: JsonObject, existing?: JsonObject): JsonObject {
   return {
     value: input.value ?? null,
-    category: input.category ?? 'general',
+    // Preserve the stored category when the caller omits it — a value-only edit
+    // must not silently re-file the row under 'general'. (#112)
+    category: (input.category as string) || (existing?.category as string) || 'general',
   };
 }
 

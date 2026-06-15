@@ -421,4 +421,30 @@ describe('Capability API query bug fixes', () => {
     )) as JsonObject | null;
     expect(page?.slug).toBe('public');
   });
+
+  it('GH-112: config.get honors a category filter', async () => {
+    const db = new MemoryQueryDb({
+      site_config: [
+        { key: 'site_name', value: 'X', category: 'general' },
+        { key: 'theme_primary', value: '#000', category: 'theme' },
+      ],
+    });
+    const themed = (await runCapabilityQuery('config.get', { category: 'theme' }, { actor: adminActor, db })) as {
+      rows: JsonObject[];
+    };
+    expect(themed.rows.map((row) => row.key)).toEqual(['theme_primary']);
+  });
+
+  it('GH-125: config.get exposes brand keys to anon even under a non-public category', async () => {
+    const db = new MemoryQueryDb({
+      site_config: [
+        { key: 'brand_wordmark_url', value: '/w.png', category: 'wsmta' },
+        { key: 'secret_token', value: 'x', category: 'integrations' },
+      ],
+    });
+    const all = (await runCapabilityQuery('config.get', {}, { actor: anonymousActor, db })) as { rows: JsonObject[] };
+    const keys = all.rows.map((row) => row.key);
+    expect(keys).toContain('brand_wordmark_url');
+    expect(keys).not.toContain('secret_token');
+  });
 });
