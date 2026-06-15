@@ -497,6 +497,10 @@ function handleQuery(correlationId, envelope, operation, actor) {
     return handleMediaList(correlationId, envelope.input, actor);
   }
 
+  if (operation.name === 'pollVotes.list') {
+    return handlePollVotesList(correlationId, envelope.input, actor);
+  }
+
   const tableQuery = TABLE_QUERIES[operation.name];
   if (tableQuery) {
     return handleTableQuery(correlationId, envelope.input, actor, tableQuery, operation.name);
@@ -621,6 +625,35 @@ async function handleSearchQuery(correlationId, input, actor, suggest) {
       retryable: true,
     });
   }
+}
+
+async function handlePollVotesList(correlationId, input, actor) {
+  try {
+    const votes = (await selectRows('poll_votes')).filter((row) => matchesInput(row, input));
+    const rows = await redactAnonymousVotes(votes);
+    return successResponse(correlationId, { rows, count: rows.length });
+  } catch (error) {
+    console.error('kychon-api poll votes list failed:', error);
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: 'Query failed for poll_votes.',
+      retryable: true,
+    });
+  }
+}
+
+// For anonymous polls, voter identity SHALL NOT be exposed in API responses
+// (member_id stays in the DB only to enforce vote uniqueness). The redaction is
+// unconditional — anonymity applies to every caller, admins included. (#117)
+async function redactAnonymousVotes(votes) {
+  if (votes.length === 0) return votes;
+  const anonymousPollIds = new Set(
+    (await selectRows('polls')).filter((poll) => poll.is_anonymous === true).map((poll) => String(poll.id)),
+  );
+  if (anonymousPollIds.size === 0) return votes;
+  return votes.map((vote) =>
+    anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote,
+  );
 }
 
 async function handlePollResultsQuery(correlationId, input, actor) {
@@ -1098,6 +1131,14 @@ async function createPollAction(input, actor) {
 
 async function createPoll(input, actor) {
   // created_by is bound to the actor — never honored from input. (#24)
+  // A poll needs at least two options. Validate before inserting the poll row
+  // so an under-specified request never leaves an orphan poll behind. (#118)
+  const options = Array.isArray(input.options) ? input.options : [];
+  if (options.length < 2) {
+    throw capabilityError('validation.failed', 'A poll requires at least two options.', {
+      object: { type: 'poll', id: 'new' },
+    });
+  }
   const poll = await insertRow('polls', {
     question: input.question || 'Poll',
     description: input.description || null,
@@ -1110,7 +1151,6 @@ async function createPoll(input, actor) {
     attached_id: input.attached_id || input.attachedId || null,
     created_by: memberId(actor),
   });
-  const options = Array.isArray(input.options) ? input.options : [];
   let position = 0;
   for (const option of options) {
     const label = isPlainObject(option) ? option.label : option;
@@ -1120,11 +1160,29 @@ async function createPoll(input, actor) {
   return poll;
 }
 
-async function validatePollVoteInput(input) {
-  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds)
+// Resolve the submitted option ids to a de-duplicated list. A multiple-choice
+// vote that repeats the same option id would otherwise insert the same
+// (poll, member, option) row twice and trip the UNIQUE constraint, surfacing as
+// a generic 500 instead of a deterministic result. (#119)
+function resolveVoteOptionIds(input) {
+  const raw = Array.isArray(input.optionIds)
     ? input.optionIds
     : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const seen = new Set();
+  const deduped = [];
+  for (const value of raw) {
+    const key = String(value);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(value);
+    }
+  }
+  return deduped;
+}
+
+async function validatePollVoteInput(input) {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = resolveVoteOptionIds(input);
   await findOpenPoll(pollId);
   await validatePollOptionIds(pollId, optionIds);
 }
@@ -1157,9 +1215,7 @@ async function validatePollOptionIds(pollId, optionIds) {
 
 async function castPollVote(input, actor) {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds)
-    ? input.optionIds
-    : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const optionIds = resolveVoteOptionIds(input);
   const poll = await findOpenPoll(pollId);
   await validatePollOptionIds(pollId, optionIds);
 
