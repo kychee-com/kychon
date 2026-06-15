@@ -95,12 +95,69 @@ export async function validateCapabilityMutation(
   };
 }
 
+// Required-field validation for create operations, shared by the validate
+// phase and the execute handlers so the two agree. Without it, `validate`
+// reported accepted:true for empty input and execute then coerced the missing
+// fields (title -> 'Untitled', body -> ''). (#108, #111)
+function validateCreateInput(operation: string, input: JsonObject): void {
+  if (operation === 'forum.topics.create') {
+    requireNonEmptyString(input.title, 'forum.topics.create requires a non-empty title.');
+  } else if (operation === 'events.create') {
+    requireNonEmptyString(input.title, 'events.create requires a non-empty title.');
+    validateEventDates(input);
+    validateNonNegativeCapacity(input);
+  } else if (operation === 'tiers.create') {
+    requireNonEmptyString(input.name, 'tiers.create requires a non-empty name.');
+  }
+}
+
+function requireNonEmptyString(value: JsonValue | undefined, message: string): void {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new CapabilityMutationError('validation.failed', message, {});
+  }
+}
+
+// Dates are validated only when supplied — a title-only event stays valid per
+// the documented minimal create contract. An out-of-order or unparseable date
+// is rejected rather than silently stored. (#111)
+function validateEventDates(input: JsonObject): void {
+  const starts = input.startsAt ?? input.starts_at;
+  const ends = input.endsAt ?? input.ends_at;
+  if (starts != null && Number.isNaN(Date.parse(String(starts)))) {
+    throw new CapabilityMutationError('validation.failed', 'events.create starts_at must be a valid date.', {
+      starts_at: String(starts),
+    });
+  }
+  if (ends != null) {
+    if (Number.isNaN(Date.parse(String(ends)))) {
+      throw new CapabilityMutationError('validation.failed', 'events.create ends_at must be a valid date.', {
+        ends_at: String(ends),
+      });
+    }
+    if (starts != null && Date.parse(String(ends)) < Date.parse(String(starts))) {
+      throw new CapabilityMutationError('validation.failed', 'events.create ends_at must be on or after starts_at.', {});
+    }
+  }
+}
+
+function validateNonNegativeCapacity(input: JsonObject): void {
+  if (input.capacity != null) {
+    const capacity = Number(input.capacity);
+    if (!Number.isInteger(capacity) || capacity < 0) {
+      throw new CapabilityMutationError('validation.failed', 'events.create capacity must be a non-negative integer.', {
+        capacity: String(input.capacity),
+      });
+    }
+  }
+}
+
 async function validateMutationSemantics(
   operation: string,
   input: JsonObject,
   ctx: CapabilityMutationContext,
 ): Promise<CapabilityMutationError | null> {
   try {
+    validateCreateInput(operation, input);
     if (operation === 'members.updateProfile') {
       idForUpdate(operation, input, ctx);
     } else if (operation === 'forum.replies.create') {
@@ -156,6 +213,7 @@ export async function executeCapabilityMutation(
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, ctx);
   if (name === 'rsvps.cancel') return cancelRsvp(input, ctx);
   if (name === 'members.changeRole') return changeMemberRole(input, ctx);
+  if (name.startsWith('exports.')) notImplemented(name);
 
   return genericMutation(name, input, ctx);
 }
@@ -176,6 +234,7 @@ async function genericMutation(operation: string, input: JsonObject, ctx: Capabi
 
   let row: JsonObject | null;
   if (spec.action === 'create') {
+    validateCreateInput(operation, input);
     row = await ctx.db.insert(spec.table, rowForCreate(operation, input, ctx));
   } else if (spec.action === 'delete') {
     row = await ctx.db.delete(spec.table, requiredId(input, operation));
@@ -253,6 +312,7 @@ async function publishAnnouncement(input: JsonObject, ctx: CapabilityMutationCon
 }
 
 async function createForumTopic(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  validateCreateInput('forum.topics.create', input);
   const topic = await ctx.db.insert('forum_topics', {
     category_id: input.categoryId ?? input.category_id ?? null,
     title: input.title || 'Untitled',
@@ -313,11 +373,28 @@ async function createForumReply(input: JsonObject, ctx: CapabilityMutationContex
   return actionResult(reply, [object, changedObject('forum.topic', String(topicId))], verificationQuery(getOperation('forum.replies.list')!.name, { topicId }, object), auditReference(String(activity.id), 'forum_reply'));
 }
 
-async function validatePollVoteInput(input: JsonObject, ctx: CapabilityMutationContext): Promise<void> {
-  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds)
+// De-duplicate submitted option ids so a repeated id in a multiple-choice vote
+// cannot insert the same (poll, member, option) row twice and trip the UNIQUE
+// constraint (which would surface as a generic 500). (#119)
+function resolveVoteOptionIds(input: JsonObject): JsonValue[] {
+  const raw = Array.isArray(input.optionIds)
     ? input.optionIds
     : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const seen = new Set<string>();
+  const deduped: JsonValue[] = [];
+  for (const value of raw) {
+    const key = String(value);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(value);
+    }
+  }
+  return deduped;
+}
+
+async function validatePollVoteInput(input: JsonObject, ctx: CapabilityMutationContext): Promise<void> {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = resolveVoteOptionIds(input);
   await findOpenPoll(pollId, ctx);
   await validatePollOptionIds(pollId, optionIds, ctx);
 }
@@ -356,7 +433,7 @@ async function validatePollOptionIds(
 
 async function castPollVote(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds) ? input.optionIds : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const optionIds = resolveVoteOptionIds(input);
   const poll = await findOpenPoll(pollId, ctx);
   await validatePollOptionIds(pollId, optionIds, ctx);
 
@@ -431,24 +508,71 @@ async function toggleReaction(input: JsonObject, ctx: CapabilityMutationContext)
   return actionResult({ toggled: 'added', reaction }, [changedObject('reaction', String(reaction.id))], null);
 }
 
+// Operations with no backing service on this portal raise an honest
+// notImplemented error rather than returning a fake success. (#110)
+function notImplemented(operation: string): never {
+  throw new CapabilityMutationError('api.notImplemented', `${operation} is not implemented on this portal.`, {
+    operation,
+  });
+}
+
 async function uploadAsset(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  const upload = await ctx.storage?.upload('asset', asObject(input.file), input);
-  const object = changedObject('asset', String(upload?.path || input.path || 'asset'));
-  return actionResult(upload || { status: 'uploaded', path: input.path || null }, [object], null);
+  if (!ctx.storage) notImplemented('assets.upload');
+  const upload = await ctx.storage.upload('asset', asObject(input.file), input);
+  const object = changedObject('asset', String(upload.path || input.path || 'asset'));
+  return actionResult(upload, [object], null);
 }
 
 const VALID_MEMBER_ROLES: ReadonlySet<string> = new Set(['member', 'moderator', 'admin']);
+
+const RSVP_STATUSES = ['going', 'maybe', 'cancelled'];
+
+// RSVP status is constrained to the documented enum — an unknown value is a
+// validation error rather than a silently persisted string. A missing status
+// defaults to 'going'; an empty/garbage value is rejected, not coerced. (#116)
+function normalizeRsvpStatus(value: JsonValue | undefined): string {
+  const status = value == null ? 'going' : value;
+  if (typeof status !== 'string' || !RSVP_STATUSES.includes(status)) {
+    throw new CapabilityMutationError(
+      'validation.failed',
+      `rsvps.setStatus status must be one of: ${RSVP_STATUSES.join(', ')}.`,
+      { status: String(status) },
+    );
+  }
+  return status;
+}
+
+// Capacity caps the number of `going` RSVPs. The member's own row is excluded so
+// re-confirming or switching to going never counts the member twice. Only
+// `going` is capped — `maybe`/`cancelled` are always allowed so a member can
+// step back and free a seat. (#115)
+function assertRsvpCapacity(eventRow: JsonObject, status: string, member: JsonValue, rsvps: JsonObject[]): void {
+  if (status !== 'going' || eventRow.capacity == null) return;
+  const goingCount = rsvps.filter(
+    (row) =>
+      String(row.event_id) === String(eventRow.id) &&
+      String(row.status) === 'going' &&
+      String(row.member_id) !== String(member),
+  ).length;
+  if (goingCount >= Number(eventRow.capacity)) {
+    throw new CapabilityMutationError('conflict.state', 'Event is full.', {
+      object: { type: 'event', id: String(eventRow.id) },
+    });
+  }
+}
 
 async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   // member_id is bound to the actor (admins act-as via dedicated admin paths,
   // not this capability) and an `id` from input must belong to that member —
   // otherwise an active member could update arbitrary RSVP rows. (#24)
   const member = memberId(ctx);
+  const status = normalizeRsvpStatus(input.status);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
 
   if (id != null) {
-    const target = (await ctx.db.select('event_rsvps')).find((row) => String(row.id) === String(id));
+    const rsvps = await ctx.db.select('event_rsvps');
+    const target = rsvps.find((row) => String(row.id) === String(id));
     if (!target) {
       throw new CapabilityMutationError('notFound.object', 'RSVP not found.', {
         object: { type: 'event.rsvp', id: String(id) },
@@ -459,9 +583,11 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
         object: { type: 'event.rsvp', id: String(id) },
       });
     }
+    const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(target.event_id));
+    if (eventRow) assertRsvpCapacity(eventRow, status, target.member_id, rsvps);
     const row =
       (await ctx.db.update('event_rsvps', String(id), {
-        status: input.status || 'going',
+        status,
         member_id: target.member_id,
       })) || target;
     const object = changedObject('event.rsvp', String(row.id ?? id));
@@ -481,18 +607,20 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
       object: { type: 'event', id: String(event) },
     });
   }
-  const existing = (await ctx.db.select('event_rsvps')).find(
+  const rsvps = await ctx.db.select('event_rsvps');
+  assertRsvpCapacity(eventRow, status, member, rsvps);
+  const existing = rsvps.find(
     (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
   );
   const row = existing
     ? (await ctx.db.update('event_rsvps', String(existing.id), {
-        status: input.status || 'going',
+        status,
         member_id: member,
       })) || existing
     : await ctx.db.insert('event_rsvps', {
         event_id: event,
         member_id: member,
-        status: input.status || 'going',
+        status,
       });
   const object = changedObject('event.rsvp', String(row.id));
   return actionResult(
@@ -577,7 +705,8 @@ function isModeratorLike(ctx: CapabilityMutationContext): boolean {
 export { sanitizeRichHtmlServer };
 
 async function translateText(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  const result = (await ctx.ai?.translateText(input)) || { translatedText: input.text || '' };
+  if (!ctx.ai) notImplemented('translations.translateText');
+  const result = await ctx.ai.translateText(input);
   return actionResult(result, [changedObject('translation', String(result.id || 'text'))], null);
 }
 
@@ -608,12 +737,21 @@ async function generateNewsletterDraft(input: JsonObject, ctx: CapabilityMutatio
 
 async function runJob(operation: string, input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const name = operation.replace(/^jobs\./, '');
-  const result = (await ctx.jobs?.run(name, input)) || { status: 'queued', job: name };
+  if (!ctx.jobs) notImplemented(operation);
+  const result = await ctx.jobs.run(name, input);
   const object = changedObject('job', String(result.id || name));
   return actionResult(result, [object], verificationQuery(getOperation('jobs.status')!.name, { id: result.id || name }, object));
 }
 
 async function createPoll(input: JsonObject, ctx: CapabilityMutationContext): Promise<JsonObject> {
+  // A poll needs at least two options — validate before inserting the poll row
+  // so an under-specified request never leaves an orphan poll behind. (#118)
+  const options = Array.isArray(input.options) ? input.options : [];
+  if (options.length < 2) {
+    throw new CapabilityMutationError('validation.failed', 'A poll requires at least two options.', {
+      object: { type: 'poll', id: 'new' },
+    });
+  }
   const poll = await ctx.db.insert('polls', {
     question: input.question || 'Poll',
     description: input.description || null,
@@ -626,7 +764,6 @@ async function createPoll(input: JsonObject, ctx: CapabilityMutationContext): Pr
     attached_id: input.attached_id || input.attachedId || null,
     created_by: memberId(ctx),
   });
-  const options = Array.isArray(input.options) ? input.options : [];
   let position = 0;
   for (const option of options) {
     const label = isObject(option) ? option.label : option;
@@ -646,7 +783,7 @@ async function upsertConfig(input: JsonObject, ctx: CapabilityMutationContext): 
   }
   const key = String(requiredAny(input.key, 'config.set requires key.'));
   const existing = (await ctx.db.select('site_config')).find((row) => row.key === key);
-  if (existing?.id != null) return (await ctx.db.update('site_config', String(existing.id), configPatch(input))) || existing;
+  if (existing?.id != null) return (await ctx.db.update('site_config', String(existing.id), configPatch(input, existing))) || existing;
   return ctx.db.insert('site_config', { key, ...configPatch(input) });
 }
 
@@ -787,10 +924,12 @@ function objectTypeLabel(objectType: ObjectType): string {
   return 'Object';
 }
 
-function configPatch(input: JsonObject): JsonObject {
+function configPatch(input: JsonObject, existing?: JsonObject): JsonObject {
   return {
     value: input.value ?? null,
-    category: input.category ?? 'general',
+    // Preserve the stored category when the caller omits it — a value-only edit
+    // must not silently re-file the row under 'general'. (#112)
+    category: (input.category as string) || (existing?.category as string) || 'general',
   };
 }
 

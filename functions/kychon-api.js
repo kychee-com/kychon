@@ -227,7 +227,7 @@ const OPERATIONS = new Map(OPERATION_CATALOG.map((entry) => [entry.name, entry])
 const TABLE_QUERIES = {
   'config.get': { table: 'site_config', mode: 'config' },
   'pages.list': { table: 'pages', mode: 'list', visible: visiblePage },
-  'pages.get': { table: 'pages', mode: 'one', visible: visiblePage },
+  'pages.get': { table: 'pages', mode: 'one', visible: visiblePage, keys: ['id', 'slug'] },
   'sections.list': { table: 'sections', mode: 'list', visible: visibleSection },
   'sections.get': { table: 'sections', mode: 'one', visible: visibleSection },
   'members.list': { table: 'members', mode: 'list', map: memberRow },
@@ -272,6 +272,17 @@ const SQL_WRITE_TABLES = new Set(['events', 'resources']);
 // callers. Anything else (future webhook URLs, integration tokens, etc.)
 // requires admin. (#27 item 4)
 const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
+// Brand-identity keys are always anonymously readable so hydrated chrome matches
+// the baked chrome even when a porter wrote them under a non-public category (or
+// no category at all). Key-scoped, so it does not widen any other config
+// surface the category gate protects. (#125)
+const PUBLIC_CONFIG_KEYS = new Set([
+  'brand_text',
+  'brand_text_short',
+  'brand_icon_url',
+  'brand_wordmark_url',
+  'favicon_url',
+]);
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -497,6 +508,10 @@ function handleQuery(correlationId, envelope, operation, actor) {
     return handleMediaList(correlationId, envelope.input, actor);
   }
 
+  if (operation.name === 'pollVotes.list') {
+    return handlePollVotesList(correlationId, envelope.input);
+  }
+
   const tableQuery = TABLE_QUERIES[operation.name];
   if (tableQuery) {
     return handleTableQuery(correlationId, envelope.input, actor, tableQuery, operation.name);
@@ -543,16 +558,24 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
       // Non-admin callers see only the categories that are explicitly safe to
       // publish — branding, features, theme, demo. Any other category (a
       // future webhook URL, integration token, etc.) requires admin. (#27 item 4)
-      const visibleConfig = (row) => isAdminLike(actor) || PUBLIC_CONFIG_CATEGORIES.has(row.category);
+      const visibleConfig = (row) =>
+        isAdminLike(actor) || PUBLIC_CONFIG_CATEGORIES.has(row.category) || PUBLIC_CONFIG_KEYS.has(row.key);
       if (typeof input.key === 'string') {
         const row = rows.find((item) => item.key === input.key && visibleConfig(item));
         return successResponse(correlationId, row ? configRow(row) : null);
       }
-      const mapped = rows.filter(visibleConfig).map(configRow);
+      // Honor an optional category filter — previously ignored, so callers asking
+      // for one category received every visible row. (#112)
+      const category = typeof input.category === 'string' ? input.category : null;
+      const mapped = rows
+        .filter(visibleConfig)
+        .filter((row) => category == null || row.category === category)
+        .map(configRow);
       return successResponse(correlationId, { rows: mapped, count: mapped.length });
     }
 
     if (spec.mode === 'one') {
+      requireGetIdentifier(spec, queryInput, operationName);
       const row = rows.find((item) => matchesInput(item, queryInput) && visible(item, actor));
       return successResponse(correlationId, row ? map(row, actor) : null);
     }
@@ -568,6 +591,17 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
       .map((row) => map(row, actor));
     return successResponse(correlationId, { rows: filtered, count: filtered.length });
   } catch (error) {
+    // A handler that intentionally raised a capability error (e.g. a missing
+    // required identifier on a `.get`) must surface its dotted code, not get
+    // flattened into a generic internal.error. (#107)
+    if (error?.capabilityCode) {
+      return errorResponse(correlationId, mutationStatus(error.capabilityCode), {
+        code: mutationErrorCode(error.capabilityCode),
+        message: error.message,
+        detail: error.detail,
+        retryable: false,
+      });
+    }
     console.error('kychon-api table query failed:', error);
     return errorResponse(correlationId, 500, {
       code: 'internal.error',
@@ -621,6 +655,33 @@ async function handleSearchQuery(correlationId, input, actor, suggest) {
       retryable: true,
     });
   }
+}
+
+async function handlePollVotesList(correlationId, input) {
+  try {
+    const votes = (await selectRows('poll_votes')).filter((row) => matchesInput(row, input));
+    const rows = await redactAnonymousVotes(votes);
+    return successResponse(correlationId, { rows, count: rows.length });
+  } catch (error) {
+    console.error('kychon-api poll votes list failed:', error);
+    return errorResponse(correlationId, 500, {
+      code: 'internal.error',
+      message: 'Query failed for poll_votes.',
+      retryable: true,
+    });
+  }
+}
+
+// For anonymous polls, voter identity SHALL NOT be exposed in API responses
+// (member_id stays in the DB only to enforce vote uniqueness). The redaction is
+// unconditional — anonymity applies to every caller, admins included. (#117)
+async function redactAnonymousVotes(votes) {
+  if (votes.length === 0) return votes;
+  const anonymousPollIds = new Set(
+    (await selectRows('polls')).filter((poll) => poll.is_anonymous === true).map((poll) => String(poll.id)),
+  );
+  if (anonymousPollIds.size === 0) return votes;
+  return votes.map((vote) => (anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote));
 }
 
 async function handlePollResultsQuery(correlationId, input, actor) {
@@ -831,18 +892,10 @@ async function executeMutation(name, input, actor) {
   if (name === 'pollVotes.clearMine') return clearMinePollVotes(input, actor);
   if (name === 'reactions.toggle') return toggleReaction(input, actor);
   if (name === 'resources.upload') return uploadResource(input, actor);
-  if (name === 'assets.upload')
-    return actionResult(
-      { status: 'uploaded', path: input.path || null },
-      [changedObject('asset', input.path || 'asset')],
-      null,
-    );
-  if (name === 'translations.translateText')
-    return actionResult({ translatedText: input.text || '' }, [changedObject('translation', 'text')], null);
+  if (name === 'assets.upload' || name === 'translations.translateText') return notImplementedAction(name);
   if (name === 'translations.translateContent') return translateContent(input);
   if (name === 'newsletters.drafts.generate') return generateNewsletterDraft(input);
-  if (name.startsWith('jobs.'))
-    return actionResult({ status: 'queued', job: name.replace(/^jobs\./, '') }, [changedObject('job', name)], null);
+  if (name.startsWith('jobs.') || name.startsWith('exports.')) return notImplementedAction(name);
   if (name === 'rsvps.setStatus') return setRsvpStatus(input, actor);
   if (name === 'rsvps.cancel') return cancelRsvp(input, actor);
   if (name === 'members.changeRole') return changeMemberRole(input, actor);
@@ -857,8 +910,65 @@ async function executeMutation(name, input, actor) {
 
 const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin']);
 
+// Required-field validation for create operations, shared by the validate
+// phase and the execute handlers so the two agree. Without it, `validate`
+// reported accepted:true for empty input and execute then coerced the missing
+// fields (title -> 'Untitled', body -> ''). (#108, #111)
+function validateCreateInput(operation, input) {
+  if (operation === 'forum.topics.create') {
+    requireNonEmptyString(input.title, 'forum.topics.create requires a non-empty title.');
+  } else if (operation === 'events.create') {
+    requireNonEmptyString(input.title, 'events.create requires a non-empty title.');
+    validateEventDates(input);
+    validateNonNegativeCapacity(input);
+  } else if (operation === 'tiers.create') {
+    requireNonEmptyString(input.name, 'tiers.create requires a non-empty name.');
+  }
+}
+
+function requireNonEmptyString(value, message) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw capabilityError('validation.failed', message, {});
+  }
+}
+
+// Dates are validated only when supplied — a title-only event stays valid per
+// the documented minimal create contract. An out-of-order or unparseable date
+// is rejected rather than silently stored. (#111)
+function validateEventDates(input) {
+  const starts = input.startsAt ?? input.starts_at;
+  const ends = input.endsAt ?? input.ends_at;
+  if (starts != null && Number.isNaN(Date.parse(String(starts)))) {
+    throw capabilityError('validation.failed', 'events.create starts_at must be a valid date.', {
+      starts_at: String(starts),
+    });
+  }
+  if (ends != null) {
+    if (Number.isNaN(Date.parse(String(ends)))) {
+      throw capabilityError('validation.failed', 'events.create ends_at must be a valid date.', {
+        ends_at: String(ends),
+      });
+    }
+    if (starts != null && Date.parse(String(ends)) < Date.parse(String(starts))) {
+      throw capabilityError('validation.failed', 'events.create ends_at must be on or after starts_at.', {});
+    }
+  }
+}
+
+function validateNonNegativeCapacity(input) {
+  if (input.capacity != null) {
+    const capacity = Number(input.capacity);
+    if (!Number.isInteger(capacity) || capacity < 0) {
+      throw capabilityError('validation.failed', 'events.create capacity must be a non-negative integer.', {
+        capacity: String(input.capacity),
+      });
+    }
+  }
+}
+
 async function validateMutationSemantics(operation, input, actor) {
   try {
+    validateCreateInput(operation, input);
     if (operation === 'members.updateProfile') {
       idForUpdate(operation, input, actor);
     } else if (operation === 'forum.replies.create') {
@@ -967,6 +1077,7 @@ async function genericMutation(operation, input, actor) {
 
   let row = null;
   if (spec.action === 'create') {
+    validateCreateInput(operation, input);
     row = await insertRow(spec.table, rowForCreate(operation, input, actor));
   } else if (spec.action === 'delete') {
     row = await deleteRow(spec.table, requiredId(input, `${operation} delete`));
@@ -1023,6 +1134,7 @@ async function createForumTopic(input, actor) {
   // author_id / author_name come from the actor only — caller-supplied values
   // would let any active member impersonate another member or admin. Pinning a
   // topic at create time is reserved for moderators via `forum.topics.pin`. (#24)
+  validateCreateInput('forum.topics.create', input);
   const topic = await insertRow('forum_topics', {
     category_id: input.categoryId ?? input.category_id ?? null,
     title: input.title || 'Untitled',
@@ -1098,6 +1210,14 @@ async function createPollAction(input, actor) {
 
 async function createPoll(input, actor) {
   // created_by is bound to the actor — never honored from input. (#24)
+  // A poll needs at least two options. Validate before inserting the poll row
+  // so an under-specified request never leaves an orphan poll behind. (#118)
+  const options = Array.isArray(input.options) ? input.options : [];
+  if (options.length < 2) {
+    throw capabilityError('validation.failed', 'A poll requires at least two options.', {
+      object: { type: 'poll', id: 'new' },
+    });
+  }
   const poll = await insertRow('polls', {
     question: input.question || 'Poll',
     description: input.description || null,
@@ -1110,7 +1230,6 @@ async function createPoll(input, actor) {
     attached_id: input.attached_id || input.attachedId || null,
     created_by: memberId(actor),
   });
-  const options = Array.isArray(input.options) ? input.options : [];
   let position = 0;
   for (const option of options) {
     const label = isPlainObject(option) ? option.label : option;
@@ -1120,11 +1239,29 @@ async function createPoll(input, actor) {
   return poll;
 }
 
-async function validatePollVoteInput(input) {
-  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds)
+// Resolve the submitted option ids to a de-duplicated list. A multiple-choice
+// vote that repeats the same option id would otherwise insert the same
+// (poll, member, option) row twice and trip the UNIQUE constraint, surfacing as
+// a generic 500 instead of a deterministic result. (#119)
+function resolveVoteOptionIds(input) {
+  const raw = Array.isArray(input.optionIds)
     ? input.optionIds
     : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const seen = new Set();
+  const deduped = [];
+  for (const value of raw) {
+    const key = String(value);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(value);
+    }
+  }
+  return deduped;
+}
+
+async function validatePollVoteInput(input) {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = resolveVoteOptionIds(input);
   await findOpenPoll(pollId);
   await validatePollOptionIds(pollId, optionIds);
 }
@@ -1157,9 +1294,7 @@ async function validatePollOptionIds(pollId, optionIds) {
 
 async function castPollVote(input, actor) {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds)
-    ? input.optionIds
-    : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const optionIds = resolveVoteOptionIds(input);
   const poll = await findOpenPoll(pollId);
   await validatePollOptionIds(pollId, optionIds);
 
@@ -1205,16 +1340,52 @@ async function clearMinePollVotes(input, actor) {
   );
 }
 
+const RSVP_STATUSES = ['going', 'maybe', 'cancelled'];
+
+// RSVP status is constrained to the documented enum — an unknown value is a
+// validation error rather than a silently persisted string. A missing status
+// defaults to 'going'; an empty/garbage value is rejected, not coerced. (#116)
+function normalizeRsvpStatus(value) {
+  const status = value == null ? 'going' : value;
+  if (!RSVP_STATUSES.includes(status)) {
+    throw capabilityError('validation.failed', `rsvps.setStatus status must be one of: ${RSVP_STATUSES.join(', ')}.`, {
+      status: String(status),
+    });
+  }
+  return status;
+}
+
+// Capacity caps the number of `going` RSVPs. The member's own row is excluded so
+// re-confirming or switching to going never counts the member twice. Only
+// `going` is capped — `maybe`/`cancelled` are always allowed so a member can
+// step back and free a seat. (#115)
+function assertRsvpCapacity(eventRow, status, member, rsvps) {
+  if (status !== 'going' || eventRow.capacity == null) return;
+  const goingCount = rsvps.filter(
+    (row) =>
+      String(row.event_id) === String(eventRow.id) &&
+      String(row.status) === 'going' &&
+      String(row.member_id) !== String(member),
+  ).length;
+  if (goingCount >= Number(eventRow.capacity)) {
+    throw capabilityError('conflict.state', 'Event is full.', {
+      object: { type: 'event', id: String(eventRow.id) },
+    });
+  }
+}
+
 async function setRsvpStatus(input, actor) {
   // member_id is bound to the actor (admins act-as via dedicated admin paths,
   // not this capability) and an `id` from input must belong to that member —
   // otherwise an active member could update arbitrary RSVP rows. (#24)
   const member = memberId(actor);
+  const status = normalizeRsvpStatus(input.status);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
 
   if (id != null) {
-    const target = (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id));
+    const rsvps = await selectRows('event_rsvps');
+    const target = rsvps.find((row) => String(row.id) === String(id));
     if (!target)
       throw capabilityError('notFound.object', 'RSVP not found.', { object: { type: 'event.rsvp', id: String(id) } });
     if (String(target.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
@@ -1222,7 +1393,9 @@ async function setRsvpStatus(input, actor) {
         object: { type: 'event.rsvp', id: String(id) },
       });
     }
-    const row = await updateRow('event_rsvps', id, { status: input.status || 'going', member_id: target.member_id });
+    const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(target.event_id));
+    if (eventRow) assertRsvpCapacity(eventRow, status, target.member_id, rsvps);
+    const row = await updateRow('event_rsvps', id, { status, member_id: target.member_id });
     const object = changedObject('event.rsvp', row.id ?? id);
     return actionResult(
       row,
@@ -1241,12 +1414,14 @@ async function setRsvpStatus(input, actor) {
       object: { type: 'event', id: String(event) },
     });
   }
-  const existing = (await selectRows('event_rsvps')).find(
+  const rsvps = await selectRows('event_rsvps');
+  assertRsvpCapacity(eventRow, status, member, rsvps);
+  const existing = rsvps.find(
     (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
   );
   const row = existing
-    ? await updateRow('event_rsvps', existing.id, { status: input.status || 'going', member_id: member })
-    : await insertRow('event_rsvps', { event_id: event, member_id: member, status: input.status || 'going' });
+    ? await updateRow('event_rsvps', existing.id, { status, member_id: member })
+    : await insertRow('event_rsvps', { event_id: event, member_id: member, status });
   const object = changedObject('event.rsvp', row.id);
   return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: event }, object));
 }
@@ -1365,8 +1540,11 @@ async function upsertConfig(input) {
     return last;
   }
   const key = String(requiredAny(input.key, 'config.set requires key.'));
-  const patch = { value: input.value ?? null, category: input.category || 'general' };
   const existing = (await selectRows('site_config')).find((row) => row.key === key);
+  // Preserve the stored category when the caller omits it — a value-only edit
+  // must not silently re-file the row under 'general'. (#112)
+  const category = input.category || existing?.category || 'general';
+  const patch = { value: input.value ?? null, category };
   if (existing) return updateConfigRow(key, patch);
   return insertRow('site_config', { key, ...patch });
 }
@@ -2069,20 +2247,35 @@ function capabilityError(code, message, detail) {
   return error;
 }
 
+// These capability operations have no backing implementation on the portal
+// gateway (translation/storage/jobs run as separate functions; exports were
+// never wired). An honest notImplemented error beats a fake ok:true — or, for
+// exports, the retryable internal.error the capability_executions insert used to
+// produce. (#110)
+function notImplementedAction(name) {
+  throw capabilityError('api.notImplemented', `${name} is not implemented on this portal.`, { operation: name });
+}
+
 function mutationStatus(code) {
   if (code === 'permission.denied') return 403;
   if (code === 'validation.failed') return 400;
   if (code === 'notFound.object') return 404;
   if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
+  if (code === 'api.notImplemented') return 501;
   return 501;
 }
 
 function mutationErrorCode(code) {
   if (
-    ['permission.denied', 'validation.failed', 'notFound.object', 'conflict.idempotencyKey', 'conflict.state'].includes(
-      code,
-    )
+    [
+      'permission.denied',
+      'validation.failed',
+      'notFound.object',
+      'conflict.idempotencyKey',
+      'conflict.state',
+      'api.notImplemented',
+    ].includes(code)
   )
     return code;
   return 'internal.error';
@@ -2091,6 +2284,19 @@ function mutationErrorCode(code) {
 async function selectRows(table) {
   const rows = await adminDb().from(table).select('*');
   return Array.isArray(rows) ? rows : rows?.data || rows?.rows || [];
+}
+
+// A `*.get` (mode: 'one') must be addressed by a required identifier. Without
+// this guard, an empty input matched every row and `selectOne` returned row 0;
+// a wrong-typed id silently returned null. Both now fail as validation. (#107)
+function requireGetIdentifier(spec, input, operationName) {
+  const keys = spec.keys || ['id'];
+  if (!keys.some((key) => input[key] != null)) {
+    throw capabilityError('validation.failed', `${operationName} requires ${keys.join(' or ')}.`, { keys });
+  }
+  if (input.id != null && !Number.isInteger(Number(input.id))) {
+    throw capabilityError('validation.failed', `${operationName} id must be an integer.`, { id: String(input.id) });
+  }
 }
 
 function matchesInput(row, input) {

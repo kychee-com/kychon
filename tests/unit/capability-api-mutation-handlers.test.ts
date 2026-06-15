@@ -110,6 +110,8 @@ function makeDb() {
     poll_options: [
       { id: 1, poll_id: 1, label: 'Yes', position: 0 },
       { id: 2, poll_id: 1, label: 'No', position: 1 },
+      { id: 3, poll_id: 2, label: 'A', position: 0 },
+      { id: 4, poll_id: 2, label: 'B', position: 1 },
     ],
     poll_votes: [{ id: 1, poll_id: 1, option_id: 1, member_id: 1 }],
     committees: [{ id: 1, name: 'Board' }],
@@ -255,7 +257,11 @@ describe('Capability API mutation handlers', () => {
       ctx,
     );
     await executeCapabilityMutation('assets.upload', { file: { name: 'logo.png' }, path: 'logo.png' }, ctx);
-    await executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx);
+    // exports.* is not wired — it now returns an honest notImplemented error
+    // instead of a fake success / retryable internal.error. (#110)
+    await expect(executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx)).rejects.toMatchObject({
+      code: 'api.notImplemented',
+    });
 
     expect(db.tables.events.some((row) => row.title === 'New Event')).toBe(true);
     expect(db.tables.event_registration_options[0].is_disabled).toBe(true);
@@ -263,7 +269,7 @@ describe('Capability API mutation handlers', () => {
     expect(announcement.changed.map((ref) => ref.type)).toContain('poll');
     expect(db.tables.resources[0].file_url).toBe('/storage/guide.pdf');
     expect(storage.upload).toHaveBeenCalledTimes(2);
-    expect(db.tables.capability_executions).toHaveLength(1);
+    expect(db.tables.capability_executions).toHaveLength(0);
   });
 
   it('executes forum, poll, committee, reaction, and moderation mutations with domain semantics', async () => {
@@ -272,7 +278,7 @@ describe('Capability API mutation handlers', () => {
 
     const topic = await executeCapabilityMutation(
       'forum.topics.create',
-      { categoryId: 1, title: 'Topic', body: 'Body', poll: { question: 'Vote?', options: ['A'] } },
+      { categoryId: 1, title: 'Topic', body: 'Body', poll: { question: 'Vote?', options: ['A', 'B'] } },
       { actor: memberActor, db },
     );
     expect(topic.changed.map((ref) => ref.type)).toContain('poll');
@@ -336,5 +342,113 @@ describe('Capability API mutation handlers', () => {
     expect(db.tables.newsletter_drafts[0].subject).toBe('Weekly');
     expect(db.tables.member_insights[0].status).toBe('dismissed');
     expect(jobs.run).toHaveBeenCalledWith('sendEventReminders', {});
+  });
+});
+
+describe('Capability API mutation bug fixes', () => {
+  it('GH-119: de-duplicates repeated optionIds in a multiple-choice vote', async () => {
+    const db = makeDb();
+    await executeCapabilityMutation('pollVotes.cast', { pollId: 2, optionIds: [3, 3] }, { actor: memberActor, db });
+    const votes = db.tables.poll_votes.filter((row) => String(row.poll_id) === '2' && String(row.member_id) === '1');
+    expect(votes).toHaveLength(1);
+    expect(votes[0].option_id).toBe(3);
+  });
+
+  it('GH-118: rejects poll creation with fewer than two options and leaves no orphan poll', async () => {
+    const db = makeDb();
+    const before = db.tables.polls.length;
+    await expect(
+      executeCapabilityMutation('polls.create', { question: 'One?', options: ['only'] }, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('polls.create', { question: 'None?', options: [] }, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    expect(db.tables.polls.length).toBe(before);
+  });
+
+  it('GH-116: rejects an RSVP status outside the allowed enum (exact match)', async () => {
+    const db = makeDb();
+    await expect(
+      executeCapabilityMutation(
+        'rsvps.setStatus',
+        { eventId: 1, status: 'not-a-real-status' },
+        { actor: memberActor, db },
+      ),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'Going' }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+  });
+
+  it('GH-115: blocks a going RSVP at capacity, and a cancellation frees a seat', async () => {
+    const db = makeDb();
+    db.tables.events[0].capacity = 1;
+    db.tables.event_rsvps = [{ id: 1, event_id: 1, member_id: 99, status: 'going' }];
+
+    // A different member cannot go while the single seat is taken.
+    await expect(
+      executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'going' }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+
+    // The seated member cancels (admin acts on the row) — freeing the seat.
+    await executeCapabilityMutation('rsvps.setStatus', { id: 1, status: 'cancelled' }, { actor: adminActor, db });
+
+    // Now the member can go.
+    await executeCapabilityMutation('rsvps.setStatus', { eventId: 1, status: 'going' }, { actor: memberActor, db });
+    expect(db.tables.event_rsvps.some((row) => String(row.member_id) === '1' && row.status === 'going')).toBe(true);
+  });
+
+  it('GH-111: rejects create mutations with empty/invalid input instead of coercing', async () => {
+    const db = makeDb();
+    await expect(
+      executeCapabilityMutation('forum.topics.create', { categoryId: 1 }, { actor: memberActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(executeCapabilityMutation('events.create', {}, { actor: adminActor, db })).rejects.toBeInstanceOf(
+      CapabilityMutationError,
+    );
+    await expect(
+      executeCapabilityMutation(
+        'events.create',
+        { title: 'Bad dates', starts_at: '2026-07-02T10:00:00Z', ends_at: '2026-07-01T10:00:00Z' },
+        { actor: adminActor, db },
+      ),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('events.create', { title: 'Bad cap', capacity: -3 }, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    expect(db.tables.forum_topics.some((row) => row.title === 'Untitled')).toBe(false);
+  });
+
+  it('GH-108: validate phase rejects a create op with missing required input', async () => {
+    const db = makeDb();
+    const result = await validateCapabilityMutation('forum.topics.create', {}, { actor: memberActor, db });
+    expect(result.accepted).toBe(false);
+    const ok = await validateCapabilityMutation(
+      'forum.topics.create',
+      { categoryId: 1, title: 'Real' },
+      { actor: memberActor, db },
+    );
+    expect(ok.accepted).toBe(true);
+  });
+
+  it('GH-112: config.set preserves the stored category when omitted', async () => {
+    const db = makeDb();
+    db.tables.site_config = [{ id: 1, key: 'brand_text', value: 'Old', category: 'branding' }];
+    await executeCapabilityMutation('config.set', { key: 'brand_text', value: 'New' }, { actor: adminActor, db });
+    expect(db.tables.site_config[0]).toMatchObject({ value: 'New', category: 'branding' });
+  });
+
+  it('GH-110: unwired service/export ops return notImplemented, not fake success', async () => {
+    const cases: Array<[string, JsonObject]> = [
+      ['assets.upload', { file: { name: 'x.png' }, path: 'x.png' }],
+      ['translations.translateText', { text: 'Hi', target_language: 'es' }],
+      ['jobs.checkExpirations', {}],
+      ['exports.membersCsv', {}],
+    ];
+    for (const [op, input] of cases) {
+      await expect(executeCapabilityMutation(op, input, { actor: adminActor, db: makeDb() })).rejects.toMatchObject({
+        code: 'api.notImplemented',
+      });
+    }
   });
 });
