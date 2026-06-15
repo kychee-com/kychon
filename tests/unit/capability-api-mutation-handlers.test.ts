@@ -110,6 +110,8 @@ function makeDb() {
     poll_options: [
       { id: 1, poll_id: 1, label: 'Yes', position: 0 },
       { id: 2, poll_id: 1, label: 'No', position: 1 },
+      { id: 3, poll_id: 2, label: 'A', position: 0 },
+      { id: 4, poll_id: 2, label: 'B', position: 1 },
     ],
     poll_votes: [{ id: 1, poll_id: 1, option_id: 1, member_id: 1 }],
     committees: [{ id: 1, name: 'Board' }],
@@ -272,7 +274,7 @@ describe('Capability API mutation handlers', () => {
 
     const topic = await executeCapabilityMutation(
       'forum.topics.create',
-      { categoryId: 1, title: 'Topic', body: 'Body', poll: { question: 'Vote?', options: ['A'] } },
+      { categoryId: 1, title: 'Topic', body: 'Body', poll: { question: 'Vote?', options: ['A', 'B'] } },
       { actor: memberActor, db },
     );
     expect(topic.changed.map((ref) => ref.type)).toContain('poll');
@@ -336,5 +338,29 @@ describe('Capability API mutation handlers', () => {
     expect(db.tables.newsletter_drafts[0].subject).toBe('Weekly');
     expect(db.tables.member_insights[0].status).toBe('dismissed');
     expect(jobs.run).toHaveBeenCalledWith('sendEventReminders', {});
+  });
+});
+
+describe('Capability API mutation bug fixes', () => {
+  it('GH-119: de-duplicates repeated optionIds in a multiple-choice vote', async () => {
+    const db = makeDb();
+    await executeCapabilityMutation('pollVotes.cast', { pollId: 2, optionIds: [3, 3] }, { actor: memberActor, db });
+    const votes = db.tables.poll_votes.filter(
+      (row) => String(row.poll_id) === '2' && String(row.member_id) === '1',
+    );
+    expect(votes).toHaveLength(1);
+    expect(votes[0].option_id).toBe(3);
+  });
+
+  it('GH-118: rejects poll creation with fewer than two options and leaves no orphan poll', async () => {
+    const db = makeDb();
+    const before = db.tables.polls.length;
+    await expect(
+      executeCapabilityMutation('polls.create', { question: 'One?', options: ['only'] }, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    await expect(
+      executeCapabilityMutation('polls.create', { question: 'None?', options: [] }, { actor: adminActor, db }),
+    ).rejects.toBeInstanceOf(CapabilityMutationError);
+    expect(db.tables.polls.length).toBe(before);
   });
 });

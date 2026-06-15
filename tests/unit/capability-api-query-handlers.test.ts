@@ -364,3 +364,37 @@ describe('Capability API query handlers', () => {
     expect(body.data.rows.map((row: JsonObject) => row.title)).toEqual(['Public Resource', 'Member Resource']);
   });
 });
+
+describe('Capability API query bug fixes', () => {
+  const pollVotesDb = () =>
+    new MemoryQueryDb({
+      polls: [
+        { id: 1, question: 'Anon', is_anonymous: true, is_open: true },
+        { id: 2, question: 'Open', is_anonymous: false, is_open: true },
+      ],
+      poll_votes: [
+        { id: 1, poll_id: 1, option_id: 1, member_id: '10' },
+        { id: 2, poll_id: 2, option_id: 3, member_id: '10' },
+      ],
+    });
+
+  it('GH-117: redacts voter member_id for anonymous polls, even for admins', async () => {
+    for (const actor of [memberActor, adminActor]) {
+      const anon = (await runCapabilityQuery('pollVotes.list', { pollId: 1 }, { actor, db: pollVotesDb() })) as {
+        rows: JsonObject[];
+      };
+      expect(anon.rows).toHaveLength(1);
+      expect(anon.rows[0].member_id).toBeNull();
+    }
+  });
+
+  it('GH-117: keeps voter member_id for non-anonymous polls', async () => {
+    const open = (await runCapabilityQuery(
+      'pollVotes.list',
+      { pollId: 2 },
+      { actor: adminActor, db: pollVotesDb() },
+    )) as { rows: JsonObject[] };
+    expect(open.rows).toHaveLength(1);
+    expect(open.rows[0].member_id).toBe('10');
+  });
+});

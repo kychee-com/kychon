@@ -50,7 +50,7 @@ const tableQueries: Record<string, QueryHandler> = {
   'polls.get': (input, ctx) => oneResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
   'polls.getAttached': (input, ctx) => oneResult(ctx, 'polls', input, (row) => matchesAttached(row, input)),
   'pollOptions.list': (input, ctx) => listResult(ctx, 'poll_options', input),
-  'pollVotes.list': (input, ctx) => listResult(ctx, 'poll_votes', input),
+  'pollVotes.list': (input, ctx) => pollVotesList(input, ctx),
   'pollResults.get': pollResults,
   'committees.list': (input, ctx) => listResult(ctx, 'committees', input),
   'committees.get': (input, ctx) => oneResult(ctx, 'committees', input),
@@ -192,6 +192,20 @@ async function pollResults(input: JsonObject, ctx: CapabilityQueryContext): Prom
       voteCount: votes.filter((vote) => String(vote.option_id) === String(option.id)).length,
     })),
   };
+}
+
+async function pollVotesList(input: JsonObject, ctx: CapabilityQueryContext): Promise<JsonValue> {
+  const votes = (await ctx.db.select('poll_votes')).filter((row) => matchesInput(row, input));
+  const anonymousPollIds = new Set(
+    (await ctx.db.select('polls')).filter((poll) => poll.is_anonymous === true).map((poll) => String(poll.id)),
+  );
+  // Anonymous polls must not expose voter identity in API responses; member_id
+  // stays in the DB only to enforce vote uniqueness. Redaction is unconditional
+  // — anonymity applies to every caller, admins included. (#117)
+  const rows = votes.map((vote) =>
+    anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote,
+  );
+  return { rows, count: rows.length };
 }
 
 function matchesInput(row: JsonObject, input: JsonObject): boolean {

@@ -313,11 +313,28 @@ async function createForumReply(input: JsonObject, ctx: CapabilityMutationContex
   return actionResult(reply, [object, changedObject('forum.topic', String(topicId))], verificationQuery(getOperation('forum.replies.list')!.name, { topicId }, object), auditReference(String(activity.id), 'forum_reply'));
 }
 
-async function validatePollVoteInput(input: JsonObject, ctx: CapabilityMutationContext): Promise<void> {
-  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds)
+// De-duplicate submitted option ids so a repeated id in a multiple-choice vote
+// cannot insert the same (poll, member, option) row twice and trip the UNIQUE
+// constraint (which would surface as a generic 500). (#119)
+function resolveVoteOptionIds(input: JsonObject): JsonValue[] {
+  const raw = Array.isArray(input.optionIds)
     ? input.optionIds
     : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const seen = new Set<string>();
+  const deduped: JsonValue[] = [];
+  for (const value of raw) {
+    const key = String(value);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(value);
+    }
+  }
+  return deduped;
+}
+
+async function validatePollVoteInput(input: JsonObject, ctx: CapabilityMutationContext): Promise<void> {
+  const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
+  const optionIds = resolveVoteOptionIds(input);
   await findOpenPoll(pollId, ctx);
   await validatePollOptionIds(pollId, optionIds, ctx);
 }
@@ -356,7 +373,7 @@ async function validatePollOptionIds(
 
 async function castPollVote(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   const pollId = requiredAny(input.pollId ?? input.poll_id, 'pollVotes.cast requires pollId.');
-  const optionIds = Array.isArray(input.optionIds) ? input.optionIds : [requiredAny(input.optionId ?? input.option_id, 'pollVotes.cast requires optionId.')];
+  const optionIds = resolveVoteOptionIds(input);
   const poll = await findOpenPoll(pollId, ctx);
   await validatePollOptionIds(pollId, optionIds, ctx);
 
@@ -614,6 +631,14 @@ async function runJob(operation: string, input: JsonObject, ctx: CapabilityMutat
 }
 
 async function createPoll(input: JsonObject, ctx: CapabilityMutationContext): Promise<JsonObject> {
+  // A poll needs at least two options — validate before inserting the poll row
+  // so an under-specified request never leaves an orphan poll behind. (#118)
+  const options = Array.isArray(input.options) ? input.options : [];
+  if (options.length < 2) {
+    throw new CapabilityMutationError('validation.failed', 'A poll requires at least two options.', {
+      object: { type: 'poll', id: 'new' },
+    });
+  }
   const poll = await ctx.db.insert('polls', {
     question: input.question || 'Poll',
     description: input.description || null,
@@ -626,7 +651,6 @@ async function createPoll(input: JsonObject, ctx: CapabilityMutationContext): Pr
     attached_id: input.attached_id || input.attachedId || null,
     created_by: memberId(ctx),
   });
-  const options = Array.isArray(input.options) ? input.options : [];
   let position = 0;
   for (const option of options) {
     const label = isObject(option) ? option.label : option;
