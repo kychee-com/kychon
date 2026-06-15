@@ -207,6 +207,11 @@ export interface NavPresentationConfig {
   chevron_color?: string;
   transition?: string;
   mobile_menu_bg?: string;
+  /** Text color for the mobile/overflow menu surface. Defaults to the bar's
+   *  link color (which pairs with mobile_menu_bg), so submenu items stay
+   *  legible on a dark mobile panel instead of inheriting the desktop
+   *  popover color. */
+  mobile_menu_color?: string;
   mobile_menu_padding?: string;
   /** 'static' lets the header scroll with the page (copied-site source
    *  behavior parity); default is the sticky header. */
@@ -1178,6 +1183,7 @@ function renderNavPresentationProps(cfg: NavConfig): {
   setNavStyle(style, '--nav-focus-color', focus.border || focus.text);
   setNavStyle(style, '--nav-transition', p.transition || hover.duration);
   setNavStyle(style, '--nav-mobile-menu-bg', p.mobile_menu_bg);
+  setNavStyle(style, '--nav-mobile-menu-color', p.mobile_menu_color);
   setNavStyle(style, '--nav-mobile-menu-padding', p.mobile_menu_padding);
   setNavStyle(style, '--nav-header-position', p.header_position);
 
