@@ -424,4 +424,11 @@ describe('Capability API mutation bug fixes', () => {
     );
     expect(ok.accepted).toBe(true);
   });
+
+  it('GH-112: config.set preserves the stored category when omitted', async () => {
+    const db = makeDb();
+    db.tables.site_config = [{ id: 1, key: 'brand_text', value: 'Old', category: 'branding' }];
+    await executeCapabilityMutation('config.set', { key: 'brand_text', value: 'New' }, { actor: adminActor, db });
+    expect(db.tables.site_config[0]).toMatchObject({ value: 'New', category: 'branding' });
+  });
 });

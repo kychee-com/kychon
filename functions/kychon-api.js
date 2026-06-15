@@ -272,6 +272,17 @@ const SQL_WRITE_TABLES = new Set(['events', 'resources']);
 // callers. Anything else (future webhook URLs, integration tokens, etc.)
 // requires admin. (#27 item 4)
 const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
+// Brand-identity keys are always anonymously readable so hydrated chrome matches
+// the baked chrome even when a porter wrote them under a non-public category (or
+// no category at all). Key-scoped, so it does not widen any other config
+// surface the category gate protects. (#125)
+const PUBLIC_CONFIG_KEYS = new Set([
+  'brand_text',
+  'brand_text_short',
+  'brand_icon_url',
+  'brand_wordmark_url',
+  'favicon_url',
+]);
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -547,12 +558,19 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
       // Non-admin callers see only the categories that are explicitly safe to
       // publish — branding, features, theme, demo. Any other category (a
       // future webhook URL, integration token, etc.) requires admin. (#27 item 4)
-      const visibleConfig = (row) => isAdminLike(actor) || PUBLIC_CONFIG_CATEGORIES.has(row.category);
+      const visibleConfig = (row) =>
+        isAdminLike(actor) || PUBLIC_CONFIG_CATEGORIES.has(row.category) || PUBLIC_CONFIG_KEYS.has(row.key);
       if (typeof input.key === 'string') {
         const row = rows.find((item) => item.key === input.key && visibleConfig(item));
         return successResponse(correlationId, row ? configRow(row) : null);
       }
-      const mapped = rows.filter(visibleConfig).map(configRow);
+      // Honor an optional category filter — previously ignored, so callers asking
+      // for one category received every visible row. (#112)
+      const category = typeof input.category === 'string' ? input.category : null;
+      const mapped = rows
+        .filter(visibleConfig)
+        .filter((row) => category == null || row.category === category)
+        .map(configRow);
       return successResponse(correlationId, { rows: mapped, count: mapped.length });
     }
 
@@ -1530,8 +1548,11 @@ async function upsertConfig(input) {
     return last;
   }
   const key = String(requiredAny(input.key, 'config.set requires key.'));
-  const patch = { value: input.value ?? null, category: input.category || 'general' };
   const existing = (await selectRows('site_config')).find((row) => row.key === key);
+  // Preserve the stored category when the caller omits it — a value-only edit
+  // must not silently re-file the row under 'general'. (#112)
+  const category = input.category || existing?.category || 'general';
+  const patch = { value: input.value ?? null, category };
   if (existing) return updateConfigRow(key, patch);
   return insertRow('site_config', { key, ...patch });
 }
