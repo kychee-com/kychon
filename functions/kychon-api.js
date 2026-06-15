@@ -227,7 +227,7 @@ const OPERATIONS = new Map(OPERATION_CATALOG.map((entry) => [entry.name, entry])
 const TABLE_QUERIES = {
   'config.get': { table: 'site_config', mode: 'config' },
   'pages.list': { table: 'pages', mode: 'list', visible: visiblePage },
-  'pages.get': { table: 'pages', mode: 'one', visible: visiblePage },
+  'pages.get': { table: 'pages', mode: 'one', visible: visiblePage, keys: ['id', 'slug'] },
   'sections.list': { table: 'sections', mode: 'list', visible: visibleSection },
   'sections.get': { table: 'sections', mode: 'one', visible: visibleSection },
   'members.list': { table: 'members', mode: 'list', map: memberRow },
@@ -557,6 +557,7 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
     }
 
     if (spec.mode === 'one') {
+      requireGetIdentifier(spec, queryInput, operationName);
       const row = rows.find((item) => matchesInput(item, queryInput) && visible(item, actor));
       return successResponse(correlationId, row ? map(row, actor) : null);
     }
@@ -572,6 +573,17 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
       .map((row) => map(row, actor));
     return successResponse(correlationId, { rows: filtered, count: filtered.length });
   } catch (error) {
+    // A handler that intentionally raised a capability error (e.g. a missing
+    // required identifier on a `.get`) must surface its dotted code, not get
+    // flattened into a generic internal.error. (#107)
+    if (error?.capabilityCode) {
+      return errorResponse(correlationId, mutationStatus(error.capabilityCode), {
+        code: mutationErrorCode(error.capabilityCode),
+        message: error.message,
+        detail: error.detail,
+        retryable: false,
+      });
+    }
     console.error('kychon-api table query failed:', error);
     return errorResponse(correlationId, 500, {
       code: 'internal.error',
@@ -2187,6 +2199,19 @@ function mutationErrorCode(code) {
 async function selectRows(table) {
   const rows = await adminDb().from(table).select('*');
   return Array.isArray(rows) ? rows : rows?.data || rows?.rows || [];
+}
+
+// A `*.get` (mode: 'one') must be addressed by a required identifier. Without
+// this guard, an empty input matched every row and `selectOne` returned row 0;
+// a wrong-typed id silently returned null. Both now fail as validation. (#107)
+function requireGetIdentifier(spec, input, operationName) {
+  const keys = spec.keys || ['id'];
+  if (!keys.some((key) => input[key] != null)) {
+    throw capabilityError('validation.failed', `${operationName} requires ${keys.join(' or ')}.`, { keys });
+  }
+  if (input.id != null && !Number.isInteger(Number(input.id))) {
+    throw capabilityError('validation.failed', `${operationName} id must be an integer.`, { id: String(input.id) });
+  }
 }
 
 function matchesInput(row, input) {

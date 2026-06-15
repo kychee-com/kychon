@@ -397,4 +397,28 @@ describe('Capability API query bug fixes', () => {
     expect(open.rows).toHaveLength(1);
     expect(open.rows[0].member_id).toBe('10');
   });
+
+  it('GH-107: .get without an identifier fails validation instead of returning row 0', async () => {
+    await expect(
+      runCapabilityQuery('events.get', {}, { actor: anonymousActor, db: sampleDb() }),
+    ).rejects.toMatchObject({ code: 'validation.failed' });
+    await expect(
+      runCapabilityQuery('announcements.get', {}, { actor: anonymousActor, db: sampleDb() }),
+    ).rejects.toMatchObject({ code: 'validation.failed' });
+  });
+
+  it('GH-107: .get with a wrong-typed id fails validation instead of returning null', async () => {
+    await expect(
+      runCapabilityQuery('events.get', { id: 'not-an-int' }, { actor: anonymousActor, db: sampleDb() }),
+    ).rejects.toMatchObject({ code: 'validation.failed' });
+  });
+
+  it('GH-107: pages.get still resolves by slug', async () => {
+    const page = (await runCapabilityQuery(
+      'pages.get',
+      { slug: 'public' },
+      { actor: anonymousActor, db: sampleDb() },
+    )) as JsonObject | null;
+    expect(page?.slug).toBe('public');
+  });
 });
