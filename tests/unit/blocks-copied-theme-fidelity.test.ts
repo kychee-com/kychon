@@ -131,3 +131,202 @@ describe('shape_divider block', () => {
     expect(adminHtml).not.toContain('shape-divider__invalid');
   });
 });
+
+describe('feature_panels block (#124)', () => {
+  it('registers feature_panels as a main-zone list block', () => {
+    expect(BLOCK_TYPES.feature_panels).toBeDefined();
+    expect(BLOCK_TYPES.feature_panels.zoneHints).toContain('main');
+    expect(BLOCK_TYPES.feature_panels.editorType).toBe('list');
+    expect(BLOCK_TYPES.feature_panels.translatableFields).toEqual(
+      expect.arrayContaining(['panels[].heading', 'panels[].body', 'panels[].cta_label']),
+    );
+  });
+
+  it('renders a structured, escaped panel grid', () => {
+    const html = renderBlock(
+      section('feature_panels', {
+        heading: 'Our pillars',
+        panels: [
+          {
+            image_url: '/p.png',
+            image_alt: 'Boats',
+            heading: 'Sailing',
+            body: '<Alpha> & more',
+            cta_label: 'Learn',
+            cta_href: '/sailing',
+            fit: 'contain',
+            object_position: '40% 50%',
+          },
+        ],
+      }),
+      ctx,
+    );
+    expect(html).toContain('data-feature-panels');
+    expect(html).toContain('data-feature-panel');
+    expect(html).toContain('Our pillars');
+    expect(html).toContain('Sailing');
+    expect(html).toContain('&lt;Alpha&gt; &amp; more');
+    expect(html).toContain('object-fit:contain');
+    expect(html).toContain('object-position:40% 50%');
+    expect(html).toContain('href="/sailing"');
+  });
+
+  it('does not emit raw script from a panel body', () => {
+    const html = renderBlock(
+      section('feature_panels', { panels: [{ heading: 'X', body: '<script>x</script>' }] }),
+      ctx,
+    );
+    expect(html).not.toContain('<script>x</script>');
+  });
+
+  it('exposes inline-edit hooks for admins', () => {
+    const html = renderBlock(
+      section('feature_panels', { heading: 'H', panels: [{ heading: 'P', body: 'B', image_url: '' }] }),
+      { ...ctx, admin: true },
+    );
+    expect(html).toContain('data-editable="sections.700.config.heading"');
+    expect(html).toContain('data-editable="sections.700.config.panels.0.heading"');
+    expect(html).toContain('data-editable-image="sections.700.config.panels.0.image_url"');
+  });
+});
+
+describe('menu block (#123)', () => {
+  it('registers menu as a main-zone list block with nested translatable fields', () => {
+    expect(BLOCK_TYPES.menu).toBeDefined();
+    expect(BLOCK_TYPES.menu.zoneHints).toContain('main');
+    expect(BLOCK_TYPES.menu.editorType).toBe('list');
+    expect(BLOCK_TYPES.menu.translatableFields).toEqual(
+      expect.arrayContaining(['sections[].name', 'sections[].items[].name', 'sections[].items[].description']),
+    );
+  });
+
+  it('renders structured sections, items, prices, and dietary tags (escaped)', () => {
+    const html = renderBlock(
+      section('menu', {
+        heading: 'Tap room',
+        sections: [
+          {
+            name: 'Starters',
+            items: [{ name: 'Chowder', description: 'House <special>', price: '$6', dietary_tags: ['GF', 'V'] }],
+          },
+        ],
+      }),
+      ctx,
+    );
+    expect(html).toContain('data-menu');
+    expect(html).toContain('data-menu-section');
+    expect(html).toContain('Starters');
+    expect(html).toContain('Chowder');
+    expect(html).toContain('$6');
+    expect(html).toContain('data-menu-tag');
+    expect(html).toContain('GF');
+    expect(html).toContain('House &lt;special&gt;');
+    expect(html).not.toContain('<special>');
+  });
+
+  it('exposes inline-edit hooks for section names, item names, and prices', () => {
+    const html = renderBlock(
+      section('menu', { sections: [{ name: 'Mains', items: [{ name: 'Burger', price: '$12' }] }] }),
+      {
+        ...ctx,
+        admin: true,
+      },
+    );
+    expect(html).toContain('data-editable="sections.700.config.sections.0.name"');
+    expect(html).toContain('data-editable="sections.700.config.sections.0.items.0.name"');
+    expect(html).toContain('data-editable="sections.700.config.sections.0.items.0.price"');
+  });
+});
+
+describe('member_login block (#91)', () => {
+  it('registers member_login with translatable label fields', () => {
+    expect(BLOCK_TYPES.member_login).toBeDefined();
+    expect(BLOCK_TYPES.member_login.zoneHints).toContain('main');
+    expect(BLOCK_TYPES.member_login.translatableFields).toEqual(
+      expect.arrayContaining(['heading', 'username_label', 'password_label', 'submit_label']),
+    );
+  });
+
+  it('renders source-style labels and a sign-in CTA, never a fake credential form', () => {
+    const html = renderBlock(
+      section('member_login', {
+        heading: 'AAGE member zone',
+        username_label: 'Member email',
+        password_label: 'Passphrase',
+        submit_label: 'Enter',
+        sign_in_href: '/join',
+      }),
+      ctx,
+    );
+    expect(html).toContain('data-member-login');
+    expect(html).toContain('AAGE member zone');
+    expect(html).toContain('Member email');
+    expect(html).toContain('Passphrase');
+    expect(html).toContain('data-member-login-cta');
+    expect(html).toContain('href="/join"');
+    expect(html).not.toContain('type="password"');
+    expect(html).not.toContain('<input');
+  });
+
+  it('marks bot protection pending without rendering a faked widget', () => {
+    const enabled = renderBlock(section('member_login', { enable_bot_protection: true }), ctx);
+    expect(enabled).toContain('data-bot-protection="pending"');
+    expect(enabled.toLowerCase()).not.toContain('recaptcha');
+    expect(enabled).not.toContain('<iframe');
+    expect(enabled).not.toContain('<script');
+
+    const disabled = renderBlock(section('member_login', { enable_bot_protection: false }), ctx);
+    expect(disabled).not.toContain('data-bot-protection');
+  });
+});
+
+describe('utility header cluster blocks (#99)', () => {
+  it('registers safety_cta, social_row, and utility_bar as header blocks', () => {
+    for (const t of ['safety_cta', 'social_row', 'utility_bar']) {
+      expect(BLOCK_TYPES[t]).toBeDefined();
+      expect(BLOCK_TYPES[t].zoneHints).toContain('header');
+    }
+  });
+
+  it('safety_cta renders an editable, escaped CTA with a variant', () => {
+    const html = renderBlock(section('safety_cta', { label: 'Risk & safety', href: '/safety', variant: 'outline' }), {
+      ...ctx,
+      admin: true,
+    });
+    expect(html).toContain('data-safety-cta');
+    expect(html).toContain('data-variant="outline"');
+    expect(html).toContain('href="/safety"');
+    expect(html).toContain('Risk &amp; safety');
+    expect(html).toContain('data-editable="sections.700.config.label"');
+  });
+
+  it('social_row renders only links that have both a network and an href', () => {
+    const html = renderBlock(
+      section('social_row', {
+        links: [
+          { network: 'facebook', href: 'https://fb.com/x' },
+          { network: 'x', href: '' },
+        ],
+      }),
+      ctx,
+    );
+    expect(html).toContain('data-network="facebook"');
+    expect(html).toContain('href="https://fb.com/x"');
+    expect(html).not.toContain('data-network="x"');
+  });
+
+  it('utility_bar renders editable items with alignment', () => {
+    const html = renderBlock(
+      section('utility_bar', { align: 'left', items: [{ label: 'Members', href: '/members' }] }),
+      {
+        ...ctx,
+        admin: true,
+      },
+    );
+    expect(html).toContain('data-utility-bar');
+    expect(html).toContain('data-align="left"');
+    expect(html).toContain('data-utility-item');
+    expect(html).toContain('href="/members"');
+    expect(html).toContain('data-editable="sections.700.config.items.0.label"');
+  });
+});
