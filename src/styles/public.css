@@ -292,6 +292,24 @@ a:hover {
   color: var(--nav-dropdown-hover-color, var(--accent-foreground, var(--color-text)));
 }
 
+/* On mobile-open / overflow the submenu collapses into the bar's vertical
+   panel — transparent over --nav-mobile-menu-bg, sitting right beside the
+   top-level [data-nav-link]s. So its items belong to the BAR's color context
+   (--nav-link-color, which the porter already pairs with the mobile panel
+   bg), NOT the desktop floating popover's --nav-dropdown-color. Without this
+   override a dark mobile panel keeps the light-popover text color and the
+   submenu items go unreadable (wsmta mobile submenu measured 1.84:1; the
+   top-level links beside them were fine because they already use
+   --nav-link-color). Higher specificity than the desktop rule above (extra
+   [data-nav-links]/[data-nav-mobile-open] / [data-nav-overflow-menu]
+   ancestor), so it wins only in the mobile/overflow contexts. */
+[data-nav-links][data-nav-mobile-open="true"] [data-nav-menu] [data-nav-menuitem][data-nav-menuitem],
+[data-nav-links][data-nav-mobile-open="true"] [data-nav-menu] [data-nav-menuitem-parent][data-nav-menuitem-parent],
+[data-nav-overflow-menu] [data-nav-menu] [data-nav-menuitem][data-nav-menuitem],
+[data-nav-overflow-menu] [data-nav-menu] [data-nav-menuitem-parent][data-nav-menuitem-parent] {
+  color: var(--nav-mobile-menu-color, var(--nav-link-color, var(--muted-foreground, var(--color-text-muted))));
+}
+
 [data-nav-link],
 [data-nav-parent-trigger] {
   padding: var(--nav-link-padding, 0.5rem 0.75rem);
