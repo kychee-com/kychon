@@ -902,8 +902,63 @@ async function executeMutation(name, input, actor) {
 
 const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin']);
 
+// Required-field validation for create operations, shared by the validate
+// phase and the execute handlers so the two agree. Without it, `validate`
+// reported accepted:true for empty input and execute then coerced the missing
+// fields (title -> 'Untitled', body -> ''). (#108, #111)
+function validateCreateInput(operation, input) {
+  if (operation === 'forum.topics.create') {
+    requireNonEmptyString(input.title, 'forum.topics.create requires a non-empty title.');
+  } else if (operation === 'events.create') {
+    requireNonEmptyString(input.title, 'events.create requires a non-empty title.');
+    validateEventDates(input);
+    validateNonNegativeCapacity(input);
+  } else if (operation === 'tiers.create') {
+    requireNonEmptyString(input.name, 'tiers.create requires a non-empty name.');
+  }
+}
+
+function requireNonEmptyString(value, message) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw capabilityError('validation.failed', message, {});
+  }
+}
+
+// Dates are validated only when supplied — a title-only event stays valid per
+// the documented minimal create contract. An out-of-order or unparseable date
+// is rejected rather than silently stored. (#111)
+function validateEventDates(input) {
+  const starts = input.startsAt ?? input.starts_at;
+  const ends = input.endsAt ?? input.ends_at;
+  if (starts != null && Number.isNaN(Date.parse(String(starts)))) {
+    throw capabilityError('validation.failed', 'events.create starts_at must be a valid date.', {
+      starts_at: String(starts),
+    });
+  }
+  if (ends != null) {
+    if (Number.isNaN(Date.parse(String(ends)))) {
+      throw capabilityError('validation.failed', 'events.create ends_at must be a valid date.', { ends_at: String(ends) });
+    }
+    if (starts != null && Date.parse(String(ends)) < Date.parse(String(starts))) {
+      throw capabilityError('validation.failed', 'events.create ends_at must be on or after starts_at.', {});
+    }
+  }
+}
+
+function validateNonNegativeCapacity(input) {
+  if (input.capacity != null) {
+    const capacity = Number(input.capacity);
+    if (!Number.isInteger(capacity) || capacity < 0) {
+      throw capabilityError('validation.failed', 'events.create capacity must be a non-negative integer.', {
+        capacity: String(input.capacity),
+      });
+    }
+  }
+}
+
 async function validateMutationSemantics(operation, input, actor) {
   try {
+    validateCreateInput(operation, input);
     if (operation === 'members.updateProfile') {
       idForUpdate(operation, input, actor);
     } else if (operation === 'forum.replies.create') {
@@ -1012,6 +1067,7 @@ async function genericMutation(operation, input, actor) {
 
   let row = null;
   if (spec.action === 'create') {
+    validateCreateInput(operation, input);
     row = await insertRow(spec.table, rowForCreate(operation, input, actor));
   } else if (spec.action === 'delete') {
     row = await deleteRow(spec.table, requiredId(input, `${operation} delete`));
@@ -1068,6 +1124,7 @@ async function createForumTopic(input, actor) {
   // author_id / author_name come from the actor only — caller-supplied values
   // would let any active member impersonate another member or admin. Pinning a
   // topic at create time is reserved for moderators via `forum.topics.pin`. (#24)
+  validateCreateInput('forum.topics.create', input);
   const topic = await insertRow('forum_topics', {
     category_id: input.categoryId ?? input.category_id ?? null,
     title: input.title || 'Untitled',
