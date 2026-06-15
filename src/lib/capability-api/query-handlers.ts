@@ -18,7 +18,7 @@ type QueryHandler = (input: JsonObject, ctx: CapabilityQueryContext) => Promise<
 const tableQueries: Record<string, QueryHandler> = {
   'config.get': (input, ctx) => tableResult(ctx, 'site_config', input, configRow),
   'pages.list': (input, ctx) => listResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor)),
-  'pages.get': (input, ctx) => oneResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor)),
+  'pages.get': (input, ctx) => oneResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor), undefined, ['id', 'slug']),
   'sections.list': (input, ctx) => listResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
   'sections.get': (input, ctx) => oneResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
   'members.list': async (input, ctx) => {
@@ -48,7 +48,8 @@ const tableQueries: Record<string, QueryHandler> = {
   'forum.replies.list': (input, ctx) => listResult(ctx, 'forum_replies', input, (row) => visibleForumRow(row, ctx.actor)),
   'polls.list': (input, ctx) => listResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
   'polls.get': (input, ctx) => oneResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
-  'polls.getAttached': (input, ctx) => oneResult(ctx, 'polls', input, (row) => matchesAttached(row, input)),
+  'polls.getAttached': (input, ctx) =>
+    oneResult(ctx, 'polls', input, (row) => matchesAttached(row, input), undefined, ['attachedTo', 'attachedId']),
   'pollOptions.list': (input, ctx) => listResult(ctx, 'poll_options', input),
   'pollVotes.list': (input, ctx) => pollVotesList(input, ctx),
   'pollResults.get': pollResults,
@@ -134,9 +135,23 @@ async function oneResult(
   input: JsonObject,
   visible: (row: JsonObject) => boolean = () => true,
   map: (row: JsonObject) => JsonObject = (row) => row,
+  keys: string[] = ['id'],
 ): Promise<JsonValue> {
+  requireGetIdentifier(keys, input, table);
   const rows = (await ctx.db.select(table)).filter((row) => matchesInput(row, input)).filter(visible);
   return rows[0] ? map(rows[0]) : null;
+}
+
+// A `*.get` must be addressed by a required identifier. Without this guard an
+// empty input matched every row and returned row 0; a wrong-typed id returned
+// null. Both now fail as validation.failed. (#107)
+function requireGetIdentifier(keys: string[], input: JsonObject, table: string): void {
+  if (!keys.some((key) => input[key] != null)) {
+    throw new CapabilityQueryError('validation.failed', `${table}.get requires ${keys.join(' or ')}.`, { keys });
+  }
+  if (input.id != null && !Number.isInteger(Number(input.id))) {
+    throw new CapabilityQueryError('validation.failed', `${table}.get id must be an integer.`, { id: String(input.id) });
+  }
 }
 
 async function search(input: JsonObject, ctx: CapabilityQueryContext, suggest: boolean): Promise<JsonValue> {
