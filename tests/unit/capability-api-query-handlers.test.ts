@@ -364,3 +364,87 @@ describe('Capability API query handlers', () => {
     expect(body.data.rows.map((row: JsonObject) => row.title)).toEqual(['Public Resource', 'Member Resource']);
   });
 });
+
+describe('Capability API query bug fixes', () => {
+  const pollVotesDb = () =>
+    new MemoryQueryDb({
+      polls: [
+        { id: 1, question: 'Anon', is_anonymous: true, is_open: true },
+        { id: 2, question: 'Open', is_anonymous: false, is_open: true },
+      ],
+      poll_votes: [
+        { id: 1, poll_id: 1, option_id: 1, member_id: '10' },
+        { id: 2, poll_id: 2, option_id: 3, member_id: '10' },
+      ],
+    });
+
+  it('GH-117: redacts voter member_id for anonymous polls, even for admins', async () => {
+    for (const actor of [memberActor, adminActor]) {
+      const anon = (await runCapabilityQuery('pollVotes.list', { pollId: 1 }, { actor, db: pollVotesDb() })) as {
+        rows: JsonObject[];
+      };
+      expect(anon.rows).toHaveLength(1);
+      expect(anon.rows[0].member_id).toBeNull();
+    }
+  });
+
+  it('GH-117: keeps voter member_id for non-anonymous polls', async () => {
+    const open = (await runCapabilityQuery(
+      'pollVotes.list',
+      { pollId: 2 },
+      { actor: adminActor, db: pollVotesDb() },
+    )) as { rows: JsonObject[] };
+    expect(open.rows).toHaveLength(1);
+    expect(open.rows[0].member_id).toBe('10');
+  });
+
+  it('GH-107: .get without an identifier fails validation instead of returning row 0', async () => {
+    await expect(runCapabilityQuery('events.get', {}, { actor: anonymousActor, db: sampleDb() })).rejects.toMatchObject(
+      { code: 'validation.failed' },
+    );
+    await expect(
+      runCapabilityQuery('announcements.get', {}, { actor: anonymousActor, db: sampleDb() }),
+    ).rejects.toMatchObject({ code: 'validation.failed' });
+  });
+
+  it('GH-107: .get with a wrong-typed id fails validation instead of returning null', async () => {
+    await expect(
+      runCapabilityQuery('events.get', { id: 'not-an-int' }, { actor: anonymousActor, db: sampleDb() }),
+    ).rejects.toMatchObject({ code: 'validation.failed' });
+  });
+
+  it('GH-107: pages.get still resolves by slug', async () => {
+    const page = (await runCapabilityQuery(
+      'pages.get',
+      { slug: 'public' },
+      { actor: anonymousActor, db: sampleDb() },
+    )) as JsonObject | null;
+    expect(page?.slug).toBe('public');
+  });
+
+  it('GH-112: config.get honors a category filter', async () => {
+    const db = new MemoryQueryDb({
+      site_config: [
+        { key: 'site_name', value: 'X', category: 'general' },
+        { key: 'theme_primary', value: '#000', category: 'theme' },
+      ],
+    });
+    const themed = (await runCapabilityQuery('config.get', { category: 'theme' }, { actor: adminActor, db })) as {
+      rows: JsonObject[];
+    };
+    expect(themed.rows.map((row) => row.key)).toEqual(['theme_primary']);
+  });
+
+  it('GH-125: config.get exposes brand keys to anon even under a non-public category', async () => {
+    const db = new MemoryQueryDb({
+      site_config: [
+        { key: 'brand_wordmark_url', value: '/w.png', category: 'wsmta' },
+        { key: 'secret_token', value: 'x', category: 'integrations' },
+      ],
+    });
+    const all = (await runCapabilityQuery('config.get', {}, { actor: anonymousActor, db })) as { rows: JsonObject[] };
+    const keys = all.rows.map((row) => row.key);
+    expect(keys).toContain('brand_wordmark_url');
+    expect(keys).not.toContain('secret_token');
+  });
+});

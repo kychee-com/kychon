@@ -210,6 +210,7 @@ function mutationStatus(code: string): number {
   if (code === 'notFound.object') return 404;
   if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
+  if (code === 'api.notImplemented') return 501;
   return 501;
 }
 
@@ -219,7 +220,8 @@ function mutationErrorCode(code: string) {
     code === 'validation.failed' ||
     code === 'notFound.object' ||
     code === 'conflict.idempotencyKey' ||
-    code === 'conflict.state'
+    code === 'conflict.state' ||
+    code === 'api.notImplemented'
   ) {
     return code;
   }

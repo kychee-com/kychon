@@ -16,9 +16,9 @@ export interface CapabilityQueryContext {
 type QueryHandler = (input: JsonObject, ctx: CapabilityQueryContext) => Promise<JsonValue>;
 
 const tableQueries: Record<string, QueryHandler> = {
-  'config.get': (input, ctx) => tableResult(ctx, 'site_config', input, configRow),
+  'config.get': (input, ctx) => configGet(input, ctx),
   'pages.list': (input, ctx) => listResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor)),
-  'pages.get': (input, ctx) => oneResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor)),
+  'pages.get': (input, ctx) => oneResult(ctx, 'pages', input, (row) => visiblePage(row, ctx.actor), undefined, ['id', 'slug']),
   'sections.list': (input, ctx) => listResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
   'sections.get': (input, ctx) => oneResult(ctx, 'sections', input, (row) => visibleSection(row, ctx.actor)),
   'members.list': async (input, ctx) => {
@@ -48,9 +48,10 @@ const tableQueries: Record<string, QueryHandler> = {
   'forum.replies.list': (input, ctx) => listResult(ctx, 'forum_replies', input, (row) => visibleForumRow(row, ctx.actor)),
   'polls.list': (input, ctx) => listResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
   'polls.get': (input, ctx) => oneResult(ctx, 'polls', input, (row) => visiblePoll(row, ctx.actor)),
-  'polls.getAttached': (input, ctx) => oneResult(ctx, 'polls', input, (row) => matchesAttached(row, input)),
+  'polls.getAttached': (input, ctx) =>
+    oneResult(ctx, 'polls', input, (row) => matchesAttached(row, input), undefined, ['attachedTo', 'attachedId']),
   'pollOptions.list': (input, ctx) => listResult(ctx, 'poll_options', input),
-  'pollVotes.list': (input, ctx) => listResult(ctx, 'poll_votes', input),
+  'pollVotes.list': (input, ctx) => pollVotesList(input, ctx),
   'pollResults.get': pollResults,
   'committees.list': (input, ctx) => listResult(ctx, 'committees', input),
   'committees.get': (input, ctx) => oneResult(ctx, 'committees', input),
@@ -100,20 +101,6 @@ export class CapabilityQueryError extends Error {
   }
 }
 
-async function tableResult(
-  ctx: CapabilityQueryContext,
-  table: string,
-  input: JsonObject,
-  map: (row: JsonObject) => JsonObject = (row) => row,
-): Promise<JsonValue> {
-  const rows = await ctx.db.select(table);
-  if (typeof input.key === 'string') {
-    const row = rows.find((item) => item.key === input.key);
-    return row ? map(row) : null;
-  }
-  return { rows: rows.map(map), count: rows.length };
-}
-
 async function listResult(
   ctx: CapabilityQueryContext,
   table: string,
@@ -134,9 +121,23 @@ async function oneResult(
   input: JsonObject,
   visible: (row: JsonObject) => boolean = () => true,
   map: (row: JsonObject) => JsonObject = (row) => row,
+  keys: string[] = ['id'],
 ): Promise<JsonValue> {
+  requireGetIdentifier(keys, input, table);
   const rows = (await ctx.db.select(table)).filter((row) => matchesInput(row, input)).filter(visible);
   return rows[0] ? map(rows[0]) : null;
+}
+
+// A `*.get` must be addressed by a required identifier. Without this guard an
+// empty input matched every row and returned row 0; a wrong-typed id returned
+// null. Both now fail as validation.failed. (#107)
+function requireGetIdentifier(keys: string[], input: JsonObject, table: string): void {
+  if (!keys.some((key) => input[key] != null)) {
+    throw new CapabilityQueryError('validation.failed', `${table}.get requires ${keys.join(' or ')}.`, { keys });
+  }
+  if (input.id != null && !Number.isInteger(Number(input.id))) {
+    throw new CapabilityQueryError('validation.failed', `${table}.get id must be an integer.`, { id: String(input.id) });
+  }
 }
 
 async function search(input: JsonObject, ctx: CapabilityQueryContext, suggest: boolean): Promise<JsonValue> {
@@ -194,6 +195,20 @@ async function pollResults(input: JsonObject, ctx: CapabilityQueryContext): Prom
   };
 }
 
+async function pollVotesList(input: JsonObject, ctx: CapabilityQueryContext): Promise<JsonValue> {
+  const votes = (await ctx.db.select('poll_votes')).filter((row) => matchesInput(row, input));
+  const anonymousPollIds = new Set(
+    (await ctx.db.select('polls')).filter((poll) => poll.is_anonymous === true).map((poll) => String(poll.id)),
+  );
+  // Anonymous polls must not expose voter identity in API responses; member_id
+  // stays in the DB only to enforce vote uniqueness. Redaction is unconditional
+  // — anonymity applies to every caller, admins included. (#117)
+  const rows = votes.map((vote) =>
+    anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote,
+  );
+  return { rows, count: rows.length };
+}
+
 function matchesInput(row: JsonObject, input: JsonObject): boolean {
   for (const [inputKey, rowKey] of [
     ['id', 'id'],
@@ -214,6 +229,30 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
     if (rowKey in row && String(row[rowKey]) !== String(value)) return false;
   }
   return true;
+}
+
+const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
+// Brand-identity keys are always anonymously readable so hydrated chrome matches
+// baked chrome even when written under a non-public category. Key-scoped. (#125)
+const PUBLIC_CONFIG_KEYS = new Set(['brand_text', 'brand_text_short', 'brand_icon_url', 'brand_wordmark_url', 'favicon_url']);
+
+async function configGet(input: JsonObject, ctx: CapabilityQueryContext): Promise<JsonValue> {
+  const rows = await ctx.db.select('site_config');
+  const visible = (row: JsonObject) =>
+    isAdminLike(ctx.actor) ||
+    PUBLIC_CONFIG_CATEGORIES.has(row.category as string) ||
+    PUBLIC_CONFIG_KEYS.has(row.key as string);
+  if (typeof input.key === 'string') {
+    const row = rows.find((item) => item.key === input.key && visible(item));
+    return row ? configRow(row) : null;
+  }
+  // Honor an optional category filter — previously ignored. (#112)
+  const category = typeof input.category === 'string' ? input.category : null;
+  const mapped = rows
+    .filter(visible)
+    .filter((row) => category == null || row.category === category)
+    .map(configRow);
+  return { rows: mapped, count: mapped.length };
 }
 
 function configRow(row: JsonObject): JsonObject {
