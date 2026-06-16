@@ -227,7 +227,7 @@ function MenuAnchor({
 }) {
   return (
     <a
-      className={cn(navMenuItemClass, active ? 'bg-primary/10 text-primary' : '', className)}
+      className={cn(navMenuItemClass, className)}
       data-nav-active={active ? 'true' : undefined}
       data-nav-menuitem=""
       href={href}
