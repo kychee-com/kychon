@@ -59,3 +59,38 @@ describe('block singleton rendering', () => {
     expect(isSingletonBlockType('site_search', 'main')).toBe(false);
   });
 });
+
+describe('brand_header_mode (#106)', () => {
+  const bothUrls: BlockRenderContext = {
+    ...ctx,
+    brandIconUrl: 'https://cdn.example/icon.png',
+    brandWordmarkUrl: 'https://cdn.example/wordmark.svg',
+  };
+
+  it('renders the wordmark in wordmark mode even when an icon is also set', () => {
+    const html = renderZone(
+      [brandSection({ config: { href: '/', title: 'The Eagles', brand_header_mode: 'wordmark' } })],
+      'header',
+      bothUrls,
+    );
+    expect(html).toContain('data-brand-mode="wordmark"');
+    expect(html).toContain('data-brand-wordmark');
+    expect(html).not.toContain('data-brand-icon');
+  });
+
+  it('keeps icon priority in auto mode when both assets are set (back-compat)', () => {
+    const html = renderZone([brandSection({ config: { href: '/', title: 'The Eagles' } })], 'header', bothUrls);
+    expect(html).toContain('data-brand-mode="icon"');
+    expect(html).toContain('data-brand-icon');
+  });
+
+  it('falls back to icon when wordmark mode is requested but no wordmark url exists', () => {
+    const iconOnly: BlockRenderContext = { ...ctx, brandIconUrl: 'https://cdn.example/icon.png' };
+    const html = renderZone(
+      [brandSection({ config: { href: '/', title: 'The Eagles', brand_header_mode: 'wordmark' } })],
+      'header',
+      iconOnly,
+    );
+    expect(html).toContain('data-brand-mode="icon"');
+  });
+});
