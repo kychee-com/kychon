@@ -1255,6 +1255,7 @@ const BRAND_HEADER: BlockType = {
   supportedSpans: ['1'],
   defaultConfig: {
     href: '/',
+    brand_header_mode: 'auto',
   },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -1288,7 +1289,13 @@ const BRAND_HEADER: BlockType = {
     const iconChromeAttrs = iconUrl ? kychonChromeImgAttrs(iconUrl, ctx.manifest) : '';
     const wordmarkChromeAttrs = wordmarkUrl ? kychonChromeImgAttrs(wordmarkUrl, ctx.manifest) : '';
 
-    if (iconUrl) {
+    // brand_header_mode (#106): an explicit `wordmark` / `icon` / `auto` choice
+    // so a ported site can show its wordmark while still setting a favicon/icon.
+    // `auto` (default) keeps the historical icon → wordmark → text priority; a
+    // requested mode whose asset is missing falls back to that same priority.
+    const mode = typeof cfg.brand_header_mode === 'string' ? cfg.brand_header_mode.trim() : 'auto';
+
+    const renderIcon = () => {
       // Mode 1: icon + text. Short text swaps in via CSS at narrow viewports.
       const shortSpan = brandTextShort
         ? `<span data-brand-text-short${editableTextShort}>${escHtml(brandTextShort)}</span>`
@@ -1297,14 +1304,20 @@ const BRAND_HEADER: BlockType = {
         ? `<span data-brand-subtitle>${escHtml(brandSubtitle)}</span>`
         : '';
       return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="icon" aria-label="${escAttr(brandText)}"><img data-brand-icon src="${escAttr(iconUrl)}" alt=""${iconChromeAttrs}${editableIcon}><span data-brand-copy><span data-brand-text><span data-brand-text-full${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
-    }
-    if (wordmarkUrl) {
-      // Mode 2: wordmark alone — the image already contains the org name, so
-      // no separate text element is rendered.
-      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${wordmarkChromeAttrs}${editableWordmark}></a>`;
-    }
+    };
+    // Mode 2: wordmark alone — the image already contains the org name, so no
+    // separate text element is rendered.
+    const renderWordmark = () =>
+      `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${wordmarkChromeAttrs}${editableWordmark}></a>`;
     // Mode 3: text fallback (equivalent to today's logo_url=NULL behavior).
-    return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="text"${editableText}>${escHtml(brandText)}</a>`;
+    const renderText = () =>
+      `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="text"${editableText}>${escHtml(brandText)}</a>`;
+
+    if (mode === 'wordmark' && wordmarkUrl) return renderWordmark();
+    if (mode === 'icon' && iconUrl) return renderIcon();
+    if (iconUrl) return renderIcon();
+    if (wordmarkUrl) return renderWordmark();
+    return renderText();
   },
 };
 
@@ -1740,6 +1753,290 @@ const IMAGE_ACCORDION: BlockType = {
   },
 };
 
+// feature_panels (#124): the recurring association-homepage "coordinated panels"
+// source pattern as structured config — image + heading + body + optional CTA per
+// panel, in a responsive grid. Replaces the custom-HTML workaround that degraded
+// to stacked prose; the sanitizer is untouched (no looser HTML mode).
+const FEATURE_PANELS: BlockType = {
+  label: 'Feature Panels',
+  icon: '\u{1F5C2}',
+  dynamic: false,
+  editorType: 'list',
+  translatableFields: ['heading', 'panels[].heading', 'panels[].body', 'panels[].cta_label'],
+  zoneHints: ['main'],
+  supportedSpans: ['1', '2/3', '1/2'],
+  defaultConfig: {
+    heading: '',
+    panels: [
+      { image_url: '', image_alt: '', heading: 'Panel 1', body: 'Add source text.', cta_label: '', cta_href: '', fit: 'cover', object_position: 'center' },
+      { image_url: '', image_alt: '', heading: 'Panel 2', body: 'Add source text.', cta_label: '', cta_href: '', fit: 'cover', object_position: 'center' },
+      { image_url: '', image_alt: '', heading: 'Panel 3', body: 'Add source text.', cta_label: '', cta_href: '', fit: 'cover', object_position: 'center' },
+    ],
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const panels = Array.isArray(cfg.panels) ? cfg.panels : [];
+    const editableAttr = (path: string | undefined) => (path ? ` data-editable="${escAttr(path)}"` : '');
+
+    const headingText = typeof cfg.heading === 'string' ? cfg.heading.trim() : '';
+    const headingHtml =
+      headingText || ctx.admin
+        ? `<h2 data-feature-panels-heading class="mb-6 text-2xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(headingText)}</h2>`
+        : '';
+
+    const panelsHtml = panels
+      .map((panel, index) => {
+        const p = panel || {};
+        const imageUrl = typeof p.image_url === 'string' ? p.image_url.trim() : '';
+        const fit = p.fit === 'contain' ? 'contain' : 'cover';
+        const position = safeCssValue(p.object_position || 'center') || 'center';
+        const imageEdit =
+          ctx.admin && section.id != null ? `sections.${section.id}.config.panels.${index}.image_url` : undefined;
+        const image =
+          imageUrl || ctx.admin
+            ? `<img data-feature-panel-image src="${escAttr(imageUrl)}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" class="aspect-[4/3] w-full bg-muted" style="object-fit:${fit};object-position:${position}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
+            : '';
+        const headingField =
+          p.heading || ctx.admin
+            ? `<h3 data-feature-panel-heading class="text-lg font-medium"${editableAttr(editablePath(section, `panels.${index}.heading`, ctx))}>${escHtml(p.heading || '')}</h3>`
+            : '';
+        const body =
+          p.body || ctx.admin
+            ? `<p data-feature-panel-body class="text-sm leading-relaxed text-muted-foreground"${editableAttr(editablePath(section, `panels.${index}.body`, ctx))}>${escHtml(p.body || '')}</p>`
+            : '';
+        const ctaLabel = typeof p.cta_label === 'string' ? p.cta_label.trim() : '';
+        const cta =
+          ctaLabel || ctx.admin
+            ? `<a data-feature-panel-cta class="mt-auto inline-flex w-fit pt-1 text-sm font-medium text-primary hover:underline" href="${escAttr(cleanHref(p.cta_href) || '#')}"${editableAttr(editablePath(section, `panels.${index}.cta_label`, ctx))}>${escHtml(ctaLabel)}</a>`
+            : '';
+        return `<article data-feature-panel class="flex flex-col overflow-hidden rounded-lg border border-border bg-card">${image}<div data-feature-panel-copy class="flex flex-1 flex-col gap-2 p-4">${headingField}${body}${cta}</div></article>`;
+      })
+      .join('');
+
+    const grid = `<div data-feature-panels-grid class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${panelsHtml}</div>`;
+    const inner = `<div data-feature-panels class="mx-auto max-w-5xl px-4">${headingHtml}${grid}</div>`;
+    return adminWrap(section, ctx, inner, 'w-full py-8');
+  },
+};
+
+// menu (#123): restaurant/bar menus carried by copied club sites as structured
+// data — ordered sections, each with ordered items { name, description, price,
+// dietary_tags } — so a price edit is structured config, not raw HTML.
+const MENU: BlockType = {
+  label: 'Menu',
+  icon: '\u{1F37D}',
+  dynamic: false,
+  editorType: 'list',
+  translatableFields: ['heading', 'sections[].name', 'sections[].items[].name', 'sections[].items[].description'],
+  zoneHints: ['main'],
+  supportedSpans: ['1', '2/3', '1/2'],
+  defaultConfig: {
+    heading: '',
+    sections: [
+      {
+        name: 'Starters',
+        items: [{ name: 'Soup of the day', description: '', price: '', dietary_tags: [] }],
+      },
+    ],
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const sections = Array.isArray(cfg.sections) ? cfg.sections : [];
+    const editableAttr = (path: string | undefined) => (path ? ` data-editable="${escAttr(path)}"` : '');
+
+    const headingText = typeof cfg.heading === 'string' ? cfg.heading.trim() : '';
+    const headingHtml =
+      headingText || ctx.admin
+        ? `<h2 data-menu-heading class="mb-6 text-2xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(headingText)}</h2>`
+        : '';
+
+    const sectionsHtml = sections
+      .map((menuSection, si) => {
+        const s: any = menuSection || {};
+        const items: any[] = Array.isArray(s.items) ? s.items : [];
+        const sectionName = `<h3 data-menu-section-name class="mb-3 border-b border-border pb-1 text-lg font-medium"${editableAttr(editablePath(section, `sections.${si}.name`, ctx))}>${escHtml(s.name || '')}</h3>`;
+        const itemsHtml = items
+          .map((item, ii) => {
+            const it: any = item || {};
+            const priceText = it.price == null ? '' : String(it.price).trim();
+            const price =
+              priceText || ctx.admin
+                ? `<span data-menu-item-price class="shrink-0 tabular-nums text-muted-foreground"${editableAttr(editablePath(section, `sections.${si}.items.${ii}.price`, ctx))}>${escHtml(priceText)}</span>`
+                : '';
+            const descText = typeof it.description === 'string' ? it.description.trim() : '';
+            const desc =
+              descText || ctx.admin
+                ? `<p data-menu-item-desc class="text-sm text-muted-foreground"${editableAttr(editablePath(section, `sections.${si}.items.${ii}.description`, ctx))}>${escHtml(descText)}</p>`
+                : '';
+            const tags: any[] = Array.isArray(it.dietary_tags) ? it.dietary_tags : [];
+            const tagsHtml = tags.length
+              ? `<span data-menu-item-tags class="mt-1 flex flex-wrap gap-1">${tags.map((t) => `<span data-menu-tag class="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">${escHtml(String(t))}</span>`).join('')}</span>`
+              : '';
+            const name = `<span data-menu-item-name class="font-medium"${editableAttr(editablePath(section, `sections.${si}.items.${ii}.name`, ctx))}>${escHtml(it.name || '')}</span>`;
+            return `<li data-menu-item class="flex flex-col gap-0.5"><div data-menu-item-head class="flex items-baseline justify-between gap-3">${name}${price}</div>${desc}${tagsHtml}</li>`;
+          })
+          .join('');
+        return `<section data-menu-section class="mb-8 last:mb-0">${sectionName}<ul data-menu-items class="flex flex-col gap-3">${itemsHtml}</ul></section>`;
+      })
+      .join('');
+
+    const inner = `<div data-menu class="mx-auto max-w-3xl px-4">${headingHtml}${sectionsHtml}</div>`;
+    return adminWrap(section, ctx, inner, 'w-full py-8');
+  },
+};
+
+// member_login (#91, Kychon side): a configurable login surface for copied Wild
+// Apricot member zones. Source-style labels/icons are structured config; actual
+// credential entry happens on the Run402-hosted sign-in the CTA links to — we
+// never render a fake credential-capturing form. The reCAPTCHA hook itself is a
+// Run402 platform escalation; here we only carry the flag + a pending marker.
+const MEMBER_LOGIN: BlockType = {
+  label: 'Member Login',
+  icon: '\u{1F510}',
+  dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['heading', 'subtitle', 'username_label', 'password_label', 'submit_label'],
+  zoneHints: ['main'],
+  supportedSpans: ['1', '1/2', '2/3'],
+  defaultConfig: {
+    heading: 'Member login',
+    subtitle: '',
+    username_label: 'Email',
+    password_label: 'Password',
+    submit_label: 'Sign in',
+    sign_in_href: '/join',
+    icon_url: '',
+    enable_bot_protection: false,
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const editableAttr = (path: string | undefined) => (path ? ` data-editable="${escAttr(path)}"` : '');
+    const text = (key: string, fallback: string) =>
+      typeof cfg[key] === 'string' && cfg[key].trim() ? cfg[key].trim() : fallback;
+
+    const heading = text('heading', 'Member login');
+    const subtitle = typeof cfg.subtitle === 'string' ? cfg.subtitle.trim() : '';
+    const usernameLabel = text('username_label', 'Email');
+    const passwordLabel = text('password_label', 'Password');
+    const submitLabel = text('submit_label', 'Sign in');
+    const signInHref = cleanHref(cfg.sign_in_href, '/join');
+    const iconUrl = typeof cfg.icon_url === 'string' ? cfg.icon_url.trim() : '';
+    const botProtection = cfg.enable_bot_protection === true;
+
+    const icon = iconUrl
+      ? `<img data-member-login-icon src="${escAttr(iconUrl)}" alt="" loading="lazy" decoding="async" class="h-12 w-12 rounded-full object-cover">`
+      : '';
+    const subtitleHtml =
+      subtitle || ctx.admin
+        ? `<p data-member-login-subtitle class="text-sm text-muted-foreground"${editableAttr(editablePath(section, 'subtitle', ctx))}>${escHtml(subtitle)}</p>`
+        : '';
+    // Source-style field labels shown for parity; the actual sign-in is the
+    // hosted form the CTA links to — no fake, credential-capturing inputs here.
+    const fields = `<ul data-member-login-fields class="flex list-none flex-col gap-1.5 text-sm text-muted-foreground"><li data-member-login-field class="rounded-md border border-border bg-background px-3 py-2"${editableAttr(editablePath(section, 'username_label', ctx))}>${escHtml(usernameLabel)}</li><li data-member-login-field class="rounded-md border border-border bg-background px-3 py-2"${editableAttr(editablePath(section, 'password_label', ctx))}>${escHtml(passwordLabel)}</li></ul>`;
+    const cta = `<a data-member-login-cta class="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90" href="${escAttr(signInHref)}"${editableAttr(editablePath(section, 'submit_label', ctx))}>${escHtml(submitLabel)}</a>`;
+    // Bot protection is a Run402 platform hook; until it exists we emit a
+    // machine-readable pending marker (no visible or faked widget) for the
+    // coverage report to surface.
+    const botMarker = botProtection ? '<div data-bot-protection="pending" aria-hidden="true" hidden></div>' : '';
+
+    const inner = `<div data-member-login class="mx-auto flex max-w-sm flex-col gap-4 rounded-lg border border-border bg-card p-6">${icon}<h2 data-member-login-heading class="text-xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(heading)}</h2>${subtitleHtml}${fields}${cta}${botMarker}</div>`;
+    return adminWrap(section, ctx, inner, 'w-full py-8');
+  },
+};
+
+// safety_cta / social_row / utility_bar (#99): the small composable header-zone
+// primitives a Wild Apricot-style utility cluster is built from. Each is an
+// independently editable data block in the existing header layout; a porter
+// preset (tracked separately) drops the coordinated cluster in one operation.
+const SAFETY_CTA: BlockType = {
+  label: 'Safety CTA',
+  icon: '\u{1F6E1}',
+  dynamic: false,
+  editorType: 'inline',
+  translatableFields: ['label'],
+  zoneHints: ['header'],
+  supportedSpans: ['1'],
+  defaultConfig: { label: 'Safety', href: '#', variant: 'solid' },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const label = typeof cfg.label === 'string' && cfg.label.trim() ? cfg.label.trim() : 'Safety';
+    const href = cleanHref(cfg.href, '#');
+    const variant = cfg.variant === 'outline' ? 'outline' : 'solid';
+    const editable = editablePath(section, 'label', ctx);
+    const editableAttr = editable ? ` data-editable="${escAttr(editable)}"` : '';
+    const variantClass =
+      variant === 'outline'
+        ? 'border border-border hover:bg-muted'
+        : 'bg-primary text-primary-foreground hover:bg-primary/90';
+    return `<a data-safety-cta data-variant="${variant}" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${variantClass}" href="${escAttr(href)}"${editableAttr}>${escHtml(label)}</a>`;
+  },
+};
+
+const SOCIAL_ROW: BlockType = {
+  label: 'Social Row',
+  icon: '\u{1F517}',
+  dynamic: false,
+  editorType: 'list',
+  translatableFields: [],
+  zoneHints: ['header'],
+  supportedSpans: ['1'],
+  defaultConfig: {
+    links: [
+      { network: 'facebook', href: '' },
+      { network: 'instagram', href: '' },
+    ],
+  },
+  render(section, _ctx) {
+    const cfg = section.config || {};
+    const links = Array.isArray(cfg.links) ? cfg.links : [];
+    const itemsHtml = links
+      .map((link) => {
+        const l = link || {};
+        const network = String(l.network || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/g, '');
+        const href = cleanHref(l.href);
+        if (!network || !href) return '';
+        return `<a data-social-link data-network="${escAttr(network)}" class="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" href="${escAttr(href)}" rel="noopener" target="_blank" aria-label="${escAttr(network)}">${escHtml(network)}</a>`;
+      })
+      .join('');
+    return `<div data-social-row class="flex items-center gap-2">${itemsHtml}</div>`;
+  },
+};
+
+const UTILITY_BAR: BlockType = {
+  label: 'Utility Bar',
+  icon: '\u{2630}',
+  dynamic: false,
+  editorType: 'list',
+  translatableFields: ['items[].label'],
+  zoneHints: ['header'],
+  supportedSpans: ['1'],
+  defaultConfig: {
+    align: 'right',
+    items: [{ label: 'Welcome', href: '' }],
+  },
+  render(section, ctx) {
+    const cfg = section.config || {};
+    const items = Array.isArray(cfg.items) ? cfg.items : [];
+    const align = cfg.align === 'left' ? 'left' : 'right';
+    const itemsHtml = items
+      .map((item, index) => {
+        const it = item || {};
+        const label = typeof it.label === 'string' ? it.label.trim() : '';
+        if (!label && !ctx.admin) return '';
+        const editable = editablePath(section, `items.${index}.label`, ctx);
+        const editableAttr = editable ? ` data-editable="${escAttr(editable)}"` : '';
+        const href = cleanHref(it.href);
+        return href
+          ? `<a data-utility-item class="transition-colors hover:text-foreground" href="${escAttr(href)}"${editableAttr}>${escHtml(label)}</a>`
+          : `<span data-utility-item${editableAttr}>${escHtml(label)}</span>`;
+      })
+      .join('');
+    return `<div data-utility-bar data-align="${align}" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground ${align === 'left' ? 'justify-start' : 'justify-end'}">${itemsHtml}</div>`;
+  },
+};
+
 const SHAPE_PRESETS: Record<string, string> = {
   wave: 'M0,64 C240,128 480,0 720,64 C960,128 1200,0 1440,64 L1440,120 L0,120 Z',
   tilt: 'M0,30 L1440,100 L1440,120 L0,120 Z',
@@ -2090,6 +2387,12 @@ export const BLOCK_TYPES: Record<string, BlockType> = {
   link_list: LINK_LIST,
   promo_cards: PROMO_CARDS,
   image_accordion: IMAGE_ACCORDION,
+  feature_panels: FEATURE_PANELS,
+  menu: MENU,
+  member_login: MEMBER_LOGIN,
+  safety_cta: SAFETY_CTA,
+  social_row: SOCIAL_ROW,
+  utility_bar: UTILITY_BAR,
   shape_divider: SHAPE_DIVIDER,
   events_list: EVENTS_LIST,
   events_calendar: EVENTS_CALENDAR,

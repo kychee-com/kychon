@@ -423,6 +423,103 @@ export const seed: ProjectSeed = {
       },
       position: 8,
     },
+    // --- Port-fidelity typed blocks (#124 / #123 / #99 / #91) ---
+    // Utility header cluster — page-scoped, so it only dresses the showcase header.
+    {
+      page_slug: 'showcase',
+      zone: 'header',
+      scope: 'page',
+      section_type: 'utility_bar',
+      config: {
+        align: 'right',
+        items: [
+          { label: 'Welcome to Silver Pines', href: '' },
+          { label: 'Hours: Mon–Fri, 8–5', href: '/getting-here' },
+        ],
+      },
+      position: 20,
+    },
+    {
+      page_slug: 'showcase',
+      zone: 'header',
+      scope: 'page',
+      section_type: 'social_row',
+      config: {
+        links: [
+          { network: 'facebook', href: 'https://facebook.com/silverpines' },
+          { network: 'instagram', href: 'https://instagram.com/silverpines' },
+        ],
+      },
+      position: 21,
+    },
+    {
+      page_slug: 'showcase',
+      zone: 'header',
+      scope: 'page',
+      section_type: 'safety_cta',
+      config: { label: 'Report a concern', href: '/contact', variant: 'solid' },
+      position: 22,
+    },
+    // Feature panels — association homepage panel grid (#124).
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'feature_panels',
+      config: {
+        heading: 'Feature panels',
+        panels: [
+          { image_url: '/assets/event-tai-chi.jpg', image_alt: 'Members practicing tai chi', heading: 'Fitness studio', body: 'Daily low-impact classes — tai chi, yoga, and chair fitness.', cta_label: 'See the schedule', cta_href: '/daily-schedule', fit: 'cover', object_position: 'center' },
+          { image_url: '/assets/event-potluck.jpg', image_alt: 'Friday potluck', heading: 'Community café', body: 'Hot lunch weekdays plus Friday potluck nights.', cta_label: 'View the menu', cta_href: '/showcase', fit: 'cover', object_position: 'center' },
+          { image_url: '/assets/committee-garden.jpg', image_alt: 'Community garden', heading: 'Garden & grounds', body: 'Raised beds, walking paths, and a quiet reading porch.', cta_label: 'Join a committee', cta_href: '/committees', fit: 'cover', object_position: 'center' },
+        ],
+      },
+      position: 30,
+    },
+    // Menu — restaurant/café menu as structured data (#123).
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'menu',
+      config: {
+        heading: 'Café lunch menu',
+        sections: [
+          {
+            name: 'Soups & starters',
+            items: [
+              { name: 'Garden tomato soup', description: 'With a grilled-cheese soldier.', price: '$4', dietary_tags: ['V', 'GF'] },
+              { name: 'House salad', description: 'Greens, seasonal vegetables, buttermilk dressing.', price: '$5', dietary_tags: ['V'] },
+            ],
+          },
+          {
+            name: 'Mains',
+            items: [
+              { name: 'Roast turkey plate', description: 'Mashed potatoes, green beans, gravy.', price: '$9', dietary_tags: [] },
+              { name: 'Veggie pasta bake', description: 'Seasonal vegetables, marinara, mozzarella.', price: '$8', dietary_tags: ['V'] },
+            ],
+          },
+        ],
+      },
+      position: 31,
+    },
+    // Member login — source-style member-zone sign-in surface (#91).
+    {
+      page_slug: 'showcase',
+      zone: 'main',
+      scope: 'page',
+      section_type: 'member_login',
+      config: {
+        heading: 'Member sign-in',
+        subtitle: 'Sign in to register for classes and manage your membership.',
+        username_label: 'Member email',
+        password_label: 'Password',
+        submit_label: 'Sign in',
+        sign_in_href: '/join',
+        enable_bot_protection: false,
+      },
+      position: 32,
+    },
     // --- Homepage main ---
     {
       page_slug: 'index',
