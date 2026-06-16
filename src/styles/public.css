@@ -329,10 +329,28 @@ a:hover {
   background: var(--nav-link-hover-bg, var(--muted, var(--color-surface)));
   color: var(--nav-link-hover-color, var(--foreground, var(--color-text)));
 }
+/* Active state keeps the RESTING link color (which is already paired with
+   the bar/panel background, so legible by construction in both schemes) and
+   distinguishes itself with a subtle background tint + heavier weight. The
+   previous default swapped the text to --primary (the brand color), which on
+   a dark bar — where --primary is also dark — went invisible in both light
+   and dark schemes (the wsmta active/dropdown contrast finding). A port can
+   still opt into an explicit active color via --nav-link-active-color. */
 [data-nav-link][data-nav-active="true"],
 [data-nav-parent-trigger][data-nav-active="true"] {
-  color: var(--nav-link-active-color, var(--primary, var(--color-primary)));
-  background: var(--nav-link-active-bg, rgba(99, 102, 241, 0.08));
+  color: var(--nav-link-active-color, var(--nav-link-color, var(--muted-foreground, var(--color-text-muted))));
+  background: var(--nav-link-active-bg, color-mix(in srgb, currentColor 12%, transparent));
+  font-weight: var(--nav-link-active-weight, 600);
+}
+/* Active dropdown/mobile menu item: same principle (the component no longer
+   sets bg-primary/10 text-primary utilities, which @layer-shadowed this). It
+   inherits its context color from the resting menu-item rules — desktop
+   --nav-dropdown-color, mobile/overflow --nav-link-color — and only adds the
+   tint + weight here, so it can never go invisible on a dark panel. */
+[data-nav-shell] [data-nav-menu] [data-nav-menuitem][data-nav-active="true"],
+[data-nav-shell] [data-nav-menu] [data-nav-menuitem-parent][data-nav-active="true"] {
+  background: var(--nav-dropdown-active-bg, color-mix(in srgb, currentColor 12%, transparent));
+  font-weight: var(--nav-link-active-weight, 600);
 }
 [data-nav-user] {
   grid-column: 3;
