@@ -55,4 +55,4 @@
 - [ ] 8.1 File a `kychee-com/run402` issue for the platform bot-protection (reCAPTCHA) hook the `member_login` flag depends on (#91)
 - [ ] 8.2 File a `kychee-com/run402` issue for gateway error-envelope normalization so pre-handler errors match the documented dotted-code contract (#113)
 - [ ] 8.3 File a `kychee-com/kychon-concierge` follow-up: emit the coverage report from the new registry and switch menu/panels/utility-header/login ports from custom-HTML workarounds to the typed blocks
-- [ ] 8.4 After ship + demo verification, close #124, #123, #99, #106, and the Kychon-side of #91
+- [x] 8.4 After ship + demo verification, close #124, #123, #99, #106, and the Kychon-side of #91 _(closed #124/#123/#99; #106 and #91 commented with partial progress and kept open pending the deferred @layer override (#106) and the run402 reCAPTCHA hook (#91))_
