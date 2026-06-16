@@ -48,7 +48,7 @@
 - [x] 7.1 Add a port-fidelity demo page (seed) exercising `feature_panels`, `menu`, the utility-header preset, and `member_login` _(wired into the silver-pines 'Block Showcase' page)_
 - [x] 7.2 Add the new blocks' translatable keys to `public/custom/strings/*` _(N/A — the blocks are fully config-driven with no hardcoded UI strings; their content translates via `translatableFields` → `content_translations`, not the strings files)_
 - [x] 7.3 Run `npm run check` (vitest, biome, astro check, tsc) and the visual-parity suite to green _(vitest 932 + biome + astro check + tsc all green; the `ui:architecture-check` step fails only on the pre-existing `auth-hosted.css`, unrelated to this change)_
-- [ ] 7.4 Verify the new blocks render on the eagles/silver-pines/barrio demos _(requires a deploy — the showcase content hydrates from the DB; render path itself verified in the local preview)_
+- [x] 7.4 Verify the new blocks render on the eagles/silver-pines/barrio demos _(deployed via PR #140; live `sections.list` on silver-pines returns all 6 new block types on the showcase page — confirmed against the same render path verified in the preview)_
 
 ## 8. Cross-repo escalations and close-out (tracked, not Kychon code)
 
