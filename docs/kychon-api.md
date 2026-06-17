@@ -52,7 +52,13 @@ Mutations return an `ActionPlan` during validation and an `ActionResult` during 
 
 ## Errors
 
-Errors return `ok: false`, `correlationId`, and stable dotted codes such as `request.invalidJson`, `api.unsupportedVersion`, `permission.denied`, `validation.failed`, `conflict.idempotencyKey`, `notFound.object`, and `confirmation.required`.
+There are two error layers, distinguishable by a `source` field on the error.
+
+**Operation errors** are raised by a capability handler once the request reaches the function. They return `{ ok: false, correlationId, error: { code, message, ... } }` with stable dotted codes such as `request.invalidJson`, `api.unsupportedVersion`, `permission.denied`, `validation.failed`, `conflict.idempotencyKey`, `notFound.object`, `confirmation.required`, and `api.notImplemented`.
+
+**Gateway-boundary errors** are raised by the Run402 gateway *before* the function runs — a malformed JSON body, or a missing or invalid `apikey`. These carry `source: "gateway"`, a `category`, a coarse `code` (`VALIDATION_FAILED`, `AUTH_REQUIRED`, `INVALID_AUTH`), and a `next_actions` array describing how to recover. They are **not** part of the dotted operation catalog — branch on `source === "gateway"` to handle them.
+
+In short: treat any error carrying `source: "gateway"` as a transport/auth problem to fix in the request itself (well-formed JSON, a valid `apikey`), and reserve dotted-code handling for operation errors.
 
 ## Catalog
 
