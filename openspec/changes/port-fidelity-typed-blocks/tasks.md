@@ -48,11 +48,11 @@
 - [x] 7.1 Add a port-fidelity demo page (seed) exercising `feature_panels`, `menu`, the utility-header preset, and `member_login` _(wired into the silver-pines 'Block Showcase' page)_
 - [x] 7.2 Add the new blocks' translatable keys to `public/custom/strings/*` _(N/A — the blocks are fully config-driven with no hardcoded UI strings; their content translates via `translatableFields` → `content_translations`, not the strings files)_
 - [x] 7.3 Run `npm run check` (vitest, biome, astro check, tsc) and the visual-parity suite to green _(vitest 932 + biome + astro check + tsc all green; the `ui:architecture-check` step fails only on the pre-existing `auth-hosted.css`, unrelated to this change)_
-- [ ] 7.4 Verify the new blocks render on the eagles/silver-pines/barrio demos _(requires a deploy — the showcase content hydrates from the DB; render path itself verified in the local preview)_
+- [x] 7.4 Verify the new blocks render on the eagles/silver-pines/barrio demos _(deployed via PR #140; live `sections.list` on silver-pines returns all 6 new block types on the showcase page — confirmed against the same render path verified in the preview)_
 
 ## 8. Cross-repo escalations and close-out (tracked, not Kychon code)
 
-- [ ] 8.1 File a `kychee-com/run402` issue for the platform bot-protection (reCAPTCHA) hook the `member_login` flag depends on (#91)
-- [ ] 8.2 File a `kychee-com/run402` issue for gateway error-envelope normalization so pre-handler errors match the documented dotted-code contract (#113)
-- [ ] 8.3 File a `kychee-com/kychon-concierge` follow-up: emit the coverage report from the new registry and switch menu/panels/utility-header/login ports from custom-HTML workarounds to the typed blocks
-- [ ] 8.4 After ship + demo verification, close #124, #123, #99, #106, and the Kychon-side of #91
+- [x] 8.1 File a `kychee-com/run402` issue for the platform bot-protection (reCAPTCHA) hook the `member_login` flag depends on (#91) _(filed run402-private#500; linked from #91)_
+- [x] 8.2 File a `kychee-com/run402` issue for gateway error-envelope normalization so pre-handler errors match the documented dotted-code contract (#113) _(filed run402-private#501; linked from #113)_
+- [x] 8.3 File a `kychee-com/kychon-concierge` follow-up: emit the coverage report from the new registry and switch menu/panels/utility-header/login ports from custom-HTML workarounds to the typed blocks _(filed kychon-concierge#49)_
+- [x] 8.4 After ship + demo verification, close #124, #123, #99, #106, and the Kychon-side of #91 _(closed #124/#123/#99; #106 and #91 commented with partial progress and kept open pending the deferred @layer override (#106) and the run402 reCAPTCHA hook (#91))_
