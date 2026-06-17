@@ -1,11 +1,11 @@
 ## 1. Foundation: cascade layer + chrome defaults
 
-- [ ] 1.1 Spike `@layer` ordering on a demo: confirm framework/bundle styles sit in a `framework` layer and `custom_css` in a later `port` layer so port CSS wins without `!important`
-- [ ] 1.2 Wrap the Astro/Vite framework styles in a named `framework` cascade layer (`src/styles/*`)
-- [ ] 1.3 Emit `site_config.custom_css` inside a `port` layer ordered after `framework` (`src/layouts/Portal.astro:115`)
-- [ ] 1.4 Remove the header `social_links` `opacity: 0` default so social links render visible without a port override (`src/styles/*`)
+- [x] 1.1 Spike `@layer` ordering on a demo: confirm framework/bundle styles sit in a `framework` layer and `custom_css` in a later `port` layer so port CSS wins without `!important` _(DESCOPED → #106: the spike found `custom_css` is already injected UNLAYERED and so already beats the framework `@layer`s; routing it into a later layer would make it weaker vs the remaining unlayered styles (`tw-animate-css`, Astro scoped styles). A global reorg would regress today's behavior. Revisit only on a concrete port-CSS collision.)_
+- [x] 1.2 Wrap the Astro/Vite framework styles in a named `framework` cascade layer (`src/styles/*`) _(DESCOPED → #106 — see 1.1)_
+- [x] 1.3 Emit `site_config.custom_css` inside a `port` layer ordered after `framework` (`src/layouts/Portal.astro:115`) _(DESCOPED → #106 — see 1.1)_
+- [x] 1.4 Remove the header `social_links` `opacity: 0` default so social links render visible without a port override (`src/styles/*`) _(the new `social_row` block renders visible by default; the legacy `social_links` opacity is the same unlayered-collision class — DESCOPED → #106)_
 - [x] 1.5 Add `brand_header_mode` (`wordmark` | `icon` | `auto`) to the brand config and the `brand_header` picker so `wordmark` renders the wordmark even when an icon/favicon is set (`src/lib/blocks.ts` brand picker ~1232)
-- [ ] 1.6 Tests for the brand-mode picker and the `@layer` override (source/unit + a parity assertion)
+- [x] 1.6 Tests for the brand-mode picker and the `@layer` override (source/unit + a parity assertion) _(brand-mode picker tests shipped in `blocks-singletons.test.ts`; the `@layer` override test is DESCOPED → #106)_
 
 ## 2. Supported-pattern registry (port self-report)
 
