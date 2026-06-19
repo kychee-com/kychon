@@ -141,6 +141,30 @@ UPDATE site_config SET value = '{"primary":"#dc2626","primary_hover":"#b91c1c","
 
 Or update individual values — the theme is a single JSONB object.
 
+## Which `site_config` edits publish on reload vs. need a redeploy
+
+The default rule is **`site_config` is the live truth: write it, reload, see it.**
+Most chrome/theme fields are `runtime` — the edit publishes on the next page
+load with no rebuild. A small irreducible set is `redeploy` — it can only take
+effect through a build artifact, so you must run `npx tsx scripts/deploy.ts`
+(or the fleet upgrade) for the change to show.
+
+| Field | Apply mode | Notes |
+| --- | --- | --- |
+| `custom_css` | **runtime** | Applied live into `<style id="wl-custom-css">` on reload. |
+| `theme` tokens (colors, `radius`, `max_width`, nav/footer/social) | **runtime** | Applied live via CSS custom properties. |
+| `theme.font_heading` / `theme.font_body` | **runtime** | The web-font `<link>` is ensured at runtime, so the font actually loads on reload. |
+| `site_name`, `brand_text*`, `brand_icon_url`, `brand_wordmark_url`, `favicon_url` | **runtime** | Applied live via branding + the `brand_header` block. |
+| `theme.color_scheme` | **redeploy** | Pinned light/dark must be inlined before first paint (flash prevention). |
+| `theme.motion` | **redeploy** | Read by the pre-paint inline script. |
+
+This map is machine-readable, not just documentation: the live site serves it
+at **`/config-fields.json`** (generated from `src/lib/config-fields.ts`). An
+agent can `GET /config-fields.json` to learn a field's apply-mode *before*
+editing — so a `redeploy` field is known up front instead of looking like a
+silent no-op. Adding a new baked chrome field without declaring it there fails
+the `config-fields` guard test, so this table and the source can't drift.
+
 ## Rename the Site
 
 ```sql
