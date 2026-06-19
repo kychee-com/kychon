@@ -33,6 +33,8 @@ import {
   customPageStaticFile,
   safeCustomPageSlugs,
 } from "../src/lib/clean-routes.ts";
+import { applyLiveConfigOverrides, fetchLiveSiteConfig } from "../src/lib/build-config.ts";
+import { configFieldsJson } from "../src/lib/config-fields.ts";
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
 import { resolveActiveProjectSeed } from "../src/seeds/index.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
@@ -350,6 +352,21 @@ export function injectEnvJs(distDir: string, anonKey: string): void {
 }
 
 /**
+ * Emit `dist/config-fields.json` — the agent-facing projection of the
+ * `site_config` field-editability registry (src/lib/config-fields.ts).
+ *
+ * live-config-coherence: an agent operating against a live portal can
+ * `GET /config-fields.json` to learn, next to the `site_config` it edits,
+ * which fields publish on reload (`runtime`) vs. require a redeploy
+ * (`redeploy`) — instead of learning it by failing. Generated from the typed
+ * registry, never hand-authored, so the queryable surface cannot drift.
+ */
+export function injectConfigFieldsJson(distDir: string): void {
+  mkdirSync(distDir, { recursive: true });
+  writeFileSync(join(distDir, "config-fields.json"), configFieldsJson());
+}
+
+/**
  * Substitute `{PROVIDER_HOSTS}` in `dist/_headers` and validate the CSP.
  * Aborts the deploy with a clear error if the headers are malformed or a
  * registered embed provider is missing from `frame-src`. Run402 v1.50 doesn't
@@ -613,6 +630,7 @@ async function writeAdapterAwareArtifacts(opts: {
   releaseManifest: EngineReleaseManifest;
 }): Promise<AstroReleaseSlice | null> {
   injectEnvJs(opts.clientDir, opts.anonKey);
+  injectConfigFieldsJson(opts.clientDir);
   generateAndValidateHeaders(opts.clientDir);
   writeEngineReleaseManifest(opts.clientDir, opts.releaseManifest);
   return opts.adapterActive ? buildAstroReleaseSlice(opts.distDir) : null;
@@ -636,6 +654,32 @@ export async function runDeploy(
   if (opts.chromeSnapshot !== undefined) {
     buildOptions.chromeSnapshot = opts.chromeSnapshot;
   }
+
+  // live-config-coherence (first-paint fidelity): override the seed's chrome
+  // fields (custom_css, theme, branding) with the project's CURRENT live
+  // site_config so the baked first byte matches the deployed site — and so the
+  // SEED_OWNED `theme` upsert in seed.sql doesn't clobber a live theme edit on
+  // redeploy. Runs once per deploy here in the seam (NOT in bakeChrome, which
+  // also runs per-SSR-request). Any failure → static seed, deploy unaffected.
+  try {
+    const baseSeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
+    const liveRows = await fetchLiveSiteConfig({
+      anonKey: opts.anonKey,
+      projectId: opts.projectId,
+      portalUrl: process.env.KYCHON_PUBLIC_URL?.trim() || `https://${opts.subdomain}.kychon.com`,
+    });
+    const { seed: effectiveSeed, overridden } = applyLiveConfigOverrides(baseSeed, liveRows);
+    if (overridden.length > 0) {
+      buildOptions.chromeSnapshot = effectiveSeed;
+      console.log(`[build-config] first paint overridden from live config: ${overridden.join(", ")}`);
+    }
+  } catch (error) {
+    console.warn(
+      "[build-config] live override skipped — using static seed:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
   // Expose the project's anon_key + project_id to Astro's frontmatter so
   // build-time data fetchers (`src/lib/build-events.ts`) can call the
   // capability API via `@kychon/sdk` — same gateway the runtime hits, just
