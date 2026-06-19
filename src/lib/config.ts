@@ -8,6 +8,7 @@ import { clearActor, loadActor, memberViewFromActor, setSessionMember } from './
 import { canonicalRouteKey } from './clean-routes.js';
 import { findDirectElementChild } from './dom-structure.js';
 import { loadLocale, setAvailableLocales } from './i18n.js';
+import { buildGoogleFontsUrl } from './theme/fonts.js';
 
 // --- Cache layer (stale-while-revalidate) ---
 const WL_CACHE_CONFIG = 'wl_cache_site_config';
@@ -331,6 +332,33 @@ export function themeCssVars(theme: Record<string, any> | null): Record<string, 
   return vars;
 }
 
+// live-config-coherence: repoint the web-font stylesheet for the live theme
+// fonts at runtime, so a live `theme.font_heading`/`theme.font_body` edit loads
+// the actual font on the next reload — not just sets a CSS var that resolves to
+// a never-loaded family. Portal.astro bakes a stable `<link id="wl-font-stylesheet">`
+// on every page (with the build-time href, or none for system fonts); we only
+// FIND it and update its href, using the SAME URL builder as the bake so runtime
+// and first-paint agree. No element creation — matches the wl-theme-vars /
+// wl-custom-css pattern. Reason this is `runtime`: see src/lib/config-fields.ts.
+const FONT_STYLESHEET_ID = 'wl-font-stylesheet';
+
+function fontStylesheetElement(): HTMLLinkElement | null {
+  const el = findDirectElementChild(document.head, (child) => child.id === FONT_STYLESHEET_ID);
+  return el instanceof HTMLLinkElement ? el : null;
+}
+
+export function ensureFontStylesheet(theme: Record<string, any> | null): void {
+  if (typeof document === 'undefined') return;
+  const link = fontStylesheetElement();
+  if (!link) return; // Portal.astro bakes the stable <link id="wl-font-stylesheet">.
+  const url = buildGoogleFontsUrl(theme?.font_heading, theme?.font_body);
+  if (!url) {
+    if (link.hasAttribute('href')) link.removeAttribute('href');
+    return;
+  }
+  if (link.getAttribute('href') !== url) link.setAttribute('href', url);
+}
+
 export function applyTheme(theme: Record<string, any> | null): void {
   if (!theme) return;
   const el = document.documentElement;
@@ -352,6 +380,26 @@ export function applyTheme(theme: Record<string, any> | null): void {
   const rootSelector = darkOverridable.size > 0 ? ':root:not([data-theme="dark"])' : ':root';
   const styleEl = themeVarsStyleElement();
   if (styleEl) styleEl.textContent = `${rootSelector} {\n  ${rootVars.join('\n  ')}\n}`;
+  ensureFontStylesheet(theme);
+}
+
+// live-config-coherence: apply `site_config.custom_css` at runtime into a
+// dedicated, stable <style id="wl-custom-css"> — the same element Portal.astro
+// bakes for first paint. A live `custom_css` edit publishes on the next reload
+// with no rebuild (write-read coherence). Empty/removed CSS clears the element.
+const CUSTOM_CSS_STYLE_ID = 'wl-custom-css';
+
+function customCssStyleElement(): HTMLStyleElement | null {
+  const el = findDirectElementChild(document.head, (child) => child.id === CUSTOM_CSS_STYLE_ID);
+  return el instanceof HTMLStyleElement ? el : null;
+}
+
+export function applyCustomCss(css: unknown): void {
+  if (typeof document === 'undefined') return;
+  const el = customCssStyleElement();
+  if (!el) return; // Portal.astro bakes <style id="wl-custom-css"> on every page.
+  const value = typeof css === 'string' ? css : '';
+  if (el.textContent !== value) el.textContent = value;
 }
 
 // --- Branding ---
@@ -514,6 +562,7 @@ export async function init(): Promise<Record<string, any>> {
     populateConfigFromRows(cached);
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
+    applyCustomCss(siteConfig.custom_css);
 
     // admin-content-management: prefer `languages_enabled` (runtime-mutable
     // via the admin AddLanguage dialog); fall back to legacy `languages` for
@@ -533,6 +582,7 @@ export async function init(): Promise<Record<string, any>> {
           populateConfigFromRows(rows);
           applyTheme(siteConfig.theme);
           applyBranding(siteConfig);
+          applyCustomCss(siteConfig.custom_css);
           // Notify page-render so chrome blocks can re-hydrate from fresh config.
           document.dispatchEvent(new CustomEvent('wl-config-changed'));
         }
@@ -551,6 +601,7 @@ export async function init(): Promise<Record<string, any>> {
 
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
+    applyCustomCss(siteConfig.custom_css);
 
     // admin-content-management: prefer `languages_enabled` (runtime-mutable
     // via the admin AddLanguage dialog); fall back to legacy `languages` for

@@ -24,8 +24,12 @@ describe('bakeChrome', () => {
     expect(chrome.headerHtml).toContain('data-nav-menu');
     expect(chrome.footerHtml).toContain('Old Dominion Boat Club');
     expect(chrome.footerHtml).toContain('Contact the GM');
-    expect(chrome.fontHead).toContain('Playfair+Display');
-    expect(chrome.fontHead).toContain('Source+Sans+3');
+    // The stylesheet URL (with the font families) lives on fontStylesheetUrl so
+    // Portal can bake it onto a stable, runtime-repointable <link>; fontHead keeps
+    // the preconnect hints.
+    expect(chrome.fontStylesheetUrl).toContain('Playfair+Display');
+    expect(chrome.fontStylesheetUrl).toContain('Source+Sans+3');
+    expect(chrome.fontHead).toContain('rel="preconnect"');
     expect(chrome.headerHtml + chrome.footerHtml + chrome.title).not.toContain('Kychon Community');
   });
 

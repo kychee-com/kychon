@@ -1,13 +1,21 @@
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 import { renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { computeMainZoneSignature } from './main-zone-signature.js';
-import { buildFontVarValue, renderFontHead } from './theme/fonts.js';
+import { buildFontVarValue, buildGoogleFontsUrl, renderFontHead } from './theme/fonts.js';
 import type { ProjectSeed } from '../seeds/types.js';
 
 export interface BakedChrome {
   headerHtml: string;
   footerHtml: string;
   fontHead: string;
+  /**
+   * Google Fonts stylesheet URL for the theme fonts, or null for system-only
+   * fonts. Portal.astro bakes this onto a stable `<link id="wl-font-stylesheet">`
+   * so the runtime (config.ts:ensureFontStylesheet) can repoint it on a live
+   * `theme.font_heading`/`font_body` edit with no rebuild. `fontHead` carries
+   * the preconnect hints + size-adjust fallback faces (not the stylesheet link).
+   */
+  fontStylesheetUrl: string | null;
   customCss: string;
   faviconUrl: string;
   isSvgFavicon: boolean;
@@ -280,6 +288,10 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     headerHtml: renderGlobalZone(seed, 'header', bakeCtx),
     footerHtml: renderGlobalZone(seed, 'footer', bakeCtx),
     fontHead: renderFontHead(
+      theme.font_heading as string | undefined,
+      theme.font_body as string | undefined,
+    ),
+    fontStylesheetUrl: buildGoogleFontsUrl(
       theme.font_heading as string | undefined,
       theme.font_body as string | undefined,
     ),
