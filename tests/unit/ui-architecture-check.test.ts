@@ -173,6 +173,24 @@ describe('ui architecture check', () => {
     );
   });
 
+  it('allows vendor .r402-* selectors only in the hosted-auth theme bridge', () => {
+    const vendorCss =
+      '.r402-sign-in, .r402-input:focus-visible { color: var(--color-foreground); } .r402-method { gap: 0.5rem; }';
+
+    // The designated theme-bridge file may target the hosted @run402/astro components' vendor DOM.
+    expect(messages('src/styles/auth-hosted.css', vendorCss)).toEqual([]);
+
+    // Any other CSS file may not — the exception is scoped to the allowlisted file.
+    expect(messages('src/styles/other.css', vendorCss)).toContain(
+      'Owned CSS must not define custom class selector .r402-sign-in; use data attributes, semantic elements, or Tailwind utilities',
+    );
+
+    // Even the allowlisted file may not define non-vendor owned classes.
+    expect(messages('src/styles/auth-hosted.css', '.feature-card { color: red; }')).toContain(
+      'Owned CSS must not define custom class selector .feature-card; use data attributes, semantic elements, or Tailwind utilities',
+    );
+  });
+
   it('keeps seed artifacts free of legacy embedded HTML primitives', () => {
     const violations = messages(
       '_aage-port.seed.sql',

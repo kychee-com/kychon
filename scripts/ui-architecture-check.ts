@@ -20,6 +20,12 @@ const ALLOWED_UI_FACADE_IMPORT_PREFIXES = ['src/components/ui/'];
 const ALLOWED_UI_FACADE_IMPORT_FILES = new Set(['src/components/kychon/ui.ts']);
 const ALLOWED_DOM_MUTATION_HELPER_FILES = new Set(['tests/helpers/dom-fixture.js']);
 const ALLOWED_DOM_FRAGMENT_IMPORT_FILES = new Set<string>();
+// Hosted @run402/astro auth components (<SignIn>, <AccountSecurity>, …) render their own
+// .r402-* DOM and expose CSS-variable hooks. Theming them requires targeting those vendor
+// class names — data attributes / Tailwind utilities can't reach markup we don't own — so
+// the theme-bridge stylesheet may define .r402-* selectors (and only those vendor names).
+const ALLOWED_VENDOR_SELECTOR_CSS_FILES = new Set(['src/styles/auth-hosted.css']);
+const VENDOR_SELECTOR_PREFIX_RE = /^r402-/;
 const PRIMITIVE_IMPORT_RE = /from\s+['"](@radix-ui\/[^'"]+|@base-ui-components\/[^'"]+)['"]/g;
 const UI_FACADE_IMPORT_RE = /from\s+['"](@\/components\/ui\/[^'"]+)['"]/g;
 const RELATIVE_IMPORT_RE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g;
@@ -130,6 +136,11 @@ function isAllowedDomMutation(file: string, token: string): boolean {
 function isAllowedDomFragmentImport(file: string): boolean {
   const rel = relative(ROOT, file).replaceAll('\\', '/');
   return ALLOWED_DOM_FRAGMENT_IMPORT_FILES.has(rel);
+}
+
+function isAllowedVendorSelector(file: string, className: string): boolean {
+  const rel = relative(ROOT, file).replaceAll('\\', '/');
+  return ALLOWED_VENDOR_SELECTOR_CSS_FILES.has(rel) && VENDOR_SELECTOR_PREFIX_RE.test(className);
 }
 
 function isDomFragmentImportTarget(target: string): boolean {
@@ -332,6 +343,7 @@ export function checkSource(file: string, source: string): Violation[] {
     }
 
     for (const match of cssForSelectorScan.matchAll(CSS_CLASS_SELECTOR_RE)) {
+      if (isAllowedVendorSelector(file, match[2])) continue;
       const line = lineNumber(cssForSelectorScan, match.index ?? 0);
       violations.push({
         file: rel,
