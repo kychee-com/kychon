@@ -43,7 +43,8 @@ kychon/
 │   │   ├── blocks.ts       # Block-type registry + isomorphic renderBlock (build + runtime)
 │   │   ├── block-hydrators.ts # Browser-only hydration for dynamic blocks (announcements, polls, etc.)
 │   │   ├── page-render.ts  # Runtime zone hydration (cache → fetch → render → hydrate)
-│   │   ├── config.ts       # Loads site_config, injects theme, i18n init
+│   │   ├── config.ts       # Loads site_config; applies theme, branding, custom_css, fonts at runtime
+│   │   ├── config-fields.ts # Registry: per-field apply-mode (runtime vs redeploy) → /config-fields.json
 │   │   └── i18n.ts         # t(key, vars), locale loading, plurals, RTL
 │   ├── seeds/              # Typed ProjectSeed per fork (kychon = default, eagles, silver-pines, barrio-unido)
 │   │   ├── types.ts        # ProjectSeed, SeedSection, TierSeed, PageSeed types
@@ -122,7 +123,7 @@ Components in the layout use `client:*` directives for progressive hydration:
 `<ClientRouter />` in the layout provides SPA-like navigation. Pages transition smoothly without full reloads. Zone wrappers (`#zone-header`, `#zone-footer`) and providers persist across navigations via `transition:persist`.
 
 ### Runtime Config from DB
-Theme, feature flags, and branding are fetched from `site_config` at runtime by ConfigProvider. **SQL changes take effect without rebuilding.** Chrome blocks (nav, footer, etc.) follow the same pattern via `page-render.ts`.
+Theme, feature flags, branding, `custom_css`, and web fonts are fetched from `site_config` at runtime by ConfigProvider. **SQL changes take effect without rebuilding.** Chrome blocks (nav, footer, etc.) follow the same pattern via `page-render.ts`. The only fields that require a redeploy are `theme.color_scheme` and `theme.motion` (inlined before first paint). Each field's apply-mode is declared in `src/lib/config-fields.ts` and served at `/config-fields.json` so an agent can check before editing; a guard test forbids a baked chrome field that isn't declared. See [CUSTOMIZING.md](CUSTOMIZING.md#which-site_config-edits-publish-on-reload-vs-need-a-redeploy).
 
 ### Type Safety
 Zod schemas in `src/schemas/` validate PostgREST responses. Typed API wrappers (`getEvents()`, `getMembers()`, etc.) in `src/lib/api.ts` parse responses through schemas. Build fails on type errors.

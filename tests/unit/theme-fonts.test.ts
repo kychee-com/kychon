@@ -125,14 +125,14 @@ describe('renderFontHead', () => {
     expect(renderFontHead('system-ui', 'sans-serif')).toBe('');
   });
 
-  it('emits preconnects + stylesheet when a non-system font is named', () => {
+  it('emits preconnects (but NOT the stylesheet link) when a non-system font is named', () => {
+    // The stylesheet <link> moved to a stable, runtime-repointable
+    // <link id="wl-font-stylesheet"> baked by Portal.astro (live-config-coherence);
+    // renderFontHead now carries only preconnect hints + fallback faces.
     const html = renderFontHead('Bitter', 'IBM Plex Sans');
     expect(html).toContain('rel="preconnect"');
     expect(html).toContain('href="https://fonts.googleapis.com"');
     expect(html).toContain('href="https://fonts.gstatic.com" crossorigin');
-    expect(html).toContain('rel="stylesheet"');
-    expect(html).toContain('family=Bitter:wght@400;700');
-    expect(html).toContain('family=IBM+Plex+Sans:wght@400;600');
-    expect(html).toContain('&display=optional');
+    expect(html).not.toContain('rel="stylesheet"');
   });
 });

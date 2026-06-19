@@ -87,7 +87,11 @@ export function renderFontHead(
     // synchronously with their actual metrics).
     return '';
   }
-  const tags = [renderFontPreconnect(), renderFontStylesheet(url)];
+  // The stylesheet `<link>` itself is NOT emitted here: Portal.astro bakes a
+  // stable `<link id="wl-font-stylesheet">` (href from `chrome.fontStylesheetUrl`)
+  // so the runtime can repoint it on a live font edit (live-config-coherence).
+  // This fragment carries only the preconnect hints + size-adjust fallback faces.
+  const tags = [renderFontPreconnect()];
   if (fallbackFaces) tags.push(`<style is:inline>${fallbackFaces}</style>`);
   return tags.join('\n');
 }
