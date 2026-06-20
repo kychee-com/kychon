@@ -11,6 +11,7 @@ import {
   isValidPublicStaticPath,
   isValidReleaseAssetPath,
   isValidStaticRouteTargetFile,
+  mergePublicPathOverrides,
   resolveCustomPageSlugFromLocation,
   safeCustomPageSlugs,
 } from '../../src/lib/clean-routes.ts';
@@ -182,5 +183,41 @@ describe('clean routes', () => {
     expect(canonicalRouteKey('/about')).toBe('/about');
     expect(canonicalRouteKey('/search.html?type=all&q=hello')).toBe('/search?q=hello&type=all');
     expect(canonicalRouteKey('/search?q=hello&type=all')).toBe('/search?q=hello&type=all');
+  });
+
+  it('overlays public-path overrides, letting overrides win on key collision', () => {
+    const generated = {
+      '/': { asset: 'index.html' },
+      '/events': { asset: 'events.html' },
+    };
+    const merged = mergePublicPathOverrides({
+      generated,
+      overrides: {
+        '/Tournament-Standings': { asset: 'Tournament-Standings.html' },
+        '/events': { asset: 'Tournament-Standings.html' },
+      },
+      buildAssets: ['index.html', 'events.html', 'Tournament-Standings.html'],
+    });
+    expect(merged['/Tournament-Standings']).toEqual({ asset: 'Tournament-Standings.html' });
+    expect(merged['/events']).toEqual({ asset: 'Tournament-Standings.html' });
+    expect(merged['/']).toEqual({ asset: 'index.html' });
+  });
+
+  it('returns the generated map unchanged when no overrides are supplied', () => {
+    const generated = { '/': { asset: 'index.html' } };
+    expect(mergePublicPathOverrides({ generated, overrides: {}, buildAssets: ['index.html'] })).toEqual(generated);
+  });
+
+  it('rejects malformed override paths, malformed assets, and assets missing from the build', () => {
+    const buildAssets = ['ok.html'];
+    expect(() =>
+      mergePublicPathOverrides({ generated: {}, overrides: { 'no-slash': { asset: 'ok.html' } }, buildAssets }),
+    ).toThrow(/Invalid public static path override/);
+    expect(() =>
+      mergePublicPathOverrides({ generated: {}, overrides: { '/bad': { asset: '../ok.html' } }, buildAssets }),
+    ).toThrow(/Invalid asset in public static path override/);
+    expect(() =>
+      mergePublicPathOverrides({ generated: {}, overrides: { '/missing': { asset: 'gone.html' } }, buildAssets }),
+    ).toThrow(/not present in the build output/);
   });
 });

@@ -214,6 +214,40 @@ export function buildExplicitPublicPathSpecs(opts: {
   return Object.fromEntries([...entries].sort(([a], [b]) => a.localeCompare(b)));
 }
 
+/**
+ * Overlay caller-supplied public-path overrides onto a generated public-path
+ * map, applying the same validation that generated entries pass through. Used by
+ * adapter (SSR) deploys of copied-site ports that must publish source aliases
+ * the engine can't otherwise reach (e.g. capitalized Wild Apricot paths like
+ * `/Tournament-Standings`). Overrides win on key collision. Throws when an
+ * override has a malformed path or asset, or points at an asset that is not
+ * present in the build output — so a typo fails the deploy instead of 404ing at
+ * runtime.
+ */
+export function mergePublicPathOverrides(opts: {
+  generated: Record<string, PublicStaticPathSpec>;
+  overrides: Record<string, PublicStaticPathSpec>;
+  buildAssets: Iterable<string>;
+}): Record<string, PublicStaticPathSpec> {
+  const assets = new Set(opts.buildAssets);
+  const merged: Record<string, PublicStaticPathSpec> = { ...opts.generated };
+  for (const [path, spec] of Object.entries(opts.overrides)) {
+    if (!isValidPublicStaticPath(path)) {
+      throw new Error(`Invalid public static path override: ${path}`);
+    }
+    if (!isValidReleaseAssetPath(spec.asset)) {
+      throw new Error(`Invalid asset in public static path override ${path}: ${spec.asset}`);
+    }
+    if (!assets.has(spec.asset)) {
+      throw new Error(
+        `Public static path override ${path} -> ${spec.asset} references an asset not present in the build output`,
+      );
+    }
+    merged[path] = spec;
+  }
+  return merged;
+}
+
 function isPublicSupportAsset(file: string): boolean {
   if (!isValidReleaseAssetPath(file)) return false;
   if (file === '_headers') return false;

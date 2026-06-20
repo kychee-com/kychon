@@ -31,6 +31,7 @@ import type {
 import {
   buildExplicitPublicPathSpecs,
   customPageStaticFile,
+  mergePublicPathOverrides,
   safeCustomPageSlugs,
 } from "../src/lib/clean-routes.ts";
 import { applyLiveConfigOverrides, fetchLiveSiteConfig } from "../src/lib/build-config.ts";
@@ -773,13 +774,14 @@ export async function runDeploy(
     .map(d => join(d.parentPath, d.name).slice(clientDir.length + 1).replaceAll("\\", "/"));
   const fileCount = useExplicitPublicPaths ? distFiles.length : -1;
   const publicPaths = useExplicitPublicPaths
-    ? {
-        ...buildExplicitPublicPathSpecs({
+    ? mergePublicPathOverrides({
+        generated: buildExplicitPublicPathSpecs({
           files: distFiles,
           pageSlugs: materializedCustomPages.map((page) => page.slug),
         }),
-        ...(opts.publicPathOverrides ?? {}),
-      }
+        overrides: opts.publicPathOverrides ?? {},
+        buildAssets: distFiles,
+      })
     : {};
   const publicPathEntries = Object.entries(publicPaths);
 
@@ -835,6 +837,15 @@ export async function runDeploy(
   // client migration; both hit the same function with the same per-op checks.
   // If the Astro slice omits `routes`, base-release routes carry forward.
   // Default to [] so we still prepend /api/kychon.
+  // `extraRoutes` is only meaningful when an adapter slice supplies a routes
+  // table to prepend onto; without one, base-release routes carry forward and
+  // the extras would be silently dropped. Fail loud instead of deploying a spec
+  // that ignores the caller's routes.
+  if ((opts.extraRoutes?.length ?? 0) > 0 && !astroSlice) {
+    throw new Error(
+      "runDeploy: extraRoutes requires an adapter (SSR) deploy; no @run402/astro slice is active for this build.",
+    );
+  }
   const baseRoutes = astroSlice ? (astroSlice.routes?.replace ?? []) : undefined;
   const sameOriginApiRoute = { pattern: "/api/kychon", target: { type: "function", name: "kychon-api" } as const };
   const routes = baseRoutes
@@ -906,8 +917,8 @@ export async function runDeploy(
           ),
           publicPathsCount: publicPathEntries.length,
           publicPaths,
-          routesCount: 0,
-          routes: [],
+          routesCount: (routes ?? []).length,
+          routes: routes ?? [],
           materializedCustomPages,
           migrationsBytes: sql.length,
           migrationId,
