@@ -27,6 +27,14 @@ const demoAssetDirs = {
 // for <Image src="literal"> — Kychon's images live in JSONB section configs,
 // so we use the data-driven assetsDir path introduced in v0.2.
 const integrationAssetsDir = (() => {
+  // Explicit override for non-demo projects (e.g. concierge ports): point the
+  // @run402/astro asset encoder at a staged source-image directory so port
+  // images get the same WebP/AVIF ladder + HEIC display_jpeg + blurhash +
+  // intrinsic dims as demos, instead of being pre-converted locally and
+  // uploaded as raw blobs. Path is repo-root-relative or absolute. Only takes
+  // effect alongside RUN402_PROJECT_ID (see useRun402Integration below).
+  const override = process.env.KYCHON_ASSETS_DIR;
+  if (override) return override;
   const project = process.env.KYCHON_PROJECT;
   if (project && demoAssetDirs[project]) return demoAssetDirs[project];
   return null;
