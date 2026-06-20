@@ -31,6 +31,7 @@ import type {
 import {
   buildExplicitPublicPathSpecs,
   customPageStaticFile,
+  mergePublicPathOverrides,
   safeCustomPageSlugs,
 } from "../src/lib/clean-routes.ts";
 import { applyLiveConfigOverrides, fetchLiveSiteConfig } from "../src/lib/build-config.ts";
@@ -517,6 +518,16 @@ export interface RunDeployOptions {
   /** When true, prints the assembled spec and returns without calling the API. */
   dryRun?: boolean;
   /**
+   * Extra browser-visible static paths to overlay on the generated public-path
+   * map. Supplying this (any non-undefined value) switches an adapter deploy
+   * from the default implicit `public_paths` to an explicit map so the
+   * overrides survive — needed for copied-site source aliases such as
+   * capitalized Wild Apricot paths. Omit to leave adapter behavior unchanged.
+   */
+  publicPathOverrides?: Record<string, PublicStaticPathSpec>;
+  /** Extra same-origin route entries, prepended before the adapter routes. */
+  extraRoutes?: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"];
+  /**
    * When true, fetch the active release before deploying and use
    * `functions.patch` to only upload functions whose source hash changed.
    * Functions that need to be removed (via excludeFunctions) are explicitly
@@ -750,19 +761,28 @@ export async function runDeploy(
   // is active, astroSlice.site already carries the LocalDirRef +
   // public_paths (implicit mode), so we skip the manual walk.
   const siteDir = adapterActive ? null : dir(clientDir);
-  const dirents = adapterActive
-    ? []
-    : await readdir(clientDir, { recursive: true, withFileTypes: true });
+  // Adapter deploys normally use implicit `public_paths` (the slice carries the
+  // LocalDirRef) and skip the manual walk. When the caller supplies
+  // `publicPathOverrides`, switch to an explicit map so those overrides survive
+  // (copied-site source aliases). Non-adapter deploys always walk.
+  const useExplicitPublicPaths = !adapterActive || opts.publicPathOverrides !== undefined;
+  const dirents = useExplicitPublicPaths
+    ? await readdir(clientDir, { recursive: true, withFileTypes: true })
+    : [];
   const distFiles = dirents
     .filter(d => d.isFile())
     .map(d => join(d.parentPath, d.name).slice(clientDir.length + 1).replaceAll("\\", "/"));
-  const fileCount = adapterActive ? -1 : distFiles.length;
-  const publicPaths = adapterActive
-    ? {}
-    : buildExplicitPublicPathSpecs({
-        files: distFiles,
-        pageSlugs: materializedCustomPages.map((page) => page.slug),
-      });
+  const fileCount = useExplicitPublicPaths ? distFiles.length : -1;
+  const publicPaths = useExplicitPublicPaths
+    ? mergePublicPathOverrides({
+        generated: buildExplicitPublicPathSpecs({
+          files: distFiles,
+          pageSlugs: materializedCustomPages.map((page) => page.slug),
+        }),
+        overrides: opts.publicPathOverrides ?? {},
+        buildAssets: distFiles,
+      })
+    : {};
   const publicPathEntries = Object.entries(publicPaths);
 
   const collectOpts: CollectFunctionsOptions = {};
@@ -817,9 +837,20 @@ export async function runDeploy(
   // client migration; both hit the same function with the same per-op checks.
   // If the Astro slice omits `routes`, base-release routes carry forward.
   // Default to [] so we still prepend /api/kychon.
+  // `extraRoutes` is only meaningful when an adapter slice supplies a routes
+  // table to prepend onto; without one, base-release routes carry forward and
+  // the extras would be silently dropped. Fail loud instead of deploying a spec
+  // that ignores the caller's routes.
+  if ((opts.extraRoutes?.length ?? 0) > 0 && !astroSlice) {
+    throw new Error(
+      "runDeploy: extraRoutes requires an adapter (SSR) deploy; no @run402/astro slice is active for this build.",
+    );
+  }
   const baseRoutes = astroSlice ? (astroSlice.routes?.replace ?? []) : undefined;
   const sameOriginApiRoute = { pattern: "/api/kychon", target: { type: "function", name: "kychon-api" } as const };
-  const routes = baseRoutes ? [sameOriginApiRoute, ...baseRoutes] : baseRoutes;
+  const routes = baseRoutes
+    ? [sameOriginApiRoute, ...(opts.extraRoutes ?? []), ...baseRoutes]
+    : baseRoutes;
 
   const spec = buildKychonReleaseSpec({
     database,
@@ -834,9 +865,13 @@ export async function runDeploy(
     i18n: i18nSpec,
   });
   if (astroSlice) {
-    // Swap in the adapter's full site spec (LocalDirRef to
-    // dist/run402/client + `public_paths: { mode: 'implicit' }`).
-    spec.site = astroSlice.site;
+    // Swap in the adapter's full site spec (LocalDirRef to dist/run402/client).
+    // Keep the slice's implicit `public_paths` unless the caller supplied
+    // `publicPathOverrides`, in which case preserve the explicit map assembled
+    // above so copied-site source aliases survive the adapter deploy.
+    spec.site = opts.publicPathOverrides !== undefined
+      ? { ...astroSlice.site, public_paths: { mode: "explicit", replace: publicPaths } }
+      : astroSlice.site;
   }
 
   const fnSummary = fnDiff
@@ -882,8 +917,8 @@ export async function runDeploy(
           ),
           publicPathsCount: publicPathEntries.length,
           publicPaths,
-          routesCount: 0,
-          routes: [],
+          routesCount: (routes ?? []).length,
+          routes: routes ?? [],
           materializedCustomPages,
           migrationsBytes: sql.length,
           migrationId,
