@@ -14,6 +14,15 @@
   --ky-color-success: #16a34a;
   --ky-color-warning: #f59e0b;
   --ky-radius: 0.5rem;
+  --ky-shadow-border:
+    0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+    0px 1px 2px -1px rgba(0, 0, 0, 0.06),
+    0px 2px 4px 0px rgba(0, 0, 0, 0.04);
+  --ky-shadow-border-hover:
+    0px 0px 0px 1px rgba(0, 0, 0, 0.08),
+    0px 1px 2px -1px rgba(0, 0, 0, 0.08),
+    0px 2px 4px 0px rgba(0, 0, 0, 0.06);
+  --ky-image-outline: rgba(0, 0, 0, 0.1);
 
   /* shadcn semantic tokens */
   --background: var(--ky-color-bg);
@@ -48,6 +57,9 @@
   --secondary: color-mix(in srgb, var(--ky-color-primary) 18%, var(--ky-color-surface));
   --muted: color-mix(in srgb, var(--ky-color-text-muted) 18%, var(--ky-color-surface));
   --accent: color-mix(in srgb, var(--ky-color-primary) 22%, var(--ky-color-surface));
+  --ky-shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --ky-shadow-border-hover: 0 0 0 1px rgba(255, 255, 255, 0.13);
+  --ky-image-outline: rgba(255, 255, 255, 0.1);
 }
 
 @theme inline {

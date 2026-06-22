@@ -377,7 +377,10 @@ function PollResults({ myVotes, options, votes }: { myVotes: PollVote[]; options
               className="h-2 overflow-hidden rounded-full bg-muted"
               role="progressbar"
             >
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out motion-reduce:transition-none"
+                style={{ width: `${percent}%` }}
+              />
             </div>
           </div>
         );

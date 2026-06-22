@@ -29,6 +29,8 @@ textarea {
 
 html {
   scrollbar-gutter: stable;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @supports (scrollbar-gutter: stable) {
@@ -42,7 +44,15 @@ body {
   color: var(--foreground, var(--color-text));
   background: var(--background, var(--color-bg));
   line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
+}
+
+.ky-surface-shadow {
+  box-shadow: var(
+    --ky-shadow-border,
+    0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+    0px 1px 2px -1px rgba(0, 0, 0, 0.06),
+    0px 2px 4px 0px rgba(0, 0, 0, 0.04)
+  );
 }
 
 /* Typography */
@@ -54,6 +64,7 @@ h5,
 h6 {
   font-family: var(--font-heading), system-ui, sans-serif;
   line-height: 1.2;
+  text-wrap: balance;
 }
 h1 {
   font-size: 2.5rem;
@@ -74,12 +85,30 @@ h4 {
 p {
   margin-bottom: 1rem;
 }
+p,
+li,
+figcaption,
+blockquote {
+  text-wrap: pretty;
+}
 a {
   color: var(--primary, var(--color-primary));
   text-decoration: none;
 }
 a:hover {
   color: var(--ky-color-primary-hover, var(--color-primary-hover));
+}
+
+:where(
+  .ky-rich-text img,
+  [data-hero-picture] > img,
+  [data-feature-panel-image],
+  [data-member-login-icon],
+  [data-accordion-image],
+  [data-slideshow-track] img
+) {
+  outline: 1px solid var(--ky-image-outline, rgba(0, 0, 0, 0.1));
+  outline-offset: -1px;
 }
 
 /* Subtle motion (src/lib/delight.ts). The hidden pre-state is keyed off a
