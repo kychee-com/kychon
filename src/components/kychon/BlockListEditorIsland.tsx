@@ -1,7 +1,7 @@
 'use client';
 
 import { GripVertical, Loader2, Pencil, Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   Badge,

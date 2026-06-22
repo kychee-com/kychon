@@ -128,6 +128,24 @@ function virtualAssetMapStubPlugin() {
   };
 }
 
+function run402Astro7SignInCompatPlugin() {
+  const invalidAstro7Comment =
+    /\n\s*<!-- Extra method chrome\. is:global because the method markup is spliced via\n\s*set:html and therefore carries no scoped-style attribute; these rules\n\s*target the \.r402-\* method classes the same way the consumer would\. -->/;
+
+  return {
+    name: 'kychon-run402-sign-in-astro7-compat',
+    enforce: 'pre',
+    load(id) {
+      const filePath = id.split('?')[0].replace(/\\/g, '/');
+      if (!filePath.endsWith('/node_modules/@run402/astro/dist/components/SignIn.astro')) return null;
+
+      const source = readFileSync(filePath, 'utf8');
+      const patched = source.replace(invalidAstro7Comment, '');
+      return patched === source ? null : patched;
+    },
+  };
+}
+
 function localDemoAssetsPlugin() {
   const project = inferLocalAssetsProject();
   const assetDir = project ? resolve(rootDir, demoAssetDirs[project]) : null;
@@ -265,6 +283,7 @@ export default defineConfig({
     },
     plugins: [
       tailwindcss(),
+      run402Astro7SignInCompatPlugin(),
       localDemoAssetsPlugin(),
       // Only register the stub when the real integration is NOT active —
       // otherwise both would try to claim the virtual module.
