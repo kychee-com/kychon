@@ -1,7 +1,7 @@
 # Kychon
 
 [![Tests](https://img.shields.io/badge/tests-205%20passed-brightgreen?style=flat-square)](https://github.com/kychee-com/kychon)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Biome](https://img.shields.io/badge/linter-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev)
 [![Platform: Run402](https://img.shields.io/badge/platform-Run402-ff6b35?style=flat-square)](https://run402.com)
 [![AI Native](https://img.shields.io/badge/AI-built--in-a855f7?style=flat-square)](https://kychon.com/#ai)
@@ -151,4 +151,4 @@ The central design principle: **an AI agent's API is SQL for config and file edi
 
 ## License
 
-MIT
+Apache License 2.0
