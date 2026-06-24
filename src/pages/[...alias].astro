@@ -1,5 +1,6 @@
 ---
 import { ssrConfigValue } from '../lib/ssr-api';
+import { resolvePathAlias } from '../lib/path-aliases';
 
 export const prerender = false;
 
@@ -10,15 +11,14 @@ export const prerender = false;
 // seeds a `path_aliases` site_config map (publicly visible category) from
 // source path → port path; this rest-param route — lowest Astro precedence,
 // so it only sees otherwise-unmatched requests — 301s matched paths and
-// serves a minimal noindex 404 for everything else.
+// serves a minimal noindex 404 for everything else. Matching is
+// case-insensitive (kychon#152): inbound paths keep their source casing while
+// seeded keys are lowercased slug routes.
 const host = Astro.request.headers.get('host') ?? Astro.url.host;
-const path = Astro.url.pathname.replace(/\/+$/, '') || '/';
 const aliases = await ssrConfigValue<Record<string, unknown>>({ key: 'path_aliases', host });
-const target = aliases && typeof aliases === 'object' ? aliases[path] : undefined;
+const target = resolvePathAlias(aliases, Astro.url.pathname);
 
-// Same-site relative targets only: a leading single slash, never `//host`,
-// so a mis-seeded map can't become an open redirect.
-if (typeof target === 'string' && target.startsWith('/') && !target.startsWith('//')) {
+if (target) {
   return Astro.redirect(target, 301);
 }
 
