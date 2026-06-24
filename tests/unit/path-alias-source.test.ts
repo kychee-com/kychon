@@ -13,10 +13,9 @@ describe('source-path alias route', () => {
     expect(aliasRoute).toContain('ssrConfigValue');
   });
 
-  it('redirects with a permanent status and refuses non-relative targets', () => {
+  it('redirects with a permanent status and delegates resolution to the validated helper', () => {
     expect(aliasRoute).toContain('Astro.redirect(target, 301)');
-    expect(aliasRoute).toContain("target.startsWith('/')");
-    expect(aliasRoute).toContain("!target.startsWith('//')");
+    expect(aliasRoute).toContain('resolvePathAlias');
   });
 
   it('serves a noindex 404 for unmatched paths', () => {
