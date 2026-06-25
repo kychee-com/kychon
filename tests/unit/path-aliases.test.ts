@@ -48,7 +48,9 @@ describe('resolvePathAlias', () => {
     // lowercase slug must NOT case-insensitively resolve to itself (301 loop).
     expect(resolvePathAlias({ '/Tournament-Standings': '/tournament-standings' }, '/tournament-standings')).toBeNull();
     // The cased path itself still redirects to the lowercase route.
-    expect(resolvePathAlias({ '/Tournament-Standings': '/tournament-standings' }, '/Tournament-Standings')).toBe('/tournament-standings');
+    expect(resolvePathAlias({ '/Tournament-Standings': '/tournament-standings' }, '/Tournament-Standings')).toBe(
+      '/tournament-standings',
+    );
   });
 });
 
