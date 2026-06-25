@@ -37,6 +37,11 @@ async function main(): Promise<void> {
   if (exclude) opts.excludeFunctions = exclude.split(",").map((s) => s.trim());
   const extra = process.env["EXTRA_FUNCTION"];
   if (extra) opts.extraFunction = extra;
+  // Force EXPLICIT public_paths: enumerates every prerendered route into the
+  // release's static manifest so it serves on a bound subdomain (not just the
+  // deployment URL). Implicit mode only manifests `/` + hashed assets, so copied
+  // sites' content slugs 404/fall through to SSR on the canonical (kychon-concierge#82).
+  if (process.env["RUN402_EXPLICIT_PUBLIC_PATHS"] === "true") opts.publicPathOverrides = {};
 
   await runDeploy(r, opts);
 }
