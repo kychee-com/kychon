@@ -38,6 +38,15 @@ export function resolvePathAlias(aliases: unknown, pathname: string): string | n
   // Same-site relative targets only: a leading single slash, never `//host`,
   // so a mis-seeded map cannot become an open redirect.
   if (typeof target === 'string' && target.startsWith('/') && !target.startsWith('//')) {
+    // Never self-redirect. A case-insensitive match can resolve a request to a
+    // target equal to the request path — e.g. the lowercase slug
+    // `/tournament-standings` falling through to here matches the seeded cased
+    // alias `/Tournament-Standings` → `/tournament-standings` — which 301-loops
+    // when that slug's own route is missing. Treat self-targets as no-match
+    // (kychon#152 follow-up).
+    if (normalizeAliasPath(target) === path) {
+      return null;
+    }
     return target;
   }
   return null;

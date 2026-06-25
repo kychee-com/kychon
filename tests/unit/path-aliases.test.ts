@@ -42,6 +42,14 @@ describe('resolvePathAlias', () => {
   it('returns null for a non-string target', () => {
     expect(resolvePathAlias({ '/x': 42 }, '/x')).toBeNull();
   });
+
+  it('never self-redirects: a lowercase slug matching a cased alias to itself is no-match (kychon#152)', () => {
+    // /Tournament-Standings -> /tournament-standings is seeded; a request for the
+    // lowercase slug must NOT case-insensitively resolve to itself (301 loop).
+    expect(resolvePathAlias({ '/Tournament-Standings': '/tournament-standings' }, '/tournament-standings')).toBeNull();
+    // The cased path itself still redirects to the lowercase route.
+    expect(resolvePathAlias({ '/Tournament-Standings': '/tournament-standings' }, '/Tournament-Standings')).toBe('/tournament-standings');
+  });
 });
 
 describe('normalizeAliasPath', () => {
