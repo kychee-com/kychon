@@ -7,6 +7,8 @@ import { resolveActiveProjectSeed } from '../seeds';
 import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
 import { ensureBuildAnnouncementsLoaded, getAllBuildAnnouncements } from '../lib/build-announcements';
 import { ensureBuildPagesLoaded, getAllBuildPages, getBuildPageBySlug } from '../lib/build-pages';
+import { ensureBuildSectionsLoaded, getBuildSections } from '../lib/build-sections';
+import { mergeSeedSections } from '../lib/merge-sections';
 import { renderMainZone, makeBakeContext } from '../lib/chrome-bake';
 
 export async function getStaticPaths() {
@@ -43,13 +45,16 @@ export async function getStaticPaths() {
 // the destructive `innerHTML` swap.
 const { seed } = await resolveActiveProjectSeed();
 const slug = String(Astro.params.customPage ?? '');
-await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded(), ensureBuildPagesLoaded()]);
+await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded(), ensureBuildPagesLoaded(), ensureBuildSectionsLoaded(slug)]);
 const bakeCtx = {
   ...makeBakeContext(seed),
   buildEvents: getAllBuildEvents(),
   buildAnnouncements: getAllBuildAnnouncements(),
 };
-const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seed, slug, bakeCtx);
+// Ported custom pages carry their main-zone sections only in the deployed DB.
+// Merge them in so renderMainZone bakes the real body instead of an empty shell.
+const seedForBake = mergeSeedSections(seed, slug, getBuildSections(slug));
+const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seedForBake, slug, bakeCtx);
 // SSR the page body itself (kychon#126): with `initialPage` the island
 // server-renders the real title + sanitized rich-text content instead of
 // the loading skeleton, so the served HTML carries the page body for
