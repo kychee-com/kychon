@@ -6,6 +6,8 @@ import { resolveActiveProjectSeed } from '../seeds';
 import { renderMainZone, renderHeroPreloadLink, makeBakeContext } from '../lib/chrome-bake';
 import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
 import { ensureBuildAnnouncementsLoaded, getAllBuildAnnouncements } from '../lib/build-announcements';
+import { ensureBuildSectionsLoaded, getBuildSections } from '../lib/build-sections';
+import { mergeSeedSections } from '../lib/merge-sections';
 
 // First-paint bake of the home page's page-scoped main-zone sections from the
 // active project's typed seed. Runtime hydrate (page-render.ts) still re-renders
@@ -20,7 +22,7 @@ const { seed } = await resolveActiveProjectSeed();
 // (or both) can fail silently when env vars are missing (local
 // `astro dev`) — the blocks just fall back to today's skeleton path
 // in that case.
-await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded()]);
+await Promise.all([ensureBuildEventsLoaded(), ensureBuildAnnouncementsLoaded(), ensureBuildSectionsLoaded('index')]);
 const bakeCtx = {
   ...makeBakeContext(seed),
   buildEvents: getAllBuildEvents(),
@@ -33,10 +35,15 @@ const bakeCtx = {
 // replacement when the live data would produce identical HTML. Preserves
 // SSR-baked `<Run402Image>` content (variant ladder + v1.54 pre-decoded
 // blurhash placeholder) when seed = DB.
-const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seed, 'index', bakeCtx);
+// Ported sites carry their page-scoped main-zone sections only in the deployed
+// DB (applied via seed.sql) — the build seed (chrome snapshot) has global chrome
+// only. Merge the DB-fetched main-zone sections in so renderMainZone bakes them.
+// No-op when the fetch returned [] (typed-seed projects, local dev).
+const seedForBake = mergeSeedSections(seed, 'index', getBuildSections('index'));
+const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seedForBake, 'index', bakeCtx);
 // Preload the home hero so the WebP download starts before the browser even
 // parses `<source srcset>` in document order — matches Apple-style preload.
-const heroPreloadLink = renderHeroPreloadLink(seed, 'index', bakeCtx.manifest);
+const heroPreloadLink = renderHeroPreloadLink(seedForBake, 'index', bakeCtx.manifest);
 ---
 <Portal title="Home" extraHead={heroPreloadLink}>
   <HomePageApp client:load />
