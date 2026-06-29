@@ -23,6 +23,12 @@ run402 deploy apply --manifest app.json --final-only
 static site files, Astro SSR, the same-origin `/api/kychon` function route, and
 trusted local functions.
 
+The manifest builder uses public Run402 packages for the generic pieces:
+`@run402/sdk/node` resolves the active Core target profile, and
+`@run402/release/app-kit` materializes function sources, local-dir site refs,
+migration checksums, and omitted-feature evidence. Kychon keeps only
+Kychon-specific choices local: function selection, routes, seeds, and app data.
+
 ## Supported Slice
 
 Run402 Core Developer Preview runs the application data plane. Run402 Cloud
@@ -59,7 +65,9 @@ You need:
 - npm
 - Git LFS
 - network access to the Core Gateway on ports `4020` and `4300`
-- `run402` CLI `3.5.5` or newer
+- `run402` CLI `3.5.6` or newer
+- `@run402/sdk` `3.5.6` or newer in this checkout
+- `@run402/release` `0.1.3` or newer in this checkout
 - `@run402/astro` `2.4.5` or newer in this checkout
 
 Set your Core URLs:
@@ -124,7 +132,8 @@ Expected output lists:
 - migration id
 - included functions: `export-csv`, `kychon-api`, `site-search`, `ssr`,
   `upload-asset`, `upload-resource`
-- omitted Cloud-only or scheduled functions
+- omitted Cloud-only or scheduled functions, also recorded in
+  `x-run402-omitted_features` inside `app.json`
 
 Apply the release:
 
@@ -133,6 +142,64 @@ run402 deploy apply --manifest app.json --final-only
 ```
 
 Save the returned `release_id`, `operation_id`, and `urls`.
+
+## Certification Evidence
+
+After deploy, write a product-neutral Core certification config:
+
+```bash
+export PROJECT_ID="$(jq -r '.project_id' core-provision.json)"
+
+cat > core-certify.json <<JSON
+{
+  "base_url": "$RUN402_CORE_URL",
+  "project_id": "$PROJECT_ID",
+  "service_key": "$(jq -r '.service_key' core-provision.json)",
+  "postgrest_url": "$RUN402_CORE_POSTGREST_URL",
+  "probes": {
+    "static": {
+      "path": "/projects/v1/{project_id}/static/",
+      "expect_text": "<!doctype html"
+    },
+    "runtime_config": {
+      "path": "/projects/v1/{project_id}/static/js/env.js",
+      "expect_text": "$RUN402_CORE_URL"
+    },
+    "function": {
+      "path": "/projects/v1/{project_id}/static/api/kychon",
+      "method": "POST",
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "apiVersion": "2026-05-08",
+        "operation": "portal.capabilities",
+        "phase": "query",
+        "input": {}
+      }
+    },
+    "ssr": {
+      "path": "/projects/v1/{project_id}/static/ssr-probe",
+      "expect_text": "ssr"
+    },
+    "rls": {
+      "path": "site_config?select=key,value&limit=5",
+      "user": { "sub": "core-smoke-user", "expect_count": 5 }
+    }
+  }
+}
+JSON
+```
+
+Then run the public Core runner:
+
+```bash
+node ../run402-core/scripts/core-certify.mjs \
+  --config core-certify.json \
+  --out core-certify-evidence.json
+```
+
+`core-certify-evidence.json` redacts service keys, bearer tokens, cookies,
+signed URLs, and configured secret values. Attach it to private proof notes or
+CI artifacts when proving source-to-Core portability.
 
 ## Browser URL
 

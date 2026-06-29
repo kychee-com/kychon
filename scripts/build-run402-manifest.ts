@@ -1,8 +1,20 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { homedir } from "node:os";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  buildPortableAppManifest,
+  databaseMigrationsSlice,
+  inlineSqlMigration,
+  manifestRelativePath,
+  materializeFunctionManifestMap as materializeAppKitFunctionManifestMap,
+  materializeFunctionSource,
+  siteReplaceFromLocalDir,
+  type AppKitFunctionInput,
+  type AppKitManifestFunctionSpec,
+} from "@run402/release/app-kit";
+import { resolveRun402TargetProfile } from "@run402/sdk/node";
 
 import {
   collectFunctionsMap,
@@ -30,7 +42,7 @@ type CoreFunctionSpec = FunctionSpec & {
   capabilities?: string[];
   requireAuth?: boolean;
   requireRole?: unknown;
-};
+} & AppKitFunctionInput;
 
 interface CoreTargetConfig {
   apiBase: string;
@@ -50,18 +62,7 @@ interface ResolveCoreTargetConfigOptions {
   provisionFile?: string | null;
 }
 
-interface ManifestFunctionSpec {
-  runtime: string;
-  source: { path: string };
-  config?: {
-    timeout_seconds?: number;
-    memory_mb?: number;
-  };
-  class?: string;
-  capabilities?: string[];
-  require_auth?: boolean;
-  require_role?: unknown;
-}
+type ManifestFunctionSpec = AppKitManifestFunctionSpec;
 
 interface CoreManifestBuildResult {
   manifest: Record<string, unknown>;
@@ -92,36 +93,11 @@ function firstString(...values: unknown[]): string | undefined {
   return undefined;
 }
 
-function normalizeApiBase(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    throw new Error(`Run402 API base is not a valid URL: ${JSON.stringify(raw)}`);
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error(`Run402 API base must be http(s), got ${parsed.protocol}`);
-  }
-  return raw.replace(/\/+$/, "");
-}
-
-export function resolveRun402ConfigDir(
-  env: NodeJS.ProcessEnv = process.env,
-  homeDir = homedir(),
-): string {
-  const baseDir = env.RUN402_CONFIG_DIR || join(homeDir, ".config", "run402");
-  const profile = firstString(env.RUN402_WALLET, env.RUN402_PROFILE) || "default";
-  return profile === "default" ? baseDir : join(baseDir, "profiles", profile);
-}
-
 export function resolveCoreTargetConfig(
   opts: ResolveCoreTargetConfigOptions = {},
 ): CoreTargetConfig {
   const env = opts.env ?? process.env;
-  const configDir = opts.configDir ?? resolveRun402ConfigDir(env);
-  const targetJson = readJsonFile(join(configDir, "target.json"));
-  const storeJson = readJsonFile(join(configDir, "projects.json"));
+  const configDir = opts.configDir;
 
   const provisionFile =
     opts.provisionFile === undefined
@@ -131,15 +107,30 @@ export function resolveCoreTargetConfig(
     ? readJsonFile(resolve(ROOT, provisionFile))
     : null;
 
-  const apiBase = normalizeApiBase(
-    firstString(env.RUN402_API_BASE, env.RUN402_CORE_URL, targetJson?.api_base),
-  );
-  if (!apiBase) {
-    throw new Error(
-      "No Run402 Core API base found. Run `run402 init --api-base=http://<core>:4020`, " +
-        "or set RUN402_API_BASE/RUN402_CORE_URL before building app.json.",
-    );
-  }
+  const target = withTemporaryRun402Env(env, configDir, () => {
+    try {
+      return resolveRun402TargetProfile({
+        requiredTarget: "core",
+        env,
+        envAliases: {
+          projectId: ["KYCHON_PROJECT_ID"],
+          anonKey: ["ANON_KEY", "KYCHON_ANON_KEY"],
+          serviceKey: ["SERVICE_KEY"],
+        },
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "RUN402_TARGET_MISMATCH") {
+        throw new Error(
+          "Refusing to build a Core manifest against the Run402 Cloud API base. " +
+            "Run `run402 init --api-base=http://<core>:4020` first.",
+        );
+      }
+      throw error;
+    }
+  });
+
+  const apiBase = target.apiBase;
   if (apiBase === "https://api.run402.com") {
     throw new Error(
       "Refusing to build a Core manifest against the Run402 Cloud API base. " +
@@ -147,21 +138,12 @@ export function resolveCoreTargetConfig(
     );
   }
 
-  const storeProjects =
-    storeJson?.projects && typeof storeJson.projects === "object" && !Array.isArray(storeJson.projects)
-      ? (storeJson.projects as Record<string, Record<string, unknown>>)
-      : {};
   const projectId = firstString(
-    env.RUN402_PROJECT_ID,
-    env.KYCHON_PROJECT_ID,
-    storeJson?.active_project_id,
+    target.projectId,
     provisionJson?.project_id,
   );
-  const storedProject = projectId ? storeProjects[projectId] : undefined;
   const anonKey = firstString(
-    env.ANON_KEY,
-    env.KYCHON_ANON_KEY,
-    storedProject?.anon_key,
+    target.anonKey,
     provisionJson?.anon_key,
   );
   if (!anonKey) {
@@ -172,9 +154,7 @@ export function resolveCoreTargetConfig(
   }
 
   const serviceKey = firstString(
-    env.SERVICE_KEY,
-    env.RUN402_SERVICE_KEY,
-    storedProject?.service_key,
+    target.serviceKey,
     provisionJson?.service_key,
   );
 
@@ -184,17 +164,13 @@ export function resolveCoreTargetConfig(
     anonKey,
     ...(serviceKey ? { serviceKey } : {}),
     source: {
-      apiBase: env.RUN402_API_BASE || env.RUN402_CORE_URL ? "env" : "run402 target profile",
-      project: env.RUN402_PROJECT_ID || env.KYCHON_PROJECT_ID
-        ? "env"
-        : storeJson?.active_project_id
-          ? "run402 project profile"
-          : "core-provision.json",
-      anonKey: env.ANON_KEY || env.KYCHON_ANON_KEY
-        ? "env"
-        : storedProject?.anon_key
-          ? "run402 project profile"
-          : "core-provision.json",
+      apiBase: target.sources.apiBase === "env" ? "env" : "run402 target profile",
+      project: target.projectId
+        ? sourceLabel(target.sources.project, "run402 project profile")
+        : "core-provision.json",
+      anonKey: target.anonKey
+        ? sourceLabel(target.sources.anonKey, "run402 project profile")
+        : "core-provision.json",
     },
   };
 }
@@ -250,57 +226,27 @@ function withAstroSsrCapability(
   return out;
 }
 
-function rootRelative(path: string): string {
-  return relative(ROOT, path).replaceAll("\\", "/");
-}
-
-function safeFunctionSourceFile(name: string): string {
-  return `${name.replace(/[^a-zA-Z0-9_.-]/g, "_")}.js`;
-}
-
 export function materializeManifestFunctionSpec(
   name: string,
   spec: FunctionSpec,
   outDir: string,
 ): ManifestFunctionSpec {
-  const fn = spec as CoreFunctionSpec;
-  if (fn.schedule) {
-    throw new Error(`Core manifest cannot include scheduled function ${name}`);
-  }
-  if (typeof fn.source !== "string") {
-    throw new Error(`Core manifest function ${name} must have string source`);
-  }
-
-  mkdirSync(outDir, { recursive: true });
-  const sourcePath = join(outDir, safeFunctionSourceFile(name));
-  writeFileSync(sourcePath, fn.source, "utf-8");
-
-  const out: ManifestFunctionSpec = {
-    runtime: fn.runtime ?? "node22",
-    source: { path: rootRelative(sourcePath) },
-  };
-  if (fn.config) {
-    out.config = {
-      ...(fn.config.timeoutSeconds !== undefined ? { timeout_seconds: fn.config.timeoutSeconds } : {}),
-      ...(fn.config.memoryMb !== undefined ? { memory_mb: fn.config.memoryMb } : {}),
-    };
-  }
-  if (fn.class) out.class = fn.class;
-  if (fn.capabilities) out.capabilities = [...fn.capabilities];
-  if (fn.requireAuth !== undefined) out.require_auth = fn.requireAuth;
-  if (fn.requireRole !== undefined) out.require_role = fn.requireRole;
-  return out;
+  return materializeFunctionSource(name, spec as CoreFunctionSpec, {
+    rootDir: ROOT,
+    outDir,
+    targetPolicy: "core-developer-preview",
+  }).spec;
 }
 
 function materializeFunctionManifestMap(
   functionsMap: Record<string, FunctionSpec>,
 ): Record<string, ManifestFunctionSpec> {
   const outDir = join(ROOT, "dist", "run402", "core-functions");
-  const out: Record<string, ManifestFunctionSpec> = {};
-  for (const [name, spec] of Object.entries(functionsMap).sort(([a], [b]) => a.localeCompare(b))) {
-    out[name] = materializeManifestFunctionSpec(name, spec, outDir);
-  }
-  return out;
+  return materializeAppKitFunctionManifestMap(functionsMap as Record<string, CoreFunctionSpec>, {
+    rootDir: ROOT,
+    outDir,
+    targetPolicy: "core-developer-preview",
+  }).functions;
 }
 
 function parseArgs(argv: string[]): { outPath: string } {
@@ -372,22 +318,25 @@ export async function buildCoreManifest(
     ...(astroSlice.routes?.replace ?? []),
   ];
 
-  const manifest = {
-    "$schema": "https://run402.com/schemas/manifest.v1.json",
-    database: {
-      migrations: [{ id: migrationId, sql }],
+  const manifest = buildPortableAppManifest({
+    schema: "https://run402.com/schemas/manifest.v1.json",
+    database: databaseMigrationsSlice([
+      inlineSqlMigration({ id: migrationId, sql }),
+    ], {
       expose: { version: "1", tables: [...EXPOSE_TABLES] },
-    },
+    }),
     functions: { replace: functionManifest },
-    site: {
-      replace: {
-        __source: "local-dir",
-        path: rootRelative(clientDir),
-      },
-      public_paths: astroSlice.site.public_paths ?? { mode: "implicit" },
-    },
+    site: siteReplaceFromLocalDir(clientDir, {
+      rootDir: ROOT,
+      publicPaths: astroSlice.site.public_paths ?? { mode: "implicit" },
+    }),
     routes: { replace: routes },
-  };
+    omittedFeatures: omittedFunctionNames.map((name) => ({
+      resource: `functions.${name}`,
+      capability: "cloud-only-or-scheduled-function",
+      reason: "Kychon intentionally omits this function from the Core Developer Preview build.",
+    })),
+  });
 
   const absoluteOutPath = resolve(ROOT, outPath);
   writeFileSync(absoluteOutPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
@@ -405,7 +354,7 @@ export async function buildCoreManifest(
 async function main(): Promise<void> {
   const { outPath } = parseArgs(process.argv.slice(2));
   const result = await buildCoreManifest(outPath);
-  console.log(`Wrote ${rootRelative(result.outPath)}`);
+  console.log(`Wrote ${manifestRelativePath(result.outPath, ROOT)}`);
   console.log(`  api_base: ${result.target.apiBase} (${result.target.source.apiBase})`);
   if (result.target.projectId) {
     console.log(`  active project: ${result.target.projectId} (${result.target.source.project})`);
@@ -415,6 +364,51 @@ async function main(): Promise<void> {
   console.log(`  functions: ${result.functionNames.join(", ")}`);
   console.log(`  omitted Core-incompatible functions: ${result.omittedFunctionNames.join(", ") || "(none)"}`);
   console.log(`  site: ${basename(join(ROOT, "dist", "run402", "client"))} via local-dir manifest entry`);
+}
+
+function sourceLabel(source: string | undefined, profileLabel: string): string {
+  if (!source) return profileLabel;
+  return source.startsWith("env:") ? "env" : profileLabel;
+}
+
+function withTemporaryRun402Env<T>(
+  env: NodeJS.ProcessEnv,
+  configDir: string | undefined,
+  fn: () => T,
+): T {
+  const keys = [
+    "RUN402_API_BASE",
+    "RUN402_CORE_URL",
+    "RUN402_CONFIG_DIR",
+    "RUN402_PROJECT_ID",
+    "RUN402_ANON_KEY",
+    "RUN402_SERVICE_KEY",
+    "RUN402_WALLET",
+    "RUN402_PROFILE",
+    "KYCHON_PROJECT_ID",
+    "ANON_KEY",
+    "KYCHON_ANON_KEY",
+    "SERVICE_KEY",
+  ];
+  const previous: Record<string, string | undefined> = {};
+  for (const key of keys) {
+    previous[key] = process.env[key];
+    const next = key === "RUN402_CONFIG_DIR" && configDir ? configDir : env[key];
+    if (next === undefined) delete process.env[key];
+    else process.env[key] = next;
+  }
+  if (env.RUN402_CORE_URL && !env.RUN402_API_BASE) {
+    process.env.RUN402_API_BASE = env.RUN402_CORE_URL;
+  }
+  try {
+    return fn();
+  } finally {
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
