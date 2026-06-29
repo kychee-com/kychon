@@ -8,6 +8,7 @@ app.json
 app-*.json
 !app-*.example.json
 !app.example.json
+core-provision.json
 public/js/env.js
 dist/
 .astro/

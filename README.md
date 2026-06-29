@@ -59,6 +59,12 @@ RUN402_PROJECT_ID=<your_project_id> SUBDOMAIN=<your-name> npx tsx scripts/deploy
 
 Your portal is live at `<your-name>.run402.com`.
 
+## Self-Hosted Run402 Core
+
+Run402 Cloud is the easiest managed path, but the supported open-source slice of
+Kychon can also run on a self-hosted Run402 Core Gateway in your AWS account.
+See [Deploy Kychon To Run402 Core On AWS](docs/run402-core-aws.md).
+
 ## Project Structure
 
 ```
