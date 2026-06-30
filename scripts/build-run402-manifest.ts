@@ -234,7 +234,6 @@ export function materializeManifestFunctionSpec(
   return materializeFunctionSource(name, spec as CoreFunctionSpec, {
     rootDir: ROOT,
     outDir,
-    targetPolicy: "core-developer-preview",
   }).spec;
 }
 
@@ -245,7 +244,6 @@ function materializeFunctionManifestMap(
   return materializeAppKitFunctionManifestMap(functionsMap as Record<string, CoreFunctionSpec>, {
     rootDir: ROOT,
     outDir,
-    targetPolicy: "core-developer-preview",
   }).functions;
 }
 
@@ -334,7 +332,7 @@ export async function buildCoreManifest(
     omittedFeatures: omittedFunctionNames.map((name) => ({
       resource: `functions.${name}`,
       capability: "cloud-only-or-scheduled-function",
-      reason: "Kychon intentionally omits this function from the Core Developer Preview build.",
+      reason: "Kychon intentionally omits this function from the Run402 Core build.",
     })),
   });
 

@@ -31,7 +31,7 @@ Kychon-specific choices local: function selection, routes, seeds, and app data.
 
 ## Supported Slice
 
-Run402 Core Developer Preview runs the application data plane. Run402 Cloud
+Run402 Core runs the application data plane. Run402 Cloud
 remains the managed path for fleet operations and Cloud-only services.
 
 | Kychon capability | Core treatment |
