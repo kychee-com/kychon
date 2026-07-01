@@ -7,14 +7,19 @@
  *
  * Usage:
  *   npx tsx scripts/deploy.ts                                 # production deploy
- *   npx tsx scripts/deploy.ts --dry-run                       # assemble + log, no API call
+ *   npx tsx scripts/deploy.ts --check                         # assemble + log, no API call
+ *   npx tsx scripts/deploy.ts --print-spec                    # print ReleaseSpec JSON, no API call
+ *   npx tsx scripts/deploy.ts --plan                          # gateway-reviewed plan, no deploy
+ *   npx tsx scripts/deploy.ts --require-plan plan_...         # exact reviewed apply
  */
 
 import { run402 } from "@run402/sdk/node";
 
 import {
   isDryRun,
+  deployModeFromArgv,
   prettyPrintError,
+  reviewedPlanRequirementFromArgv,
   resolveDeployTarget,
   runDeploy,
   type RunDeployOptions,
@@ -23,6 +28,8 @@ import {
 async function main(): Promise<void> {
   const r = run402();
   const target = await resolveDeployTarget(r);
+  const deployMode = deployModeFromArgv(process.argv);
+  const requiredPlan = reviewedPlanRequirementFromArgv(process.argv);
 
   const opts: RunDeployOptions = {
     projectId: target.projectId,
@@ -31,6 +38,8 @@ async function main(): Promise<void> {
     dryRun: isDryRun(process.argv),
     allowWarnings: process.env["RUN402_ALLOW_WARNINGS"] === "true",
   };
+  if (deployMode) opts.deployMode = deployMode;
+  if (requiredPlan) opts.requiredPlan = requiredPlan;
   const seedFile = process.env["SEED_FILE"];
   if (seedFile) opts.seedFile = seedFile;
   const exclude = process.env["EXCLUDE_FUNCTIONS"];
