@@ -65,9 +65,9 @@ You need:
 - npm
 - Git LFS
 - network access to the Core Gateway on ports `4020` and `4300`
-- `run402` CLI `3.5.6` or newer
-- `@run402/sdk` `3.5.6` or newer in this checkout
-- `@run402/release` `0.1.3` or newer in this checkout
+- `run402` CLI `3.7.0` or newer
+- `@run402/sdk` `3.7.0` or newer in this checkout
+- `@run402/release` `0.2.0` or newer in this checkout
 - `@run402/astro` `2.4.5` or newer in this checkout
 
 Set your Core URLs:

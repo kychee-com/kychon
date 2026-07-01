@@ -30,7 +30,19 @@ bash deploy-all.sh barrio
 npx tsx --env-file=.env scripts/deploy-all.ts
 npx tsx scripts/deploy-demo.ts eagles
 
-# Dry-run — assembles spec, logs what would be sent, no API call
+# Check — assembles spec, logs what would be sent, no API call
+npx tsx scripts/deploy.ts --check
+
+# Print the assembled SDK ReleaseSpec JSON, no API call
+npx tsx scripts/deploy.ts --print-spec
+
+# Gateway-reviewed plan, no upload or commit
+npx tsx scripts/deploy.ts --plan
+
+# Exact reviewed apply after inspecting the plan output
+npx tsx scripts/deploy.ts --require-plan plan_... --plan-fingerprint pfp_...
+
+# Back-compat alias for --check
 npx tsx scripts/deploy.ts --dry-run
 ```
 

@@ -519,8 +519,15 @@ export interface RunDeployOptions {
   chromeSnapshot?: string | ProjectSeed;
   /** Continue past confirmation-required deploy warnings after explicit review. */
   allowWarnings?: boolean;
-  /** When true, prints the assembled spec and returns without calling the API. */
+  /** When true, prints the assembled spec summary and returns without calling the API. Alias for deployMode="check". */
   dryRun?: boolean;
+  /** Local/gateway deploy mode. Omit for the normal apply path. */
+  deployMode?: "check" | "printSpec" | "plan";
+  /** Bind apply to a reviewed plan returned by deployMode="plan". */
+  requiredPlan?: {
+    planId: string;
+    planFingerprint?: string;
+  };
   /**
    * Extra browser-visible static paths to overlay on the generated public-path
    * map. Supplying this (any non-undefined value) switches an adapter deploy
@@ -552,6 +559,10 @@ export interface RunDeployResult {
   operationId?: string;
   urls?: Record<string, string>;
   elapsedMs?: number;
+  /** Present for gateway-reviewed plan mode. */
+  planId?: string;
+  planFingerprint?: string;
+  planExpiresAt?: string;
 }
 
 export interface BuildKychonReleaseSpecOptions {
@@ -905,8 +916,19 @@ export async function runDeploy(
     );
   }
 
-  if (opts.dryRun) {
-    console.log("\n[dry-run] Would call r.project(id).apply with:");
+  const localCheck = opts.dryRun === true || opts.deployMode === "check";
+  if (opts.deployMode === "printSpec") {
+    console.log(JSON.stringify(spec, null, 2));
+    return {
+      ok: true,
+      releaseManifest,
+      schemaMigrationId: migrationId,
+      schemaChecksum: releaseManifest.schemaChecksum,
+    };
+  }
+
+  if (localCheck) {
+    console.log("\n[check] Would call r.project(id).apply with:");
     console.log(
       JSON.stringify(
         {
@@ -944,6 +966,36 @@ export async function runDeploy(
     };
   }
 
+  if (opts.deployMode === "plan") {
+    const { plan } = await project.apply.plan(spec, { mode: "reviewedPlan" });
+    if (!plan.plan_id) {
+      throw new Error("Reviewed plan response did not include plan_id.");
+    }
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "plan",
+      project_id: opts.projectId,
+      plan_id: plan.plan_id,
+      plan_fingerprint: plan.plan_fingerprint ?? null,
+      plan_expires_at: plan.plan_expires_at ?? null,
+      manifest_digest: plan.manifest_digest ?? null,
+      warnings: plan.warnings ?? [],
+      diff: plan.diff ?? null,
+      next_actions: plan.next_actions ?? [],
+      plan,
+    }, null, 2));
+    const plannedResult: RunDeployResult = {
+      ok: true,
+      releaseManifest,
+      schemaMigrationId: migrationId,
+      schemaChecksum: releaseManifest.schemaChecksum,
+      planId: plan.plan_id,
+    };
+    if (plan.plan_fingerprint) plannedResult.planFingerprint = plan.plan_fingerprint;
+    if (plan.plan_expires_at) plannedResult.planExpiresAt = plan.plan_expires_at;
+    return plannedResult;
+  }
+
   const applyOptions: ApplyOptions = {
     onEvent(event) {
       if (event.type !== "plan.warnings") return;
@@ -955,10 +1007,19 @@ export async function runDeploy(
       }
     },
   };
+  if (opts.requiredPlan && opts.allowWarnings) {
+    throw new Error("Warning approvals are not used with --require-plan; the reviewed plan already binds the warning set.");
+  }
   if (opts.allowWarnings) {
     applyOptions.allowWarnings = true;
     console.warn(
       "\nContinuing past confirmation-required deploy warnings because allowWarnings is enabled.",
+    );
+  }
+  if (opts.requiredPlan) {
+    applyOptions.requiredPlan = opts.requiredPlan;
+    console.log(
+      `\nApplying reviewed plan ${opts.requiredPlan.planId}${opts.requiredPlan.planFingerprint ? ` (${opts.requiredPlan.planFingerprint})` : ""}.`,
     );
   }
 
@@ -1326,6 +1387,41 @@ export async function prettyPrintError(err: unknown): Promise<string> {
 /** Tiny argv check for the --dry-run flag. */
 export function isDryRun(argv: readonly string[]): boolean {
   return argv.includes("--dry-run");
+}
+
+export function deployModeFromArgv(argv: readonly string[]): RunDeployOptions["deployMode"] | undefined {
+  const modes = [
+    argv.includes("--check") || argv.includes("--dry-run") ? "check" : undefined,
+    argv.includes("--print-spec") ? "printSpec" : undefined,
+    argv.includes("--plan") ? "plan" : undefined,
+    argv.includes("--require-plan") ? "applyReviewed" : undefined,
+  ].filter(Boolean);
+  if (modes.length > 1) {
+    throw new Error(`Choose only one deploy mode: ${modes.join(", ")}`);
+  }
+  const mode = modes[0];
+  return mode === "applyReviewed" ? undefined : mode as RunDeployOptions["deployMode"] | undefined;
+}
+
+export function reviewedPlanRequirementFromArgv(argv: readonly string[]): RunDeployOptions["requiredPlan"] | undefined {
+  const planId = valueAfterFlag(argv, "--require-plan");
+  const planFingerprint = valueAfterFlag(argv, "--plan-fingerprint");
+  if (planFingerprint && !planId) {
+    throw new Error("--plan-fingerprint can only be used with --require-plan.");
+  }
+  if (!planId) return undefined;
+  return {
+    planId,
+    ...(planFingerprint ? { planFingerprint } : {}),
+  };
+}
+
+function valueAfterFlag(argv: readonly string[], flag: string): string | undefined {
+  const index = argv.indexOf(flag);
+  if (index === -1) return undefined;
+  const value = argv[index + 1];
+  if (!value || value.startsWith("--")) throw new Error(`${flag} requires a value.`);
+  return value;
 }
 
 /** Format a byte count as a short human-readable string ("1.4MB", "812KB", "402B"). */
