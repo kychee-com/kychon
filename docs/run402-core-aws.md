@@ -180,9 +180,11 @@ cat > core-certify.json <<JSON
       "path": "/projects/v1/{project_id}/static/ssr-probe",
       "expect_text": "ssr"
     },
-    "rls": {
-      "path": "site_config?select=key,value&limit=5",
-      "user": { "sub": "core-smoke-user", "expect_count": 5 }
+    "database": {
+      "expose": {
+        "path": "site_config?select=key,value&limit=5",
+        "user": { "sub": "core-smoke-user", "expect_count": 5 }
+      }
     }
   }
 }
