@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import {
   buildPortableAppManifest,
   databaseMigrationsSlice,
-  inlineSqlMigration,
   manifestRelativePath,
   materializeFunctionManifestMap as materializeAppKitFunctionManifestMap,
   materializeFunctionSource,
@@ -28,6 +27,7 @@ import {
 import { buildEngineReleaseManifest } from "./release-manifest.ts";
 
 const ASTRO_SSR_CAPABILITY = "astro.ssr.v1";
+export const KYCHON_SCHEMA_MIGRATION_NAME = "kychon";
 
 export const CORE_INCLUDED_FUNCTIONS = [
   "kychon-api",
@@ -247,6 +247,18 @@ function materializeFunctionManifestMap(
   }).functions;
 }
 
+export function contentTrackedKychonSchemaMigration(sql: string): {
+  name: string;
+  checksum: string;
+  sql: string;
+} {
+  return {
+    name: KYCHON_SCHEMA_MIGRATION_NAME,
+    checksum: sha256Hex(sql),
+    sql,
+  };
+}
+
 function parseArgs(argv: string[]): { outPath: string } {
   let outPath = "app.json";
   for (let i = 0; i < argv.length; i++) {
@@ -319,7 +331,7 @@ export async function buildCoreManifest(
   const manifest = buildPortableAppManifest({
     schema: "https://run402.com/schemas/manifest.v1.json",
     database: databaseMigrationsSlice([
-      inlineSqlMigration({ id: migrationId, sql }),
+      contentTrackedKychonSchemaMigration(sql) as never,
     ], {
       expose: { version: "1", tables: [...EXPOSE_TABLES] },
     }),

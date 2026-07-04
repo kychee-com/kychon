@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { ROOT } from '../../scripts/_lib';
 import {
   CORE_INCLUDED_FUNCTIONS,
+  KYCHON_SCHEMA_MIGRATION_NAME,
+  contentTrackedKychonSchemaMigration,
   materializeManifestFunctionSpec,
   resolveCoreTargetConfig,
 } from '../../scripts/build-run402-manifest';
@@ -114,5 +116,19 @@ describe('Run402 Core manifest function materialization', () => {
     expect(CORE_INCLUDED_FUNCTIONS).not.toContain('check-expirations');
     expect(CORE_INCLUDED_FUNCTIONS).not.toContain('ai-content');
     expect(CORE_INCLUDED_FUNCTIONS).not.toContain('on-signup');
+  });
+});
+
+describe('Run402 Core manifest database migration', () => {
+  it('uses a content-tracked name for generated SQL instead of a static id', () => {
+    const sql = 'CREATE TABLE IF NOT EXISTS smoke (id serial primary key);\n';
+    const migration = contentTrackedKychonSchemaMigration(sql);
+
+    expect(migration).toEqual({
+      name: KYCHON_SCHEMA_MIGRATION_NAME,
+      checksum: '15bb2488331e1584b7ecc8c6ba76253d77f72dab513ab9fb0ac080e8110319e8',
+      sql,
+    });
+    expect('id' in migration).toBe(false);
   });
 });
