@@ -196,7 +196,7 @@ async function collectCoreFunctionMap(): Promise<{
   });
 
   for (const [name, spec] of Object.entries(functionsMap)) {
-    if (spec.schedule) {
+    if ((spec.triggers ?? []).some((trigger) => trigger.type === "schedule")) {
       throw new Error(
         `Core manifest includes scheduled function ${name}. ` +
           "Remove it from CORE_INCLUDED_FUNCTIONS or add Core schedule support first.",

@@ -70,7 +70,7 @@ export interface CollectFunctionsOptions {
 /**
  * Read functions from a directory of `.js` files. Each file becomes one
  * `FunctionSpec` in the `replace` map; cron schedules are parsed from
- * `// schedule: "..."` comments.
+ * `// schedule: "..."` comments and emitted as Run402 schedule triggers.
  */
 export async function collectFunctionsMap(
   dir: string,
@@ -81,7 +81,8 @@ export async function collectFunctionsMap(
     const entries = await readdir(dir);
     for (const f of entries.filter((e) => e.endsWith(".js"))) {
       const code = injectFunctionBuildConstants(await readFile(join(dir, f), "utf-8"));
-      out[f.replace(/\.js$/, "")] = makeFunctionSpec(code);
+      const name = f.replace(/\.js$/, "");
+      out[name] = makeFunctionSpec(name, code);
     }
   }
 
@@ -99,7 +100,7 @@ export async function collectFunctionsMap(
     // timeout from the default 10s to 15s changes the function digest, so
     // the gateway's noop short-circuit no longer skips activation for these
     // already-deployed functions.
-    out[name] = makeFunctionSpec(code, { timeoutSeconds: 15 });
+    out[name] = makeFunctionSpec(name, code, { timeoutSeconds: 15 });
   }
 
   return out;
@@ -115,6 +116,7 @@ function resolveKychonEngineVersion(): string {
 }
 
 function makeFunctionSpec(
+  name: string,
   code: string,
   config?: { timeoutSeconds?: number; memoryMb?: number },
 ): FunctionSpec {
@@ -122,9 +124,30 @@ function makeFunctionSpec(
   if (config) spec.config = config;
   const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
   if (scheduleMatch && scheduleMatch[1]) {
-    spec.schedule = scheduleMatch[1];
+    spec.triggers = [{
+      id: "schedule",
+      type: "schedule",
+      cron: scheduleMatch[1],
+      timezone: "UTC",
+      misfire_policy: "skip",
+      overlap_policy: "allow",
+      run: {
+        event_type: `${name}.schedule`,
+        payload: {},
+      },
+    }];
   }
   return spec;
+}
+
+function scheduleTriggerCrons(spec: FunctionSpec | undefined): string[] {
+  return (spec?.triggers ?? [])
+    .filter((trigger) => trigger.type === "schedule")
+    .map((trigger) => trigger.cron);
+}
+
+function hasScheduleTrigger(spec: FunctionSpec | undefined): boolean {
+  return scheduleTriggerCrons(spec).length > 0;
 }
 
 /**
@@ -816,7 +839,7 @@ export async function runDeploy(
   ]);
 
   const fnNames = Object.keys(functionsMap);
-  const scheduledFns = fnNames.filter((n) => functionsMap[n]?.schedule);
+  const scheduledFns = fnNames.filter((n) => hasScheduleTrigger(functionsMap[n]));
 
   const liveCodeHashes = liveRelease
     ? new Map(liveRelease.functions.map(f => [f.name, f.code_hash]))
@@ -940,7 +963,7 @@ export async function runDeploy(
           functionsChanged: fnDiff?.changed ?? fnNames.length,
           functionsSkipped: fnDiff?.skipped ?? 0,
           functionsWithSchedule: scheduledFns.map(
-            (n) => `${n}=${functionsMap[n]?.schedule}`,
+            (n) => `${n}=${scheduleTriggerCrons(functionsMap[n]).join(",")}`,
           ),
           publicPathsCount: publicPathEntries.length,
           publicPaths,
@@ -1180,7 +1203,7 @@ export async function patchDeploy(
   };
 
   const fnNames = Object.keys(finalFunctionsMap);
-  const scheduledFns = fnNames.filter(n => finalFunctionsMap[n]?.schedule);
+  const scheduledFns = fnNames.filter(n => hasScheduleTrigger(finalFunctionsMap[n]));
 
   // Try to fetch the active release for diffing. CI sessions (deploy-only
   // scope) cannot read release inventory, so this will throw in CI — that's
