@@ -7,7 +7,7 @@ export default async (_req) => {
   let sent = 0;
 
   // Find events starting within the next hour
-  const events = await db
+  const events = await adminDb()
     .from('events')
     .select('id,title,starts_at,location')
     .gte('starts_at', now.toISOString())

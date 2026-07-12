@@ -71,6 +71,46 @@ npx tsx scripts/deploy.ts --dry-run
 
 Set `RUN402_ALLOW_WARNINGS=true` only after reviewing confirmation-required deploy warnings (for example, expected full-site static file replacement on demo deploys).
 
+## Post-deploy error gate
+
+After an apply lands, both `runDeploy()` and `patchDeploy()` (so `deploy.ts`,
+`deploy-demo.ts`, and the CI demos path `deploy-ci.ts`) run
+`watchReleaseErrors()` — a poll of the run402 **release-error-rollup** wire
+(`GET /projects/v1/{projectId}/errors?new_in={releaseId}`, header `apikey:
+<anon key>`). It baselines the freshly-activated release against the previously
+active one, so a **new fingerprint** is an error identity this deploy
+introduced (rollback-safe — recurring/pre-existing errors don't count). It polls
+every ~15s for the window and **fails fast** the instant a new identity lands.
+
+Exit semantics:
+
+| Outcome | What it means | Result |
+|---|---|---|
+| **new fingerprint(s)** | the deploy introduced error identities | prints each (`fingerprint_id`, `kind`, `count`, `error_name`, `message_template`, a sample id, the runnable `next_actions` command) and **exits 1** |
+| **clean** (≥1 verdict, 0 new) | release healthy over the window | prints the verdict (incl. `invocations_in_window`, so `0-over-0` is visible) and the deploy proceeds |
+| **verdict unavailable** | the errors endpoint was unreachable for the *entire* window | prints a distinct "VERDICT UNAVAILABLE — not a pass" notice and **exits 2** (an outage must not green-light a release) |
+
+Transient poll failures are tolerated (a single verdict anywhere in the window
+distinguishes clean from outage).
+
+Knobs:
+
+| Var | Purpose |
+|---|---|
+| `RUN402_ERROR_WATCH_SECONDS` | Watch window in seconds (default `300`). `<=0` skips the gate. |
+| `RUN402_SKIP_ERROR_WATCH` | Set to `1` to skip the gate entirely. |
+| `RUN402_API_BASE` | Gateway base URL (default `https://api.run402.com`). |
+
+The gate uses the project **anon key** (already a public CI variable — it's in
+every deployed `env.js`), independent of the OIDC deploy session, so it works in
+CI even though CI OIDC sessions can't read release inventory. Site-only releases
+(no deployed functions) skip the gate automatically.
+
+> Redeploying also upgrades the bundled `@run402/functions` runtime to **3.8.0**
+> (structured `R402DbError` + full-fidelity error fingerprints), so the gate's
+> fingerprints group by stable stack frames rather than coarse message-only
+> identities.
+
 ## Type-checking
 
 ```bash

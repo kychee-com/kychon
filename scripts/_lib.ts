@@ -686,6 +686,209 @@ export async function writeAdapterAwareArtifacts(opts: {
   return opts.adapterActive ? buildAstroReleaseSlice(opts.distDir) : null;
 }
 
+// ─── Post-deploy error gate (run402 release-error-rollup) ─────────────────────
+//
+// After an apply lands, watch the new release for error fingerprints that were
+// FIRST seen under it. This is the "did the deploy break a function?" gate:
+// the gateway's `release-error-rollup` baselines the freshly-activated release
+// against the previously-active one, so a NEW fingerprint is an error identity
+// that this deploy introduced (rollback-safe — recurring/pre-existing errors do
+// not count). We hand-roll the poll with fetch against the documented wire
+// contract rather than bumping the SDK — the deploy scripts pin their own SDK
+// version and the `/projects/v1/:project_id/errors` wire is stable/documented.
+//
+// Wire: GET {apiBase}/projects/v1/{projectId}/errors?new_in={releaseId}
+//   header  apikey: <project anon or service key>
+//   returns { verdict: { new_fingerprints, recurring_fingerprints,
+//                        invocations_in_window, coverage, ... }, errors: [...] }
+//   `verdict.new_fingerprints` is the gate number.
+
+/** Default watch window (seconds). Overridable via RUN402_ERROR_WATCH_SECONDS. */
+export const ERROR_WATCH_DEFAULT_SECONDS = 300;
+/** Poll cadence (ms). Matches the run402 CLI `errors --watch` default. */
+export const ERROR_WATCH_INTERVAL_MS = 15_000;
+
+/** One occurrence pointer id for a fingerprint row (newest, else the pinned first). */
+export function pickErrorSampleId(row: Record<string, unknown> | undefined): string | null {
+  const samples = (row?.samples ?? {}) as { recent?: Array<{ id?: string }>; first?: { id?: string } };
+  const recent = Array.isArray(samples.recent) ? samples.recent : [];
+  return recent[0]?.id ?? samples.first?.id ?? null;
+}
+
+/** The runnable drill-down command a fingerprint's `next_actions[]` carries (e.g. fetch_logs). */
+export function pickErrorCommand(row: Record<string, unknown> | undefined): string | null {
+  const actions = Array.isArray(row?.next_actions) ? (row?.next_actions as Array<Record<string, unknown>>) : [];
+  const withCommand = actions.find((a) => typeof a?.command === "string" && a.command.length > 0);
+  return (withCommand?.command as string | undefined) ?? null;
+}
+
+/**
+ * Decide the gate outcome from what the watch observed. Pure — the load-bearing
+ * exit-code contract lives here so it is unit-testable without a network.
+ *   - `new`         → the deploy introduced error identities (fail fast, exit 1)
+ *   - `unavailable` → not one poll produced a verdict for the whole window; an
+ *                     outage must NOT be read as a pass (exit 2)
+ *   - `clean`       → at least one verdict, zero new fingerprints (continue)
+ */
+export function classifyErrorWatchOutcome(observed: {
+  anyVerdict: boolean;
+  newFingerprints: number;
+}): "new" | "unavailable" | "clean" {
+  if (observed.newFingerprints > 0) return "new";
+  if (!observed.anyVerdict) return "unavailable";
+  return "clean";
+}
+
+/** Human render for the fail-fast (exit 1) case — one block per new identity. */
+export function renderNewFingerprintFailure(
+  page: { verdict?: Record<string, unknown>; errors?: Array<Record<string, unknown>> },
+  releaseId: string,
+): string {
+  const errors = Array.isArray(page.errors) ? page.errors : [];
+  const total = Number(page.verdict?.["new_fingerprints"] ?? errors.length);
+  const parts: string[] = [];
+  parts.push(
+    `[error-watch] FAIL — ${total} new error identit${total === 1 ? "y" : "ies"} first seen under ${releaseId}:`,
+  );
+  for (const row of errors) {
+    const sid = pickErrorSampleId(row);
+    const cmd = pickErrorCommand(row);
+    parts.push("");
+    parts.push(
+      `  ${row["fingerprint_id"]}  ${row["kind"]}  ×${row["count"]}  ${row["error_name"]}  fn:${row["function"]}`,
+    );
+    parts.push(`    "${String(row["message_template"] ?? "").slice(0, 120)}"`);
+    if (sid) parts.push(`    sample ${sid}`);
+    if (cmd) parts.push(`    ${cmd}`);
+  }
+  if (total > errors.length) {
+    parts.push("");
+    parts.push(`  … and ${total - errors.length} more not shown (widen the window to page them).`);
+  }
+  return parts.join("\n");
+}
+
+/** Compact one-line verdict render (so "0 new over 0 traffic" is never mistaken for health). */
+export function renderErrorVerdict(verdict: Record<string, unknown> | undefined, releaseId: string): string {
+  const v = verdict ?? {};
+  const cov = (v["coverage"] ?? {}) as Record<string, unknown>;
+  return (
+    `[error-watch] PASS — no new error identities first seen under ${releaseId}.\n` +
+    `  new=${v["new_fingerprints"] ?? 0}  recurring=${v["recurring_fingerprints"] ?? 0}` +
+    `  invocations_in_window=${v["invocations_in_window"] ?? 0}` +
+    `  coverage=${cov["full_fidelity_functions"] ?? 0} full / ${cov["coarse_functions"] ?? 0} coarse`
+  );
+}
+
+async function fetchReleaseErrorsPage(
+  url: string,
+  apikey: string,
+): Promise<{ verdict?: Record<string, unknown>; errors?: Array<Record<string, unknown>> }> {
+  const res = await fetch(url, { headers: { apikey, accept: "application/json" } });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
+  }
+  return (await res.json()) as { verdict?: Record<string, unknown>; errors?: Array<Record<string, unknown>> };
+}
+
+export interface WatchReleaseErrorsOptions {
+  projectId: string;
+  /** Project anon (or service) key — sent as the `apikey` header. Public in env.js anyway. */
+  apikey: string;
+  /** The release to baseline `new_in` against — from `apply().release_id`. */
+  releaseId: string;
+  /** Gateway base URL. Defaults to RUN402_API_BASE or https://api.run402.com. */
+  apiBase?: string;
+  /** Skip when the release deployed no functions (site-only) — nothing to error. */
+  hasDeployedFunctions?: boolean;
+}
+
+/**
+ * Post-deploy gate: poll the release-error-rollup for `hasDeployedFunctions`
+ * releases and enforce the exit-code contract:
+ *   - new fingerprint(s)          → print each + `process.exit(1)` (fail fast)
+ *   - verdict unavailable (outage)→ print distinct notice + `process.exit(2)`
+ *   - clean at window end         → print the verdict and RETURN (deploy proceeds)
+ * Transient poll failures are tolerated — a single verdict anywhere in the
+ * window is enough to distinguish "clean" from "outage". Skipped entirely when
+ * `RUN402_SKIP_ERROR_WATCH=1` or `RUN402_ERROR_WATCH_SECONDS<=0`.
+ */
+export async function watchReleaseErrors(opts: WatchReleaseErrorsOptions): Promise<void> {
+  if (process.env.RUN402_SKIP_ERROR_WATCH === "1") {
+    console.log("[error-watch] skipped (RUN402_SKIP_ERROR_WATCH=1)");
+    return;
+  }
+  if (opts.hasDeployedFunctions === false) {
+    console.log("[error-watch] skipped (site-only release — no functions to watch)");
+    return;
+  }
+  const envSecs = Number.parseInt(process.env.RUN402_ERROR_WATCH_SECONDS ?? "", 10);
+  const windowSeconds = Number.isFinite(envSecs) ? envSecs : ERROR_WATCH_DEFAULT_SECONDS;
+  if (windowSeconds <= 0) {
+    console.log("[error-watch] skipped (RUN402_ERROR_WATCH_SECONDS<=0)");
+    return;
+  }
+  if (!opts.apikey) {
+    // No key means the gate can't authenticate — an unproducible verdict is not
+    // a pass, but we surface it as an outage rather than silently skipping.
+    console.error(
+      "[error-watch] VERDICT UNAVAILABLE — no apikey available to query the errors endpoint; not a pass.",
+    );
+    process.exit(2);
+  }
+
+  const apiBase = (opts.apiBase ?? process.env.RUN402_API_BASE ?? "https://api.run402.com").replace(/\/+$/, "");
+  const url = `${apiBase}/projects/v1/${encodeURIComponent(opts.projectId)}/errors?new_in=${encodeURIComponent(opts.releaseId)}`;
+  const intervalMs = ERROR_WATCH_INTERVAL_MS;
+  const deadline = Date.now() + windowSeconds * 1000;
+
+  console.log(
+    `\n[error-watch] watching release ${opts.releaseId} for new error fingerprints ` +
+      `(window ${windowSeconds}s, poll ${Math.round(intervalMs / 1000)}s)…`,
+  );
+
+  let anyVerdict = false;
+  let lastVerdict: Record<string, unknown> | undefined;
+  let poll = 0;
+  for (;;) {
+    poll += 1;
+    let page: { verdict?: Record<string, unknown>; errors?: Array<Record<string, unknown>> } | null = null;
+    try {
+      page = await fetchReleaseErrorsPage(url, opts.apikey);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[error-watch] poll ${poll} failed (transient, will retry): ${msg}\n`);
+    }
+    if (page?.verdict) {
+      anyVerdict = true;
+      lastVerdict = page.verdict;
+      const newCount = Number(page.verdict["new_fingerprints"] ?? 0);
+      const elapsed = Math.round((Date.now() - (deadline - windowSeconds * 1000)) / 1000);
+      process.stderr.write(
+        `[error-watch] poll ${poll} · ${elapsed}s elapsed · ${newCount} new fingerprint(s) so far\n`,
+      );
+      if (classifyErrorWatchOutcome({ anyVerdict, newFingerprints: newCount }) === "new") {
+        console.error(renderNewFingerprintFailure(page, opts.releaseId));
+        console.error("[error-watch] deploy gate FAILED — revert or fix; the new release introduced errors.");
+        process.exit(1);
+      }
+    }
+    if (Date.now() >= deadline) break;
+    await new Promise((r) => setTimeout(r, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
+  }
+
+  const outcome = classifyErrorWatchOutcome({ anyVerdict, newFingerprints: 0 });
+  if (outcome === "unavailable") {
+    console.error(
+      `[error-watch] VERDICT UNAVAILABLE — the errors endpoint was unreachable for the entire ${windowSeconds}s window. ` +
+        "This is NOT a pass; an outage must not green-light a release.",
+    );
+    process.exit(2);
+  }
+  console.log(renderErrorVerdict(lastVerdict, opts.releaseId));
+}
+
 /**
  * High-level deploy: build Astro, assemble the v2 ReleaseSpec, and call
  * `r.project(id).apply()` (the v2.0 "Unified Apply" hero). Used by both
@@ -1107,6 +1310,16 @@ export async function runDeploy(
     );
   }
 
+  // Post-deploy error gate (run402 release-error-rollup). Runs AFTER apply
+  // succeeds and the release id is known; enforces the exit-code contract
+  // (new fingerprints → exit 1, outage → exit 2, clean → continue).
+  await watchReleaseErrors({
+    projectId: opts.projectId,
+    apikey: opts.anonKey,
+    releaseId: result.release_id,
+    hasDeployedFunctions: Object.keys(finalFunctionsMap).length > 0,
+  });
+
   return {
     ok: true,
     releaseManifest,
@@ -1340,6 +1553,18 @@ export async function patchDeploy(
   for (const [k, v] of Object.entries(result.urls)) {
     console.log(`  ${k}: ${v}`);
   }
+
+  // Post-deploy error gate (run402 release-error-rollup) — SHARED with
+  // runDeploy so the CI demo path (deploy-ci.ts → patchDeploy) is gated too.
+  // The gate uses the project anon key (already a CI variable), independent of
+  // the OIDC deploy session, so it works even though CI sessions can't read
+  // release inventory.
+  await watchReleaseErrors({
+    projectId: opts.projectId,
+    apikey: opts.anonKey,
+    releaseId: result.release_id,
+    hasDeployedFunctions: Object.keys(finalFunctionsMap).length > 0,
+  });
 
   return {
     ok: true,

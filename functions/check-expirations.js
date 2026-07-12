@@ -14,7 +14,7 @@ export default async (_req) => {
     nextDay.setDate(nextDay.getDate() + 1);
     const nextDayStr = nextDay.toISOString().split('T')[0];
 
-    const expiring = await db
+    const expiring = await adminDb()
       .from('members')
       .select('id,email,display_name')
       .eq('status', 'active')
@@ -61,7 +61,7 @@ async function generateInsights() {
   // Expiring members (7 days)
   const sevenDays = new Date();
   sevenDays.setDate(sevenDays.getDate() + 7);
-  const expiring = await db
+  const expiring = await adminDb()
     .from('members')
     .select('id,display_name,email,expires_at')
     .eq('status', 'active')
@@ -69,7 +69,7 @@ async function generateInsights() {
 
   for (const m of expiring) {
     // Skip if recent insight exists
-    const existing = await db
+    const existing = await adminDb()
       .from('member_insights')
       .select('id')
       .eq('member_id', m.id)
@@ -109,7 +109,7 @@ async function generateInsights() {
   const inactive = result.rows || result;
 
   for (const m of inactive) {
-    const existing = await db
+    const existing = await adminDb()
       .from('member_insights')
       .select('id')
       .eq('member_id', m.id)

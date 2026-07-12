@@ -53,6 +53,12 @@ env:
   # mechanism deploy-demo.ts uses for local-laptop deploys. Set to "" or
   # remove to surface warnings as blocking errors again.
   RUN402_ALLOW_WARNINGS: "true"
+  # Post-deploy error gate (run402 release-error-rollup). After each demo's
+  # apply lands, patchDeploy watches the new release for error fingerprints
+  # FIRST seen under it and fails the job (exit 1) if any appear, using the
+  # demo's anon key. Tune the watch window here; set RUN402_SKIP_ERROR_WATCH=1
+  # (or this to "0") to skip. See README "Post-deploy error gate".
+  RUN402_ERROR_WATCH_SECONDS: "300"
 
 jobs:
   deploy:
