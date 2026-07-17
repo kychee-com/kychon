@@ -1,6 +1,6 @@
 // Lifecycle hook: called automatically by Run402 after first signup (fire-and-forget).
 // Also supports direct invocation with auth token for backward compatibility.
-import { adminDb, auth } from '@run402/functions';
+import { adminDb, auth, events } from '@run402/functions';
 
 export default async (req) => {
   // Determine user identity from lifecycle hook payload or auth token
@@ -101,6 +101,20 @@ export default async (req) => {
       action: 'signup',
       metadata: { role, is_first: isFirst },
     });
+
+  // Durable app event for the operator feed (run402 events --source app).
+  // Best-effort: an events-lane failure must never fail the signup hook.
+  // Keyed by user id — the lifecycle hook is at-least-once and the platform
+  // dedupes on the key forever. Compact facts only; no email/PII.
+  try {
+    await events.emit(
+      'member_signed_up',
+      { member_id: member.id, display_name: displayName, role, is_first: isFirst },
+      { idempotencyKey: `member_signup:${userId}` },
+    );
+  } catch (error) {
+    console.error('app event emit failed (member_signed_up):', error?.message || error);
+  }
 
   return new Response(
     JSON.stringify({

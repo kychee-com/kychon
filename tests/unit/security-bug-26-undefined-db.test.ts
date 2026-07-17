@@ -54,6 +54,7 @@ vi.mock(
   '@run402/functions',
   () => ({
     getUser: vi.fn(async () => ({ id: 'auth-user-1', email: 'new@example.com' })),
+    events: { emit: vi.fn(async () => ({ deduplicated: false })) },
     auth: { user: vi.fn(async () => ({ id: 'auth-user-1', email: 'new@example.com' })) },
     adminDb: () => ({
       from: table,

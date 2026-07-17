@@ -1,5 +1,5 @@
 // schedule: none (triggered by client on resource upload)
-import { adminDb, assets, auth } from '@run402/functions';
+import { adminDb, assets, auth, events } from '@run402/functions';
 
 // File names that flow into the storage path must be limited to safe ASCII
 // segments — `..`, `/`, NUL, and other surprises would let a caller place
@@ -85,6 +85,22 @@ export default async (req) => {
       });
 
     const row = Array.isArray(created) ? created[0] : created;
+
+    // Durable app event for the operator feed (run402 events --source app).
+    // Best-effort: an events-lane failure must never fail the upload. Keyed
+    // by the freshly-inserted row id — unique per successful insert.
+    if (row?.id != null) {
+      try {
+        await events.emit(
+          'resource_uploaded',
+          { resource_id: row.id, title: row.title, uploaded_by: uploadedBy },
+          { idempotencyKey: `resource_upload:${row.id}` },
+        );
+      } catch (err) {
+        console.error('app event emit failed (resource_uploaded):', err?.message || err);
+      }
+    }
+
     return new Response(JSON.stringify({ status: 'ok', resource: row }));
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });

@@ -6,7 +6,7 @@
 // older runtime that could not verify the envelope (cookie sessions resolved as
 // anonymous). The marker below changes the source digest to force a one-time
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
-import { adminDb, auth } from '@run402/functions';
+import { adminDb, auth, events } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
 const SUPPORTED_API_VERSIONS = [API_VERSION];
@@ -743,6 +743,7 @@ async function handleExecute(correlationId, envelope, operation, actor) {
     executionRecord = execution.record;
     const data = await executeMutation(operation.name, envelope.input, actor);
     await completeExecution(executionRecord, data);
+    await emitAppEvent(envelope, operation, data);
     return successResponse(correlationId, data);
   } catch (error) {
     if (executionRecord) await failExecution(executionRecord, executionFailurePayload(error));
@@ -2082,6 +2083,63 @@ function quoteIdent(name) {
 
 async function writeActivity(actor, action, metadata) {
   return insertRow('activity_log', { member_id: memberId(actor), action, metadata });
+}
+
+// --- Durable app events (run402 events --source app) ------------------------
+// Business facts an operator wants in the project's Activity feed / Telegram
+// routing. Emitted after the mutation commits. Best-effort: an events-lane
+// failure (QUOTA_EXCEEDED, reserved name, transient) must never fail the
+// user-facing request — log and move on, never retry-loop.
+// Payloads are compact facts only (ids, titles, statuses); no PII bodies,
+// no HTML content — they render in operator feeds.
+
+function appEventFor(operationName, data) {
+  const row = isPlainObject(data?.result) ? data.result : {};
+  if (operationName === 'members.approve') {
+    return { type: 'member_approved', payload: { member_id: row.id, display_name: row.display_name } };
+  }
+  if (operationName === 'announcements.publish') {
+    return {
+      type: 'announcement_published',
+      payload: { announcement_id: row.id, title: row.title, author_id: row.author_id },
+    };
+  }
+  if (operationName === 'events.create') {
+    return { type: 'event_created', payload: { event_id: row.id, title: row.title, starts_at: row.starts_at } };
+  }
+  if (operationName === 'rsvps.setStatus') {
+    return {
+      type: 'event_rsvp_set',
+      payload: { rsvp_id: row.id, event_id: row.event_id, member_id: row.member_id, status: row.status },
+    };
+  }
+  if (operationName === 'resources.upload') {
+    return {
+      type: 'resource_uploaded',
+      payload: { resource_id: row.id, title: row.title, uploaded_by: row.uploaded_by },
+    };
+  }
+  return null;
+}
+
+function compactPayload(payload) {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined && value !== null));
+}
+
+async function emitAppEvent(envelope, operation, data) {
+  let mapped = null;
+  try {
+    mapped = appEventFor(operation.name, data);
+    if (!mapped) return;
+    // The capability envelope's idempotencyKey already dedupes retried
+    // executions (replays return before the emit point), so reusing it keeps
+    // the events lane exactly-once per logical mutation.
+    await events.emit(mapped.type, compactPayload(mapped.payload), {
+      idempotencyKey: `cap:${operation.name}:${envelope.idempotencyKey}`,
+    });
+  } catch (error) {
+    console.error(`app event emit failed (${mapped?.type ?? operation.name}):`, error?.message || error);
+  }
 }
 
 function verificationFor(objectType, object) {
