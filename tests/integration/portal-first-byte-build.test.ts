@@ -14,11 +14,11 @@ const FORBIDDEN_BRAND = 'Kychon Community';
 // prerender, just under the client dir.
 const CLIENT_DIR = join(ROOT, 'dist', 'run402', 'client');
 
-// Representative prerendered pages. The cookie-auth cutover made admin*,
-// profile, and join SSR (prerender = false): they read auth.user() server-side
-// for redirect guards / hosted <SignIn> returnTo, so they never appear as
-// static HTML and are covered by the SSR entry's render path. calendar /
-// search / ssr-probe are likewise SSR-only.
+// Representative prerendered pages. admin*, profile, and join are SSR
+// (prerender = false): they read auth.user() server-side for redirect
+// guards / hosted <SignIn> returnTo, so they never appear as static HTML
+// and are covered by the SSR entry's render path. calendar / search /
+// ssr-probe are likewise SSR-only.
 const REPRESENTATIVE_PAGES = [
   'index.html',
   'page.html',

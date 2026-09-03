@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The marketing homepage carries an FAQ section.
+
+## Requirements
 
 ### Requirement: FAQ section on homepage
 

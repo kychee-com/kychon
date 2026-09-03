@@ -153,9 +153,9 @@ export function getAvailableLocales(): string[] {
   if (_availableLocales) return _availableLocales;
   try {
     const brand = JSON.parse(brandDataElement()?.textContent || '{}');
-    // admin-content-management: prefer the runtime-mutable `languages_enabled`
-    // field (mirrored from site_config), fall back to the legacy `languages`
-    // entry for pre-change brand.json snapshots.
+    // Prefer the runtime-mutable `languages_enabled` field (mirrored from
+    // site_config); fall back to the legacy `languages` entry for
+    // brand.json snapshots that have no `languages_enabled` yet.
     return brand.languages_enabled || brand.languages || ['en'];
   } catch {
     return ['en'];

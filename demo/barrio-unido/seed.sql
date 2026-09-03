@@ -746,19 +746,17 @@ SELECT 'Guía básica de tecnología para adultos', 'Cómo usar un smartphone, c
 WHERE NOT EXISTS (SELECT 1 FROM resources WHERE title = 'Guía básica de tecnología para adultos');
 
 -- ============================================
--- 12. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
+-- 12. HOMEPAGE SECTIONS
 -- ============================================
 --
 -- The homepage's main-zone sections (hero, stats, features, testimonials,
 -- activity_feed, cta, and any newly-added blocks like slideshow /
--- promo_cards) are now defined in `src/seeds/barrio-unido.ts` and emitted
--- into the prepended block by `scripts/generate-seed-sql.ts`.
---
--- The legacy `INSERT NOT EXISTS` blocks that used to live here would
--- duplicate sections at any position where the typed seed used a different
--- `section_type` (the predicate keys on section_type, so different types
--- at the same position both succeed). Removing the legacy block lets the
--- typed seed be the single source of truth.
+-- promo_cards) are defined in `src/seeds/barrio-unido.ts` and emitted into
+-- the prepended block by `scripts/generate-seed-sql.ts` — not here, to
+-- avoid duplicating sections at any position where the typed seed uses a
+-- different `section_type` (the predicate keys on section_type, so
+-- different types at the same position both succeed). The typed seed is
+-- the single source of truth.
 --
 -- To edit the homepage layout, modify the `sections` array in
 -- `src/seeds/barrio-unido.ts` (look for entries with `page_slug: 'index'`).

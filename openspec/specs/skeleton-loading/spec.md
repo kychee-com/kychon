@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Pages render skeleton placeholders while data loads, suppressed under reduced motion.
+
+## Requirements
 
 ### Requirement: Skeleton placeholder classes
 

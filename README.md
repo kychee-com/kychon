@@ -83,7 +83,6 @@ kychon/
 │   └── styles/            # Tailwind v4 entrypoint, tokens, public CSS
 ├── public/                # Static adjunct assets, env.js, custom strings
 ├── functions/             # Serverless edge functions
-├── marketing/             # Marketing site (kychon.com)
 ├── demo/                  # Demo seed data (Eagles, Silver Pines, etc.)
 ├── tests/                 # Unit + integration tests
 ├── docs/                  # Full spec + platform docs
@@ -127,7 +126,7 @@ See [CUSTOMIZING.md](CUSTOMIZING.md) for the agent guide.
 
 ## Capability API
 
-Kychon now has a versioned Capability API for agent and integration workflows:
+Kychon exposes a versioned Capability API for agent and integration workflows:
 
 - API endpoint: `POST /functions/v1/kychon-api`
 - Discovery: `/.well-known/kychon.json`, `/kychon-capabilities.json`, and `/llms.txt`
@@ -143,8 +142,8 @@ See [docs/kychon-api.md](docs/kychon-api.md), [docs/kychon-sdk.md](docs/kychon-s
 | Portal | Description | URL |
 |--------|-------------|-----|
 | The Eagles | Good Samaritans of Wichita | [eagles.kychon.com](https://eagles.kychon.com) |
-| Silver Pines | Senior center with accessibility focus | demo/silver-pines/ |
-| Barrio Unido | Spanish-language community center | demo/barrio-unido/ |
+| Silver Pines | Senior center with accessibility focus | [silver-pines.kychon.com](https://silver-pines.kychon.com) |
+| Barrio Unido | Spanish-language community center | [barrio.kychon.com](https://barrio.kychon.com) |
 
 ## Architecture
 

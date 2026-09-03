@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Cron-scheduled edge functions drive membership expiration reminders, event reminders, and newsletter generation.
+
+## Requirements
 
 ### Requirement: Membership Expiration Reminders
 
@@ -39,9 +43,6 @@ Scheduled functions SHALL use cron schedules parsed from comments in the functio
 #### Scenario: scripts/deploy.ts reads cron schedule from function comment
 - **WHEN** scripts/deploy.ts processes a scheduled function file containing a cron schedule comment
 - **THEN** the function SHALL be deployed with the specified cron schedule
-
-<!-- Phase 3 additions -->
-## ADDED Requirements
 
 ### Requirement: Newsletter generation scheduled function
 

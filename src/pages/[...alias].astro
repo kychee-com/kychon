@@ -4,7 +4,7 @@ import { resolvePathAlias } from '../lib/path-aliases';
 
 export const prerender = false;
 
-// Source-path alias resolver for copied websites (kychon#128). Ported pages
+// Source-path alias resolver for copied websites. Ported pages
 // are emitted as single-segment slug routes (`/gr-news-13604666`), but the
 // source site's inbound links and the concierge parity harness expect the
 // original nested paths (`/gr-news/13604666`) to keep working. The porter
@@ -12,8 +12,8 @@ export const prerender = false;
 // source path → port path; this rest-param route — lowest Astro precedence,
 // so it only sees otherwise-unmatched requests — 301s matched paths and
 // serves a minimal noindex 404 for everything else. Matching is
-// case-insensitive (kychon#152): inbound paths keep their source casing while
-// seeded keys are lowercased slug routes.
+// case-insensitive: inbound paths keep their source casing while seeded
+// keys are lowercased slug routes.
 const host = Astro.request.headers.get('host') ?? Astro.url.host;
 const aliases = await ssrConfigValue<Record<string, unknown>>({ key: 'path_aliases', host });
 const target = resolvePathAlias(aliases, Astro.url.pathname);

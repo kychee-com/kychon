@@ -148,7 +148,7 @@ The `kychonImageHtml` / `<KychonImage>` consumers in `src/lib/kychon-image.ts` S
 - A string (legacy seeded image URL) — looked up in the build-time `@run402/astro` manifest as today, with fallback to plain `<img>` on miss.
 - An object with an `AssetRef` shape — passed directly to `renderPicture(ref, opts)` from `@run402/astro/manifest`. No manifest lookup. No localStorage cache. No runtime `r.assets.list?key=…` round-trip.
 
-This requirement intentionally rejects the alternative of storing only the `cdn_url` string in block config and resolving variants at render time via a runtime manifest endpoint or `r.assets.list` lookup. See design.md Decision 8 and the Run402 issue #396 discussion for the rationale (closed not-planned in favor of this application-side approach).
+This requirement intentionally rejects the alternative of storing only the `cdn_url` string in block config and resolving variants at render time via a runtime manifest endpoint or `r.assets.list` lookup. See design.md Decision 8 for the rationale.
 
 #### Scenario: Saving via MediaPicker writes the full AssetRef
 

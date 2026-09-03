@@ -1,8 +1,11 @@
 # demo-reset Specification
 
 ## Purpose
-TBD - created by archiving change playable-demos. Update Purpose after archive.
+
+A scheduled `reset-demo.js` function restores each demo portal's database to its seed state every hour while preserving demo auth account linkage.
+
 ## Requirements
+
 ### Requirement: Hourly reset scheduled function
 
 The system SHALL provide a `reset-demo.js` edge function scheduled at `0 * * * *` (every hour on the hour). The function SHALL restore the demo site's database to its seed state while preserving demo auth account linkage.

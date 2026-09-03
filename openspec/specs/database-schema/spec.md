@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+`schema.sql` defines the portal's tables, indexes, moderation and search columns, and seed defaults, applied with idempotent migrations and safe ALTER patterns.
+
+## Requirements
 
 ### Requirement: Core tables exist with idempotent migrations
 
@@ -69,9 +73,6 @@ The `sections` table SHALL include a `zone` column (`TEXT NOT NULL DEFAULT 'main
 - **WHEN** an INSERT specifies `zone = 'sidebar'`
 - **THEN** the database rejects the row with a CHECK violation
 
-<!-- Phase 2 additions -->
-## ADDED Requirements
-
 ### Requirement: Forum tables support moderation columns
 
 The schema SHALL add `hidden` and `locked` boolean columns to `forum_topics` and a `hidden` column to `forum_replies` using safe ALTER migrations (DO block with EXCEPTION WHEN duplicate_column).
@@ -97,9 +98,6 @@ The schema SHALL add a `search_vector` tsvector column to `forum_topics` and a G
 - **WHEN** schema migrations run
 - **THEN** `forum_topics` has a `search_vector TSVECTOR` column with a GIN index
 
-<!-- Phase 3 additions -->
-## ADDED Requirements
-
 ### Requirement: Newsletter drafts table columns and constraints
 
 The `newsletter_drafts` table SHALL include columns: `id` (SERIAL PRIMARY KEY), `subject` (TEXT NOT NULL), `body` (TEXT NOT NULL for AI-generated HTML), `status` (TEXT DEFAULT 'draft' — valid values: 'draft', 'approved', 'sent'), `period_start` (TIMESTAMPTZ), `period_end` (TIMESTAMPTZ), `sent_at` (TIMESTAMPTZ), `created_at` (TIMESTAMPTZ DEFAULT now()). The table creation SHALL use `CREATE TABLE IF NOT EXISTS` for idempotent deployment.
@@ -123,8 +121,6 @@ The `site_config` seed data SHALL include `feature_newsletter` (default `true`) 
 #### Scenario: Feature flag seed is idempotent
 - **WHEN** `seed.sql` is executed twice
 - **THEN** no duplicate `feature_newsletter` or `feature_event_recaps` rows SHALL be created
-
-## ADDED Requirements
 
 ### Requirement: Reactions table
 
@@ -165,7 +161,7 @@ The seed data SHALL include a `sections` row with `section_type = 'activity_feed
 #### Scenario: Activity feed section seed is idempotent
 - **WHEN** `seed.sql` is executed twice
 - **THEN** no duplicate `activity_feed` section rows are created
-## Requirements
+
 ### Requirement: `sections.column_span` carries per-block column-span fraction
 
 The `sections` table SHALL include a `column_span` column (`TEXT NOT NULL DEFAULT '1' CHECK (column_span IN ('1','1/2','1/3','2/3'))`). The column SHALL be added via the project's idempotent ALTER pattern (`DO $$ BEGIN ALTER … EXCEPTION WHEN duplicate_column THEN NULL; END $$;`). The four legal values represent fractional widths inside a 6-column zone grid: `'1'` = full width (6 cols), `'1/2'` = half width (3 cols), `'1/3'` = third width (2 cols), `'2/3'` = two-thirds width (4 cols).
@@ -212,8 +208,6 @@ The seed-SQL generator SHALL key idempotent `sections` inserts on `(page_slug, z
 
 - **WHEN** a `SeedSection` omits `column_span` (or explicitly sets it to `'1'`)
 - **THEN** the generator does NOT emit an UPDATE for that row's span (the default value is correct on insert)
-
-## ADDED Requirements
 
 ### Requirement: Search documents table supports native search
 

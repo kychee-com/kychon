@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Every signup creates a member record, and members edit their own profile including dynamically-rendered custom fields.
+
+## Requirements
 
 ### Requirement: Member record creation on signup
 

@@ -1,12 +1,12 @@
 ## Context
 
-Today's deploy surface is four Node scripts (`deploy.js`, `deploy-batched.js`, and per-demo bash wrappers that call them) plus one private-repo cousin (`kychon-private/marketing/deploy-marketing.js`). Every call to Run402 goes through `execSync('run402 …')`, with stdout `JSON.parse`d and stderr regex-matched for error handling. This produced real outages yesterday:
+Today's deploy surface is four Node scripts (`deploy.js`, `deploy-batched.js`, and per-demo bash wrappers that call them) plus one private-repo cousin (`kychon-private/marketing/deploy-marketing.js`). Every call to Run402 goes through `execSync('run402 …')`, with stdout `JSON.parse`d and stderr regex-matched for error handling. That shape has three structural failure modes:
 
-- A server-side RLS template rename (`public_read` → `public_read_authenticated_write`) was silently rejected with HTTP 400 after batches 1-3 of images had already uploaded → 90 minutes of 404s on `eagles.kychon.com` until manual fix + redeploy. The pre-flight validation was the server's, not the client's, and the error arrived only after ~68MB of wasted upload.
-- A CLI packaging bug (`run402@1.40.1`) bricked every `execSync('run402 …')` call with `ERR_MODULE_NOT_FOUND`. The fix came in `1.40.2` the same day, but any script-level logic that tried to parse `run402 tier status` during that window exited 0 with the wrong state.
-- `run402 tier set prototype` returned a 402 payment challenge to stdout and exited 0, making it look like success. Scripts that used exit codes as ground truth skipped past the failure.
+- A server-side validation rejection (e.g. an unknown RLS template name) surfaces as an HTTP 400 only after the upload it rejects, so a large image batch is wasted and the site can serve 404s until a manual fix and redeploy.
+- A CLI packaging fault breaks every `execSync('run402 …')` call at once, and script logic that parses CLI output exits 0 with the wrong state.
+- `run402 tier set prototype` writes a 402 payment challenge to stdout and exits 0, so scripts that treat exit codes as ground truth skip past the failure.
 
-`@run402/sdk@1.43.0` fixes all three classes of pain: typed method signatures (`PaymentRequired`, `ApiError`, `LocalError`) instead of stderr parsing; one process instead of a subprocess per call; and structured `apps.bundleDeploy()` / `sites.deploy()` methods whose signatures match the current manifest shape 1:1. The optional-wallet `projects.list()` shipped in 1.43.0 (from our feature request [kychee-com/run402#113](https://github.com/kychee-com/run402/issues/113)) and `sites.deployDir()` handles most of the current `collectFiles` boilerplate.
+`@run402/sdk@1.43.0` fixes all three classes of pain: typed method signatures (`PaymentRequired`, `ApiError`, `LocalError`) instead of stderr parsing; one process instead of a subprocess per call; and structured `apps.bundleDeploy()` / `sites.deploy()` methods whose signatures match the current manifest shape 1:1. `projects.list()` takes no wallet argument on the Node entry, and `sites.deployDir()` handles most of the current `collectFiles` boilerplate.
 
 CI runs Node 22 (`engines.node: >=22` matches the SDK floor). No runtime changes for the deployed site — this is deploy-tooling only.
 
@@ -26,7 +26,7 @@ CI runs Node 22 (`engines.node: >=22` matches the SDK floor). No runtime changes
 - Migrating the sibling private repo `kychon-private/marketing/deploy-marketing.js`. Different repo, different maintainers, out of scope.
 - Rewriting the per-demo bash wrappers (`demo/*/deploy.sh`). They stay bash — only their body changes to call the TS entry point instead of `node deploy-batched.js`.
 - Replacing the standalone `run402 functions deploy reset-demo` call (used because the bundle is too large to include it). Still a CLI call for now; revisit once we know whether `apps.bundleDeploy` can accept it inline.
-- Removing the existing trap-based `public/assets/` cleanup ([commit 7180d0c](https://github.com/kychee-com/kychon/commit/7180d0c)) — that's orthogonal.
+- Removing the existing trap-based `public/assets/` cleanup — that's orthogonal.
 - Replacing the Astro build step. `astro build` still runs up front; `tsx deploy.ts` only handles what happens after.
 
 ## Decisions
@@ -41,11 +41,11 @@ Rejected: `ts-node` (slower, more config), `bun run` (second runtime), compile-t
 
 ### Decision 2: Exact-pin `@run402/sdk@=1.43.0`
 
-The SDK is 2 days old (first release 2026-04-23), has already shipped breaking minor bumps (`sites.deploy()` signature changed 1.41 → 1.42), and the run402 team are actively co-developing with us. Caret-pin (`^1.43.0`) would auto-upgrade us into future breaking minors. Tilde (`~1.43.0`) still accepts patches that could break us. Exact (`=1.43.0`) means we bump deliberately, with a diff review, until the API stabilizes. Review exact-pin policy once three consecutive minor releases are non-breaking.
+The SDK is young, ships breaking minor bumps, and the run402 team are actively co-developing with us. Caret-pin (`^1.43.0`) would auto-upgrade us into future breaking minors. Tilde (`~1.43.0`) still accepts patches that could break us. Exact (`=1.43.0`) means we bump deliberately, with a diff review, until the API stabilizes. Review exact-pin policy once three consecutive minor releases are non-breaking.
 
 ### Decision 3: Keep the outer batching loop
 
-`deploy-batched.js` currently splits ~52 images into 3 batches + 1 final (code + migrations + RLS + functions) because past single-shot deploys timed out with `UND_ERR_HEADERS_TIMEOUT` (kychee-com/run402 #29, #31 — closed, fix unclear). The SDK's `apps.bundleDeploy()` does not expose an internal batch size. Until a single-shot 68MB upload is verified against production, ported code will keep the batching pattern:
+`deploy-batched.js` currently splits ~52 images into 3 batches + 1 final (code + migrations + RLS + functions) because single-shot deploys of that size time out with `UND_ERR_HEADERS_TIMEOUT`. The SDK's `apps.bundleDeploy()` does not expose an internal batch size. Until a single-shot 68MB upload is verified against production, ported code will keep the batching pattern:
 
 ```ts
 // first call: bundle non-file metadata + first file slice
@@ -61,7 +61,7 @@ for (const slice of slices.slice(1)) {
 }
 ```
 
-Loss: each deploy is N+1 HTTP calls instead of 1, and the operation is non-atomic the same way today's is ([#108](https://github.com/kychee-com/run402/issues/108)). Acceptable temporarily; revisit once we load-test single-shot. Document the loop-exit condition so removing it later is a small PR.
+Loss: each deploy is N+1 HTTP calls instead of 1, and the operation is non-atomic the same way today's is. Acceptable temporarily; revisit once we load-test single-shot. Document the loop-exit condition so removing it later is a small PR.
 
 ### Decision 4: CI smoke-test runs in `--dry-run` mode, not a real deploy
 
@@ -106,5 +106,5 @@ Rollback: `git revert` of the script replacement restores `deploy-batched.js` ve
 ## Open Questions
 
 - **Single-shot `apps.bundleDeploy()` payload ceiling**: What's the real cutoff before timeouts? Testable but requires a dedicated run against a scratch project with representative data. Plan to answer after this change lands but before removing the batching loop.
-- **`reset-demo` function deploy auth**: Yesterday's eagles deploy ended with `HTTP 401 "Invalid token"` on the standalone `run402 functions deploy reset-demo` step. Unclear if this is per-project token expiry or a CLI refresh issue. Not blocking this change, but the cron reset for demo data may be silently dead; worth investigating as a separate task.
+- **`reset-demo` function deploy auth**: the standalone `run402 functions deploy reset-demo` step can fail with `HTTP 401 "Invalid token"`. Unclear if this is per-project token expiry or a CLI refresh issue. Not blocking this change, but the cron reset for demo data may be silently dead; worth investigating as a separate task.
 - **How to handle the sibling `kychon-private/marketing/deploy-marketing.js`**: Coordinate with the private-repo maintainers on a parallel migration? Or let it stay CLI until a full deploy outage forces the issue? Propose as a follow-up after this lands.

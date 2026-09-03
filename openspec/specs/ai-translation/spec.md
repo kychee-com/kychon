@@ -1,20 +1,20 @@
-## ADDED Requirements
+## Purpose
+
+Published announcements, events, and pages are translated into the portal's configured languages and stored for localized display.
+
+## Requirements
 
 ### Requirement: Translation Trigger
 
-The AI translation function SHALL be triggered when an admin publishes content (announcement, event, or page). It MUST require the feature_ai_translation flag to be enabled and the AI_API_KEY secret to be set.
+The AI translation function SHALL be triggered when an admin publishes content (announcement, event, or page). It MUST require the feature_ai_translation flag to be enabled. It SHALL NOT require an AI_API_KEY secret.
 
 #### Scenario: Admin publishes an announcement with translation enabled
-- **WHEN** an admin publishes an announcement and feature_ai_translation is enabled and AI_API_KEY is set
+- **WHEN** an admin publishes an announcement and feature_ai_translation is enabled
 - **THEN** the translation function SHALL be triggered for that announcement
 
 #### Scenario: Admin publishes content with translation disabled
 - **WHEN** an admin publishes content but feature_ai_translation is disabled
 - **THEN** the translation function SHALL NOT be triggered
-
-#### Scenario: Translation skipped when API key missing
-- **WHEN** an admin publishes content and feature_ai_translation is enabled but AI_API_KEY is not set
-- **THEN** the translation function SHALL NOT execute and SHALL log a warning
 
 ### Requirement: Language Configuration
 

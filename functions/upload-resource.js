@@ -3,7 +3,7 @@ import { adminDb, assets, auth, events } from '@run402/functions';
 
 // File names that flow into the storage path must be limited to safe ASCII
 // segments — `..`, `/`, NUL, and other surprises would let a caller place
-// files outside `resources/`. (#25)
+// files outside `resources/`.
 const SAFE_FILE_NAME = /^[A-Za-z0-9._-]+$/;
 const MAX_BASE64_LEN = 50 * 1024 * 1024; // ~37 MB raw — Run402's per-blob upload limit.
 
@@ -17,9 +17,9 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // Admin-only — mirror the role check in upload-asset.js. The legacy "any
-  // authenticated user can upload" surface let arbitrary signed-in Run402
-  // users write to the project's resources bucket. (#25)
+  // Admin-only — mirror the role check in upload-asset.js. Without this
+  // check, any authenticated user could upload, letting arbitrary signed-in
+  // Run402 users write to the project's resources bucket.
   // run402-allow-user-filter: adminDb() raw SQL bypasses RLS; user.id binding required
   const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
   const role = memberResult?.rows?.[0]?.role;
@@ -69,7 +69,7 @@ export default async (req) => {
     }
 
     // Insert resource row. uploaded_by is bound to the authenticated admin —
-    // never honored from input. (#24/#25)
+    // never honored from input.
     const memberRow = await adminDb().sql('SELECT id FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
     const uploadedBy = memberRow?.rows?.[0]?.id ?? null;
     const created = await adminDb()

@@ -176,7 +176,7 @@ Each entry SHALL define `defaultConfig` providing a working starting point when 
 - **THEN** the rendered HTML contains a `<span data-year="auto">` element
 - **THEN** an inline script sets the span's text to the current year on page load
 
-### Requirement: `nav` block carries the navigation that used to live in `site_config.nav`
+### Requirement: `nav` block carries the site navigation
 
 The `site_config.nav` key SHALL be removed from the system. Navigation SHALL be expressed as a `nav` block in `zone = 'header'`. The `nav` block's `config.items` SHALL be an array of nav items, each carrying `label`, `href`, `icon`, optional `public`, `auth`, `feature`, `admin` properties, AND an optional `children: NavItem[]` field that recursively contains nav items. When `children` is present and non-empty, the item SHALL be rendered as a hover/focus dropdown trigger; when `children` is absent, empty, or undefined, the item SHALL render as today's flat nav link. The block edit popover SHALL be the editor surface for nav items, replacing the separate nav editor that wrote to `site_config`. The popover SHALL support adding, removing, editing, and drag-reordering child items (scoped within their parent's `children` array).
 

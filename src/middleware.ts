@@ -3,7 +3,7 @@ import { ssrConfigValue } from './lib/ssr-api';
 import { resolvePathAlias } from './lib/path-aliases';
 
 /**
- * Copied-site path-alias resolver (kychon#128 / #532 follow-up).
+ * Copied-site path-alias resolver.
  *
  * `[...alias].astro` resolves `path_aliases` (source path → port path) and
  * 301s, but as a rest-param route it has the LOWEST Astro precedence — so a
@@ -11,9 +11,9 @@ import { resolvePathAlias } from './lib/path-aliases';
  * higher-precedence `[customPage].astro` (a named `[param]` route). That route
  * is `prerender=true` with a `getStaticPaths` allow-list, so an unknown slug
  * never runs its body — Astro just serves the built-in 404 and `[...alias]`
- * never sees the request. Net effect: nested-path aliases worked but
- * single-segment ones (the common case — capitalized source slugs mapping to
- * lowercase port slugs) silently 404'd.
+ * never sees the request. Relying on `[...alias].astro` alone would 404
+ * single-segment aliases (the common case — capitalized source slugs mapping
+ * to lowercase port slugs) even though nested-path aliases work.
  *
  * Middleware runs BEFORE route matching, so resolving aliases here sidesteps
  * route precedence entirely and covers single- and multi-segment alike. Real

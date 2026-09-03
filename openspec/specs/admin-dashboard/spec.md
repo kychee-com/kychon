@@ -1,12 +1,28 @@
-## ADDED Requirements
+## Purpose
+
+The admin dashboard surfaces portal health at a glance — membership and content stats, recent activity, member management, site settings — behind an admin-role gate.
+
+## Requirements
 
 ### Requirement: Admin dashboard with stats cards
 
-`admin.html` SHALL display stats cards showing: total active members, pending members, total announcements, and members expiring within 30 days. Stats SHALL be fetched via REST API queries with count headers.
+`admin.html` SHALL display stats cards showing: total active members, pending members, total announcements, members expiring within 30 days, upcoming events count, total resources, and forum topics count. Stats SHALL be fetched via REST API queries.
 
 #### Scenario: Dashboard shows member stats
 - **WHEN** an admin visits `admin.html`
 - **THEN** they see cards with current counts for active members, pending members, announcements, and expiring members
+
+#### Scenario: Dashboard shows event stats
+- **WHEN** an admin visits `admin.html` and `feature_events` is enabled
+- **THEN** they see a card with the count of upcoming events
+
+#### Scenario: Dashboard shows resource stats
+- **WHEN** an admin visits `admin.html` and `feature_resources` is enabled
+- **THEN** they see a card with the total resource count
+
+#### Scenario: Dashboard shows forum stats
+- **WHEN** an admin visits `admin.html` and `feature_forum` is enabled
+- **THEN** they see a card with the total forum topics count
 
 ### Requirement: Activity feed on dashboard
 
@@ -64,27 +80,6 @@ All admin pages (`admin.html`, `admin-members.html`, `admin-settings.html`) SHAL
 #### Scenario: Non-admin redirected
 - **WHEN** a member (non-admin) navigates to any admin page
 - **THEN** they are redirected to `index.html`
-
-<!-- Phase 2 additions -->
-## MODIFIED Requirements
-
-### Requirement: Admin dashboard with stats cards
-
-`admin.html` SHALL display stats cards showing: total active members, pending members, total announcements, members expiring within 30 days, upcoming events count, total resources, and forum topics count. Stats SHALL be fetched via REST API queries.
-
-#### Scenario: Dashboard shows event stats
-- **WHEN** an admin visits `admin.html` and `feature_events` is enabled
-- **THEN** they see a card with the count of upcoming events
-
-#### Scenario: Dashboard shows resource stats
-- **WHEN** an admin visits `admin.html` and `feature_resources` is enabled
-- **THEN** they see a card with the total resource count
-
-#### Scenario: Dashboard shows forum stats
-- **WHEN** an admin visits `admin.html` and `feature_forum` is enabled
-- **THEN** they see a card with the total forum topics count
-
-## ADDED Requirements
 
 ### Requirement: AI insights section on dashboard
 

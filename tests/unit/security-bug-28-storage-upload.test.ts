@@ -52,7 +52,7 @@ describe('bug #28 — uploadFileContentAddressed routes through functions/upload
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.run402.example/functions/v1/upload-asset');
     expect(init.method).toBe('POST');
-    // The legacy storage substrate must never be called from the browser.
+    // `/storage/v1/*` routes don't exist; the browser must never call them.
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/storage/v1/'))).toBe(false);
   });
 

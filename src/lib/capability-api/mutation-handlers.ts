@@ -98,7 +98,7 @@ export async function validateCapabilityMutation(
 // Required-field validation for create operations, shared by the validate
 // phase and the execute handlers so the two agree. Without it, `validate`
 // reported accepted:true for empty input and execute then coerced the missing
-// fields (title -> 'Untitled', body -> ''). (#108, #111)
+// fields (title -> 'Untitled', body -> '').
 function validateCreateInput(operation: string, input: JsonObject): void {
   if (operation === 'forum.topics.create') {
     requireNonEmptyString(input.title, 'forum.topics.create requires a non-empty title.');
@@ -119,7 +119,7 @@ function requireNonEmptyString(value: JsonValue | undefined, message: string): v
 
 // Dates are validated only when supplied — a title-only event stays valid per
 // the documented minimal create contract. An out-of-order or unparseable date
-// is rejected rather than silently stored. (#111)
+// is rejected rather than silently stored.
 function validateEventDates(input: JsonObject): void {
   const starts = input.startsAt ?? input.starts_at;
   const ends = input.endsAt ?? input.ends_at;
@@ -293,7 +293,7 @@ function isActiveAdminMember(member: JsonObject): boolean {
 async function publishAnnouncement(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   // Body is sanitized on write so every downstream reader (newsletter
   // generator, translation cache, CSV/RSS export) inherits the safety
-  // guarantee the read-side hydrator already provides. (#29)
+  // guarantee the read-side hydrator already provides.
   const announcement = await ctx.db.insert('announcements', {
     title: input.title || 'Untitled',
     body: sanitizeRichHtmlServer(input.body || ''),
@@ -375,7 +375,7 @@ async function createForumReply(input: JsonObject, ctx: CapabilityMutationContex
 
 // De-duplicate submitted option ids so a repeated id in a multiple-choice vote
 // cannot insert the same (poll, member, option) row twice and trip the UNIQUE
-// constraint (which would surface as a generic 500). (#119)
+// constraint (which would surface as a generic 500).
 function resolveVoteOptionIds(input: JsonObject): JsonValue[] {
   const raw = Array.isArray(input.optionIds)
     ? input.optionIds
@@ -509,7 +509,7 @@ async function toggleReaction(input: JsonObject, ctx: CapabilityMutationContext)
 }
 
 // Operations with no backing service on this portal raise an honest
-// notImplemented error rather than returning a fake success. (#110)
+// notImplemented error rather than returning a fake success.
 function notImplemented(operation: string): never {
   throw new CapabilityMutationError('api.notImplemented', `${operation} is not implemented on this portal.`, {
     operation,
@@ -529,7 +529,7 @@ const RSVP_STATUSES = ['going', 'maybe', 'cancelled'];
 
 // RSVP status is constrained to the documented enum — an unknown value is a
 // validation error rather than a silently persisted string. A missing status
-// defaults to 'going'; an empty/garbage value is rejected, not coerced. (#116)
+// defaults to 'going'; an empty/garbage value is rejected, not coerced.
 function normalizeRsvpStatus(value: JsonValue | undefined): string {
   const status = value == null ? 'going' : value;
   if (typeof status !== 'string' || !RSVP_STATUSES.includes(status)) {
@@ -545,7 +545,7 @@ function normalizeRsvpStatus(value: JsonValue | undefined): string {
 // Capacity caps the number of `going` RSVPs. The member's own row is excluded so
 // re-confirming or switching to going never counts the member twice. Only
 // `going` is capped — `maybe`/`cancelled` are always allowed so a member can
-// step back and free a seat. (#115)
+// step back and free a seat.
 function assertRsvpCapacity(eventRow: JsonObject, status: string, member: JsonValue, rsvps: JsonObject[]): void {
   if (status !== 'going' || eventRow.capacity == null) return;
   const goingCount = rsvps.filter(
@@ -564,7 +564,7 @@ function assertRsvpCapacity(eventRow: JsonObject, status: string, member: JsonVa
 async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
   // member_id is bound to the actor (admins act-as via dedicated admin paths,
   // not this capability) and an `id` from input must belong to that member —
-  // otherwise an active member could update arbitrary RSVP rows. (#24)
+  // otherwise an active member could update arbitrary RSVP rows.
   const member = memberId(ctx);
   const status = normalizeRsvpStatus(input.status);
   const id = input.id;
@@ -600,7 +600,7 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
 
   const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
   // Pre-validate the event so a missing FK surfaces as `notFound.object`,
-  // not a generic insert failure when the DB-side FK rejects the row. (#29)
+  // not a generic insert failure when the DB-side FK rejects the row.
   const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(event));
   if (!eventRow) {
     throw new CapabilityMutationError('notFound.object', 'Event not found.', {
@@ -635,7 +635,7 @@ async function cancelRsvp(input: JsonObject, ctx: CapabilityMutationContext): Pr
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
   // When the caller addresses by eventId, validate the event before scanning
-  // rsvps — otherwise a typo collapses to a silent `cancelled: false`. (#29)
+  // rsvps — otherwise a typo collapses to a silent `cancelled: false`.
   if (id == null && eventId != null) {
     const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(eventId));
     if (!eventRow) {
@@ -666,9 +666,9 @@ async function cancelRsvp(input: JsonObject, ctx: CapabilityMutationContext): Pr
 }
 
 async function changeMemberRole(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  // Reject anything that isn't a known role. The old fall-through path
-  // (`input.role || 'member'`) silently demoted on typos and let `'admin'`,
-  // `'moderator'`, or arbitrary strings reach the DB unfiltered. (#29)
+  // Reject anything that isn't a known role: a bare `input.role || 'member'`
+  // fall-through would silently demote on typos and let `'admin'`,
+  // `'moderator'`, or arbitrary strings reach the DB unfiltered.
   const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
   if (!VALID_MEMBER_ROLES.has(role)) {
     throw new CapabilityMutationError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
@@ -686,7 +686,7 @@ async function changeMemberRole(input: JsonObject, ctx: CapabilityMutationContex
   }
 
   // Last-admin guard: role changes, suspension, and rejection all remove
-  // admin availability when the target is the only active admin. (#30)
+  // admin availability when the target is the only active admin.
   await ensureActiveAdminRemains('members.changeRole', targetId, { role }, ctx, members, target);
 
   const row = (await ctx.db.update('members', String(targetId), { role })) || { ...target, role };
@@ -745,7 +745,7 @@ async function runJob(operation: string, input: JsonObject, ctx: CapabilityMutat
 
 async function createPoll(input: JsonObject, ctx: CapabilityMutationContext): Promise<JsonObject> {
   // A poll needs at least two options — validate before inserting the poll row
-  // so an under-specified request never leaves an orphan poll behind. (#118)
+  // so an under-specified request never leaves an orphan poll behind.
   const options = Array.isArray(input.options) ? input.options : [];
   if (options.length < 2) {
     throw new CapabilityMutationError('validation.failed', 'A poll requires at least two options.', {
@@ -928,7 +928,7 @@ function configPatch(input: JsonObject, existing?: JsonObject): JsonObject {
   return {
     value: input.value ?? null,
     // Preserve the stored category when the caller omits it — a value-only edit
-    // must not silently re-file the row under 'general'. (#112)
+    // must not silently re-file the row under 'general'.
     category: (input.category as string) || (existing?.category as string) || 'general',
   };
 }

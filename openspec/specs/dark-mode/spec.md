@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Portals ship a dark palette with a nav toggle, persisted per visitor and applied to the glassmorphic nav.
+
+## Requirements
 
 ### Requirement: Dark mode toggle in navigation
 

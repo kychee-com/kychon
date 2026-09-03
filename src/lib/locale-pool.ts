@@ -1,10 +1,10 @@
 /**
  * locale-pool.ts — the kitchen-sink locale pool for `spec.i18n.locales`.
  *
- * Run402's `spec.i18n.locales` is capped at 50 entries and frozen per deploy.
- * Until `kychee-com/run402-private#413` ships runtime-mutable locales, Kychon
- * declares a fixed 50-entry pool at deploy time and controls runtime visibility
- * via `site_config.languages_enabled` (a JSONB row in the project DB). The
+ * Run402's `spec.i18n.locales` is capped at 50 entries, frozen per deploy,
+ * and not runtime-mutable, so Kychon declares a fixed 50-entry pool at
+ * deploy time and controls runtime visibility via
+ * `site_config.languages_enabled` (a JSONB row in the project DB). The
  * gateway accepts any of the 50; the app decides what to expose. See
  * `openspec/changes/admin-content-management/design.md` Decision 9 for the
  * full reasoning.
@@ -19,8 +19,8 @@
  * relevance. Ordering matches LOCALE_LABELS below for easy diffing.
  *
  * The exact membership is deliberately stable — admins outside the pool need
- * to wait for a code change + redeploy (or for #413 to ship). The 50-entry
- * cap is a Run402 platform constraint, not a Kychon one.
+ * a code change + redeploy. The 50-entry cap is a Run402 platform
+ * constraint, not a Kychon one.
  */
 export const LOCALE_POOL: readonly string[] = [
   // Major Western European (12)

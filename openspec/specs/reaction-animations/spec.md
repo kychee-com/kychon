@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Reactions animate on toggle with a pop and floating emoji, suppressed under reduced motion.
+
+## Requirements
 
 ### Requirement: Reaction pop animation on toggle
 

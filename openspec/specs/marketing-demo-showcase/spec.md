@@ -1,8 +1,11 @@
 # marketing-demo-showcase Specification
 
 ## Purpose
-TBD - created by archiving change marketing-site. Update Purpose after archive.
+
+The marketing site showcases the three live demo portals with screenshots, feature pills, and working links.
+
 ## Requirements
+
 ### Requirement: Demo showcase section displays three live demo sites
 The marketing page SHALL include a "See it in action" section containing three demo cards, one for each live demo site. Each card SHALL display:
 - A screenshot of the demo site in a styled browser frame

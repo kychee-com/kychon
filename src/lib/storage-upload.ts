@@ -1,12 +1,11 @@
 // Browser-side wrapper around the Kychon upload pipeline.
 //
-// The legacy `POST /storage/v1/uploads*` routes were removed in the Run402
-// v1.48 / @run402/sdk@2.0 unified-apply cutover. Browser code now POSTs the
+// There are no `POST /storage/v1/uploads*` routes. Browser code POSTs the
 // file payload to `functions/v1/upload-asset`, which runs in Run402's
-// serverless and calls `assets.put` from `@run402/functions@2.2.0` against
-// the new `/apply/v1/service-asset-put` substrate. Keeping the wire-shape
-// logic on the server side means future Run402 endpoint changes are a
-// one-file fix instead of two. (issue #28, openspec/changes/upgrade-run402-sdk-v2)
+// serverless and calls `assets.put` from `@run402/functions` against the
+// `/apply/v1/service-asset-put` substrate. Keeping the wire-shape logic on
+// the server side means future Run402 endpoint changes are a one-file fix
+// instead of two.
 
 declare global {
   interface Window {
@@ -40,12 +39,10 @@ export interface UploadFileResult {
   warning?: string;
   dimensions?: { width: number; height: number };
   /**
-   * admin-content-management: the full v1.50 AssetRef returned by
-   * `r.assets.put` server-side. Consumers (notably the MediaPicker)
-   * persist this whole object into block configs so the renderer can emit
-   * `<picture>` with variants without an extra lookup (Decision 8).
-   * Older deployments before the upload-asset.js refactor may not return
-   * this field — treat as `undefined` and fall back to the URL string.
+   * The full AssetRef returned by `r.assets.put` server-side. Consumers
+   * (notably the MediaPicker) persist this whole object into block configs
+   * so the renderer can emit `<picture>` with variants without an extra
+   * lookup. May be `undefined` — fall back to the URL string when absent.
    */
   ref?: Record<string, unknown>;
 }

@@ -423,7 +423,7 @@ export const seed: ProjectSeed = {
       },
       position: 8,
     },
-    // --- Port-fidelity typed blocks (#124 / #123 / #99 / #91) ---
+    // --- Port-fidelity typed blocks ---
     // Utility header cluster — page-scoped, so it only dresses the showcase header.
     {
       page_slug: 'showcase',
@@ -460,7 +460,7 @@ export const seed: ProjectSeed = {
       config: { label: 'Report a concern', href: '/contact', variant: 'solid' },
       position: 22,
     },
-    // Feature panels — association homepage panel grid (#124).
+    // Feature panels — association homepage panel grid.
     {
       page_slug: 'showcase',
       zone: 'main',
@@ -476,7 +476,7 @@ export const seed: ProjectSeed = {
       },
       position: 30,
     },
-    // Menu — restaurant/café menu as structured data (#123).
+    // Menu — restaurant/café menu as structured data.
     {
       page_slug: 'showcase',
       zone: 'main',
@@ -503,7 +503,7 @@ export const seed: ProjectSeed = {
       },
       position: 31,
     },
-    // Member login — source-style member-zone sign-in surface (#91).
+    // Member login — source-style member-zone sign-in surface.
     {
       page_slug: 'showcase',
       zone: 'main',

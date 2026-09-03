@@ -56,8 +56,6 @@ The deploy flow SHALL use Run402's current database exposure configuration rathe
 - **THEN** the deploy uses the unified deploy shape with `database.expose`
 - **AND** it does not rely on legacy bundle policy templates or retired policy names
 
-<!-- Phase 2 additions -->
-
 ### Requirement: Deploy includes scheduled functions with cron
 
 The deploy manifest SHALL include all edge functions with their cron schedules parsed from `// schedule:` comments. For demo site deploys, the manifest SHALL include `reset-demo.js` with schedule `"0 * * * *"` and SHALL exclude `check-expirations.js` (irrelevant for demo sites: no real members, no real emails, data resets hourly). This swap keeps each demo project within the prototype tier's 1-scheduled-function limit.
@@ -128,13 +126,13 @@ The deploy entry point SHALL NOT use `routes.replace` for ordinary clean static 
 - **THEN** `/events`, `/search`, `/resources`, `/admin`, and generated custom page paths are absent from `routes.replace`
 - **AND** their reachability comes from `site.public_paths.replace`
 
-#### Scenario: Old static route aliases are cleared
-- **WHEN** the current base release contains v1.66 static route aliases
+#### Scenario: Existing static route aliases are cleared
+- **WHEN** the current base release contains static route aliases for ordinary static pages
 - **THEN** the next `r.project(id).apply()` deploy replaces the route table rather than carrying those aliases forward
 - **AND** the release has no stale route-static aliases for ordinary static pages
 
 #### Scenario: Function routes remain possible
-- **WHEN** a future Kychon release adds a same-origin function route
+- **WHEN** a Kychon release adds a same-origin function route
 - **THEN** `routes.replace` may include that function route
 - **AND** ordinary static page URLs still remain in `site.public_paths`
 

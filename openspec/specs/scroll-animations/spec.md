@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Sections and stat counters animate as they enter the viewport, suppressed under reduced motion.
+
+## Requirements
 
 ### Requirement: Sections animate in on scroll
 

@@ -23,9 +23,9 @@ const demoAssetDirs = {
 // dist/_assets-manifest.json that page-render.ts fetches at runtime; see
 // src/lib/blocks.ts and src/lib/page-render.ts for the consumer side.
 //
-// Closes kychee-com/run402-private#406. v0.1.x only scanned .astro templates
-// for <Image src="literal"> — Kychon's images live in JSONB section configs,
-// so we use the data-driven assetsDir path introduced in v0.2.
+// `@run402/astro`'s built-in scanner only finds literal `<Image src="...">`
+// usage in .astro templates — Kychon's images live in JSONB section configs,
+// so this integration uses the data-driven assetsDir path instead.
 const integrationAssetsDir = (() => {
   const project = process.env.KYCHON_PROJECT;
   if (project && demoAssetDirs[project]) return demoAssetDirs[project];
@@ -181,30 +181,27 @@ function localDemoAssetsPlugin() {
   };
 }
 
-// `@run402/astro@1.0.2` is active. When KYCHON_PROJECT selects a demo and
-// RUN402_PROJECT_ID is set (both true during deploy via deploy-{ci,demo}.ts),
-// every image under that demo's assetsDir gets uploaded once to the project's
-// `astro/` asset prefix (CAS-deduped at the gateway) and a JSON manifest is
-// written to dist/_assets-manifest.json. Consumer side: blocks.ts consults
-// the manifest via `kychonImageHtml`, page-render.ts fetches
-// `/_assets-manifest.json` at runtime, react helpers use `<Run402Image>` via
-// `lookupAssetRef` (and a normalizer to harmonize v1.49-era casing).
+// When KYCHON_PROJECT selects a demo and RUN402_PROJECT_ID is set (both true
+// during deploy via deploy-{ci,demo}.ts), every image under that demo's
+// assetsDir gets uploaded once to the project's `astro/` asset prefix
+// (CAS-deduped at the gateway) and a JSON manifest is written to
+// dist/_assets-manifest.json. Consumer side: blocks.ts consults the manifest
+// via `kychonImageHtml`, page-render.ts fetches `/_assets-manifest.json` at
+// runtime, react helpers use `<Run402Image>` via `lookupAssetRef`.
 //
 // `imageDefaults.strict: { onSchema: '>=v1.49' }` is the schema-filtered form
-// (Recipe B from the run402-image-component-adoption migration guide). Behavior:
-// every AssetRef carrying `asset_schema` >= `"v1.49"` is strict-checked at
-// render — degraded fields (missing variants, missing intrinsic dimensions,
-// missing pre-decoded blurhash with explicit `placeholder="blurhash"`) fail
-// the build with `R402_ASTRO_IMAGE_STRICT_DEGRADED`. AssetRefs lacking
-// `asset_schema` (legacy uploads from before v1.51, or partial-shape rows
-// the gateway deliberately left unstamped) bypass strict-mode entirely.
+// (Recipe B from the run402-image-component-adoption migration guide). Every
+// AssetRef carrying `asset_schema` >= `"v1.49"` is strict-checked at render —
+// degraded fields (missing variants, missing intrinsic dimensions, missing
+// pre-decoded blurhash with explicit `placeholder="blurhash"`) fail the
+// build with `R402_ASTRO_IMAGE_STRICT_DEGRADED`. AssetRefs lacking
+// `asset_schema` (partial-shape rows the gateway deliberately leaves
+// unstamped) bypass strict-mode entirely.
 //
-// Safe to enable now because: (1) all three demo tenants are post-backfill,
-// stamping `asset_schema = "v1.54"` on every full-shape AssetRef; (2) the
-// only unstamped row across the fleet is `barrio/logo.png` (sub-threshold
-// PNG with no variants, correctly null per spec); (3) Phase 2 + Phase 3
-// adoption verified live. Catches future broken admin uploads at build time
-// instead of letting them silently render degraded.
+// Every full-shape AssetRef across the fleet carries `asset_schema`; the
+// only unstamped row is `barrio/logo.png` (sub-threshold PNG with no
+// variants, correctly null per spec). Strict mode catches broken admin
+// uploads at build time instead of letting them silently render degraded.
 const useRun402Integration = Boolean(integrationAssetsDir && process.env.RUN402_PROJECT_ID);
 
 // Hybrid mode: `output: 'static'` + the run402 SSR adapter on the
@@ -216,18 +213,16 @@ const useRun402Integration = Boolean(integrationAssetsDir && process.env.RUN402_
 // `scripts/_lib.ts:runDeploy` consumes it via
 // `buildAstroReleaseSlice` from `@run402/astro/release-slice`.
 //
-// Requires `@run402/astro@>=1.2.2` (SSR handler now accepts Web
-// Request and lets the gateway's `buildEntryWrapper` own ALS +
-// envelope translation; pre-1.2.2 the adapter expected the raw
-// envelope and crashed on every invocation) and `@run402/sdk@>=2.18.0`
-// (local validator knows the `class` field). Pairs with gateway's
-// implicit-mode `<path>.html` resolver shipped same day — clean URLs
-// `/events` resolve to `events.html` before falling through to the
-// SSR catchall, so Astro's `format: 'file'` builds work without
-// switching to `format: 'directory'`.
+// Requires `@run402/astro@>=1.2.2`, whose SSR handler accepts a Web Request
+// and lets the gateway's `buildEntryWrapper` own ALS + envelope translation,
+// and `@run402/sdk@>=2.18.0`, whose local validator knows the `class` field.
+// Pairs with the gateway's implicit-mode `<path>.html` resolver: clean URLs
+// like `/events` resolve to `events.html` before falling through to the SSR
+// catchall, so Astro's `format: 'file'` builds work without switching to
+// `format: 'directory'`.
 //
-// First deploy after the switch emits a
-// `PUBLIC_PATH_MODE_WIDENS_TO_IMPLICIT` warning — covered by
+// A deploy that widens `public_paths` mode to implicit emits a
+// `PUBLIC_PATH_MODE_WIDENS_TO_IMPLICIT` warning, allowed via
 // `RUN402_ALLOW_WARNINGS=true`.
 //
 // The adapter is unconditional: several routes (admin*, profile,

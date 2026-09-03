@@ -71,7 +71,7 @@ function PanelImage({ panel, index, manifest }: { index: number; panel: ImageAcc
   } as CSSProperties;
 
   if (asset) {
-    // `<Run402Image>` accepts arbitrary `data-*` attributes per the v1.0
+    // `<Run402Image>` accepts arbitrary `data-*` attributes per the
     // component spec (rev-3 DataAttributes mapped type). The reserved
     // `data-run402-image` key the component sets itself; everything else
     // passes through to the outermost rendered element. The accordion's
@@ -92,9 +92,9 @@ function PanelImage({ panel, index, manifest }: { index: number; panel: ImageAcc
   }
 
   // Manifest miss → fall back to plain `<img>` with the same editable
-  // data-attrs the manifest-hit path emits. Matches the historical
-  // pre-migration behavior (KychonImage's miss-branch emitted a single
-  // `<img>` with the URL).
+  // data-attrs the manifest-hit path emits, matching `KychonImage`'s
+  // miss-branch (src/lib/kychon-image.ts), which emits a single `<img>`
+  // with the URL.
   return (
     <img
       alt={panel.imageAlt}

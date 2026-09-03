@@ -5,7 +5,7 @@
 // it, reload, see it." A field is `runtime` when an edit publishes on the next
 // page load with NO rebuild (reconciled by src/lib/config.ts / page-render.ts);
 // it is `redeploy` when it can only take effect through a build artifact
-// (currently the pre-paint inline script for color_scheme/motion).
+// (the pre-paint inline script for color_scheme/motion).
 //
 // This module is dependency-free and isomorphic so it can be imported by the
 // browser runtime (config.ts), the build/deploy scripts (emits

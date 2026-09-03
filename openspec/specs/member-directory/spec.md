@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The member directory lists, searches, and filters members and links to member detail views, subject to authentication.
+
+## Requirements
 
 ### Requirement: Member directory listing
 

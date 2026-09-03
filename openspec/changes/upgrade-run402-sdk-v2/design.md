@@ -1,6 +1,6 @@
 ## Context
 
-`@run402/sdk@2.0.0` "Unified Apply" landed 2026-05-18, ~30 minutes before this proposal was drafted; `@run402/sdk@2.0.1` followed ~10 minutes later as a critical hotfix; `@run402/sdk@2.1.0` followed ~3 hours after that, completing the unified-apply migration by rewriting the asset namespace onto the same substrate. The three releases together are the v1.48 destructive cutover landing in the public packages: every release write and every blob write now flows through one engine, accessed two ways — `r.project(id).apply(spec)` for declarative writes, and `r.project(id).assets.put/uploadDir/syncDir/...` for ergonomic asset operations.
+`@run402/sdk@2.1.0` completes the "Unified Apply" migration: the asset namespace sits on the same substrate as declarative writes. This is the v1.48 cutover expressed in the public packages — every release write and every blob write flows through one engine, accessed two ways — `r.project(id).apply(spec)` for declarative writes, and `r.project(id).assets.put/uploadDir/syncDir/...` for ergonomic asset operations.
 
 Three things were removed from the public surface across 2.0.x and 2.1.0:
 

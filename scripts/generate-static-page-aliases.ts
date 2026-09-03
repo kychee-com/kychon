@@ -10,8 +10,8 @@ async function main(): Promise<void> {
   const distDir = join(ROOT, 'dist');
   // Adapter-aware: when @run402/astro's SSR adapter ran, `[customPage].astro`'s
   // getStaticPaths already emitted per-slug HTML under `dist/run402/client/`,
-  // and `dist/page.html` doesn't exist — so the legacy copy step would throw.
-  // Mirror `runDeploy`'s detection (scripts/_lib.ts:634) and just enumerate
+  // so `dist/page.html` doesn't exist and the copy step would throw. Mirror
+  // `runDeploy`'s adapter detection in `scripts/_lib.ts` and just enumerate
   // slugs for the log line.
   const adapterActive = existsSync(join(distDir, 'run402', 'adapter.json'));
   const materialized = adapterActive

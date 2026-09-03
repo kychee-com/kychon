@@ -71,11 +71,11 @@ describe('deploy public paths', () => {
 
 describe('routed-locale-context i18n slice (kitchen-sink LOCALE_POOL — Decision 9)', () => {
   it('emits the 50-entry LOCALE_POOL regardless of seed languages', () => {
-    // admin-content-management Decision 9: seeds no longer drive locales[];
-    // we deploy the full pool and control runtime visibility via
-    // site_config.languages_enabled. The `unknownLocalePolicy: 'pass-through'`
-    // opt-in is currently held — the 2026-05-21 deploy validator returned
-    // `Unknown ReleaseSpec field` for it. Re-add when the gateway accepts it.
+    // We deploy the full LOCALE_POOL and control runtime visibility via
+    // site_config.languages_enabled instead of driving locales[] from the
+    // seed. The `unknownLocalePolicy: 'pass-through'` opt-in is held because
+    // the apply-v1 validator rejects it (`Unknown ReleaseSpec field`);
+    // re-add when the gateway accepts it.
     const spec = buildI18nSpec(
       seedFor({
         languages: { value: ['es', 'en'], category: 'i18n' },

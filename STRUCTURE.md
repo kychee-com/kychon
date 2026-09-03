@@ -242,7 +242,7 @@ The hero block carries `supportedSpans: ['1']` — heroes always span the full r
 
 The `embed` block type renders third-party iframes via an allowlist registered in `src/lib/blocks/embed-providers.ts`. Adding a provider is a code change by design — that is the security model.
 
-### Verified providers (v1)
+### Verified providers
 
 | id | Use | Required params | Sandbox |
 |---|---|---|---|
@@ -250,8 +250,14 @@ The `embed` block type renders third-party iframes via an allowlist registered i
 | `vimeo` | Vimeo video player | `video_id` (numeric) | `allow-scripts allow-same-origin allow-presentation` |
 | `calendly` | Booking widget | `username` (+ `event_type`) | `allow-scripts allow-same-origin allow-popups allow-forms` |
 | `map` | Google Maps embed | `address` OR `lat` + `lng` | `allow-scripts allow-same-origin allow-popups allow-forms` |
-| `weather` | Windy weather chart | `lat` + `lon` (+ `units`) | `allow-scripts allow-same-origin` |
+| `weather` | Windy weather chart | `lat` + `lon` (+ `units`, `location`) | `allow-scripts allow-same-origin` |
 | `tide_chart` | NOAA tide predictions | `station_id` (NOAA) | `allow-scripts allow-same-origin allow-popups` |
+| `spotify` | Spotify player | `uri` | `allow-scripts allow-same-origin` |
+| `soundcloud` | SoundCloud player | `url` | `allow-scripts allow-same-origin allow-popups` |
+| `eventbrite` | Eventbrite event | `event_id` | `allow-scripts allow-same-origin allow-forms allow-popups` |
+| `google_forms` | Google Form | `form_url` | `allow-scripts allow-same-origin allow-forms allow-popups` |
+| `typeform` | Typeform | `form_id` | `allow-scripts allow-same-origin allow-forms allow-popups` |
+| `mailchimp` | Mailchimp signup | `signup_url` | `allow-scripts allow-same-origin allow-forms allow-popups` |
 
 ### Generic provider
 
@@ -271,7 +277,7 @@ Every deploy ships a CSP scoped to the registered embed providers:
 ```
 default-src 'self';
 script-src 'self' 'unsafe-inline' https://esm.sh;
-style-src 'self' 'unsafe-inline';
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
 img-src 'self' https: data:;
 font-src 'self' https://fonts.gstatic.com;
 frame-src <registered provider hosts>;
@@ -280,19 +286,19 @@ connect-src 'self' https://*.run402.com https://esm.sh;
 
 Plus adjacent headers `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
 
-### Delivery mechanism (Run402 platform note)
+### Delivery mechanism
 
-Run402 v1.50 has no mechanism for custom HTTP response headers on static assets, so v1 delivers what it can via meta tags:
+Run402 has no mechanism for custom HTTP response headers on static assets, so what can be delivered via meta tags is:
 
 - **CSP** — `<meta http-equiv="Content-Security-Policy">` injected at build time by `Portal.astro` (W3C CSP3 alternative delivery; equivalent to the response header for every directive used here).
 - **Referrer-Policy** — `<meta name="referrer">` in Portal.astro.
-- **`X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy`** — bundled in `dist/_headers` but not yet served as response headers (platform gap; once Run402 honors `_headers`, they become real response headers automatically).
+- **`X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy`** — bundled in `dist/_headers`. They are not meta-deliverable, so they take effect only where the host honors `_headers`.
 
 Source of truth is `public/_headers` (template with `{PROVIDER_HOSTS}` placeholder). `src/lib/csp.ts` substitutes the placeholder using `getProviderHosts()` and feeds both the meta tag and the bundled `_headers` file. The deploy validator runs against the substituted content.
 
-### Why `'unsafe-inline'` for v1
+### Why `'unsafe-inline'`
 
-Existing inline scripts in `Portal.astro` (theme initializer, year setter, animation init) and Astro-emitted inline styles need `'unsafe-inline'`. Tightening to nonce-based or hash-based CSP requires auditing and externalizing every inline script — a separate effort. The rest of the CSP (default-src, frame-src, connect-src, img-src) provides meaningful defense even with inline scripts allowed.
+Inline scripts in `Portal.astro` (theme initializer, year setter, animation init) and Astro-emitted inline styles need `'unsafe-inline'`. Tightening to nonce-based or hash-based CSP requires auditing and externalizing every inline script — a separate effort. The rest of the CSP (default-src, frame-src, connect-src, img-src) provides meaningful defense even with inline scripts allowed.
 
 ## Block-Type Catalog
 

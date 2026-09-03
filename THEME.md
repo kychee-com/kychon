@@ -30,15 +30,15 @@ Deployment styling should start with `site_config.theme`, block config, and docu
 
 ## Google Fonts injection
 
-When `font_heading` or `font_body` names a font outside the system-font allowlist, `Portal.astro`'s frontmatter calls `renderFontHead()` from `src/lib/theme/fonts.ts` and emits these tags into `<head>` before any stylesheet:
+When `font_heading` or `font_body` names a font outside the system-font allowlist, `Portal.astro`'s frontmatter calls `renderFontHead()` from `src/lib/theme/fonts.ts` and emits the preconnect hints (plus metric-matched `@font-face` fallbacks) into `<head>` before any stylesheet. `Portal.astro` bakes the stylesheet itself onto a stable `<link id="wl-font-stylesheet">` whose href comes from `buildGoogleFontsUrl()`, so the runtime can repoint it when an admin edits the font live:
 
 ```html
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={…}&display=swap">
+<link id="wl-font-stylesheet" rel="stylesheet" href="https://fonts.googleapis.com/css2?family={…}&display=optional">
 ```
 
-The URL combines both fonts when both are non-system, deduplicates when both are the same font, and includes `&display=swap` so the fallback renders during the font load (no flash of invisible text).
+The URL combines both fonts when both are non-system, deduplicates when both are the same font, and uses `&display=optional` so a font that misses the browser's block window is skipped for that paint rather than swapped in mid-render — the fallback faces are metric-matched, so nothing reflows.
 
 ### System font allowlist (skips injection)
 
@@ -56,7 +56,7 @@ If a project needs other weights, edit the URL builder in `src/lib/theme/fonts.t
 ### Failure modes
 
 - **Misspelled font name** — Google Fonts returns 404 for unknown families. The browser logs the 404 in DevTools but doesn't surface the failure visibly; text renders in the system fallback. Verify the name on [fonts.google.com](https://fonts.google.com) before deploying.
-- **Adobe Fonts / self-hosted fonts** — out of scope for v1. The injector targets Google Fonts only. Self-hosting is a follow-up that would also handle subsetting and licensing.
+- **Adobe Fonts / self-hosted fonts** — not supported. The injector targets Google Fonts only.
 
 ### Privacy / GDPR
 

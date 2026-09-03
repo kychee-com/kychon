@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Layout space is reserved before content arrives — hero, sections container, images, nav user area — and homepage data is fetched in parallel, so the page does not shift.
+
+## Requirements
 
 ### Requirement: Hero section reserves layout space
 

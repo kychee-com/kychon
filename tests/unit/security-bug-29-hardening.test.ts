@@ -271,8 +271,8 @@ describe('bug #29 item 4 — sanitize announcement bodies on write', () => {
     );
   });
 
-  // Even though we no longer throw, ensure the CapabilityMutationError import
-  // is exercised here to keep the bundle's behavior typed-checked.
+  // This path never throws; exercise the CapabilityMutationError import
+  // here anyway to keep the bundle's behavior type-checked.
   it('CapabilityMutationError is the error class', () => {
     expect(CapabilityMutationError.name).toBe('CapabilityMutationError');
   });

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The marketing site carries a competitor comparison page.
+
+## Requirements
 
 ### Requirement: Competitor comparison page
 

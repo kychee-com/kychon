@@ -1,16 +1,16 @@
 /**
  * Tests for the v1.54 `blurhash_data_url` fast path in `kychon-image.ts`.
  *
- * Background: run402 v1.54 ships `AssetRef.blurhash_data_url` — the gateway
- * pre-decodes the blurhash to a PNG data URL at upload time, eliminating
- * the render-time DCT decode that `kychon-image.ts` was doing via
- * `@run402/astro/blurhash`'s `decodeBlurhashToDataUri`.
+ * `AssetRef.blurhash_data_url` (v1.54) carries a gateway pre-decoded PNG
+ * data URL for the blurhash placeholder, avoiding the render-time DCT
+ * decode `kychon-image.ts` otherwise runs via `@run402/astro/blurhash`'s
+ * `decodeBlurhashToDataUri`.
  *
- * The intermediate switch (adopt-run402-v1-54-engine, Section 1) adds a
- * fast path to `lqipDataUri`: when `AssetRef.blurhash_data_url` is a
- * non-empty string, use it directly. Fall back to the existing decode +
- * cache path for AssetRefs without the new field (legacy uploads pre-v1.54
- * OR new uploads where the upload-time pre-decode failed).
+ * `lqipDataUri` (see adopt-run402-v1-54-engine, Section 1) takes a fast
+ * path: when `AssetRef.blurhash_data_url` is a non-empty string, use it
+ * directly. Fall back to the existing decode + cache path for AssetRefs
+ * without the field (uploads predating v1.54, or new uploads where the
+ * upload-time pre-decode failed).
  *
  * These tests assert that behavior at the `kychonImageHtml` boundary
  * (`lqipDataUri` is internal to the module and not exported separately).
@@ -76,7 +76,7 @@ function baseAssetRef(): AssetRef {
 describe('kychon-image v1.54 blurhash_data_url fast path', () => {
   it('uses blurhash_data_url directly when present (no client-side decode)', () => {
     const ref = baseAssetRef();
-    // `blurhash_data_url` is a v1.54 field not yet in @run402/astro@0.2.5's
+    // `blurhash_data_url` is a v1.54 field not present in @run402/astro's
     // AssetRef type; cast locally to attach it. `blurhash` is also set to
     // prove the fast path WINS over the fallback when both are available.
     (ref as AssetRef & { blurhash_data_url?: string | null }).blurhash_data_url = SENTINEL_DATA_URL;

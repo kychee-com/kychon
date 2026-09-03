@@ -42,10 +42,10 @@ const ASSET_MANIFEST_CACHE_KEY = 'wl_cache_assets_manifest';
 //      load. Skips all the timing workarounds (onManifestChanged event,
 //      loading="eager" override) that the async-fetch path needed.
 //   2. **localStorage seed** — kept as a backup for the rare case the
-//      inline `<script>` is missing (e.g. an older Portal.astro shipped
-//      before the inline hook landed, or a custom layout that bypasses
-//      it). Variant URLs are immutable (content-hashed), so a stale seed
-//      only misses brand-new assets; it never serves wrong bytes.
+//      inline `<script>` is missing (a stale cached build, or a custom
+//      layout that bypasses it). Variant URLs are immutable
+//      (content-hashed), so a stale seed only misses brand-new assets; it
+//      never serves wrong bytes.
 //   3. **Network fetch** — final fallback if both window and localStorage
 //      are empty (genuinely first-ever-visit on a custom layout). Also
 //      writes the result back to localStorage for the next reload.
@@ -83,8 +83,8 @@ function writeManifestToLocalStorage(manifest: AssetManifest): void {
     localStorage.setItem(ASSET_MANIFEST_CACHE_KEY, JSON.stringify(manifest));
   } catch {
     // Likely QuotaExceededError — manifest with 200+ image entries can push
-    // tens of KB. Drop the seed; next reload will re-paint via the network
-    // fetch path, which is the pre-cache-seed behavior.
+    // tens of KB. Drop the seed; the next reload re-paints via the network
+    // fetch path.
   }
 }
 
@@ -108,12 +108,12 @@ function fetchManifest(): Promise<AssetManifest | null> {
     try {
       // `cache: 'no-cache'` revalidates with the server (If-Modified-Since /
       // If-None-Match) so a deploy that ships a new manifest invalidates the
-      // browser's HTTP cache on the next load. `force-cache` (the prior value)
-      // happily returned stale bytes — e.g. a manifest from before v1.54's
-      // `blurhash_data_url` + `asset_schema` fields shipped — even after a
-      // gateway redeploy. The localStorage seed (above) still handles
-      // synchronous first-paint without a network roundtrip; the no-cache
-      // here only governs the background revalidate.
+      // browser's HTTP cache on the next load. `force-cache` would happily
+      // return stale bytes — e.g. a manifest missing newer fields like
+      // `blurhash_data_url` / `asset_schema` — even after a gateway
+      // redeploy. The localStorage seed (above) still handles synchronous
+      // first-paint without a network roundtrip; the no-cache here only
+      // governs the background revalidate.
       const res = await fetch(ASSET_MANIFEST_URL, { cache: 'no-cache' });
       if (!res.ok) return null;
       const data = (await res.json()) as unknown;

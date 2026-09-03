@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+A scheduled function identifies members needing attention and drafts outreach suggestions for admins to action or dismiss.
+
+## Requirements
 
 ### Requirement: AI Insights Scheduling
 

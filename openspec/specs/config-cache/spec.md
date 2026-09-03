@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Site config and member data are served from a synchronous local cache with TTL freshness and stale-while-revalidate, so a portal paints before the network returns.
+
+## Requirements
 
 ### Requirement: Cache read returns stored data synchronously
 

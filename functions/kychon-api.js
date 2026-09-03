@@ -270,12 +270,12 @@ const SQL_WRITE_TABLES = new Set(['events', 'resources']);
 
 // Site-config categories that are intentionally readable by anonymous
 // callers. Anything else (future webhook URLs, integration tokens, etc.)
-// requires admin. (#27 item 4)
+// requires admin.
 const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
 // Brand-identity keys are always anonymously readable so hydrated chrome matches
 // the baked chrome even when a porter wrote them under a non-public category (or
 // no category at all). Key-scoped, so it does not widen any other config
-// surface the category gate protects. (#125)
+// surface the category gate protects.
 const PUBLIC_CONFIG_KEYS = new Set([
   'brand_text',
   'brand_text_short',
@@ -336,11 +336,10 @@ export default async (req) => {
   const actor = await resolveActor(req);
   const permission = checkPermission(actor, operation);
   if (!permission.allowed) {
-    // Validate-phase used to run even when the actor lacked permission so
-    // the SDK could echo back required-state hints. That makes the whole
-    // mutation surface a free enumeration oracle for anonymous callers
-    // (and reflects their input back unmodified, which is its own probe).
-    // Gate validate on the same minimum actor state as execute. (#27 item 3)
+    // Gate validate on the same minimum actor state as execute: running
+    // validate before permission is confirmed would let an unauthorized
+    // caller use the echoed required-state hints as a free enumeration
+    // oracle (and reflecting their input back unmodified is its own probe).
     return errorResponse(correlationId, 403, {
       code: 'permission.denied',
       message: `Permission denied for ${operation.name}.`,
@@ -407,7 +406,7 @@ async function parseEnvelope(req) {
   // Reject non-object input up front rather than silently coercing
   // null/arrays into `{ value: ... }` — the schema documents `input` as a
   // plain object and silent coercion lets callers smuggle filter-bypass
-  // shapes through. (#27 item 1)
+  // shapes through.
   if (!body.input || typeof body.input !== 'object' || Array.isArray(body.input)) {
     return invalidEnvelope('Request envelope `input` must be a plain object.');
   }
@@ -557,15 +556,15 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
     if (spec.mode === 'config') {
       // Non-admin callers see only the categories that are explicitly safe to
       // publish — branding, features, theme, demo. Any other category (a
-      // future webhook URL, integration token, etc.) requires admin. (#27 item 4)
+      // future webhook URL, integration token, etc.) requires admin.
       const visibleConfig = (row) =>
         isAdminLike(actor) || PUBLIC_CONFIG_CATEGORIES.has(row.category) || PUBLIC_CONFIG_KEYS.has(row.key);
       if (typeof input.key === 'string') {
         const row = rows.find((item) => item.key === input.key && visibleConfig(item));
         return successResponse(correlationId, row ? configRow(row) : null);
       }
-      // Honor an optional category filter — previously ignored, so callers asking
-      // for one category received every visible row. (#112)
+      // Honor an optional category filter, so callers asking for one
+      // category see only that category's visible rows.
       const category = typeof input.category === 'string' ? input.category : null;
       const mapped = rows
         .filter(visibleConfig)
@@ -593,7 +592,7 @@ async function handleTableQuery(correlationId, input, actor, spec, operationName
   } catch (error) {
     // A handler that intentionally raised a capability error (e.g. a missing
     // required identifier on a `.get`) must surface its dotted code, not get
-    // flattened into a generic internal.error. (#107)
+    // flattened into a generic internal.error.
     if (error?.capabilityCode) {
       return errorResponse(correlationId, mutationStatus(error.capabilityCode), {
         code: mutationErrorCode(error.capabilityCode),
@@ -674,7 +673,7 @@ async function handlePollVotesList(correlationId, input) {
 
 // For anonymous polls, voter identity SHALL NOT be exposed in API responses
 // (member_id stays in the DB only to enforce vote uniqueness). The redaction is
-// unconditional — anonymity applies to every caller, admins included. (#117)
+// unconditional — anonymity applies to every caller, admins included.
 async function redactAnonymousVotes(votes) {
   if (votes.length === 0) return votes;
   const anonymousPollIds = new Set(
@@ -720,7 +719,7 @@ async function handleExecute(correlationId, envelope, operation, actor) {
       // Don't echo the prior operation name back to the caller — it's an
       // info leak about other clients' traffic and a free oracle for
       // idempotency-key enumeration. The internal correlation log still
-      // captures the conflict for ops debugging. (#27 item 2)
+      // captures the conflict for ops debugging.
       return errorResponse(correlationId, 409, {
         code: 'conflict.idempotencyKey',
         message: execution.reason,
@@ -914,7 +913,7 @@ const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin']);
 // Required-field validation for create operations, shared by the validate
 // phase and the execute handlers so the two agree. Without it, `validate`
 // reported accepted:true for empty input and execute then coerced the missing
-// fields (title -> 'Untitled', body -> ''). (#108, #111)
+// fields (title -> 'Untitled', body -> '').
 function validateCreateInput(operation, input) {
   if (operation === 'forum.topics.create') {
     requireNonEmptyString(input.title, 'forum.topics.create requires a non-empty title.');
@@ -935,7 +934,7 @@ function requireNonEmptyString(value, message) {
 
 // Dates are validated only when supplied — a title-only event stays valid per
 // the documented minimal create contract. An out-of-order or unparseable date
-// is rejected rather than silently stored. (#111)
+// is rejected rather than silently stored.
 function validateEventDates(input) {
   const starts = input.startsAt ?? input.starts_at;
   const ends = input.endsAt ?? input.ends_at;
@@ -1003,9 +1002,9 @@ function warningFromCapabilityError(error) {
 }
 
 async function changeMemberRole(input, _actor) {
-  // Reject anything that isn't a known role. The old fall-through path
-  // (`input.role || 'member'`) silently demoted on typos and let `'admin'`,
-  // `'moderator'`, or arbitrary strings reach the DB unfiltered. (#29)
+  // Reject anything that isn't a known role: a bare `input.role || 'member'`
+  // fall-through would silently demote on typos and let `'admin'`,
+  // `'moderator'`, or arbitrary strings reach the DB unfiltered.
   const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
   if (!VALID_MEMBER_ROLES.has(role)) {
     throw capabilityError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
@@ -1023,7 +1022,7 @@ async function changeMemberRole(input, _actor) {
   }
 
   // Last-admin guard: role changes, suspension, and rejection all remove
-  // admin availability when the target is the only active admin. (#30)
+  // admin availability when the target is the only active admin.
   await ensureActiveAdminRemains('members.changeRole', targetId, { role }, members, target);
 
   const row = await updateRow('members', targetId, { role });
@@ -1103,11 +1102,11 @@ async function genericMutation(operation, input, actor) {
 async function publishAnnouncement(input, actor) {
   // author_id is bound to the acting admin — never honored from input. The
   // dedicated `announcements.update` operation is the path for any later
-  // attribution change. (#24)
+  // attribution change.
   //
   // Body is sanitized on write so every downstream reader (newsletter
   // generator, translation cache, CSV/RSS export) inherits the safety
-  // guarantee the read-side hydrator already provides. (#29)
+  // guarantee the read-side hydrator already provides.
   const announcement = await insertRow('announcements', {
     title: input.title || 'Untitled',
     body: sanitizeRichHtmlServer(input.body || ''),
@@ -1134,7 +1133,7 @@ async function publishAnnouncement(input, actor) {
 async function createForumTopic(input, actor) {
   // author_id / author_name come from the actor only — caller-supplied values
   // would let any active member impersonate another member or admin. Pinning a
-  // topic at create time is reserved for moderators via `forum.topics.pin`. (#24)
+  // topic at create time is reserved for moderators via `forum.topics.pin`.
   validateCreateInput('forum.topics.create', input);
   const topic = await insertRow('forum_topics', {
     category_id: input.categoryId ?? input.category_id ?? null,
@@ -1182,7 +1181,7 @@ async function createForumReply(input, actor) {
   const topicId = requiredAny(input.topicId ?? input.topic_id, 'forum.replies.create requires topicId.');
   const topic = await findOpenForumTopic(topicId);
 
-  // author_id / author_name come from the actor only. (#24)
+  // author_id / author_name come from the actor only.
   const reply = await insertRow('forum_replies', {
     topic_id: topicId,
     body: input.body || '',
@@ -1210,9 +1209,9 @@ async function createPollAction(input, actor) {
 }
 
 async function createPoll(input, actor) {
-  // created_by is bound to the actor — never honored from input. (#24)
+  // created_by is bound to the actor — never honored from input.
   // A poll needs at least two options. Validate before inserting the poll row
-  // so an under-specified request never leaves an orphan poll behind. (#118)
+  // so an under-specified request never leaves an orphan poll behind.
   const options = Array.isArray(input.options) ? input.options : [];
   if (options.length < 2) {
     throw capabilityError('validation.failed', 'A poll requires at least two options.', {
@@ -1243,7 +1242,7 @@ async function createPoll(input, actor) {
 // Resolve the submitted option ids to a de-duplicated list. A multiple-choice
 // vote that repeats the same option id would otherwise insert the same
 // (poll, member, option) row twice and trip the UNIQUE constraint, surfacing as
-// a generic 500 instead of a deterministic result. (#119)
+// a generic 500 instead of a deterministic result.
 function resolveVoteOptionIds(input) {
   const raw = Array.isArray(input.optionIds)
     ? input.optionIds
@@ -1345,7 +1344,7 @@ const RSVP_STATUSES = ['going', 'maybe', 'cancelled'];
 
 // RSVP status is constrained to the documented enum — an unknown value is a
 // validation error rather than a silently persisted string. A missing status
-// defaults to 'going'; an empty/garbage value is rejected, not coerced. (#116)
+// defaults to 'going'; an empty/garbage value is rejected, not coerced.
 function normalizeRsvpStatus(value) {
   const status = value == null ? 'going' : value;
   if (!RSVP_STATUSES.includes(status)) {
@@ -1359,7 +1358,7 @@ function normalizeRsvpStatus(value) {
 // Capacity caps the number of `going` RSVPs. The member's own row is excluded so
 // re-confirming or switching to going never counts the member twice. Only
 // `going` is capped — `maybe`/`cancelled` are always allowed so a member can
-// step back and free a seat. (#115)
+// step back and free a seat.
 function assertRsvpCapacity(eventRow, status, member, rsvps) {
   if (status !== 'going' || eventRow.capacity == null) return;
   const goingCount = rsvps.filter(
@@ -1378,7 +1377,7 @@ function assertRsvpCapacity(eventRow, status, member, rsvps) {
 async function setRsvpStatus(input, actor) {
   // member_id is bound to the actor (admins act-as via dedicated admin paths,
   // not this capability) and an `id` from input must belong to that member —
-  // otherwise an active member could update arbitrary RSVP rows. (#24)
+  // otherwise an active member could update arbitrary RSVP rows.
   const member = memberId(actor);
   const status = normalizeRsvpStatus(input.status);
   const id = input.id;
@@ -1408,7 +1407,7 @@ async function setRsvpStatus(input, actor) {
   const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
   // Pre-validate the event so a missing FK surfaces as `notFound.object`,
   // not the generic `internal.error` we'd get when the DB-side FK rejects
-  // the insert. (#29)
+  // the insert.
   const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(event));
   if (!eventRow) {
     throw capabilityError('notFound.object', 'Event not found.', {
@@ -1428,13 +1427,13 @@ async function setRsvpStatus(input, actor) {
 }
 
 async function cancelRsvp(input, actor) {
-  // Same ownership rule as setRsvpStatus. (#24)
+  // Same ownership rule as setRsvpStatus.
   const member = memberId(actor);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
   // When the caller addresses by eventId, validate it points at a real event
   // before scanning rsvps — otherwise a typo collapses to a silent no-op
-  // with `cancelled: false` and the client can't tell why. (#29)
+  // with `cancelled: false` and the client can't tell why.
   if (id == null && eventId != null) {
     const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(eventId));
     if (!eventRow) {
@@ -1461,7 +1460,7 @@ async function cancelRsvp(input, actor) {
 }
 
 async function uploadResource(input, actor) {
-  // uploaded_by is bound to the actor — never honored from input. (#24)
+  // uploaded_by is bound to the actor — never honored from input.
   const metadata = isPlainObject(input.metadata) ? input.metadata : input;
   const resource = await insertRow('resources', {
     title: metadata.title || input.title || input.name || 'Resource',
@@ -1543,7 +1542,7 @@ async function upsertConfig(input) {
   const key = String(requiredAny(input.key, 'config.set requires key.'));
   const existing = (await selectRows('site_config')).find((row) => row.key === key);
   // Preserve the stored category when the caller omits it — a value-only edit
-  // must not silently re-file the row under 'general'. (#112)
+  // must not silently re-file the row under 'general'.
   const category = input.category || existing?.category || 'general';
   const patch = { value: input.value ?? null, category };
   if (existing) return updateConfigRow(key, patch);
@@ -1891,7 +1890,7 @@ async function handleSectionTranslationGet(correlationId, input, actor) {
 function rowForCreate(operation, input, actor) {
   // Author/owner fields are always bound to the actor — never accepted from
   // input. Letting input override them lets an active member spoof identity
-  // on every generic create handler. (#24)
+  // on every generic create handler.
   if (operation.startsWith('polls.')) return { ...stripControlFields(input), created_by: memberId(actor) };
   if (operation.startsWith('events.')) return { ...stripControlFields(input), created_by: memberId(actor) };
   if (operation.startsWith('activity.')) return { ...stripControlFields(input), member_id: memberId(actor) };
@@ -2208,7 +2207,6 @@ function memberProfilePatch(input) {
 function requiredAny(value, message) {
   // Reject "" / "   " / 0 / NaN — they parse as a "value" but never match a
   // real row, producing a silent no-op instead of a clear validation error.
-  // (#27 item 6)
   if (typeof value === 'string') {
     if (value.trim() === '') throw capabilityError('validation.failed', message);
     return value;
@@ -2222,7 +2220,7 @@ function requiredAny(value, message) {
 
 // Privileged fields the active actor must never override on a create/update
 // path — any change to these flows through dedicated capability operations
-// (members.changeRole, *.pin, *.lock, etc.) that have their own role gate. (#24)
+// (members.changeRole, *.pin, *.lock, etc.) that have their own role gate.
 const PRIVILEGED_INPUT_FIELDS = new Set([
   'id',
   'operation',
@@ -2248,7 +2246,7 @@ const PRIVILEGED_INPUT_FIELDS = new Set([
 // Server-side rich-HTML sanitizer mirroring the read-side allowlist in
 // `src/lib/sanitize-html.ts`. Run402 functions run in a Node-like runtime
 // without DOMParser, so we strip the obvious attack vectors with regex as
-// belt-and-braces for the read-side sanitizer. (#29)
+// belt-and-braces for the read-side sanitizer.
 function sanitizeRichHtmlServer(input) {
   if (input == null) return '';
   let html = String(input);
@@ -2306,10 +2304,10 @@ function capabilityError(code, message, detail) {
 }
 
 // These capability operations have no backing implementation on the portal
-// gateway (translation/storage/jobs run as separate functions; exports were
-// never wired). An honest notImplemented error beats a fake ok:true — or, for
-// exports, the retryable internal.error the capability_executions insert used to
-// produce. (#110)
+// gateway (translation/storage/jobs run as separate functions; exports are
+// not wired). An honest notImplemented error beats a fake ok:true — or, for
+// exports, a retryable internal.error from letting the capability_executions
+// insert run anyway.
 function notImplementedAction(name) {
   throw capabilityError('api.notImplemented', `${name} is not implemented on this portal.`, { operation: name });
 }
@@ -2345,8 +2343,9 @@ async function selectRows(table) {
 }
 
 // A `*.get` (mode: 'one') must be addressed by a required identifier. Without
-// this guard, an empty input matched every row and `selectOne` returned row 0;
-// a wrong-typed id silently returned null. Both now fail as validation. (#107)
+// this guard, an empty input matches every row and `selectOne` returns row 0;
+// a wrong-typed id silently returns null. This guard makes both fail
+// validation instead.
 function requireGetIdentifier(spec, input, operationName) {
   const keys = spec.keys || ['id'];
   if (!keys.some((key) => input[key] != null)) {
@@ -2401,7 +2400,7 @@ function memberRow(row, actor) {
 
 // Strip server-attribution columns from anonymous projections of events and
 // announcements — anon clients have no business knowing which member created
-// what, and those ids are useful pivots for the IDOR shapes in #24. (#27 item 5)
+// what, and those ids are useful pivots for IDOR-style lookups.
 function eventRow(row, actor) {
   if (isAdminLike(actor) || isModeratorLike(actor)) return row;
   const { created_by: _createdBy, ...rest } = row;
@@ -2544,7 +2543,7 @@ function objectRefJson(ref) {
 
 async function resolveActor(_req) {
   // auth.user() returns Actor | null and never throws on anon — drop the try/catch.
-  // The platform-verified actor envelope is the only trusted source; legacy
+  // The platform-verified actor envelope is the only trusted source; the
   // Bearer-header path is forwarded by the gateway into the same ALS context.
   const user = await auth.user();
   if (!user?.id) return { state: 'anonymous', authenticated: false, user: null, member: null, authority: {} };

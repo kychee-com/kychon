@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+An edge function exports members and events as CSV for admins, gated by role.
+
+## Requirements
 
 ### Requirement: CSV Export Edge Function
 

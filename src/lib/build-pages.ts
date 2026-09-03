@@ -2,13 +2,12 @@
  * Build-time pages loader. Fetches the published, public `pages` rows from
  * the deployed gateway during `astro build` (NOT at runtime) so
  * `[customPage].astro` can SSR the page body — title + rich-text content —
- * into the document instead of the skeleton shell that previously only
- * filled in post-hydration.
+ * into the document instead of the skeleton shell that otherwise only
+ * fills in post-hydration.
  *
- * Ported sites are the motivating case (kychon#126): their page bodies live
- * exclusively in the `pages` table, so without this loader every ported
- * custom page served a ~900-character raw-HTML shell and failed no-JS
- * content parity.
+ * Ported sites are the motivating case: their page bodies live exclusively
+ * in the `pages` table, so without this loader every ported custom page
+ * serves a ~900-character raw-HTML shell and fails no-JS content parity.
  *
  * **Build-time only.** Reads the same env vars `scripts/_lib.ts:runDeploy`
  * sets before invoking `astro build` (see build-events.ts for the full

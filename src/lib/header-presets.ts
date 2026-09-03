@@ -1,4 +1,4 @@
-// header-presets: porter-emittable header compositions (#99). A preset returns
+// header-presets: porter-emittable header compositions. A preset returns
 // an ordered list of header-zone sections the copy-website porter drops in a
 // single operation, composed from existing and new header blocks rather than a
 // monolithic block — so each piece stays independently admin-editable.

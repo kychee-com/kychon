@@ -1,8 +1,11 @@
 # marketing-hero-images Specification
 
 ## Purpose
-TBD - created by archiving change marketing-site. Update Purpose after archive.
+
+The marketing site's hero and feature sections carry responsive imagery that shows Kychon serving many community types.
+
 ## Requirements
+
 ### Requirement: Hero section displays a generated community mashup image
 The hero section SHALL include a visually rich image showing a mashup of diverse communities — people gathering, events, activities — conveying that Kychon works for many community types. The image SHALL be stored as a static asset in `site/marketing/assets/hero/`.
 

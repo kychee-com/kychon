@@ -139,9 +139,9 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
     setUploading(true);
     try {
       // Reuse the existing content-addressed upload helper; it base64-encodes
-      // the bytes and posts to `upload-asset` with `{ file, path }`. The
-      // refactored upload-asset.js threads metadata + exifPolicy server-side
-      // and returns the full v1.50 AssetRef as `ref` in the response payload.
+      // the bytes and posts to `upload-asset` with `{ file, path }`.
+      // upload-asset.js threads metadata + exifPolicy server-side and
+      // returns the full AssetRef as `ref` in the response payload.
       const result = await uploadFileContentAddressed(file, { keyPrefix: 'assets' });
       const ref = (result?.ref ?? null) as MediaAssetRef | null;
       if (ref) {

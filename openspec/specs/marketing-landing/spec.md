@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The marketing homepage sells Kychon: hero, product tour, benefits, feature grid, AI showcase, niche cards, pricing, and a final CTA.
+
+## Requirements
 
 ### Requirement: Hero section with three CTAs
 
@@ -13,7 +17,7 @@ The hero SHALL display the headline "Own your member portal." with a subheading 
 - **WHEN** a visitor clicks "Explore Live Demo"
 - **THEN** the visitor SHALL be directed to eagles.kychon.com in a new tab
 
-### Requirement: Product tour replaces showcase gallery
+### Requirement: Product tour section
 
 The homepage SHALL include a "Tour a real portal" section showing 4-6 screenshot tiles from the Eagles demo. Each tile SHALL display a screenshot of a different Eagles page (home, directory, events, forum), the page name, and a link to that page on eagles.kychon.com. No "Coming Soon" placeholders SHALL appear.
 
@@ -25,7 +29,7 @@ The homepage SHALL include a "Tour a real portal" section showing 4-6 screenshot
 - **WHEN** the product tour section renders
 - **THEN** zero "Coming Soon" cards SHALL be visible
 
-### Requirement: Three benefit cards replace problem section
+### Requirement: Three benefit cards
 
 The homepage SHALL include a "Why organizations choose Kychon" section with three benefit cards: predictable cost (no per-member fees), ownership (your data, your branding), and customization (open source + AI). A small link SHALL read "Switching from Wild Apricot, Circle, or Bettermode? See the full comparison." and link to /compare.html.
 

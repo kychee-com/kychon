@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Committees group members into working bodies with descriptions, chairs, and assignment management, behind a feature flag.
+
+## Requirements
 
 ### Requirement: Committee Feature Flag
 

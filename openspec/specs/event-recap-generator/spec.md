@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Admins generate a written recap of a past event on demand, behind a feature flag.
+
+## Requirements
 
 ### Requirement: On-demand event recap generation
 

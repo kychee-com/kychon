@@ -87,7 +87,7 @@ export const seed: ProjectSeed = {
       scope: 'global',
       section_type: 'brand_header',
       // brand_header reads site_config keys via the picker rules — block-level
-      // overrides on the section row are not used today.
+      // overrides on the section row aren't used.
       config: { href: '/' },
       position: 1,
     },

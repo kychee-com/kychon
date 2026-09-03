@@ -19,8 +19,6 @@ The nav config SHALL include items for events, resources, forum, and committees,
 - **THEN** rendered navigation uses `/events`
 - **AND** it does not render `/events.html` as the public href
 
-<!-- Phase 2 additions: added requirements -->
-
 ### Requirement: Theme injection via CSS custom properties
 
 `src/lib/config.ts` SHALL read the `theme` JSONB from `site_config` and set CSS custom properties on `document.documentElement`. On repeat visits, theme SHALL be applied immediately from cached data. Properties SHALL include: `--color-primary`, `--color-primary-hover`, `--color-bg`, `--color-surface`, `--color-text`, `--color-text-muted`, `--color-border`, `--font-heading`, `--font-body`, `--radius`, `--max-width`.
@@ -112,8 +110,6 @@ The system SHALL render every page (home, custom pages, events, directory, etc.)
 - **THEN** the header shows the logo image
 - **THEN** the favicon link element points to the configured URL
 
-<!-- Phase 2 additions -->
-
 ### Requirement: Config-driven navigation
 
 The nav config SHALL include items for events, resources, forum, and committees, each gated by their respective feature flag. Kychon-owned navigation hrefs SHALL use clean public paths when a clean public path exists.
@@ -130,8 +126,6 @@ The nav config SHALL include items for events, resources, forum, and committees,
 - **WHEN** stored navigation config contains a Kychon-owned href such as `/events.html`
 - **THEN** rendered navigation uses `/events`
 - **AND** it does not render `/events.html` as the public href
-
-<!-- Phase 2 additions: added requirements -->
 
 ### Requirement: Feature flags for new modules
 

@@ -1768,19 +1768,16 @@ SELECT 'volunteer', 'Volunteer With Us', '
 WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'volunteer');
 
 -- ============================================
--- 17. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
+-- 17. HOMEPAGE SECTIONS
 -- ============================================
 --
 -- The homepage's main-zone sections (hero, features, stats, cta, and any
--- additional blocks like slideshow / promo_cards / activity_feed) are now
+-- additional blocks like slideshow / promo_cards / activity_feed) are
 -- defined in `src/seeds/eagles.ts` and emitted into the prepended block by
--- `scripts/generate-seed-sql.ts`.
---
--- The legacy `INSERT NOT EXISTS` blocks that used to live here would
--- duplicate sections at any position where the typed seed used a different
--- `section_type` (the predicate keys on section_type, so different types
--- at the same position both succeed). Removing the legacy block lets the
--- typed seed be the single source of truth.
+-- `scripts/generate-seed-sql.ts` — not here, to avoid duplicating sections
+-- at any position where the typed seed uses a different `section_type`
+-- (the predicate keys on section_type, so different types at the same
+-- position both succeed). The typed seed is the single source of truth.
 --
 -- To edit the homepage layout, modify the `sections` array in
 -- `src/seeds/eagles.ts` (look for entries with `page_slug: 'index'`).

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Seed variants for church, HOA, and professional-association portals give Studio a starting content set per niche.
+
+## Requirements
 
 ### Requirement: Church seed variant
 

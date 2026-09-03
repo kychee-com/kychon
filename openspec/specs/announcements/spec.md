@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Announcements are the portal's primary broadcast surface: admin-authored, pinnable, reactable, and logged to the activity feed.
+
+## Requirements
 
 ### Requirement: Announcement display
 

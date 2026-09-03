@@ -1,7 +1,5 @@
 # Copied Theme Fidelity Audit
 
-Origin: Mississauga Children's Choir port, via `kychee-com/kychon-concierge#5` and Kychon engine issues #94-#98.
-
 ## Pattern Map
 
 | Source Pattern | Current Workaround | First-Class Kychon Surface |

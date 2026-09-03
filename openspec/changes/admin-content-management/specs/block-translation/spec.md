@@ -131,7 +131,7 @@ Removing a language is symmetric: an admin SHALL be able to remove an entry from
 #### Scenario: Pool-absent languages are NOT in the picker
 - **WHEN** an admin opens the Add Language dialog and the `LOCALE_POOL` is the 50-entry standard pool
 - **THEN** locales outside the pool (e.g. very-long-tail codes like `'haw'` for Hawaiian) do not appear
-- **AND** if a portal needs a locale outside the pool, the resolution path is to expand `LOCALE_POOL` in `scripts/_lib.ts` and redeploy (or wait for `run402-private#413` to ship a runtime-mutable mechanism)
+- **AND** if a portal needs a locale outside the pool, the resolution path is to expand `LOCALE_POOL` in `scripts/_lib.ts` and redeploy
 
 #### Scenario: Removing a language hides it from the switcher but preserves translations
 - **WHEN** an admin removes `'es'` from `languages_enabled`

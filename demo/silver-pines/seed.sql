@@ -945,20 +945,18 @@ INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================
--- 11. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
+-- 11. HOMEPAGE SECTIONS
 -- ============================================
 --
 -- The homepage's main-zone sections (hero, stats, features, testimonials,
 -- slideshow, tagline_strip, promo_cards, events_list, announcements_feed,
--- activity_feed, cta) are now defined in `src/seeds/silver-pines.ts` and
--- emitted into the prepended block by `scripts/generate-seed-sql.ts`.
---
--- The legacy hand-written `INSERT INTO sections ... VALUES (...) ON CONFLICT
--- DO NOTHING` block that used to live here also did a destructive
--- `DELETE FROM sections WHERE page_slug = 'index'` before its INSERT, which
--- ran AFTER the typed-seed block and silently overrode the typed sections
--- with the legacy ones. Removing the block lets the typed seed be the
--- single source of truth for homepage layout.
+-- activity_feed, cta) are defined in `src/seeds/silver-pines.ts` and
+-- emitted into the prepended block by `scripts/generate-seed-sql.ts` — not
+-- here. A hand-written `INSERT INTO sections ... ON CONFLICT DO NOTHING`
+-- block here, preceded by a destructive `DELETE FROM sections WHERE
+-- page_slug = 'index'`, would run after the typed-seed block and silently
+-- override the typed sections. The typed seed is the single source of
+-- truth for homepage layout.
 --
 -- To edit the homepage layout, modify the `sections` array in
 -- `src/seeds/silver-pines.ts` (look for entries with `page_slug: 'index'`).

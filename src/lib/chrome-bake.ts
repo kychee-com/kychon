@@ -114,20 +114,20 @@ export function makeBakeContext(seed: ProjectSeed): BlockRenderContext {
     brandTextShort: stringFromSeed(seed, 'brand_text_short'),
     brandIconUrl: stringFromSeed(seed, 'brand_icon_url'),
     brandWordmarkUrl: stringFromSeed(seed, 'brand_wordmark_url'),
-    // Build-time AssetManifest from @run402/astro@0.2.4. Null when the
+    // Build-time AssetManifest from @run402/astro. Null when the
     // integration has no `assetsDir` configured (dev builds, non-demo builds);
-    // emitters fall through to plain `<img>` in that case, identical to
-    // pre-bake first-paint behavior. Chrome blocks don't consult the manifest
-    // (sub-320 icons), but main-zone bakes do — see renderMainZone.
+    // emitters fall through to plain `<img>` in that case.
+    // Chrome blocks don't consult the manifest (sub-320 icons), but main-zone
+    // bakes do — see renderMainZone.
     //
     // `getBuildTimeManifest` is build-time-only per its docs (reads from the
     // integration's Vite virtual module). At request time inside the run402
     // SSR Lambda the virtual module isn't available and the call throws.
-    // Catch + null-out so SSR-route renders (`/search`, future
-    // `/forum/[topic]`) still get a valid `BlockRenderContext`; image
-    // emitters fall through to plain `<img>` for the chrome bake (sub-320
-    // icons anyway). The runtime hydrate path still upgrades any
-    // image-pipeline assets to `<picture>` via the inlined / fetched manifest.
+    // Catch + null-out so SSR-route renders (`/search` and other SSR routes)
+    // still get a valid `BlockRenderContext`; image emitters fall through to
+    // plain `<img>` for the chrome bake (sub-320 icons anyway). The runtime
+    // hydrate path still upgrades any image-pipeline assets to `<picture>`
+    // via the inlined / fetched manifest.
     manifest: tryGetBuildTimeManifest(),
   };
 }

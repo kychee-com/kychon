@@ -1,8 +1,11 @@
 # marketing-agent-oss Specification
 
 ## Purpose
-TBD - created by archiving change marketing-site. Update Purpose after archive.
+
+The marketing site carries a section presenting Kychon as agent-friendly and fully open source, with a link to the repository.
+
 ## Requirements
+
 ### Requirement: Agent-friendly and open source section
 The marketing page SHALL include a dedicated section communicating that Kychon is:
 1. **100% open source** — full source code, no vendor lock-in

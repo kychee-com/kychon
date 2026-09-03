@@ -1128,20 +1128,18 @@ INSERT INTO sections (page_slug, section_type, config, position, visible) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================
--- 11. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
+-- 11. HOMEPAGE SECTIONS
 -- ============================================
 --
 -- The homepage's main-zone sections (hero, stats, features, testimonials,
 -- slideshow, tagline_strip, promo_cards, events_list, announcements_feed,
--- activity_feed, cta) are now defined in \`src/seeds/silver-pines.ts\` and
--- emitted into the prepended block by \`scripts/generate-seed-sql.ts\`.
---
--- The legacy hand-written \`INSERT INTO sections ... VALUES (...) ON CONFLICT
--- DO NOTHING\` block that used to live here also did a destructive
--- \`DELETE FROM sections WHERE page_slug = 'index'\` before its INSERT, which
--- ran AFTER the typed-seed block and silently overrode the typed sections
--- with the legacy ones. Removing the block lets the typed seed be the
--- single source of truth for homepage layout.
+-- activity_feed, cta) are defined in \`src/seeds/silver-pines.ts\` and
+-- emitted into the prepended block by \`scripts/generate-seed-sql.ts\` — not
+-- here. A hand-written \`INSERT INTO sections ... ON CONFLICT DO NOTHING\`
+-- block here, preceded by a destructive \`DELETE FROM sections WHERE
+-- page_slug = 'index'\`, would run after the typed-seed block and silently
+-- override the typed sections. The typed seed is the single source of
+-- truth for homepage layout.
 --
 -- To edit the homepage layout, modify the \`sections\` array in
 -- \`src/seeds/silver-pines.ts\` (look for entries with \`page_slug: 'index'\`).
@@ -1201,12 +1199,12 @@ UPDATE resources SET is_members_only = false WHERE title IN (
   'Tablet Basics: Getting Started'
 );
 
--- composable-layout: clear legacy site_config.nav row.
--- nav is now a block (see sections above); this guards against stale DBs
--- and against any extraSqlFile that still inserts the legacy row.
+-- Clear the legacy site_config.nav row: nav is a block (see sections
+-- above), so this guards against stale DBs and any extraSqlFile that
+-- still inserts the legacy row.
 DELETE FROM site_config WHERE key = 'nav';
--- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
--- by brand_icon_url / brand_wordmark_url / brand_text.
+-- Clear the legacy site_config.logo_url row; brand_icon_url /
+-- brand_wordmark_url / brand_text serve this instead.
 DELETE FROM site_config WHERE key = 'logo_url';
 -- native-site-search: repair/backfill search_documents after seed/import SQL.
 SELECT kychon_reindex_search();
@@ -1230,13 +1228,13 @@ export default async (_req) => {
 
   // 2. Wipe mutable content tables in ONE multi-table TRUNCATE — one
   //    statement / one transaction / one admin-SQL round-trip instead of 18
-  //    separate calls. (TRUNCATE doesn't change the schema and doesn't fire
+  //    separate calls. TRUNCATE doesn't change the schema and doesn't fire
   //    ddl_command_end, so it triggers no PostgREST reload either way — the
-  //    win is fewer round-trips + one lock-set acquisition. The real
-  //    run402-private#494 fix is staggering the three demos' reset crons so
-  //    they don't all run at once; see the schedule directive at the top.)
-  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES preserve the prior
-  //    semantics (multi-table TRUNCATE is order-independent anyway).
+  //    win is fewer round-trips + one lock-set acquisition. Staggering the
+  //    three demos' reset crons (see the schedule directive at the top) is
+  //    what keeps them from all running at once.
+  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES keep the semantics
+  //    order-independent.
   await adminDb().sql(`TRUNCATE ${MUTABLE_TABLES.join(', ')} CASCADE`);
 
   // 3. Delete non-demo members (keep demo accounts by user_id)

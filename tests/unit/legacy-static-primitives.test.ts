@@ -159,10 +159,9 @@ describe('legacy static UI primitives', () => {
     expect(styles).not.toMatch(/\.page(?:[.{:#\s-]|$)/);
     expect(styles).not.toMatch(/\.page-content\b/);
     expect(styles).not.toContain('#page-content');
-    // Section reveal animation removed entirely: the JS-driven
-    // data-section-visible mechanism (legacy) was replaced by a CSS
-    // @keyframes section-fade-in in commit 6ecde39; both are now gone, the
-    // first paint just shows sections without an opacity ramp.
+    // Section reveal animation removed entirely: neither the JS-driven
+    // data-section-visible mechanism nor a CSS @keyframes section-fade-in
+    // exists; the first paint just shows sections without an opacity ramp.
     expect(styles).not.toContain('@keyframes section-fade-in');
     expect(styles).not.toContain('data-section-visible');
     expect(styles).toContain('[data-nav-shell] [data-layout-container]');

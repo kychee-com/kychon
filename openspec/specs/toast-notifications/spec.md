@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+User actions surface accessible, auto-dismissing toast notifications.
+
+## Requirements
 
 ### Requirement: Toast notification display
 

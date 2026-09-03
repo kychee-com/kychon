@@ -76,7 +76,7 @@ export interface BlockRenderContext {
   brandIconUrl?: string;
   brandWordmarkUrl?: string;
   /**
-   * Resolved asset manifest from @run402/astro@0.2's assetsDir build step.
+   * Resolved asset manifest from @run402/astro's assetsDir build step.
    * When set, image emitters (hero foreground, promo_cards, slideshow, etc.)
    * look up `/assets/X.jpg` URLs and emit `<picture>` markup with v1.49
    * variants (320/800/1920 WebP ladder). Null/undefined when (a) the build
@@ -93,9 +93,9 @@ export interface BlockRenderContext {
    * `ensureBuildEventsLoaded()` before calling `renderMainZone`. The
    * `EVENTS_LIST` block drains this per-block (filter + count) to emit
    * real `<EventCard>` HTML in the first paint instead of the empty
-   * `data-block-hydrate` shell that today only fills in post-hydration.
+   * `data-block-hydrate` shell that otherwise only fills in post-hydration.
    * Undefined at runtime and on pages that don't pre-fetch — the block
-   * falls back to today's skeleton + client-fetch path.
+   * falls back to the skeleton + client-fetch path.
    */
   buildEvents?: import('@/schemas/event').Event[] | null;
   /**
@@ -310,7 +310,7 @@ export function safeCssValue(value: any, maxLength = 180): string {
 // Safe interpolation for `background-image:url(...)` and similar CSS url()
 // sinks. `escAttr` is HTML-quote-safe but does not escape `(`, `)`, `;`, or
 // `'`, so an attacker-controlled URL like `x);background:red url(y` survives
-// it and parses as two CSS declarations. (#29)
+// it and parses as two CSS declarations.
 //
 // We accept http(s) URLs and same-origin relative paths only, reject control
 // characters, then percent-encode the CSS-dangerous characters so the value
@@ -1289,9 +1289,9 @@ const BRAND_HEADER: BlockType = {
     const iconChromeAttrs = iconUrl ? kychonChromeImgAttrs(iconUrl, ctx.manifest) : '';
     const wordmarkChromeAttrs = wordmarkUrl ? kychonChromeImgAttrs(wordmarkUrl, ctx.manifest) : '';
 
-    // brand_header_mode (#106): an explicit `wordmark` / `icon` / `auto` choice
-    // so a ported site can show its wordmark while still setting a favicon/icon.
-    // `auto` (default) keeps the historical icon → wordmark → text priority; a
+    // brand_header_mode: an explicit `wordmark` / `icon` / `auto` choice so a
+    // ported site can show its wordmark while still setting a favicon/icon.
+    // `auto` (default) keeps the default icon → wordmark → text priority; a
     // requested mode whose asset is missing falls back to that same priority.
     const mode = typeof cfg.brand_header_mode === 'string' ? cfg.brand_header_mode.trim() : 'auto';
 
@@ -1753,10 +1753,10 @@ const IMAGE_ACCORDION: BlockType = {
   },
 };
 
-// feature_panels (#124): the recurring association-homepage "coordinated panels"
+// feature_panels: the recurring association-homepage "coordinated panels"
 // source pattern as structured config — image + heading + body + optional CTA per
-// panel, in a responsive grid. Replaces the custom-HTML workaround that degraded
-// to stacked prose; the sanitizer is untouched (no looser HTML mode).
+// panel, in a responsive grid. Avoids the custom-HTML workaround that degrades
+// to stacked prose; the sanitizer stays untouched (no looser HTML mode).
 const FEATURE_PANELS: BlockType = {
   label: 'Feature Panels',
   icon: '\u{1F5C2}',
@@ -1819,7 +1819,7 @@ const FEATURE_PANELS: BlockType = {
   },
 };
 
-// menu (#123): restaurant/bar menus carried by copied club sites as structured
+// menu: restaurant/bar menus carried by copied club sites as structured
 // data — ordered sections, each with ordered items { name, description, price,
 // dietary_tags } — so a price edit is structured config, not raw HTML.
 const MENU: BlockType = {
@@ -1885,7 +1885,7 @@ const MENU: BlockType = {
   },
 };
 
-// member_login (#91, Kychon side): a configurable login surface for copied Wild
+// member_login (Kychon side): a configurable login surface for copied Wild
 // Apricot member zones. Source-style labels/icons are structured config; actual
 // credential entry happens on the Run402-hosted sign-in the CTA links to — we
 // never render a fake credential-capturing form. The reCAPTCHA hook itself is a
@@ -1934,9 +1934,9 @@ const MEMBER_LOGIN: BlockType = {
     // hosted form the CTA links to — no fake, credential-capturing inputs here.
     const fields = `<ul data-member-login-fields class="flex list-none flex-col gap-1.5 text-sm text-muted-foreground"><li data-member-login-field class="rounded-md border border-border bg-background px-3 py-2"${editableAttr(editablePath(section, 'username_label', ctx))}>${escHtml(usernameLabel)}</li><li data-member-login-field class="rounded-md border border-border bg-background px-3 py-2"${editableAttr(editablePath(section, 'password_label', ctx))}>${escHtml(passwordLabel)}</li></ul>`;
     const cta = `<a data-member-login-cta class="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90" href="${escAttr(signInHref)}"${editableAttr(editablePath(section, 'submit_label', ctx))}>${escHtml(submitLabel)}</a>`;
-    // Bot protection is a Run402 platform hook; until it exists we emit a
-    // machine-readable pending marker (no visible or faked widget) for the
-    // coverage report to surface.
+    // Bot protection is a Run402 platform hook that does not exist yet; we
+    // emit a machine-readable pending marker (no visible or faked widget)
+    // for the coverage report to surface.
     const botMarker = botProtection ? '<div data-bot-protection="pending" aria-hidden="true" hidden></div>' : '';
 
     const inner = `<div data-member-login class="mx-auto flex max-w-sm flex-col gap-4 rounded-lg border border-border bg-card p-6">${icon}<h2 data-member-login-heading class="text-xl font-medium"${editableAttr(editablePath(section, 'heading', ctx))}>${escHtml(heading)}</h2>${subtitleHtml}${fields}${cta}${botMarker}</div>`;
@@ -1944,7 +1944,7 @@ const MEMBER_LOGIN: BlockType = {
   },
 };
 
-// safety_cta / social_row / utility_bar (#99): the small composable header-zone
+// safety_cta / social_row / utility_bar: the small composable header-zone
 // primitives a Wild Apricot-style utility cluster is built from. Each is an
 // independently editable data block in the existing header layout; a porter
 // preset (tracked separately) drops the coordinated cluster in one operation.
@@ -2148,8 +2148,8 @@ const EVENTS_LIST: BlockType = {
     // events from `data-events-payload`, and uses them as React's initial
     // state — so the first React render matches the SSR HTML and the
     // background refresh fetches any admin edits made between build and
-    // visit. Cache miss → fall through to today's skeleton + client-fetch
-    // path, which is what every page outside index.astro still does.
+    // visit. Cache miss → fall through to the skeleton + client-fetch path,
+    // which is what every page outside index.astro still does.
     const ssrEvents = ctx.buildEvents
       ? selectBuildEvents(ctx.buildEvents, cfg)
       : null;

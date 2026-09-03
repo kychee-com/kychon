@@ -46,7 +46,7 @@ Alternative considered: a separate edge function. Rejected — adds a new deploy
 
 ### Decision 3: media library is backed by Run402 v1.50 `assets.list`, not a Kychon-side DB table
 
-**The earlier draft of this design called for a `media_assets` shadow table in the project DB. Run402 v1.50 (shipped 2026-05-20) makes that table unnecessary** — `internal.blobs.metadata` is a flat JSONB column the caller writes via `assets.put` opts, the `assets.list` route serves sorted/filtered media-picker queries directly (5 partial indexes back it), and intrinsic image fields (`width_px`, `height_px`, `blurhash`, `image_format`, `image_info`, `image_exif`) are populated server-side on every upload. The old shadow-table pattern had three real problems Kychon would have inherited: (1) dual-write on every upload and delete, with drift on partial failure; (2) pre-existing assets invisible until manually re-uploaded; (3) every CMS-shaped Kychon-adjacent app would reimplement the same table independently.
+**No Kychon-side `media_assets` shadow table is needed** — `internal.blobs.metadata` is a flat JSONB column the caller writes via `assets.put` opts, the `assets.list` route serves sorted/filtered media-picker queries directly (5 partial indexes back it), and intrinsic image fields (`width_px`, `height_px`, `blurhash`, `image_format`, `image_info`, `image_exif`) are populated server-side on every upload. A shadow table would carry three problems: (1) dual-write on every upload and delete, with drift on partial failure; (2) assets uploaded outside Kychon invisible until manually re-uploaded; (3) every CMS-shaped Kychon-adjacent app reimplementing the same table independently.
 
 **Upload path.** `upload-asset.js` calls `r.project(id).assets.put(path, bytes, { contentType, metadata: { filename, uploaded_by: member_id }, exifPolicy: 'strip' })`. The `metadata` JSONB is opaque to the platform (4 KB cap, flat shape — Kychon's three fields fit comfortably). `exifPolicy: 'strip'` is Kychon's default because end-user photos may carry GPS / camera serial / owner identifiers — the original bytes still serve through `cdn_url` (we never mutate CAS) but the queryable `image_exif` stays sanitized. Admins can re-upload an asset with `exifPolicy: 'keep'` later if they need full EXIF.
 
@@ -68,11 +68,10 @@ The picker reads `metadata.filename`, `width_px`, `height_px`, `image_format`, `
 
 **Delete path.** `media.delete` calls `r.project(id).assets.delete(path)` for the storage row + variant revocation. The in-use check (`SELECT 1 FROM sections WHERE config::text LIKE '%' || $cdn_url || '%' LIMIT 1` plus the same check on `site_config`) stays on the Kychon side because it's portal-specific. A warning Dialog (not a hard block) is shown when the image appears to be in use.
 
-**No backfill required.** Every asset already in `internal.blobs` is visible via `r.assets.list` from the moment v1.50 deployed. Pre-existing assets show up with `metadata: null` (no filename/uploader recorded historically); admins can re-upload to populate metadata, or just live with `null` since the asset still renders.
+**No backfill required.** Every asset in `internal.blobs` is visible via `r.assets.list`. Assets uploaded outside the Kychon upload path show up with `metadata: null`; admins can re-upload to populate metadata, or live with `null` since the asset still renders.
 
 Alternative considered: keep a `media_assets` table for application-specific fields beyond what v1.50 indexes (e.g. captions, alt text, tags). Rejected — those fields ARE caller-provided metadata; the v1.50 4 KB JSONB cap accommodates them. If Kychon ever needs cross-asset joins (e.g. "all assets tagged 'sponsor'"), `filter.tag` handles it server-side.
 
-Alternative considered (original draft): a project-DB shadow table mirroring storage. Rejected — see paragraph above; v1.50 eliminates the dual-write hazard the original draft was working around.
 
 ### Decision 4: section_translations stores partial config JSONB, not field-by-field rows
 
@@ -110,7 +109,7 @@ All existing iframe renders in `src/lib/blocks/embed.ts` lack `referrerpolicy="s
 
 ### Decision 8: Image fields in block configs persist the full AssetRef, not the URL string
 
-This decision replaces an earlier design that would have stored image fields as URL strings (`bg_image: "/storage/.../hero.jpg"`) and added a runtime localStorage manifest cache + `r.assets.list?key=…` render-time lookup to `src/lib/kychon-image.ts`. That earlier approach was a workaround for the build-time `@run402/astro` manifest not knowing about admin-uploaded runtime images. The discussion on Run402 issue #396 (closed not-planned) surfaced a structurally cleaner pattern.
+Storing the URL string alone would force a runtime manifest lookup in `src/lib/kychon-image.ts`, because the build-time `@run402/astro` manifest does not know about admin-uploaded runtime images. Persisting the AssetRef removes that lookup entirely.
 
 When the admin saves an image via the MediaPicker, the block config field SHALL persist the full v1.49 `AssetRef` object returned by `r.assets.put` — including `cdn_url`, `width_px`, `height_px`, `blurhash`, and the `variants.{thumb, medium, large, display_jpeg}` ladder. At render time the renderer detects whether the field is a string (legacy) or an object (AssetRef-shaped):
 
@@ -125,15 +124,15 @@ Re-upload edge case: variant URLs are content-addressed (each carries its own `s
 
 Migration: existing seeded configs (`bg_image: "/custom/assets/hero.jpg"`) keep working via the legacy string path. A one-shot migration script can resolve each string URL to an AssetRef via `r.assets.list?key=…` and rewrite the JSONB. Not required for this change; can ship separately.
 
-What this decision drops from the change vs. the earlier draft:
+What this decision keeps out of the change:
 - No `runtime-asset-cache` localStorage layer
 - No render-time `r.assets.list?key=…` lookup in the hot path
-- No dependency on a runtime asset manifest endpoint (Run402 #396 is closed not-planned)
+- No dependency on a runtime asset manifest endpoint
 - Smaller diff to `src/lib/kychon-image.ts` — just AssetRef-shape detection at the entry point
 
 ### Decision 9: Pre-allocate the locale pool in `spec.i18n.locales`, control runtime enablement via `site_config.languages_enabled`
 
-The runtime-mutable-locales gap surfaced by the admin "Add Language" Dialog (filed as `run402-private#413`) has a workaround that needs no platform change. Run402's `spec.i18n.locales` is capped at 50 entries. Kychon SHALL pre-declare a fixed 50-entry pool of candidate locales at deploy time, then control which of those are visible/active to admins via a runtime-mutable `site_config.languages_enabled` JSONB array. The gateway accepts any of the 50; the application chooses what to expose.
+The admin "Add Language" Dialog needs runtime-mutable locales, which the platform does not expose directly; the workaround below needs no platform change. Run402's `spec.i18n.locales` is capped at 50 entries. Kychon SHALL pre-declare a fixed 50-entry pool of candidate locales at deploy time, then control which of those are visible/active to admins via a runtime-mutable `site_config.languages_enabled` JSONB array. The gateway accepts any of the 50; the application chooses what to expose.
 
 **Two distinct concepts:**
 
@@ -207,21 +206,21 @@ export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
 
 1. It uses Run402 exactly as designed: the platform supports up to 50 locales; we use 50.
 2. The conceptual split between "gateway-accepted" and "app-surfaced" is honest — the gateway is a routing layer; the app owns UX.
-3. When `run402-private#413` (runtime-mutable locales or `unknownLocalePolicy: 'pass-through'`) ships, this change is forward-compatible: `LOCALE_POOL` becomes either runtime-extensible or unnecessary, with zero schema changes on the Kychon side. The `languages_enabled` runtime registry stays as the UI source-of-truth regardless.
+3. It is forward-compatible: if the platform makes `spec.i18n.locales` runtime-mutable, `LOCALE_POOL` becomes either runtime-extensible or unnecessary, with zero schema changes on the Kychon side. The `languages_enabled` runtime registry stays the UI source of truth regardless.
 4. Zero platform dependency, zero deploy-per-language friction, full admin UX as designed.
 
 **Trade-off:** the deploy advertises 50 locale-routing slots even though most portals only use 1-3. The gateway-side cost is negligible (just a string array on the release inventory), and the cache-key implications are limited because the JOIN check (`ctx.locale ∈ languages_enabled`) skips for un-enabled locales anyway.
 
-#### Update (2026-05-21): opt in to `unknownLocalePolicy: 'pass-through'`
+#### Opt in to `unknownLocalePolicy: 'pass-through'`
 
-Run402 shipped `spec.i18n.unknownLocalePolicy: 'pass-through'` — exactly the runtime-mutable-locales solution this decision anticipated under "Why this is the right move (3)". Kychon opts in on the next deploy. `buildI18nSpec()` now emits:
+Run402 supports `spec.i18n.unknownLocalePolicy: 'pass-through'`. Kychon opts in, so `buildI18nSpec()` emits:
 
 ```ts
 {
   defaultLocale,
   locales: [...LOCALE_POOL],          // unchanged
   detect: ['cookie:wl_locale', 'accept-language'],
-  unknownLocalePolicy: 'pass-through', // ← new
+  unknownLocalePolicy: 'pass-through',
 }
 ```
 
@@ -258,10 +257,10 @@ Cast note: the v2.8.1 SDK type for `I18nSpec` doesn't yet include `unknownLocale
 
 ## Migration Plan
 
-1. Confirm Run402 platform is on v1.50+ (gateway commit on/after the 2026-05-20 deploy; `@run402/functions@^2.4.0` available to the deployed function bundle). The migration assertion on v1.50 prevents the gateway from booting at the wrong version, so this check is mostly a sanity step.
+1. Confirm the Run402 platform is on v1.50+ and `@run402/functions@^2.4.0` is available to the deployed function bundle.
 2. Run `npx shadcn add scroll-area popover` to install the two new shadcn components.
 3. Apply `schema.sql` additions (one `DO $$ BEGIN ALTER TABLE … ADD …` guard for `section_translations`) via `run402 db push` or the project's standard migration path. **No** `media_assets` migration — that table is intentionally absent; media metadata lives in Run402's `internal.blobs`.
-4. Deploy updated `upload-asset.js` (threads `metadata: { filename, uploaded_by }` + `exifPolicy: 'strip'` through `r.project(id).assets.put`; adds an `action='list'` wrapper over `r.project(id).assets.list`). **Pre-existing assets appear in the media library automatically** — they were always in `internal.blobs`; v1.50 just makes that queryable. Pre-existing rows show up with `metadata: null`; admins can re-upload to attach filename + uploader, or live with the unattributed entry.
+4. Deploy updated `upload-asset.js` (threads `metadata: { filename, uploaded_by }` + `exifPolicy: 'strip'` through `r.project(id).assets.put`; adds an `action='list'` wrapper over `r.project(id).assets.list`). **Assets uploaded outside the Kychon upload path appear in the media library automatically** — they are in `internal.blobs`, which `assets.list` queries. Those rows show up with `metadata: null`; admins can re-upload to attach filename + uploader, or live with the unattributed entry.
 5. Deploy updated `kychon-api.js` (custom page handlers + `media.*` wrappers + `sections.translate/getTranslation` operations).
 6. Deploy updated Astro build (AdminBar, MediaPicker, BlockListEditor, BlockTranslationEditor, blocks.ts registry changes, Portal.astro AdminBar injection, page-render.ts translation merge, embed-providers.ts additions).
 7. Verify: create a test page from the admin bar, check nav auto-insert; upload an image and see it in the picker with extracted dimensions + the recorded `filename` + `uploaded_by`; edit a hero block's ES translation and reload with locale=es.

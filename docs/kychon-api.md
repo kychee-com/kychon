@@ -7,7 +7,7 @@ The human UI is a reference renderer over the same product capabilities.
 ## Versions
 
 Every request includes an explicit date-based `apiVersion`.
-The initial version is `2026-05-08`.
+The API version is `2026-05-08`.
 
 Engine version, schema version, SDK version, and CLI version are reported separately through discovery.
 

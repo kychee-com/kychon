@@ -1,8 +1,12 @@
-## ADDED Requirements
+## Purpose
+
+Forum content is classified on a schedule, auto-hidden at high confidence, flagged for admin review at medium confidence, and always logged.
+
+## Requirements
 
 ### Requirement: AI Moderation Scheduling
 
-The AI moderation function SHALL run as a scheduled function every 15 minutes. It MUST require the feature_ai_moderation flag to be enabled and the AI_API_KEY secret to be set.
+The AI moderation function SHALL run as a scheduled function every 15 minutes. It MUST require the feature_ai_moderation flag to be enabled. It SHALL NOT require an AI_API_KEY secret.
 
 #### Scenario: AI moderation runs on schedule
 - **WHEN** 15 minutes have elapsed since the last run and feature_ai_moderation is enabled
@@ -11,10 +15,6 @@ The AI moderation function SHALL run as a scheduled function every 15 minutes. I
 #### Scenario: AI moderation skipped when feature flag disabled
 - **WHEN** the scheduled time arrives but feature_ai_moderation is disabled
 - **THEN** the AI moderation function SHALL NOT execute
-
-#### Scenario: AI moderation skipped when API key missing
-- **WHEN** the scheduled time arrives but AI_API_KEY is not set
-- **THEN** the AI moderation function SHALL NOT execute and SHALL log a warning
 
 ### Requirement: Content Classification
 

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Events carry scheduling, capacity, RSVP, and members-only access, with listing and detail pages.
+
+## Requirements
 
 ### Requirement: Event Management
 

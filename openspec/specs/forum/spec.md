@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The forum provides categories, topics, replies, and admin moderation with hidden-content visibility rules, behind a feature flag.
+
+## Requirements
 
 ### Requirement: Forum Feature Flag
 

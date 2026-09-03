@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Studio investigates an existing website via Chrome, interviews the operator, generates a spec, builds and deploys the portal, and verifies the result.
+
+## Requirements
 
 ### Requirement: Website investigation via Chrome MCP
 

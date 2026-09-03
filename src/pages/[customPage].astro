@@ -13,10 +13,10 @@ import { renderMainZone, makeBakeContext } from '../lib/chrome-bake';
 
 export async function getStaticPaths() {
   const { seed } = await resolveActiveProjectSeed();
-  // Union the typed-seed pages with the deployed project's DB-backed pages
-  // (kychon#126): ported sites carry their pages only in the database, so
-  // without the build-time fetch they would get no per-slug static HTML at
-  // all — let alone SSR'd bodies.
+  // Union the typed-seed pages with the deployed project's DB-backed pages:
+  // ported sites carry their pages only in the database, so without the
+  // build-time fetch they would get no per-slug static HTML at all — let
+  // alone SSR'd bodies.
   await ensureBuildPagesLoaded();
   const slugs = new Set(safeCustomPageSlugs(seed.pages));
   const buildPages = getAllBuildPages();
@@ -55,7 +55,7 @@ const bakeCtx = {
 // Merge them in so renderMainZone bakes the real body instead of an empty shell.
 const seedForBake = mergeSeedSections(seed, slug, getBuildSections(slug));
 const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seedForBake, slug, bakeCtx);
-// SSR the page body itself (kychon#126): with `initialPage` the island
+// SSR the page body itself: with `initialPage` the island
 // server-renders the real title + sanitized rich-text content instead of
 // the loading skeleton, so the served HTML carries the page body for
 // no-JS readers, crawlers, and the concierge parity gate. The runtime

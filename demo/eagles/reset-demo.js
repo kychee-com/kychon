@@ -2008,29 +2008,26 @@ SELECT 'volunteer', 'Volunteer With Us', '
 WHERE NOT EXISTS (SELECT 1 FROM pages WHERE slug = 'volunteer');
 
 -- ============================================
--- 17. HOMEPAGE SECTIONS — MIGRATED TO TYPED SEED
+-- 17. HOMEPAGE SECTIONS
 -- ============================================
 --
 -- The homepage's main-zone sections (hero, features, stats, cta, and any
--- additional blocks like slideshow / promo_cards / activity_feed) are now
+-- additional blocks like slideshow / promo_cards / activity_feed) are
 -- defined in \`src/seeds/eagles.ts\` and emitted into the prepended block by
--- \`scripts/generate-seed-sql.ts\`.
---
--- The legacy \`INSERT NOT EXISTS\` blocks that used to live here would
--- duplicate sections at any position where the typed seed used a different
--- \`section_type\` (the predicate keys on section_type, so different types
--- at the same position both succeed). Removing the legacy block lets the
--- typed seed be the single source of truth.
+-- \`scripts/generate-seed-sql.ts\` — not here, to avoid duplicating sections
+-- at any position where the typed seed uses a different \`section_type\`
+-- (the predicate keys on section_type, so different types at the same
+-- position both succeed). The typed seed is the single source of truth.
 --
 -- To edit the homepage layout, modify the \`sections\` array in
 -- \`src/seeds/eagles.ts\` (look for entries with \`page_slug: 'index'\`).
 
--- composable-layout: clear legacy site_config.nav row.
--- nav is now a block (see sections above); this guards against stale DBs
--- and against any extraSqlFile that still inserts the legacy row.
+-- Clear the legacy site_config.nav row: nav is a block (see sections
+-- above), so this guards against stale DBs and any extraSqlFile that
+-- still inserts the legacy row.
 DELETE FROM site_config WHERE key = 'nav';
--- brand-identity-fields: clear legacy site_config.logo_url row. Replaced
--- by brand_icon_url / brand_wordmark_url / brand_text.
+-- Clear the legacy site_config.logo_url row; brand_icon_url /
+-- brand_wordmark_url / brand_text serve this instead.
 DELETE FROM site_config WHERE key = 'logo_url';
 -- native-site-search: repair/backfill search_documents after seed/import SQL.
 SELECT kychon_reindex_search();
@@ -2054,13 +2051,13 @@ export default async (_req) => {
 
   // 2. Wipe mutable content tables in ONE multi-table TRUNCATE — one
   //    statement / one transaction / one admin-SQL round-trip instead of 18
-  //    separate calls. (TRUNCATE doesn't change the schema and doesn't fire
+  //    separate calls. TRUNCATE doesn't change the schema and doesn't fire
   //    ddl_command_end, so it triggers no PostgREST reload either way — the
-  //    win is fewer round-trips + one lock-set acquisition. The real
-  //    run402-private#494 fix is staggering the three demos' reset crons so
-  //    they don't all run at once; see the schedule directive at the top.)
-  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES preserve the prior
-  //    semantics (multi-table TRUNCATE is order-independent anyway).
+  //    win is fewer round-trips + one lock-set acquisition. Staggering the
+  //    three demos' reset crons (see the schedule directive at the top) is
+  //    what keeps them from all running at once.
+  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES keep the semantics
+  //    order-independent.
   await adminDb().sql(`TRUNCATE ${MUTABLE_TABLES.join(', ')} CASCADE`);
 
   // 3. Delete non-demo members (keep demo accounts by user_id)

@@ -220,10 +220,9 @@ export function BlockTranslationEditor({
     setAiBusy(true);
     setError(null);
     try {
-      // translate-text edge function exists; call it once per field. This
-      // could be batched in a single platform AI call (run402#398 family),
-      // but for an MVP per-field calls work — the field count is small
-      // (max ~10 for a typical block).
+      // translate-text edge function exists; call it once per field.
+      // Per-field calls are fine — the field count is small (max ~10 for a
+      // typical block).
       const next: Record<string, string> = { ...values };
       for (const field of flatFields) {
         if (!field.source) continue;

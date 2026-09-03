@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The marketing homepage carries a "how it works" section.
+
+## Requirements
 
 ### Requirement: How it works section
 

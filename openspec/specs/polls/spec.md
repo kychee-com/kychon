@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Members vote on admin-created polls with configurable result visibility, anonymity, and auto-close, behind a feature flag.
+
+## Requirements
 
 ### Requirement: Poll CRUD
 

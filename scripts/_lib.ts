@@ -94,12 +94,9 @@ export async function collectFunctionsMap(
     const code = injectFunctionBuildConstants(await readFile(opts.extraFunction, "utf-8"));
     const name = (opts.extraFunction.split("/").pop() ?? opts.extraFunction).replace(/\.js$/, "");
     // Demo reset-demo takes ~8s in practice (DELETE+seed against ~14 sections
-    // and ~150 demo rows). The 10s default leaves no headroom. Also acts as
-    // the non-source field change required by kychee-com/run402#168 to force
-    // activation on functions that got stuck before gateway 1.0.4 — bumping
-    // timeout from the default 10s to 15s changes the function digest, so
-    // the gateway's noop short-circuit no longer skips activation for these
-    // already-deployed functions.
+    // and ~150 demo rows); the 10s default leaves no headroom. 15s also
+    // changes the function digest, which is what makes the gateway's noop
+    // short-circuit activate the function instead of skipping it.
     out[name] = makeFunctionSpec(name, code, { timeoutSeconds: 15 });
   }
 
@@ -236,10 +233,11 @@ async function resolveDeployOutputSeed(
  * declared locale, the gateway falls back to `defaultLocale`.
  */
 export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
-  // admin-content-management (Decision 9 — kitchen-sink locale pool):
-  // `spec.i18n.locales` is the fixed 50-entry LOCALE_POOL. The per-portal
-  // active set lives in `site_config.languages_enabled` at runtime, so
-  // admins can add/remove languages via the AdminBar without redeploying.
+  // `spec.i18n.locales` is the fixed 50-entry LOCALE_POOL (see
+  // openspec/changes/admin-content-management/design.md Decision 9). The
+  // per-portal active set lives in `site_config.languages_enabled` at
+  // runtime, so admins can add/remove languages via the AdminBar without
+  // redeploying.
   //
   // `defaultLocale` is still per-project — read from the seed's
   // `default_language`. It MUST be in LOCALE_POOL; we fail loud at build
@@ -260,16 +258,13 @@ export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
     );
   }
 
-  // admin-content-management (Decision 9):
   // The kitchen-sink LOCALE_POOL is the load-bearing pattern — admins can
   // add/remove any of these 50 locales via the AdminBar without redeploying
   // (the per-portal active set is `site_config.languages_enabled`, runtime
-  // mutable). For locales OUTSIDE the pool, the gateway currently falls
-  // back to `defaultLocale`. The follow-up plan is `unknownLocalePolicy:
-  // 'pass-through'` once the apply-v1 validator accepts the field —
-  // deploy validation rejected it as `Unknown ReleaseSpec field` on the
-  // 2026-05-21 deploy, so the opt-in is held until the gateway/validator
-  // catches up. See run402-private#413 for the platform thread.
+  // mutable). For locales OUTSIDE the pool, the gateway falls back to
+  // `defaultLocale`. The apply-v1 validator rejects an `unknownLocalePolicy`
+  // field as `Unknown ReleaseSpec field`, so this stays unset until the
+  // validator accepts it.
   return {
     defaultLocale,
     locales: [...LOCALE_POOL],
@@ -348,11 +343,10 @@ export function materializeCustomPageStaticFiles(
     if (!file) continue;
     const target = join(distDir, file);
     // `[customPage].astro` already produces per-slug HTML at build time via
-    // `getStaticPaths`, and that HTML now carries the main-zone SSR bake
-    // (Step 1.5 — `data-bake-signature` + pre-rendered section blocks).
-    // Only fall back to copying `page.html` for slugs Astro didn't write
-    // out — keeps the SSR'd content from getting clobbered by the
-    // skeleton shell.
+    // `getStaticPaths`, and that HTML carries the main-zone SSR bake
+    // (`data-bake-signature` + pre-rendered section blocks). Only fall back
+    // to copying `page.html` for slugs Astro didn't write out — keeps the
+    // SSR'd content from getting clobbered by the skeleton shell.
     if (!existsSync(target)) {
       copyFileSync(pageShell, target);
     }
@@ -397,10 +391,10 @@ export function injectConfigFieldsJson(distDir: string): void {
 /**
  * Substitute `{PROVIDER_HOSTS}` in `dist/_headers` and validate the CSP.
  * Aborts the deploy with a clear error if the headers are malformed or a
- * registered embed provider is missing from `frame-src`. Run402 v1.50 doesn't
- * yet honor `_headers`, but we still bundle the file so it's ready when
- * platform support lands; the CSP value baked into Portal.astro at build
- * time uses the same source registry, so divergence is impossible.
+ * registered embed provider is missing from `frame-src`. Run402 doesn't
+ * honor `_headers`; the file bundles anyway so it's ready if platform
+ * support is added. The CSP value baked into Portal.astro at build time
+ * uses the same source registry, so divergence is impossible.
  */
 export function generateAndValidateHeaders(distDir: string): void {
   const content = generateHeadersContent(ROOT);
@@ -604,12 +598,12 @@ export interface BuildKychonReleaseSpecOptions {
   functionsMap?: Record<string, FunctionSpec>;
   routes?: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"];
   /**
-   * Routed-locale-context slice (v2.5+). When set, the gateway negotiates
-   * per-request locale and surfaces it via `x-run402-locale` headers. Today's
-   * SSG pages don't read those headers, but setting up the slice now means
-   * a future routed HTTP render path inherits negotiation for free. Build
-   * the slice with `buildI18nSpec(seed)`. Omitting carries the slice forward
-   * from the previous release (`null` clears it).
+   * Routed-locale-context slice. When set, the gateway negotiates
+   * per-request locale and surfaces it via `x-run402-locale` headers.
+   * The current SSG pages don't read those headers; setting the slice
+   * means a future routed HTTP render path inherits negotiation for free.
+   * Build the slice with `buildI18nSpec(seed)`. Omitting carries the slice
+   * forward from the previous release (`null` clears it).
    */
   i18n?: I18nSpec;
 }
@@ -661,15 +655,15 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Kyc
  *     `buildAstroReleaseSlice(distDir)` (client-rooted LocalDirRef + implicit
  *     public_paths), NOT a flat `dist/` walk.
  *
- * patchDeploy diverging from runDeploy here — writing to `dist/`, hand-rolling
- * explicit public_paths that matched zero `run402/client/`-prefixed pages, and
- * never deploying the SSR function — was the root cause of run402#411 (a
- * "successful" apply that 404'd every route site-wide). Both deploy paths now
- * route through this helper so they can't re-diverge.
+ * Both deploy paths route through this helper so they can't diverge: writing
+ * to `dist/` instead of `clientDir`, hand-rolling explicit public_paths that
+ * don't match `run402/client/`-prefixed pages, or skipping the SSR function
+ * deploy each independently produce a "successful" apply that 404s every
+ * route site-wide.
  *
  * Returns the @run402/astro slice (`site` + `functions.replace` [+ optional
- * `routes`]) when the adapter is active, or `null` for the pre-adapter flat
- * layout (callers fall back to their own `dist/`-rooted handling).
+ * `routes`]) when the adapter is active, or `null` when the adapter isn't
+ * active (callers fall back to their own `dist/`-rooted handling).
  */
 export async function writeAdapterAwareArtifacts(opts: {
   distDir: string;
@@ -955,20 +949,20 @@ export async function runDeploy(
   const project = await r.project(opts.projectId);
 
   const distDir = join(ROOT, "dist");
-  // Hybrid-mode detection: @run402/astro@1.0.4+'s SSR adapter writes
+  // Hybrid-mode detection: the @run402/astro SSR adapter writes
   // `dist/run402/adapter.json` and reorganizes the build into
   // `dist/run402/client/` (prerendered HTML) + `dist/run402/server/`
   // (SSR entry, esbuild-bundled into a single `source` string by
-  // 1.2.0+'s `buildAstroReleaseSlice`). When the manifest is present
-  // we delegate site/routes/SSR-function assembly to the helper;
-  // without it the pre-1.0.4 flat-dist layout is unchanged.
+  // `buildAstroReleaseSlice`). When the manifest is present we delegate
+  // site/routes/SSR-function assembly to the helper; without it the
+  // flat-dist layout is unchanged.
   const adapterManifestPath = join(distDir, "run402", "adapter.json");
   const adapterActive = existsSync(adapterManifestPath);
   const clientDir = adapterActive ? join(distDir, "run402", "client") : distDir;
 
   const deploySeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
   // With the adapter, `[customPage].astro`'s `getStaticPaths` already
-  // produces per-slug HTML under `dist/run402/client/`. The legacy
+  // produces per-slug HTML under `dist/run402/client/`, so the
   // `materializeCustomPageStaticFiles` copy step is unnecessary; we
   // still need the slug list for downstream logging.
   const materializedCustomPages = adapterActive
@@ -1072,11 +1066,10 @@ export async function runDeploy(
   // auth: the host-only `__Host-Http-r402_session` cookie only travels to the
   // tenant origin, and the gateway only attaches the verified actor envelope
   // (which `auth.user()` reads) when the function is invoked same-origin on the
-  // tenant host. Proven end-to-end on eagles (signed cookie → envelope →
-  // auth.user() resolves the actor). Prepended before the adapter's SSR `/*`
-  // catchall — the gateway resolves explicit routes ahead of the catchall.
-  // Additive/safe alongside the legacy cross-origin Bearer path during the
-  // client migration; both hit the same function with the same per-op checks.
+  // tenant host. Prepended before the adapter's SSR `/*` catchall — the
+  // gateway resolves explicit routes ahead of the catchall. Additive
+  // alongside the cross-origin Bearer path; both hit the same function
+  // with the same per-op checks.
   // If the Astro slice omits `routes`, base-release routes carry forward.
   // Default to [] so we still prepend /api/kychon.
   // `extraRoutes` is only meaningful when an adapter slice supplies a routes
@@ -1269,8 +1262,7 @@ export async function runDeploy(
   // validateI18nSpec (client) and the gateway validator accepted the
   // input, but only the inventory readback proves the slice landed with
   // the values we sent (no silent coercion, no carry-forward surprise).
-  // Implements the "verification readback rule" from
-  // kychee-com/run402#395-c4505724756.
+  // Implements the "verification readback rule".
   //
   // Best-effort. Three failure modes worth distinguishing:
   //   1. Inventory fetch throws → log a `<fetch failed>` note, don't
@@ -1364,10 +1356,10 @@ export async function patchDeploy(
 
   const project = await r.project(opts.projectId);
   const distDir = join(ROOT, "dist");
-  // Mirror runDeploy's adapter detection: when @run402/astro@1.0.4+'s SSR
+  // Mirror runDeploy's adapter detection: when the @run402/astro SSR
   // adapter is active, `[customPage].astro`'s `getStaticPaths` writes
-  // per-slug HTML directly under `dist/run402/client/` and `dist/page.html`
-  // no longer exists. Skip `materializeCustomPageStaticFiles` (which would
+  // per-slug HTML directly under `dist/run402/client/`, so `dist/page.html`
+  // does not exist. Skip `materializeCustomPageStaticFiles` (which would
   // otherwise throw on the missing shell) and synthesize the same slug list
   // from the seed — downstream code only needs the `{slug, file}` shape.
   const adapterActive = existsSync(join(distDir, "run402", "adapter.json"));
@@ -1393,11 +1385,11 @@ export async function patchDeploy(
   const releaseManifest = buildEngineReleaseManifest(releaseManifestOptions);
 
   // Adapter-aware artifacts (env.js, _headers, engine manifest into clientDir)
-  // + the @run402/astro release slice — SHARED with runDeploy. Writing these to
-  // dist/ and hand-rolling explicit public_paths off a flat dist/ walk (so they
-  // matched zero run402/client/-prefixed pages), plus never deploying the SSR
-  // renderer function, was the run402#411 site-wide 404. The SSR function is
-  // merged into the deployed set below.
+  // + the @run402/astro release slice — SHARED with runDeploy. Writing these
+  // to dist/ and hand-rolling explicit public_paths off a flat dist/ walk
+  // matches zero run402/client/-prefixed pages; skipping the SSR renderer
+  // function deploy 404s the whole site. The SSR function is merged into the
+  // deployed set below.
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
   if (opts.extraFunction) collectOpts.extraFunction = opts.extraFunction;
@@ -1431,9 +1423,9 @@ export async function patchDeploy(
   // Site spec. With the SSR adapter active, the served site is the slice's
   // client-rooted LocalDirRef + implicit public_paths; the CAS substrate
   // dedupes unchanged bytes on apply, so a slice `replace` only uploads what
-  // changed — the hand-rolled patch diff is unnecessary (and was wrong under
-  // the adapter: it's what 404'd the site). The flat-dist patch/replace path is
-  // retained for the pre-adapter layout. Either way: no subdomains, no routes.
+  // changed — a hand-rolled patch diff against the adapter's client-rooted
+  // layout 404s the site. The flat-dist patch/replace path applies only when
+  // the adapter isn't active. Either way: no subdomains, no routes.
   let siteSpec: KychonReleaseSpec["site"];
   let siteChanged = -1;
   let siteSkipped = 0;
@@ -1491,9 +1483,9 @@ export async function patchDeploy(
 
   // The i18n slice is INTENTIONALLY omitted in patchDeploy. The Run402 SDK's
   // `assertCiDeployableSpec` (CI OIDC sessions) rejects spec.i18n the same way
-  // it rejects subdomains/routes — `forbidden_spec_field` / `resource: 'i18n'`
-  // (kychee-com/run402#395 follow-up). Matches the existing patchDeploy
-  // contract: "content-only, no infrastructure scope." Carry-forward semantics
+  // it rejects subdomains/routes — `forbidden_spec_field` / `resource: 'i18n'`.
+  // Matches the existing patchDeploy contract: "content-only, no
+  // infrastructure scope." Carry-forward semantics
   // (omit → inherit from base release) mean that once a local runDeploy sets
   // the slice via `bash deploy-all.sh`, every subsequent CI patchDeploy
   // preserves it unchanged.

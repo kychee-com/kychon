@@ -1,12 +1,12 @@
-// Source-path alias resolution for copied websites (kychon#128). The porter
-// seeds a `path_aliases` site_config map (source path -> port route); the
+// Source-path alias resolution for copied websites. The porter seeds a
+// `path_aliases` site_config map (source path -> port route); the
 // `[...alias].astro` catch-all resolves it per request and 301s.
 //
 // Inbound links and the concierge parity harness hit source paths in their
 // ORIGINAL casing (e.g. `/event-6730883/JoinWaitlist`, `/Tournament-Standings`)
-// while the seeded keys are often lowercased slug routes. A case-sensitive exact
-// lookup therefore 404'd those paths even though an alias existed (kychon#152).
-// Resolve case-insensitively after an exact try, and keep the same-site
+// while the seeded keys are often lowercased slug routes. A case-sensitive
+// exact lookup would 404 those paths even though an alias exists. Resolve
+// case-insensitively after an exact try, and keep the same-site
 // relative-target guard so a mis-seeded map can never become an open redirect.
 
 /** Trailing-slash-normalized request path; empty collapses to root. */
@@ -42,8 +42,7 @@ export function resolvePathAlias(aliases: unknown, pathname: string): string | n
     // target equal to the request path — e.g. the lowercase slug
     // `/tournament-standings` falling through to here matches the seeded cased
     // alias `/Tournament-Standings` → `/tournament-standings` — which 301-loops
-    // when that slug's own route is missing. Treat self-targets as no-match
-    // (kychon#152 follow-up).
+    // when that slug's own route is missing. Treat self-targets as no-match.
     if (normalizeAliasPath(target) === path) {
       return null;
     }

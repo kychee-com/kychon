@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The hero background moves with scroll on pointer devices, and is disabled for touch and reduced-motion visitors.
+
+## Requirements
 
 ### Requirement: Hero background parallax on scroll
 

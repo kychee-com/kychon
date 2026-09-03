@@ -257,8 +257,8 @@ describe('Capability API mutation handlers', () => {
       ctx,
     );
     await executeCapabilityMutation('assets.upload', { file: { name: 'logo.png' }, path: 'logo.png' }, ctx);
-    // exports.* is not wired — it now returns an honest notImplemented error
-    // instead of a fake success / retryable internal.error. (#110)
+    // exports.* is not wired — it returns an honest notImplemented error
+    // instead of a fake success / retryable internal.error.
     await expect(executeCapabilityMutation('exports.membersCsv', { format: 'csv' }, ctx)).rejects.toMatchObject({
       code: 'api.notImplemented',
     });

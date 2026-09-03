@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The marketing site's core page set — landing, positioning, AI showcase, pricing, niche cards, CTA, and niche landing pages — is responsive.
+
+## Requirements
 
 ### Requirement: Landing page hero section
 

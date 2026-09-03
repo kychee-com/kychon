@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The marketing site is deployed from a sibling repository, and this repo documents that boundary.
+
+## Requirements
 
 ### Requirement: Marketing site is a cross-repo dependency
 
@@ -12,12 +16,3 @@ The marketing site at `kychon.com` SHALL be deployed from the sibling private re
 - **WHEN** a contributor wants to change the marketing site (copy, layout, deploy config, domain settings)
 - **THEN** they SHALL find a clear pointer in this repo's docs (e.g., `CLAUDE.md` or a top-level note) directing them to `kychee-com/kychon-private`
 
-<!--
-Historical note (2026-04-25, openspec/changes/archive/2026-04-25-fix-stale-specs/):
-This spec previously prescribed implementation details for a `marketing/deploy-marketing.js`
-script that lived in this repo. Per saas-factory F12, the marketing site moved to the sibling
-`kychee-com/kychon-private` repo. The four prior requirements (Dedicated Run402 project,
-Static-only deployment, Subdomain and domain configuration, Deploy script) were replaced by
-the single cross-repo-dependency requirement above. See the archived change for the full
-delta with reasons + migration notes.
--->

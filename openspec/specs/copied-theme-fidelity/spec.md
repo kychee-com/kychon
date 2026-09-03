@@ -1,8 +1,11 @@
 # copied-theme-fidelity Specification
 
 ## Purpose
-TBD - created by archiving change add-copied-theme-fidelity-blocks. Update Purpose after archive.
+
+Recurring patterns from a copied source site are reproduced through structured `sections.config` and `site_config.theme` fields — typed blocks and tokens — rather than opaque custom HTML, CSS, or JS.
+
 ## Requirements
+
 ### Requirement: Copied-site fidelity uses structured blocks and configs
 
 When a copied site requires a recurring source-site pattern covered by this capability, Kychon SHALL represent that pattern using structured `sections.config` and `site_config.theme` fields rather than opaque custom HTML/CSS/JS. The covered patterns SHALL include source-imported nav behavior, source hover/focus states, image accordions, SVG wave/shape dividers, rich carousel behavior, association homepage panel grids, restaurant/bar menus, Wild Apricot-style utility header clusters, member login surfaces, and wordmark/favicon branding.

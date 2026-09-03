@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Members react to announcements with emoji, with live counts, behind a feature flag.
+
+## Requirements
 
 ### Requirement: Members can react to announcements with emoji
 

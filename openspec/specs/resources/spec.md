@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+The resource library holds uploaded files organized by category, with download access control and admin management.
+
+## Requirements
 
 ### Requirement: Resource File Upload
 

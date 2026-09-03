@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+`jsconfig.json` enables editor and CLI type checking over annotated core modules.
+
+## Requirements
 
 ### Requirement: jsconfig.json enables type checking
 

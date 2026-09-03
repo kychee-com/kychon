@@ -1,7 +1,7 @@
 // config.ts — Loads site_config, injects theme, manages feature flags.
-// composable-layout: nav and sign-in rendering moved to block renderers
-// (src/lib/blocks.ts) and per-block hydrators (src/lib/block-hydrators.ts).
-// This module no longer touches #nav-links / #nav-user.
+// Nav and sign-in rendering live in block renderers (src/lib/blocks.ts) and
+// per-block hydrators (src/lib/block-hydrators.ts); this module never
+// touches #nav-links / #nav-user.
 
 import { get, patch } from './api.js';
 import { clearActor, loadActor, memberViewFromActor, setSessionMember } from './auth.js';
@@ -564,9 +564,9 @@ export async function init(): Promise<Record<string, any>> {
     applyBranding(siteConfig);
     applyCustomCss(siteConfig.custom_css);
 
-    // admin-content-management: prefer `languages_enabled` (runtime-mutable
-    // via the admin AddLanguage dialog); fall back to legacy `languages` for
-    // pre-change portals that haven't yet had the migration row added.
+    // Prefer `languages_enabled` (runtime-mutable via the admin AddLanguage
+    // dialog); fall back to the legacy `languages` value for portals that
+    // have no `languages_enabled` row yet.
     const enabledLocales = siteConfig.languages_enabled || siteConfig.languages;
     if (enabledLocales) setAvailableLocales(enabledLocales);
     await loadLocale(null, siteConfig.default_language);
@@ -603,9 +603,9 @@ export async function init(): Promise<Record<string, any>> {
     applyBranding(siteConfig);
     applyCustomCss(siteConfig.custom_css);
 
-    // admin-content-management: prefer `languages_enabled` (runtime-mutable
-    // via the admin AddLanguage dialog); fall back to legacy `languages` for
-    // pre-change portals that haven't yet had the migration row added.
+    // Prefer `languages_enabled` (runtime-mutable via the admin AddLanguage
+    // dialog); fall back to the legacy `languages` value for portals that
+    // have no `languages_enabled` row yet.
     const enabledLocales = siteConfig.languages_enabled || siteConfig.languages;
     if (enabledLocales) setAvailableLocales(enabledLocales);
     await loadLocale(null, siteConfig.default_language);

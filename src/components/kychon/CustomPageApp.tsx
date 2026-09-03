@@ -30,7 +30,7 @@ function PageSkeleton() {
 
 interface CustomPageAppProps {
   /**
-   * Build-time page row baked by `[customPage].astro` (kychon#126). When
+   * Build-time page row baked by `[customPage].astro`. When
    * present, the island server-renders the real title + content instead of
    * the loading skeleton, so the served HTML carries the page body; the
    * client then refreshes silently from the live DB (auth, translations,

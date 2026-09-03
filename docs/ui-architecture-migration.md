@@ -1,6 +1,6 @@
-# UI Architecture Migration Guardrails
+# UI Architecture Guardrails
 
-This document is the baseline control surface for the staged Astro + Tailwind v4 + shadcn/ui + React-islands migration.
+This document is the control surface for Kychon's Astro + Tailwind v4 + shadcn/ui + React-islands architecture.
 
 ## Route Inventory
 
@@ -10,12 +10,12 @@ This document is the baseline control surface for the staged Astro + Tailwind v4
 | `events` | `/events` | Public | Dynamic event list surface with public content and auth-aware actions. |
 | `resources` | `/resources` | Public | Public/member-gated resource browser. |
 | `forum` | `/forum` | Public | Public forum shell with auth/admin-aware behavior. |
-| `admin-settings` | `/admin-settings` | Admin | Current high-ROI settings page for React-island migration. |
+| `admin-settings` | `/admin-settings` | Admin | Admin settings page, mounted as a React island. |
 | `baked-chrome-page` | `/page.html?slug=showcase` | Public | Representative baked-chrome/content page for visual regression. |
 
 ## Baseline Commands
 
-Run these before and after each migration slice:
+Run these before and after any UI change:
 
 ```bash
 npm run check
@@ -24,7 +24,7 @@ npm run build
 
 `npm run check` includes the UI architecture guard so import, DOM, primitive-class, visible-control, and owned-CSS regressions fail in the standard verification path.
 
-Additional migration guardrails:
+Additional guardrails:
 
 ```bash
 npm run ui:architecture-check
@@ -74,33 +74,30 @@ npm run ui:bundle-report
 npm run ui:bundle-report -- --out docs/ui-bundle-baseline.json
 ```
 
-Public pages and admin pages must be reviewed separately. Anonymous public pages should not ship React by default unless that cost is explicitly accepted for the phase.
+Public pages and admin pages must be reviewed separately. Anonymous public pages must not ship React by default unless that cost is explicitly accepted.
 
-AuthModal migration measurement:
+AuthModal budget:
 
-- The Astro launcher ships as a small public script (`AuthModal.astro` built to 754 bytes uncompressed in the current bundle report).
-- A Playwright smoke against preview confirmed no `AuthModalIsland` or React client chunk is requested before the `kychon:auth-open` event.
-- On first auth open, the browser loads the lazy React island chunk (`AuthModalIsland`, 4.2 KB uncompressed in the latest split) and the shared React/Radix runtime chunk.
-- The selected hydration path is lazy-on-first-open so anonymous public pages keep React auth code off the initial route load.
+- The Astro launcher ships as a small public script (`AuthModal.astro`, ~754 bytes uncompressed).
+- No `AuthModalIsland` or React client chunk is requested before the `kychon:auth-open` event.
+- On first auth open the browser loads the lazy React island chunk (`AuthModalIsland`, ~4.2 KB uncompressed) plus the shared React/Radix runtime chunk. Hydration is lazy-on-first-open so anonymous public pages keep React auth code off the initial route load.
 
-Toast migration measurement:
+Toast budget:
 
-- `Toast.astro` now ships only the Kychon event launcher and legacy compatibility shim for `window.__wl_showToast`.
-- A Playwright smoke against preview confirmed no `ToastIsland` or Sonner chunk is requested before the `kychon:toast` event.
-- On first toast, the browser loads the lazy React island chunk (`ToastIsland`, 34 KB uncompressed) and the shared React runtime/Sonner chunks.
-- The toast root is persisted across Astro navigation; the smoke verified one Sonner toaster before navigation and one after navigating to `/events.html`.
+- `Toast.astro` ships only the Kychon event launcher and the compatibility shim for `window.__wl_showToast`.
+- No `ToastIsland` or Sonner chunk is requested before the `kychon:toast` event.
+- On first toast the browser loads the lazy React island chunk (`ToastIsland`, ~34 KB uncompressed) plus the shared React runtime/Sonner chunks.
+- The toast root persists across Astro navigation: exactly one Sonner toaster before and after navigation.
 
-Admin settings migration measurement:
+Admin settings budget:
 
-- `/admin-settings.html` now mounts `AdminSettingsApp` with `client:load`; the public route inventory still keeps admin settings measured separately from anonymous public pages.
-- The current admin settings island chunk is 23 KB uncompressed, plus the shared React/Radix runtime chunks already introduced by the admin/auth/toast slices.
-- A mocked Playwright smoke verified admin access reveal, config population, tier dialog focus and Escape behavior, custom-field dialog focus, native select/checkbox keyboard behavior, save-through-API behavior, and remount after navigation.
+- `/admin-settings.html` mounts `AdminSettingsApp` with `client:load`; the route inventory keeps admin settings measured separately from anonymous public pages.
+- The admin settings island chunk is ~23 KB uncompressed, plus the shared React/Radix runtime chunks.
 
-AdminEditor control migration measurement:
+AdminEditor controls budget:
 
-- The first migrated editor slice is the per-block settings control for width, scope, remove, and links into type-specific hero/source settings.
-- The current `AdminEditorControlsIsland` chunk is 6.2 KB uncompressed and is loaded dynamically only after `AdminEditor.astro` confirms an admin session.
-- A Playwright smoke verified anonymous public pages do not request `AdminEditorControlsIsland`, while an admin session can open the block settings dialog, save width through `PATCH sections?id=eq...`, mirror `data-column-span` in the rendered block, close with Escape, and reopen exactly once after navigation.
+- `AdminEditorControlsIsland` covers the per-block settings control for width, scope, remove, and links into type-specific hero/source settings.
+- The chunk is ~6.2 KB uncompressed and loads dynamically only after `AdminEditor.astro` confirms an admin session. Anonymous public pages never request it.
 
 ## CSS Collision Policy
 
@@ -111,37 +108,37 @@ npm run ui:css-collisions
 npm run ui:css-collisions -- --out docs/ui-css-collision-report.md
 ```
 
-Legacy classes that collide with Tailwind or the component system are split into three buckets:
+Classes that collide with Tailwind or the component system fall into three buckets:
 
-- `.container` is retired as a Kychon chrome/layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout.
-- `.btn`, `.card`, `.badge`, `.form-input`, `.form-select`, and `.form-textarea` are retired Kychon public component classes; use shadcn/Kychon UI components and semantic `data-*` hooks for automation/readiness selectors.
-- `.hidden`, `.flex`, `.flex-col`, `.gap-1`, `.mt-1`, `.mt-2`, `.mb-1`, `.mb-2`, `.items-center`, `.justify-between`, `.text-sm`, and `.text-center` are legacy utility collisions that should be renamed, deleted, or quarantined before broad unprefixed Tailwind usage.
+- `.container` is not a Kychon chrome/layout class; use Tailwind layout utilities with `data-layout-container` for Kychon chrome/block layout.
+- `.btn`, `.card`, `.badge`, `.form-input`, `.form-select`, and `.form-textarea` are not Kychon public component classes; use shadcn/Kychon UI components and semantic `data-*` hooks for automation/readiness selectors.
+- `.hidden`, `.flex`, `.flex-col`, `.gap-1`, `.mt-1`, `.mt-2`, `.mb-1`, `.mb-2`, `.items-center`, `.justify-between`, `.text-sm`, and `.text-center` are utility collisions that must be renamed, deleted, or quarantined before broad unprefixed Tailwind usage.
 
-New UI code should not add fresh usages of those legacy utilities unless the code is explicitly working inside the compatibility layer.
+New UI code must not add fresh usages of those colliding utilities unless the code is explicitly working inside the compatibility layer.
 
 Tailwind/public CSS ownership:
 
-- `src/styles/globals.css` imports Tailwind theme, Kychon's token bridge, bundled chrome CSS (`theme.css`, `zone-grid.css`, `a11y.css`), Kychon's owned public CSS, and Tailwind utilities. Preflight is still not imported, so DB-rendered prose and copied block HTML keep the current reset assumptions.
-- `src/styles/public.css` replaced the old static `/css/styles.css` file. Public layout/block styles are now bundled through Astro/Vite next to Tailwind instead of loaded as a separate legacy stylesheet.
-- Tailwind-generated utility rules remain in the `utilities` cascade layer after Kychon's public CSS, so feature code can use unprefixed Tailwind utilities without an old utility layer winning by accident.
-- Kychon layout uses Tailwind utilities with `data-layout-container`; `.container` is no longer a Kychon class. Muted public/static markup now uses Tailwind/shadcn semantic text utilities instead of a Kychon helper class.
+- `src/styles/globals.css` imports Tailwind theme, Kychon's token bridge, bundled chrome CSS (`theme.css`, `zone-grid.css`, `a11y.css`), Kychon's owned public CSS, and Tailwind utilities. Preflight is deliberately not imported, so DB-rendered prose and copied block HTML keep Kychon's reset assumptions.
+- `src/styles/public.css` carries the public layout/block styles, bundled through Astro/Vite next to Tailwind rather than loaded as a separate stylesheet.
+- Tailwind-generated utility rules sit in the `utilities` cascade layer after Kychon's public CSS, so feature code can use unprefixed Tailwind utilities without another utility layer winning by accident.
+- Kychon layout uses Tailwind utilities with `data-layout-container`, and muted public/static markup uses Tailwind/shadcn semantic text utilities rather than a Kychon helper class.
 - Remaining static `public/css/*.css` files are lazy admin/block adjuncts plus compatibility copies for local tooling; portal chrome CSS is bundled from `src/styles/` and should not be linked from shared HTML.
 
 Public CSS token bridge:
 
-- `src/styles/theme.css` now defines `--ky-*` runtime tokens first, maps shadcn/Tailwind semantic tokens from them, then exposes the old `--color-*` aliases as compatibility shims. The public copy is retained only for compatibility tooling.
-- Public blocks remain Astro/static, but shared public classes such as `.feature-card` now read semantic tokens where practical; `.btn`, `.card`, `.form-input`, and `.badge` have moved to shadcn/Kychon UI components, while nav, hero, section visibility, footer chrome, and screenshot readiness hooks use semantic `data-*` hooks.
+- `src/styles/theme.css` defines `--ky-*` runtime tokens first, maps shadcn/Tailwind semantic tokens from them, then exposes `--color-*` aliases as compatibility shims. The copy under `public/css/` exists only for compatibility tooling.
+- Public blocks are Astro/static, and shared public classes such as `.feature-card` read semantic tokens where practical. Buttons, cards, form inputs, and badges are shadcn/Kychon UI components; nav, hero, section visibility, footer chrome, and screenshot readiness hooks use semantic `data-*` hooks.
 - Demo seeds and copied-site themes should set runtime values through `site_config.theme`, not dynamic Tailwind classes or one-off generated CSS utility names.
 
 ## Browser Support Floor
 
-The migration targets the modern-browser floor required by Tailwind v4 and the CSS already used by Kychon:
+Kychon targets the modern-browser floor required by Tailwind v4 and the CSS it uses:
 
 - Chrome 111+
 - Safari 16.4+
 - Firefox 128+
 
-Older browser support requires an explicit product exception before Tailwind v4 becomes a hard requirement for customer-facing pages.
+Older browser support requires an explicit product exception.
 
 ## Primitive And Dynamic Class Guard
 
@@ -151,10 +148,10 @@ Older browser support requires an explicit product exception before Tailwind v4 
 - Feature code must import Kychon React UI through `@/components/kychon/ui`, not directly from `@/components/ui/*`. The `src/components/ui/*` files stay product-owned shadcn source, while `src/components/kychon/ui.ts` is the app-facing facade.
 - Product source must not hand-build DOM with APIs such as `document.createElement`, `innerHTML =`, `appendChild`, or `classList`; use React islands, Astro markup, or owned DOM-fragment helpers.
 - Feature TSX/Astro must render visible controls through Kychon/shadcn components; raw native controls are reserved for non-visible plumbing such as hidden inputs and hidden file pickers.
-- Product source must not use exact retired Kychon primitive class tokens such as `.container`, `.text-muted`, `.btn`, `.card`, `.badge`, `.toast`, or old form primitive classes, and CSS must not define them.
+- Product source must not use the banned Kychon primitive class tokens `.container`, `.text-muted`, `.btn`, `.card`, `.badge`, `.toast`, or the form primitive classes, and CSS must not define them.
 - Owned CSS in `src/styles/` and `public/css/` must not define custom class selectors; use semantic `data-*` selectors, element selectors, and Tailwind utility classes from markup instead.
-- Owned source under `public/` is scanned for the same architecture regressions as `src`, so public JS cannot reintroduce hand-built DOM or legacy UI helpers.
-- Tests must not reintroduce hand-built DOM fixtures; use `tests/helpers/dom-fixture.js` for parsed fixture markup, while negative source assertions may still assert that product code omits old DOM APIs.
+- Owned source under `public/` is scanned for the same architecture regressions as `src`, so public JS cannot introduce hand-built DOM or banned UI helpers.
+- Tests must not use hand-built DOM fixtures; use `tests/helpers/dom-fixture.js` for parsed fixture markup. Negative source assertions may still assert that product code omits the banned DOM APIs.
 - Runtime values must not construct Tailwind utility names such as ``bg-${tenantColor}-500``. Use CSS variables, data attributes, static variant maps, or a finite safelist.
 
 Base UI exception rule:
@@ -168,10 +165,3 @@ shadcn initialization note:
 - `components.json` is intentionally checked in because `shadcn@4.7.0 init --template astro --base radix` detects Astro and Tailwind v4 but rejects Kychon's split Tailwind import as missing conventional Tailwind configuration.
 - All shadcn components are available to Kychon as copy-owned source, but feature and deployment code must treat them as Kychon components: add missing components under `src/components/ui/*`, adapt tokens as needed, re-export through `@/components/kychon/ui` or a wrapper, then import the Kychon export.
 - The generated component style is `new-york`; Kychon tokens in `src/styles/tokens.css` own the visual theme.
-
-## Rollback Notes
-
-- Tailwind foundation: remove the global Tailwind import, Vite/PostCSS integration, and token bridge import.
-- React/shadcn foundation: remove the Astro React integration and any unused UI components.
-- AuthModal and toast: keep the old Astro components available until focus, auth, navigation, and bundle checks pass.
-- Admin settings and AdminEditor: migrate behind islands in slices so public block rendering can remain static and unaffected by rollback.

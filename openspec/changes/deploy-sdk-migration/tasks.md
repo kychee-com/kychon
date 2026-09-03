@@ -25,7 +25,7 @@
 - [x] 3.4 Subsequent batches: `for (const slice of slices.slice(1)) await r.sites.deploy(projectId, { files: slice, inherit: true })`
 - [x] 3.5 Preserve the `EXCLUDE_FUNCTIONS` env var semantics used by demo deploys
 - [x] 3.6 Preserve the `SEED_FILE` env var semantics used by demo deploys
-- [x] 3.7 Verify against a scratch project that N+1 HTTP calls land the same deployment state today's N+1 `run402 deploy` calls produce — *Verified via eagles deploy (35s, was 122s with old script — 3.5× faster) and barrio deploy (24s)*
+- [x] 3.7 Verify against a scratch project that N+1 HTTP calls land the same deployment state today's N+1 `run402 deploy` calls produce — *Verified via eagles deploy (35s) and barrio deploy (24s)*
 
 ## 4. Update bash wrappers
 
@@ -63,7 +63,7 @@
 ## 8. Follow-up captures (not in this change)
 
 - [x] 8.1 File an issue (or propose a separate OpenSpec change) to archive or rewrite `openspec/specs/marketing-deploy/spec.md` since the script now lives in `kychon-private` — kychee-com/kychon#6
-- [x] 8.2 File an issue to investigate yesterday's `run402 functions deploy reset-demo` HTTP 401 error — blocked on cron reset silently dying — kychee-com/kychon#7
+- [x] 8.2 File an issue to investigate the `run402 functions deploy reset-demo` HTTP 401 error — blocked on cron reset silently dying — kychee-com/kychon#7
 - [x] 8.3 File an issue to load-test a single-shot `apps.bundleDeploy` against ~68MB of real production data; goal is removing the batching loop (supersedes the "batching preserved" spec requirement) — kychee-com/kychon#8
 - [ ] 8.4 Bring up cross-repo migration for `kychon-private/marketing/deploy-marketing.js` with private-repo maintainers **— USER ACTION (cross-team coordination)**
 - [x] 8.5 File an issue to update `openspec/specs/ci-pipeline/spec.md`'s "CI uses Node 20" requirement to "Node 22" to match actual workflow (discovered while writing this change, out of scope) — kychee-com/kychon#9

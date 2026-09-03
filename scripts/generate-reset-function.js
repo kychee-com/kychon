@@ -12,8 +12,8 @@ if (!seedPath) {
 
 // Optional per-demo cron schedule. The three demos are staggered across the
 // hour (see scripts/deploy-demo.ts) so their hourly resets don't all fire at
-// :00 and stack on the shared Aurora writer (run402-private#494). Defaults to
-// top-of-hour for standalone / manual regeneration.
+// :00 and stack on the shared Aurora writer. Defaults to top-of-hour for
+// standalone / manual regeneration.
 const schedule = process.argv[3] || '0 * * * *';
 
 const seedSQL = readFileSync(seedPath, 'utf-8');
@@ -46,13 +46,13 @@ export default async (_req) => {
 
   // 2. Wipe mutable content tables in ONE multi-table TRUNCATE — one
   //    statement / one transaction / one admin-SQL round-trip instead of 18
-  //    separate calls. (TRUNCATE doesn't change the schema and doesn't fire
+  //    separate calls. TRUNCATE doesn't change the schema and doesn't fire
   //    ddl_command_end, so it triggers no PostgREST reload either way — the
-  //    win is fewer round-trips + one lock-set acquisition. The real
-  //    run402-private#494 fix is staggering the three demos' reset crons so
-  //    they don't all run at once; see the schedule directive at the top.)
-  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES preserve the prior
-  //    semantics (multi-table TRUNCATE is order-independent anyway).
+  //    win is fewer round-trips + one lock-set acquisition. Staggering the
+  //    three demos' reset crons (see the schedule directive at the top) is
+  //    what keeps them from all running at once.
+  //    CASCADE + the FK-safe ordering of MUTABLE_TABLES keep the semantics
+  //    order-independent.
   await adminDb().sql(\`TRUNCATE \${MUTABLE_TABLES.join(', ')} CASCADE\`);
 
   // 3. Delete non-demo members (keep demo accounts by user_id)

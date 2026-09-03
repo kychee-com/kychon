@@ -53,9 +53,6 @@ The system SHALL use `fast-check` property-based tests to verify that random com
 - **WHEN** `npm test` is run and coverage on `src/lib/` or `src/schemas/` is below 85%
 - **THEN** the test run fails with a coverage error
 
-<!-- Phase 2 additions -->
-<!-- Phase 2 additions -->
-
 ### Requirement: Tests for events module
 
 The test suite SHALL include unit tests for event RSVP logic and integration tests for event listing rendering, RSVP button state, and capacity display.
@@ -90,7 +87,7 @@ The test coverage threshold SHALL remain at 85% on `src/lib/**` and `src/schemas
 
 ### Requirement: Test file paths match Astro project structure
 
-All tests SHALL import from Astro project paths such as `src/lib/` and `src/schemas/` instead of retired `site/js/` paths. Test organization SHOULD mirror the source structure across `tests/unit/`, `tests/integration/`, and `tests/fixtures/`.
+All tests SHALL import from Astro project paths such as `src/lib/` and `src/schemas/`. Test organization SHOULD mirror the source structure across `tests/unit/`, `tests/integration/`, and `tests/fixtures/`.
 
 #### Scenario: Tests pass after Astro migration
 - **WHEN** `npm run test` executes

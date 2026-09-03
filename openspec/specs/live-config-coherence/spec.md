@@ -1,8 +1,11 @@
 # live-config-coherence Specification
 
 ## Purpose
-TBD - created by archiving change live-config-coherence. Update Purpose after archive.
+
+The build-time seed is a first-paint cache, never the authority: every `site_config` field declared runtime-editable is re-read from the live project database and re-applied on each page load, so a live edit never needs a redeploy.
+
 ## Requirements
+
 ### Requirement: Live-editable config fields reconcile at runtime
 
 The build-time seed/snapshot SHALL be treated as a first-paint cache only, never as the authority for any `site_config` field declared live-editable. Every `site_config` field whose declared apply-mode is `runtime` SHALL be re-read from the live project database and re-applied to the rendered page on each page load (and on the `wl-config-changed` revalidate), with no rebuild or re-deploy required.

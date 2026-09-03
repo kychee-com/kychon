@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+A weekly newsletter draft is generated for admin review and send, behind a feature flag.
+
+## Requirements
 
 ### Requirement: Weekly newsletter draft generation
 

@@ -71,7 +71,7 @@ function EventImage({ event }: { event: Event }) {
 
   // Manifest hit → `<Run402Image>` (variant ladder + v1.54 pre-decoded
   // placeholder); miss → plain `<img>` against the original URL (admin
-  // uploads not yet covered by the build-time assetsDir walk).
+  // uploads, which the build-time assetsDir walk never covers).
   //
   // Class/style split (per the rev-4 spec): `<Run402Image>` forwards
   // `className` to the outermost element (the `<picture>` wrapper) and

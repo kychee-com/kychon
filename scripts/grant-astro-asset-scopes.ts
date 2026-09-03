@@ -1,12 +1,11 @@
 /**
  * Grant `astro/*` asset_key_scopes to each demo's CI binding.
  *
- * Run402 v1.48+ gates `spec.assets` writes through CI sessions by a per-
- * binding `asset_key_scopes` allowlist (closed-by-default). The
- * @run402/astro@0.2 integration uploads under the `astro/` prefix, so each
- * CI binding needs that prefix granted before `astro build` in CI can call
- * `r.assets.put` without hitting `FORBIDDEN: This CI binding has no
- * asset_key_scopes`.
+ * Run402 gates `spec.assets` writes through CI sessions by a per-binding
+ * `asset_key_scopes` allowlist (closed-by-default). The @run402/astro
+ * integration uploads under the `astro/` prefix, so each CI binding needs
+ * that prefix granted before `astro build` in CI can call `r.assets.put`
+ * without hitting `FORBIDDEN: This CI binding has no asset_key_scopes`.
  *
  * This script is the SDK-side equivalent of the documented CLI command
  * `run402 ci set-asset-scopes <binding-id> 'astro/*'`, plus the lookup
@@ -15,9 +14,6 @@
  *
  * Run once locally with your allowance wallet configured:
  *   npx tsx --env-file=.env scripts/grant-astro-asset-scopes.ts
- *
- * Closes kychee-com/run402-private#406's CI-binding prerequisite for
- * Kychon's three demos (eagles, silver-pines, barrio-unido).
  */
 
 import { run402 } from "@run402/sdk/node";
@@ -55,8 +51,8 @@ async function main(): Promise<void> {
       console.log(`  Binding: ${binding.id} (subject: ${binding.subject_match})`);
       const updated = await r.ci.setAssetKeyScopes(binding.id, SCOPES);
       // `route_scopes` mirrors the asset scopes in the gateway's normalized
-      // form; if v1.48+ added a separate `asset_key_scopes` field we'd log
-      // that instead. Either shape confirms the grant landed.
+      // form; if the API returns a separate `asset_key_scopes` field we'd
+      // log that instead. Either shape confirms the grant landed.
       console.log(`    granted: ${JSON.stringify(SCOPES)}  (binding row updated)`);
       void updated;
     }

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+A homepage activity feed renders recent member actions across every feature, driven by the `activity_log` table and a config-driven section type.
+
+## Requirements
 
 ### Requirement: Activity feed section renders on homepage
 

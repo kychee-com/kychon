@@ -1,11 +1,11 @@
 ## Why
 
-The deploy scripts (`deploy.js`, `deploy-batched.js`, `demo/*/deploy.sh`, and the sibling `kychon-private/marketing/deploy-marketing.js`) shell out to the `run402` CLI via `execSync` + `JSON.parse` — a brittle contract that surfaces as silent-success exit codes, stderr regex parsing, and whole-manifest HTTP 400s mid-upload (e.g. yesterday's 90-minute eagles outage when a server-side RLS template rename flipped `public_read` to `public_read_authenticated_write`). The official typed `@run402/sdk@1.43.0` now covers every call site we use, including a Node-only `sites.deployDir()` helper and typed `PaymentRequired` / `ApiError` / `LocalError` errors.
+The deploy scripts (`deploy.js`, `deploy-batched.js`, `demo/*/deploy.sh`, and the sibling `kychon-private/marketing/deploy-marketing.js`) shell out to the `run402` CLI via `execSync` + `JSON.parse` — a brittle contract that surfaces as silent-success exit codes, stderr regex parsing, and whole-manifest HTTP 400s mid-upload that can leave a demo site serving 404s until a manual redeploy. The official typed `@run402/sdk@1.43.0` now covers every call site we use, including a Node-only `sites.deployDir()` helper and typed `PaymentRequired` / `ApiError` / `LocalError` errors.
 
 ## What Changes
 
 - **Port `deploy.js` + `deploy-batched.js` from JS + CLI shell-outs to TypeScript on `@run402/sdk/node`.** Use `r.apps.bundleDeploy()` for the full-stack path, `r.sites.deploy()` with `inherit: true` to preserve the outer batching loop until a single-shot 68MB upload is verified.
-- **Pin `@run402/sdk` at `=1.43.0`** as a `devDependency`. Version pin is exact (not `^`) because the SDK is <1 week old and has already shipped breaking minor bumps.
+- **Pin `@run402/sdk` at `=1.43.0`** as a `devDependency`. Version pin is exact (not `^`) because the SDK still ships breaking minor bumps.
 - **Execute TS scripts via `tsx`** (no separate build step — dev loop stays `node deploy.js` → `tsx deploy.ts`).
 - **Add CI smoke-test job** that runs `tsx deploy.ts --dry-run` against a scratch project on every push, guarding against SDK point-release surprises.
 - **Update demo bash wrappers** (`demo/{eagles,silver-pines,barrio-unido}/deploy.sh`) to call the ported TS entry point instead of `node deploy-batched.js`.
@@ -33,4 +33,4 @@ The deploy scripts (`deploy.js`, `deploy-batched.js`, `demo/*/deploy.sh`, and th
 - **CI**: new job `deploy-smoke-test` added to `.github/workflows/ci.yml`; requires a dedicated scratch Run402 project ID held as a GitHub secret.
 - **Specs**: `openspec/specs/deploy/spec.md`, `openspec/specs/marketing-deploy/spec.md`, and `openspec/specs/ci-pipeline/spec.md` get delta updates.
 - **Docs**: `CLAUDE.md` already documents the OpenSpec workflow; no doc changes required beyond referencing the SDK policy in the deploy section.
-- **External**: one open feature-request issue ([kychee-com/run402#113](https://github.com/kychee-com/run402/issues/113)) landed in SDK 1.43.0 and makes `r.projects.list()` argument-free on the Node entry — the ported code uses the new signature.
+- **External**: SDK 1.43.0 makes `r.projects.list()` argument-free on the Node entry — the ported code uses that signature.

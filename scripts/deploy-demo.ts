@@ -50,10 +50,10 @@ export interface DemoConfig {
   /**
    * Cron schedule for the hourly demo reset. Staggered across demos so the
    * three resets don't all run concurrently — each is a full DB wipe + reseed,
-   * and three at once at :00 piled onto the shared Aurora writer
-   * (run402-private#494). Passed verbatim to scripts/generate-reset-function.js
-   * and parsed back out of the emitted `// schedule: "..."` directive by
-   * scripts/_lib.ts at deploy time.
+   * and three at once at :00 pile onto the shared Aurora writer. Passed
+   * verbatim to scripts/generate-reset-function.js and parsed back out of
+   * the emitted `// schedule: "..."` directive by scripts/_lib.ts at deploy
+   * time.
    */
   resetSchedule: string;
 }

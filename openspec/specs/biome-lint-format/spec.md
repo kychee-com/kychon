@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Biome provides the project's single lint and format toolchain, configured at the root and runnable from npm scripts.
+
+## Requirements
 
 ### Requirement: Biome configuration exists
 

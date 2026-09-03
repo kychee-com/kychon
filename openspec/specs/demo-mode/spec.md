@@ -1,8 +1,11 @@
 # demo-mode Specification
 
 ## Purpose
-TBD - created by archiving change playable-demos. Update Purpose after archive.
+
+A portal in demo mode advertises itself: a banner showing the current role, one-click role switching, transparent credentials, and a countdown to the next reset.
+
 ## Requirements
+
 ### Requirement: Demo mode detection via site_config
 
 The system SHALL detect demo mode by reading the `demo_mode` key from `site_config`. When `demo_mode` is `true`, the system SHALL render the `DemoBanner` component above the navigation in `Portal.astro`. When `demo_mode` is absent or `false`, no demo UI SHALL be shown.

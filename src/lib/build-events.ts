@@ -2,7 +2,7 @@
  * Build-time events loader. Fetches events from the deployed gateway
  * during `astro build` (NOT at runtime) so the `events_list` block can
  * emit real `<EventCard>` HTML into the SSR document instead of the
- * empty `<div data-block-hydrate>` shell that today only fills in
+ * empty `<div data-block-hydrate>` shell that otherwise only fills in
  * post-hydration.
  *
  * **Build-time only.** Reads three env vars set by `scripts/_lib.ts:runDeploy`
@@ -22,8 +22,7 @@
  *
  * When any var is missing (local `astro dev`, CI builds without env
  * plumbing, etc.) the loader resolves to an empty array and the block
- * render falls back to the existing skeleton + client-fetch path. Same
- * behavior as before this module shipped.
+ * render falls back to the existing skeleton + client-fetch path.
  *
  * The cache is module-scoped and lasts the lifetime of the Astro build
  * process — Astro renders pages serially in one Node process, so a

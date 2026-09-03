@@ -1,5 +1,5 @@
-// port-patterns: the self-report coverage surface for the copy-website porter
-// (#124/#123/#99/#91). It maps each recurring copied-site source pattern to the
+// port-patterns: the self-report coverage surface for the copy-website porter.
+// It maps each recurring copied-site source pattern to the
 // Kychon block(s) that cover it, so the porter can tell — for any source pattern
 // — whether a first-class block exists or it must record a fallback in its copy
 // report. The mapping is grounded in BLOCK_TYPES: every referenced block must be

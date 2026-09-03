@@ -1,7 +1,7 @@
 /**
  * Manifest-aware image markup helpers.
  *
- * The @run402/astro@0.2 integration walks demo asset directories at build
+ * The @run402/astro integration walks demo asset directories at build
  * time, uploads each image to the Run402 assets slice (v1.49 encoder runs:
  * 3-width WebP ladder + HEIC display_jpeg + blurhash + intrinsic dims),
  * and writes the result to `dist/_assets-manifest.json`. This module
@@ -20,19 +20,17 @@
  * `<img>` with the original URL (admin-uploaded photos, runtime CMS data,
  * dev/preview builds without an assetsDir).
  *
- * Closes the consumer side of kychee-com/run402-private#406. The renderer
- * intentionally stays a pure function — manifest is plumbed through render
- * context (`BlockRenderContext.manifest`) or via explicit option fields,
- * never as a module-scope global, so SSR and CSR realms share one source
- * of truth without import-order surprises.
+ * The renderer intentionally stays a pure function — manifest is plumbed
+ * through render context (`BlockRenderContext.manifest`) or via explicit
+ * option fields, never as a module-scope global, so SSR and CSR realms
+ * share one source of truth without import-order surprises.
  */
 import { resolveVariants, type AssetManifest, type RenderPictureOptions } from '@run402/astro/manifest';
 import { decodeBlurhashToDataUri } from '@run402/astro/blurhash';
-// `AssetRef` from `@run402/astro` main entry now resolves to the broad
-// `@run402/functions` shape (visibility, immutable, content_digest, …) as of
-// @run402/astro@1.0.3 — `resolveVariants` still returns the narrower
-// manifest-pipeline shape that's now exported as
-// `Run402AstroManifestAssetRef`. We alias it locally to `AssetRef` so
+// `AssetRef` from `@run402/astro`'s main entry resolves to the broad
+// `@run402/functions` shape (visibility, immutable, content_digest, …);
+// `resolveVariants` returns the narrower manifest-pipeline shape, exported
+// as `Run402AstroManifestAssetRef`. We alias it locally to `AssetRef` so
 // every downstream import (`import { AssetRef } from '@/lib/kychon-image'`)
 // keeps seeing the narrow shape that `lookupAssetRef` actually returns.
 import type { Run402AstroManifestAssetRef as AssetRef, AssetVariant } from '@run402/astro';
@@ -183,10 +181,6 @@ function stripAssetsPrefix(url: string): string {
  * crashes builds with `R402_ASTRO_IMAGE_ASSET_WRONG_SHAPE` (no cdn_url
  * on top-level AssetRefs); normalize at the lookup boundary so every
  * downstream consumer sees the snake_case shape.
- *
- * Flagged for `@run402/astro` follow-up: the manifest should emit
- * consistent snake_case (matching variants + matching the `AssetRef`
- * type definition) so this normalization is moot.
  */
 export function lookupAssetRef(
   url: string | undefined | null,
@@ -400,10 +394,10 @@ export interface KychonImageHtmlOptions extends Omit<Partial<RenderPictureOption
  * same matrix (HEIC → display_jpeg, sub-320 → single `<img>`).
  */
 /**
- * admin-content-management Decision 8: detect AssetRef-shaped values stored
- * directly in block configs. When the field is an object with `cdn_url` and
- * `variants`, it IS the variant data — no manifest lookup needed. Strings
- * fall through to the legacy build-time manifest lookup.
+ * Detect AssetRef-shaped values stored directly in block configs. When the
+ * field is an object with `cdn_url` and `variants`, it IS the variant data —
+ * no manifest lookup needed. Strings fall through to the legacy build-time
+ * manifest lookup.
  */
 function isAssetRefShape(value: unknown): value is AssetRef {
   if (typeof value !== 'object' || value === null) return false;
@@ -498,11 +492,10 @@ function formatDimAttrs(width: number | undefined, height: number | undefined): 
 export interface KychonImageProps {
   /**
    * Source URL OR an embedded AssetRef from a JSONB section config.
-   * admin-content-management Decision 8: MediaPicker writes full AssetRef
-   * objects into block configs. When the value is shaped like an AssetRef
-   * (has `cdn_url` + `variants`), the renderer uses it directly without a
-   * manifest lookup. Plain string URLs still go through the build-time
-   * manifest path for legacy seeded configs.
+   * MediaPicker writes full AssetRef objects into block configs. When the
+   * value is shaped like an AssetRef (has `cdn_url` + `variants`), the
+   * renderer uses it directly without a manifest lookup. Plain string URLs
+   * go through the build-time manifest path for legacy seeded configs.
    */
   url: string | AssetRef | undefined | null;
   /** Required alt text. */
@@ -540,9 +533,8 @@ export interface KychonImageProps {
 export function KychonImage(props: KychonImageProps): React.ReactNode {
   const { url, alt, manifest, sizes, priority, loading, className, style, width, height, decoding, imgDataAttrs, fallback = null } = props;
   if (!url) return fallback;
-  // admin-content-management Decision 8: AssetRef-shaped fields are emitted
-  // directly without a manifest lookup; string URLs go through the legacy
-  // build-time manifest path.
+  // AssetRef-shaped fields are emitted directly without a manifest lookup;
+  // string URLs go through the legacy build-time manifest path.
   let ref: AssetRef | null;
   let resolvedUrl: string;
   if (isAssetRefShape(url)) {

@@ -129,8 +129,8 @@ async function oneResult(
 }
 
 // A `*.get` must be addressed by a required identifier. Without this guard an
-// empty input matched every row and returned row 0; a wrong-typed id returned
-// null. Both now fail as validation.failed. (#107)
+// empty input matches every row and returns row 0; a wrong-typed id returns
+// null. This guard makes both fail validation.failed instead.
 function requireGetIdentifier(keys: string[], input: JsonObject, table: string): void {
   if (!keys.some((key) => input[key] != null)) {
     throw new CapabilityQueryError('validation.failed', `${table}.get requires ${keys.join(' or ')}.`, { keys });
@@ -202,7 +202,7 @@ async function pollVotesList(input: JsonObject, ctx: CapabilityQueryContext): Pr
   );
   // Anonymous polls must not expose voter identity in API responses; member_id
   // stays in the DB only to enforce vote uniqueness. Redaction is unconditional
-  // — anonymity applies to every caller, admins included. (#117)
+  // — anonymity applies to every caller, admins included.
   const rows = votes.map((vote) =>
     anonymousPollIds.has(String(vote.poll_id)) ? { ...vote, member_id: null } : vote,
   );
@@ -233,7 +233,7 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
 
 const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
 // Brand-identity keys are always anonymously readable so hydrated chrome matches
-// baked chrome even when written under a non-public category. Key-scoped. (#125)
+// baked chrome even when written under a non-public category. Key-scoped.
 const PUBLIC_CONFIG_KEYS = new Set(['brand_text', 'brand_text_short', 'brand_icon_url', 'brand_wordmark_url', 'favicon_url']);
 
 async function configGet(input: JsonObject, ctx: CapabilityQueryContext): Promise<JsonValue> {
@@ -246,7 +246,7 @@ async function configGet(input: JsonObject, ctx: CapabilityQueryContext): Promis
     const row = rows.find((item) => item.key === input.key && visible(item));
     return row ? configRow(row) : null;
   }
-  // Honor an optional category filter — previously ignored. (#112)
+  // Honor an optional category filter.
   const category = typeof input.category === 'string' ? input.category : null;
   const mapped = rows
     .filter(visible)

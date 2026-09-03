@@ -3,7 +3,7 @@
  * fetches once per build via `@kychon/sdk`'s `announcements.list`
  * capability so `blocks.ts:ANNOUNCEMENTS_FEED.render` can emit real
  * announcement cards into the SSR HTML instead of the empty
- * `data-block-hydrate` shell that today only fills in post-hydration.
+ * `data-block-hydrate` shell that otherwise only fills in post-hydration.
  *
  * **Build-time only.** Same env vars as `build-events.ts`:
  *   - `KYCHON_ANON_KEY`

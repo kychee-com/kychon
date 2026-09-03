@@ -510,7 +510,7 @@ export const LIST_BLOCK_SCHEMAS: Record<
   footer_links: {
     // footer_links has nested arrays (columns[].items[]); the simple editor
     // supports the top-level columns only. Per-column items remain editable
-    // via inline data-editable attributes or a custom editor follow-up.
+    // via inline data-editable attributes.
     itemsKey: 'columns',
     itemSchema: [{ key: 'heading', label: 'Column heading', kind: 'text' }],
     defaultItem: () => ({ heading: 'New section', items: [] }),

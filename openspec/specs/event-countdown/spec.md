@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+A homepage countdown section highlights the next upcoming event and links to it, behind a feature flag.
+
+## Requirements
 
 ### Requirement: Event countdown section on homepage
 

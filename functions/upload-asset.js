@@ -1,24 +1,23 @@
 // schedule: none (triggered by admin for asset upload/delete/list)
-// admin-content-management: refactored to the Run402 v1.50 storage-backed
-// pattern. The platform now manages all media metadata (filename, uploader,
+// The Run402 platform manages all media metadata (filename, uploader,
 // dimensions, blurhash, variants, exif policy) via `internal.blobs.metadata`
-// + intrinsic image columns — Kychon no longer keeps a shadow `media_assets`
-// table. See `openspec/changes/admin-content-management/design.md` Decision 3.
+// + intrinsic image columns; Kychon keeps no shadow `media_assets` table.
+// See `openspec/changes/admin-content-management/design.md` Decision 3.
 import { adminDb, assets, auth } from '@run402/functions';
 
 // Aspect-ratio heuristic for the brand_icon_url upload target. Per
 // brand-identity-fields/design.md §3, when an icon upload's intrinsic width
 // exceeds 1.5× its height we tag the response with `warning: 'looks_like_wordmark'`
 // so the admin UI can offer a one-click reroute to brand_wordmark_url. Reads
-// from the AssetRef the platform returns (v1.50 populates `width_px` / `height_px`
-// server-side; no client-side image decode needed).
+// from the AssetRef the platform returns (the gateway populates `width_px` /
+// `height_px` server-side; no client-side image decode needed).
 const WORDMARK_ASPECT_THRESHOLD = 1.5;
 
 // Asset paths are passed by the admin UI; the storage call runs with the
 // project service key, so an unvalidated `body.path` is a privileged delete
 // primitive across the entire storage API. Constrain the shape strictly:
 // safe ASCII characters only, no traversal, no leading slash, no double
-// slashes, no NUL. (#25)
+// slashes, no NUL.
 const SAFE_ASSET_PATH = /^[A-Za-z0-9_.\-/]+$/;
 function isSafeAssetPath(value) {
   if (typeof value !== 'string' || !value) return false;
@@ -29,9 +28,8 @@ function isSafeAssetPath(value) {
   return true;
 }
 
-// Storage prefix for admin uploads. Keep `assets/` to avoid invalidating
-// pre-v1.50 uploaded assets (they all live under `assets/<path>` today).
-// The picker's media.list lists with this prefix.
+// Storage prefix for admin uploads. Every uploaded asset lives under
+// `assets/<path>`; the picker's media.list lists with this prefix.
 const STORAGE_PREFIX = 'assets/';
 
 // Pagination cap for the picker grid. 40 thumbnails per page balances
@@ -45,12 +43,8 @@ export default async (req) => {
   }
 
   // Check admin role using a parameterized query — concatenating user.id is
-  // safe today because Run402 issues UUIDs, but a future auth path that
-  // produces a different `sub` shape could turn this into SQL injection. (#25)
-  //
-  // TODO(auth-aware-ssr): once @run402/astro v2 ships and we drop bearer-token
-  // auth, swap to `await auth.requireRole('admin')` and let the platform's
-  // R402_AUTH_INSUFFICIENT_ROLE bubble up as the 403.
+  // safe because Run402 issues UUIDs, but a future auth path that produces a
+  // different `sub` shape could turn this into SQL injection.
   // run402-allow-user-filter: adminDb() raw SQL bypasses RLS; user.id binding required
   const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
   if (!memberResult.rows?.length || memberResult.rows[0].role !== 'admin') {
@@ -61,7 +55,7 @@ export default async (req) => {
     const body = await req.json();
 
     // -- List action --------------------------------------------------------
-    // Thin wrapper over `assets.ls`. Returns the v1.50 BlobLsResult reshaped
+    // Thin wrapper over `assets.ls`. Returns the BlobLsResult reshaped
     // as `{ assets, nextCursor }` for the MediaPicker's expected shape.
     // Optional filter passthrough lets future "filter by uploader" / "show
     // only photos" views work without API churn.
@@ -133,9 +127,9 @@ export default async (req) => {
 
     const storagePath = `${STORAGE_PREFIX}${path}`;
 
-    // v1.50 caller-provided metadata: filename for the admin UI label,
-    // uploaded_by for attribution / "filter by uploader" views. Both are
-    // opaque to the platform; the 4KB metadata cap fits comfortably.
+    // Caller-provided metadata: filename for the admin UI label, uploaded_by
+    // for attribution / "filter by uploader" views. Both are opaque to the
+    // platform; the 4KB metadata cap fits comfortably.
     const metadata = {
       filename: String(file.name).slice(0, 255),
       uploaded_by: String(user.id),
@@ -145,8 +139,8 @@ export default async (req) => {
     try {
       // `assets.put` from @run402/functions routes through the unified-apply
       // substrate. The runtime injects service-key auth and the SDK hashes +
-      // uploads + commits. v1.50 server-side runs the variant encoder (WebP
-      // ladder + blurhash + intrinsic dims) and applies the EXIF policy.
+      // uploads + commits. The gateway runs the variant encoder server-side
+      // (WebP ladder + blurhash + intrinsic dims) and applies the EXIF policy.
       ref = await assets.put(storagePath, bytes, {
         contentType: file.type || 'application/octet-stream',
         visibility: 'public',
@@ -171,7 +165,7 @@ export default async (req) => {
     // brand_icon_url aspect-ratio hint. The caller passes `target` to opt in;
     // when the target slot is the square icon and the image is much wider
     // than tall, surface a warning so the UI can offer a reroute. The upload
-    // still succeeds — this is a hint, not a hard block. v1.50 returns
+    // still succeeds — this is a hint, not a hard block. The gateway returns
     // intrinsic dims server-side; no client decode needed.
     const response = { status: 'uploaded', url, path, ref };
     if (body.target === 'brand_icon_url' && ref?.width_px && ref?.height_px) {

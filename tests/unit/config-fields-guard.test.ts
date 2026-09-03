@@ -1,9 +1,9 @@
 // Root-cause guard for live-config-coherence.
 //
-// The silent-no-op bug (#147) happened because `custom_css` was consumed by the
-// chrome bake but never declared anywhere, so nothing reconciled it at runtime
-// and no check noticed. This guard makes that class of mistake impossible: every
-// `site_config` field the bake reads MUST be declared in src/lib/config-fields.ts
+// A `site_config` field consumed by the chrome bake but not declared in
+// src/lib/config-fields.ts goes unreconciled at runtime with nothing to
+// notice — a silent no-op. This guard makes that class of mistake
+// impossible: every `site_config` field the bake reads MUST be declared
 // as either `runtime` (reconciled live) or `redeploy` (build-only, with a reason).
 // Adding a new baked read without declaring it turns this suite red — with a
 // guided, next-action message, so the codebase teaches the next contributor.

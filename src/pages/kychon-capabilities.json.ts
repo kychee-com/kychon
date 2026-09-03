@@ -6,7 +6,7 @@ export const prerender = true;
 export function GET() {
   // Compose at the page level so the API/discovery layer stays decoupled from
   // the block module. `portPatterns` lets the copy-website porter (and any
-  // agent) see which copied-site patterns have first-class blocks. (#99/#91/#123/#124)
+  // agent) see which copied-site patterns have first-class blocks.
   const manifest = { ...buildCapabilityManifest(), portPatterns: listPortPatterns() };
   return new Response(JSON.stringify(manifest, null, 2), {
     headers: {

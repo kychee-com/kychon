@@ -19,7 +19,7 @@
  * `bakeChrome`/`Portal.astro` (which also run per-SSR-request, where a live
  * fetch would be wrong). The fetch never throws and never blocks a deploy: on
  * any failure (or missing creds) it returns no rows and the seed is used
- * unchanged — identical first-paint behavior to before this module shipped.
+ * unchanged, so a fetch failure never changes first-paint behavior.
  */
 
 import type { ProjectSeed } from '../seeds/types.js';

@@ -4,7 +4,7 @@
 
 The Kychon render path SHALL read the active locale and default locale from `ctx.locale` and `ctx.defaultLocale` populated by the Run402 gateway (v2.5+ routed-locale-context, surfaced via `x-run402-locale` / `x-run402-default-locale` request headers and the `@run402/functions` getter helpers). The render path SHALL NOT sniff `Accept-Language` headers, parse cookies directly, or compute locale from any other source.
 
-The deploy SHALL declare a 50-entry `LOCALE_POOL` constant as `spec.i18n.locales` so the gateway accepts any of the pre-allocated locale tags (kitchen-sink pattern — see design.md Decision 9). `defaultLocale` SHALL be one of the pool entries. The deploy SHALL also set `spec.i18n.unknownLocalePolicy: 'pass-through'` so cookie/Accept-Language values outside the pool are returned as `ctx.locale` verbatim instead of falling back to `defaultLocale` (closes `run402-private#413`).
+The deploy SHALL declare a 50-entry `LOCALE_POOL` constant as `spec.i18n.locales` so the gateway accepts any of the pre-allocated locale tags (kitchen-sink pattern — see design.md Decision 9). `defaultLocale` SHALL be one of the pool entries. The deploy SHALL also set `spec.i18n.unknownLocalePolicy: 'pass-through'` so cookie/Accept-Language values outside the pool are returned as `ctx.locale` verbatim instead of falling back to `defaultLocale`.
 
 #### Scenario: Render path reads ctx.locale instead of sniffing headers
 - **WHEN** `page-render.ts` (or any routed function) needs to know the active locale

@@ -73,9 +73,9 @@ vi.mock(
     assets: {
       // @run402/functions surface. The runtime call hits
       // /apply/v1/service-asset-put; here we record the call and return a
-      // fake AssetRef shape so the handler's url-pick logic runs. v1.50 +
-      // admin-content-management refactor: metadata + exifPolicy threaded
-      // through opts; width/height/format come from the platform.
+      // fake AssetRef shape so the handler's url-pick logic runs. metadata +
+      // exifPolicy thread through opts; width/height/format come from the
+      // platform.
       put(
         key: string,
         source: Uint8Array | string,

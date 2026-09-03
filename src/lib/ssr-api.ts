@@ -116,7 +116,7 @@ export interface SsrConfigParams {
  * Read one public `site_config` value per request. Returns the raw JSONB
  * value or `null` when the key is absent, non-public, or the gateway call
  * fails. Used by `[...alias].astro` to resolve copied-site source-path
- * aliases (kychon#128).
+ * aliases.
  */
 export async function ssrConfigValue<T = unknown>(params: SsrConfigParams): Promise<T | null> {
   try {

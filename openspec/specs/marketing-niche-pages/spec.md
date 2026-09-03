@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Niche landing pages target churches, HOAs, sports leagues, and professional associations from a shared template.
+
+## Requirements
 
 ### Requirement: Niche landing page template
 

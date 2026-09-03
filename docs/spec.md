@@ -1,7 +1,5 @@
 # Kychon — Membership / Community Portal
 
-**Date**: 2026-03-27
-**Status**: Design complete, ready for implementation
 **Codename**: Kychon (a cheeky nod to Wild Apricot)
 **Brand**: Both a standalone product (kychon.com) and a Run402 template
 
@@ -827,9 +825,9 @@ The `on-signup` edge function checks if the `members` table is empty. If so, the
 
 ## Run402 Platform Gaps
 
-Issues found during design that the Run402 team should consider filling.
+Platform capabilities Kychon needs that Run402 does not provide, and the workaround Kychon uses for each.
 
-### Gap 1: Email Templates Too Rigid — IMPACT: HIGH
+### Email templates are too rigid — IMPACT: HIGH
 
 **Current state:** 3 fixed templates (`project_invite`, `magic_link`, `notification`). The `notification` template only allows a 500-char plain text `message`.
 
@@ -847,29 +845,21 @@ Issues found during design that the Run402 team should consider filling.
 
 Option B is the cleanest platform improvement. Option C is the workaround.
 
-### Gap 2: No Webhook / Event System — IMPACT: MEDIUM
-
-**Current state:** No post-auth-signup hook. Client must call the `on-signup` function explicitly after auth completes.
-
-**What would help:** `POST /projects/v1/admin/:id/hooks` — register a function to run on auth events (signup, login). Even just `on_signup` would be huge.
-
-**Workaround:** Client-side JS calls the `on-signup` function explicitly after Google OAuth callback. Works but is fragile (user could close the tab before the call).
-
-### Gap 3: No Full-Text Search Helper — IMPACT: MEDIUM
+### No full-text search helper — IMPACT: MEDIUM
 
 **Current state:** PostgREST supports Postgres full-text search (`?body=fts.word`), but needs `tsvector` columns and `GIN` indexes in the schema.
 
 **What would help:** Documented pattern or helper for full-text search. Not a platform gap per se — we can add `tsvector` columns ourselves.
 
-### Gap 4: ~~10MB File Upload Limit~~ — RESOLVED (SDK 1.44.0)
+### Per-blob upload limits — IMPACT: LOW
 
-The bundle-deploy endpoint now accepts ~50MB+ payloads in a single shot, which removed the deploy-side batching workaround. Per-blob limits for runtime user uploads are governed by the platform default — fine for photos/PDFs, may still constrain large video/presentations for photographer/course portal variants.
+Per-blob limits for runtime user uploads are the platform default — fine for photos/PDFs, but they can constrain large video/presentations for photographer or course portal variants.
 
-### Gap 5: No Batch REST Operations — IMPACT: LOW
+### No batch REST operations — IMPACT: LOW
 
 Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs or one edge function. Workable but inelegant.
 
-### Gap 6: `getUser(req)` Missing Email — IMPACT: MEDIUM (discovered during deploy)
+### `getUser(req)` is missing email — IMPACT: MEDIUM
 
 **Current state:** `getUser(req)` returns `{ id, role }` only. Password-auth users have no email in the JWT claims. The `/auth/v1/user` endpoint may not return email consistently for password users either.
 
@@ -879,7 +869,7 @@ Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs 
 
 **What would help:** Include `email` in the `getUser()` response, or ensure `/auth/v1/user` always returns it.
 
-### Gap 7: SQL Pattern Filter Blocks `SET role` Column Name — IMPACT: LOW (discovered during deploy)
+### SQL pattern filter blocks the `SET role` column name — IMPACT: LOW
 
 **Current state:** `UPDATE members SET role = 'admin'` is blocked by the SQL injection filter `\bSET\s+(search_path|role)\b`. This is a false positive — `role` here is a column name, not a Postgres `SET ROLE` command.
 
@@ -887,7 +877,7 @@ Approving 12 members = 12 PATCH requests. CSV import of 200 members = 200 POSTs 
 
 **What would help:** Smarter filter that distinguishes `SET ROLE` (Postgres command) from `SET role =` (column update in an UPDATE statement).
 
-### Gap 8: Static File Caching With No Cache Busting — IMPACT: LOW (discovered during deploy)
+### Static file caching has no cache busting — IMPACT: LOW
 
 **Current state:** Static files served with `cache-control: public, max-age=3600`. After redeploy, browsers serve stale CSS/JS for up to 1 hour. No built-in content-hash or version parameter mechanism.
 
@@ -1229,11 +1219,9 @@ The $29 premium build adds:
 - Niche-specific customizations (church roles, HOA issue types, etc.)
 - Chrome verification walkthrough + GIF recording of the result
 
-### Delivery: Claude Code Skill (Phase 1)
+### Delivery: Claude Code skill
 
-Start with a Claude Code skill: `/lychee-studio`. It has full access to Chrome MCP (investigate sites), file system (generate customizations), and Run402 APIs (deploy).
-
-Later (Phase 4+): web-based chat interface at `studio.kychon.com` for non-technical community managers.
+Studio is delivered as a Claude Code skill, `/lychee-studio`. It has full access to Chrome MCP (investigate sites), the file system (generate customizations), and Run402 APIs (deploy).
 
 ---
 
@@ -1430,54 +1418,3 @@ Same template, different `seed.sql` files:
 | **Professional Association** | Trade groups, chambers | Member directory is the core value. Company profiles. Committee tracking. Event-heavy |
 | **Coworking Space** | Small coworking operators | Space/desk info. Announcements. Community directory. Resource booking |
 | **Alumni Network** | University/school alumni | Class year. Career info. Mentoring connections. Job board (directory variant) |
-
----
-
-## Build Priority
-
-### Phase 1: Kychon Core (MVP)
-1. Schema + seed data + deploy script
-2. Auth (Google OAuth + password) + first-user-admin flow
-3. Member profiles + directory
-4. Announcements
-5. Admin dashboard (stats, activity feed, member management)
-6. Site settings admin (branding, theme, feature flags)
-7. Inline editing (contenteditable + Tiptap for admins)
-8. i18n framework (t() function, en.json, language picker)
-9. Config-driven nav + homepage sections
-10. Unit + integration tests (Vitest + happy-dom, 85% coverage)
-11. STRUCTURE.md + CUSTOMIZING.md
-12. Deploy verification via Claude Code + Chrome MCP
-
-### Phase 2: Modules + AI Features
-13. Events (create, RSVP, listing, detail page)
-14. Resources (upload, categorize, download)
-15. Scheduled functions (expiration checks, event reminders)
-16. CSV export (members, events)
-17. Forum (categories, topics, replies, moderation tools)
-18. Committees
-19. AI: Content moderation bot (requires forum)
-20. AI: Auto-translation of user content (requires i18n + content)
-21. AI: Smart member insights (admin dashboard integration)
-22. AI: Personalized onboarding (on-signup integration)
-
-### Phase 3: Kychon Studio + Marketing
-23. Kychon Studio: website investigation via Chrome MCP (extract brand, content, structure)
-24. Kychon Studio: interview flow (smart questions based on community type + findings)
-25. Kychon Studio: spec generator (brand.json + seed.sql + translations from interview)
-26. Kychon Studio: automated build + deploy + Chrome verification
-27. AI: Weekly newsletter generator (requires email gap solution)
-28. AI: Event recap generator
-29. kychon.com landing page (deployed on Run402, dogfooding)
-30. Niche landing pages (churches, HOAs, associations, sports)
-31. Niche seed variants (3 seed.sql files: church, HOA, professional association)
-
-### Phase 4: Kychon Pro + Growth
-32. Kychon Pro: ongoing customization agent (reads STRUCTURE.md, implements requests, redeploys)
-33. Kychon Pro: request tracking + usage metering
-34. Publish to Run402 marketplace as forkable app
-35. Additional niche variants + seed files
-36. Community contributions (agent-submitted translations, themes)
-37. Niche Google Ads campaigns
-38. Directory listings (Capterra, G2, GetApp)
-39. Web-based Studio interface at studio.kychon.com (non-technical users)

@@ -10,7 +10,7 @@ Kychon is an AI-powered membership/community portal template built on the Run402
 - **Kychon Studio** - AI concierge that builds your portal via investigation + interview ($29 premium)
 - **Kychon Pro** - Ongoing AI customization agent ($9-29/mo)
 
-**Status**: Design complete, ready for implementation. The full spec lives in `docs/spec.md`.
+The full spec lives in `docs/spec.md`.
 
 **Cross-repo boundary**: The marketing site at `kychon.com` lives in the sibling private repo `kychee-com/kychon-private`. Marketing-site source, deploy script, copy, and domain config changes go there, not here. See `openspec/specs/marketing-deploy/spec.md`.
 
@@ -71,9 +71,9 @@ Every visible block on every page — including chrome (`zone='header'`, `zone='
 - `t(key, vars)` function with English fallback, `_one` suffix for plurals, `{placeholder}` interpolation
 - Config in `public/custom/brand.json`: `languages` array + `defaultLanguage`
 
-### AI Features (BYOK)
+### AI Features
 
-Users store `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as project secrets. Scheduled edge functions call the API. Feature-flagged: moderation, auto-translation, newsletter, member insights, onboarding, event recaps.
+Content moderation and auto-translation run on Run402's platform-native `ai.moderate()` / `ai.translate()` helpers from `@run402/functions` — no API key or provider secret. Each is feature-flagged (`feature_ai_moderation`, `feature_ai_translation`). The generative features (newsletter, member insights, onboarding, event recaps) keep their flags in `site_config` defaulted off and are not surfaced in the admin UI.
 
 ## Tech Stack
 
@@ -128,22 +128,15 @@ kychon/
 - **Astro build step** - `astro build` outputs static HTML/JS/CSS to `dist/`, deployed to Run402
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
-- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. The `@run402/sdk` devDep is exact-pinned during the pre-launch API stabilization period. See `openspec/changes/deploy-sdk-migration/` for the migration record.
+- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. The `@run402/sdk` devDep is exact-pinned, so bumps are deliberate and diff-reviewed.
   - **Local-only**: this machine's `npm` config has a `before=` cutoff that filters out recently-published packages. Bumping the SDK to a release published after the cutoff requires `npm install --before=null @run402/sdk@<version>` (or temporarily `npm config delete before`). Not a Run402 issue — a personal sandbox knob.
-
-## Build Phases
-
-1. **Phase 1 (MVP)**: Schema, auth, members, directory, announcements, admin dashboard, inline editing, i18n, config-driven nav/pages, tests, STRUCTURE.md, CUSTOMIZING.md
-2. **Phase 2**: Events, resources, scheduled functions, forum, committees, AI features (moderation, translation, insights, onboarding)
-3. **Phase 3**: Kychon Studio (Chrome investigation + interview + build), newsletter/recap AI, marketing site, niche variants
-4. **Phase 4**: Kychon Pro agent, marketplace publishing, growth
 
 ## OpenSpec Workflow
 
 Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose new changes, `/opsx:apply` to implement tasks, `/opsx:explore` to think through ideas.
 
-## Run402 Platform Gaps to Work Around
+## Run402 Platform Notes
 
-- **~~No webhooks~~** (FIXED): Run402 now has lifecycle hooks. A deployed function named `on-signup` is automatically invoked after first signup with `{ user: { id, email, created_at } }` payload.
-- **No batch REST operations**: Approving 12 members = 12 PATCH requests. Workaround: use an edge function with `db.sql()` for bulk updates.
-- **~~10MB file upload limit~~** (RAISED): The 2.0 "Unified Apply" cutover (`@run402/sdk@2.0.1`) routes every release write through `r.project(id).apply(spec)` over the CAS substrate at `/apply/v1/plans` + `/content/v1/plans`. Only SHAs the gateway hasn't seen are uploaded; an unchanged tree issues no S3 PUTs. The earlier 1.44.0 bundle-deploy 50MB-cap and the 1.50.x batching workaround are both fully obsolete. Per-blob upload limits for runtime user uploads (photos/videos) are unchanged from the platform default.
+- **Lifecycle hooks**: a deployed function named `on-signup` is invoked automatically after first signup with a `{ user: { id, email, created_at } }` payload.
+- **No batch REST operations**: approving 12 members is 12 PATCH requests. Use an edge function with `db.sql()` for bulk updates.
+- **Deploy uploads**: `r.project(id).apply(spec)` routes every release write through the CAS substrate at `/apply/v1/plans` + `/content/v1/plans`. Only SHAs the gateway has not seen are uploaded; an unchanged tree issues no S3 PUTs. Per-blob limits for runtime user uploads (photos/videos) are the platform default.

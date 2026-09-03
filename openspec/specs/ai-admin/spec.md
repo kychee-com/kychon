@@ -1,16 +1,12 @@
-## ADDED Requirements
+## Purpose
+
+The admin settings surface exposes Kychon's AI controls: per-feature toggles for the two platform-native AI capabilities, a recent-activity summary, and the moderation review queue.
+
+## Requirements
 
 ### Requirement: AI Configuration Panel
 
-The system SHALL provide an AI configuration section within admin-settings. The panel SHALL include an API key input field (masked), a provider selector supporting OpenAI and Anthropic, and per-feature toggles for moderation, translation, insights, and onboarding.
-
-#### Scenario: Admin enters API key
-- **WHEN** an admin enters an API key in the AI configuration panel
-- **THEN** the key SHALL be saved securely and displayed in masked form
-
-#### Scenario: Admin selects AI provider
-- **WHEN** an admin selects OpenAI or Anthropic from the provider selector
-- **THEN** the selected provider SHALL be saved and used for all AI API calls
+The system SHALL provide an AI configuration section within admin-settings. The panel SHALL include per-feature toggles for moderation and translation only. The panel SHALL NOT include an API key input field, a provider selector, or toggles for insights, onboarding, newsletter, or event recaps.
 
 #### Scenario: Admin enables moderation feature toggle
 - **WHEN** an admin enables the moderation toggle in the AI configuration panel
@@ -20,37 +16,13 @@ The system SHALL provide an AI configuration section within admin-settings. The 
 - **WHEN** an admin disables the translation toggle in the AI configuration panel
 - **THEN** the feature_ai_translation flag SHALL be set to disabled
 
-#### Scenario: Admin toggles insights feature
-- **WHEN** an admin toggles the insights feature in the AI configuration panel
-- **THEN** the feature_ai_insights flag SHALL be updated accordingly
-
-#### Scenario: Admin toggles onboarding feature
-- **WHEN** an admin toggles the onboarding feature in the AI configuration panel
-- **THEN** the feature_ai_onboarding flag SHALL be updated accordingly
-
-### Requirement: API Key Test Button
-
-The AI configuration panel SHALL include a test button that verifies the configured API key works with the selected provider.
-
-#### Scenario: Admin tests a valid API key
-- **WHEN** an admin clicks the test button and the API key is valid for the selected provider
-- **THEN** the system SHALL display a success confirmation
-
-#### Scenario: Admin tests an invalid API key
-- **WHEN** an admin clicks the test button and the API key is invalid or rejected by the provider
-- **THEN** the system SHALL display an error message indicating the key is invalid
-
-#### Scenario: Admin tests with no API key configured
-- **WHEN** an admin clicks the test button and no API key has been entered
-- **THEN** the system SHALL display a message prompting the admin to enter an API key first
-
 ### Requirement: AI Activity Summary
 
-The AI configuration panel SHALL display an activity summary for the last 7 days, including the number of posts moderated, translations made, and insights generated.
+The AI configuration panel SHALL display an activity summary for the last 7 days, including the number of posts moderated and translations made. The summary SHALL NOT include an insights count.
 
 #### Scenario: Admin views AI activity summary
 - **WHEN** an admin opens the AI configuration panel
-- **THEN** the panel SHALL display counts for posts moderated, translations made, and insights generated over the last 7 days
+- **THEN** the panel SHALL display counts for posts moderated and translations made over the last 7 days
 
 #### Scenario: No AI activity in the last 7 days
 - **WHEN** an admin opens the AI configuration panel and no AI activity has occurred in the last 7 days

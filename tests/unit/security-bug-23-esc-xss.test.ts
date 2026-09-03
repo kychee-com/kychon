@@ -3,18 +3,16 @@
 // Regression coverage for #23: stored XSS via the local esc() helpers.
 //
 // Two distinct sinks:
-//   1. The legacy forum page and dynamic block hydrators used a local `esc()`
-//      helper based on
-//      `textContent → innerHTML`, which escapes <, >, & but NOT " or '. When
-//      the result is interpolated into a double-quoted attribute, an attacker
-//      can break out of the attribute and inject event handlers (onmouseover,
-//      onerror, ...).
-//   2. `announcement.body` was interpolated raw into rendered HTML, so any HTML
-//      payload an admin (or AI feature) writes runs in every reader's browser.
+//   1. A local `esc()` helper based on `textContent → innerHTML` escapes
+//      <, >, & but NOT " or '. When the result is interpolated into a
+//      double-quoted attribute, an attacker can break out of the attribute
+//      and inject event handlers (onmouseover, onerror, ...).
+//   2. `announcement.body` interpolated raw into rendered HTML lets any HTML
+//      payload an admin (or AI feature) writes run in every reader's browser.
 //
-// The fix is to (a) use the shared escAttr/escHtml from src/lib/blocks.ts in
-// every attribute/text context (they escape quotes correctly), and (b)
-// sanitize announcement bodies before rendering them.
+// The fix: use the shared escAttr/escHtml from src/lib/blocks.ts in every
+// attribute/text context (they escape quotes correctly), and sanitize
+// announcement bodies before rendering them.
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -32,8 +30,9 @@ const FORUM_APP = resolve(repoRoot, 'src/components/kychon/ForumPageApp.tsx');
 const BLOCK_HYDRATORS = resolve(repoRoot, 'src/lib/block-hydrators.ts');
 const ANNOUNCEMENTS_FEED_ISLAND = resolve(repoRoot, 'src/components/kychon/AnnouncementsFeedIsland.tsx');
 
-// Reproduce the local `esc()` helper as defined in the affected files so the
-// test pins the legacy (broken) behavior we are removing.
+// Reproduce the unsafe local `esc()` helper this file's fix replaced, so the
+// test can pin its broken quote-escaping in isolation and guard against
+// reintroduction.
 function legacyEsc(s: unknown): string {
   return String(s ?? '')
     .replaceAll('&', '&amp;')
@@ -68,8 +67,9 @@ describe('bug #23 — esc() quote-escape XSS in attribute contexts', () => {
   it('forum route must not return to attribute-interpolated HTML rendering', async () => {
     const page = await readFile(FORUM_PAGE, 'utf8');
     const app = await readFile(FORUM_APP, 'utf8');
-    // The former inline forum renderer interpolated escaped strings into HTML
-    // attributes. The React island keeps text and attributes as values instead.
+    // Attribute-interpolated HTML rendering (escaped strings spliced into
+    // HTML attribute strings) reopens this bug. The React island keeps text
+    // and attributes as values instead of building HTML strings.
     expect(page).not.toMatch(/function esc\s*\(/);
     expect(page).not.toContain('innerHTML');
     expect(app).not.toMatch(/function esc\s*\(/);
@@ -90,8 +90,8 @@ describe('bug #23 — esc() quote-escape XSS in attribute contexts', () => {
     expect(escaped).toContain('"');
     const html = `<div data-translate-text="${escaped}" data-ct="forum_topic">body</div>`;
     const attrs = attributesOf(html, 'div');
-    // The legacy helper would have caused onmouseover to land as a real
-    // attribute. We don't want this to ever be re-introduced.
+    // legacyEsc's quote-unsafe escaping lets onmouseover land as a real
+    // attribute — the shape this guard must never let back in.
     expect(attrs).toContain('onmouseover');
   });
 });

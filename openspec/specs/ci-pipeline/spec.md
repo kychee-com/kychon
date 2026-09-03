@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+CI runs the test suite, lint, and type check on every push and pull request against a pinned Node version with dependency caching.
+
+## Requirements
 
 ### Requirement: CI workflow runs on push and PR
 

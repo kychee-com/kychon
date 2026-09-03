@@ -62,7 +62,7 @@
 - [ ] 6.1 Schedule customer-port backfills (ODBC, BMW Club Canberra, AAGE) as a separate operator session. Each customer needs their own change-management artifact + dry-run approval.
 - [ ] 6.2 Decision: full `<Run402Image>` adoption rolls to customer tenants AFTER demo verification, OR pinned per-customer based on their deploy cadence. Defer the decision to operator preference at execution time.
 
-## 7. Phase 3 — SSR/client divergence architectural fix (ADDED post-spec)
+## 7. Phase 3 — SSR/client divergence architectural fix
 
 > Surfaced during browser verification: the SSR-from-seed bake correctly rendered `<Run402Image>` with v1.54 pre-decoded placeholders, but client-side `renderZoneInto('main', ...)` destructively replaced the `<div id="sections">` innerHTML on every load — wiping the SSR work. Architectural fix landed below.
 
@@ -70,13 +70,13 @@
 - [x] 7.2 `chrome-bake.ts:renderMainZone` rewritten to return `{ html, signature }` instead of a bare HTML string. Backward-incompatible at the function level, but only one caller (`src/pages/index.astro`).
 - [x] 7.3 `src/pages/index.astro` updated: destructures + stamps `<div id="sections" data-bake-signature={bakeSignature} set:html={sectionsHtml}>`.
 - [x] 7.4 `src/lib/page-render.ts` `renderZoneInto('main', ...)` short-circuits when the cached/fresh sections + manifest produce a signature matching the SSR-stamped attribute. Updates the attribute after every real re-render so subsequent calls compare against fresh state, not stale SSR.
-- [x] 7.5 `src/lib/page-render.ts:fetchManifest` switched from `cache: 'force-cache'` to `cache: 'no-cache'`. Force-cache was returning stale HTTP-cached manifests from before v1.54's `blurhash_data_url` + `asset_schema` fields shipped, defeating the placeholder rendering even when the freshly-deployed manifest had the fields.
+- [x] 7.5 `src/lib/page-render.ts:fetchManifest` switched from `cache: 'force-cache'` to `cache: 'no-cache'`. Force-cache serves a stale HTTP-cached manifest that lacks `blurhash_data_url` + `asset_schema`, defeating placeholder rendering even when the deployed manifest carries the fields.
 - [x] 7.6 9 unit tests in `tests/unit/main-zone-signature.test.ts` covering: identity across same input, drift detection (position / type / vis / config), independence from `manifestGeneratedAt` (by design — see test JSDoc), independence from cosmetic non-render fields.
 - [x] 7.7 End-to-end verified on deployed silver-pines: `ssrSig === liveSig` post-hydration; all 7 `<picture data-run402-image="1">` elements carry inline `background-image:url(data:image/png;base64,...)` placeholder on inner `<img>` (~1300 chars per the v1.54 pre-decoded data URL); the architectural short-circuit fires and preserves SSR content.
 
-## 8. Content-sync investigation — legacy `seed.sql` blocks overriding typed seed (ADDED post-spec)
+## 8. Content-sync investigation — legacy `seed.sql` blocks overriding typed seed
 
-> Surfaced after Phase 3 landed but signatures still mismatched live-site — diagnosed as content drift, not code drift. Fix below.
+> The live-site signature mismatch is content drift, not code drift. Fix below.
 
 - [x] 8.1 Identified root cause: `demo/<tenant>/seed.sql` (the `extraSqlFile`) had legacy hand-written homepage `INSERT INTO sections` blocks that ran AFTER the typed-seed inserts and either wiped them (silver-pines used `DELETE FROM sections WHERE page_slug='index'` then re-inserted stale activity_feed + cta) or duplicated them at the same positions with different `section_type` (eagles + barrio used `INSERT NOT EXISTS` keyed on section_type — different types succeed; same position now has two rows).
 - [x] 8.2 Removed the redundant homepage block from `demo/silver-pines/seed.sql` (was -- 11. HOMEPAGE SECTIONS). Replaced with tombstone comment explaining the migration to `src/seeds/silver-pines.ts` as the single source of truth.
@@ -128,4 +128,4 @@
 - [ ] 9.7 Section 4.8-4.11 follow-on items (blocks.ts string-template migration, error-boundary handling, decodeBlurhashToDataUri removal) — deferred per Section 4 explicit deferrals; not blocking archive.
 - [ ] 9.8 Section 5 (per-tenant strict-mode rollout) — deferred; see follow-up change.
 - [ ] 9.9 Section 6 (customer-port tenants ODBC / BMW Club Canberra / AAGE) — separate operator coordination; deferred.
-- [ ] 9.10 Move to `openspec/changes/archive/adopt-run402-v1-54-engine/` (renumber section 10 → 11 if needed).
+- [ ] 9.10 Archive this change (renumber section 10 → 11 if needed).

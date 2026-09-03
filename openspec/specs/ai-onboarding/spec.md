@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+New signups receive a personalized welcome message generated at signup time, with a plain fallback when generation is unavailable.
+
+## Requirements
 
 ### Requirement: AI-Enhanced Onboarding Trigger
 

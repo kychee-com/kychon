@@ -420,13 +420,13 @@ CREATE TABLE IF NOT EXISTS section_translations (
 CREATE INDEX IF NOT EXISTS idx_section_translations_section_lang
   ON section_translations (section_id, language);
 
--- admin-content-management (Decision 9 — kitchen-sink locale pool):
 -- `site_config.languages_enabled` is the runtime-mutable JSONB array that
 -- controls which locales the AdminBar surfaces and which trigger the
--- translation JOIN. Mirror the legacy `site_config.languages` value on first
--- deploy so existing portals see their current configured set unchanged.
--- Leave `site_config.languages` untouched (read-only legacy after this
--- migration; nothing in admin-content-management reads it post-cut).
+-- translation JOIN (see openspec/changes/admin-content-management/design.md
+-- Decision 9 for the pool model). Backfills from the legacy
+-- `site_config.languages` value when `languages_enabled` is absent, so
+-- existing portals keep their configured set. `site_config.languages` stays
+-- read-only; nothing else reads or writes it.
 INSERT INTO site_config (key, value, category)
 SELECT 'languages_enabled', value, 'i18n'
 FROM site_config
