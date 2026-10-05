@@ -9,7 +9,7 @@ import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { dir, fileSetFromDir, run402 } from "@run402/sdk/node";
@@ -38,6 +38,7 @@ import { applyLiveConfigOverrides, fetchLiveSiteConfig } from "../src/lib/build-
 import { configFieldsJson } from "../src/lib/config-fields.ts";
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
 import { resolveActiveProjectSeed } from "../src/seeds/index.ts";
+import { assertReimportConfirmed, wrapInitialImport } from "./initial-import.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
 import {
   buildEngineReleaseManifest,
@@ -455,13 +456,21 @@ export async function resolveDeployTarget(r: Run402Instance): Promise<ResolvedDe
   return { projectId, anonKey, subdomain };
 }
 
-/** Read schema.sql + seed.sql (or override) and concatenate. Returns inline SQL. */
-export function readMigrations(root: string, seedFile?: string): string {
+/**
+ * Read schema.sql + seed.sql (or override) and concatenate. Returns inline SQL.
+ * The seed is wrapped as a run-once initial import (scripts/initial-import.ts):
+ * it applies only while `kychon_install` is empty, so redeploys and schema
+ * changes never touch an installed project's content. `reimport` clears the
+ * marker first — destructive, callers must confirm the subdomain.
+ */
+export function readMigrations(root: string, seedFile?: string, opts: { reimport?: boolean } = {}): string {
   const schemaPath = join(root, "schema.sql");
-  const seedPath = join(root, seedFile ?? "seed.sql");
+  const seedName = seedFile ?? "seed.sql";
+  const seedPath = join(root, seedName);
   const schema = readFileSync(schemaPath, "utf-8");
   const seed = existsSync(seedPath) ? readFileSync(seedPath, "utf-8") : "";
-  return `${schema}\n\n${seed}`;
+  const initialImport = wrapInitialImport(seed, { source: basename(seedName), reimport: opts.reimport === true });
+  return `${schema}\n\n${initialImport}`;
 }
 
 /** Lowercase hex SHA-256 of a string. Used to derive stable migration ids. */
@@ -528,6 +537,11 @@ export interface RunDeployOptions {
   subdomain: string;
   /** Path to a seed SQL file relative to repo root. Defaults to `seed.sql`. */
   seedFile?: string;
+  /**
+   * Re-apply the seed to an already-installed project, replacing its live
+   * content. Refused unless `confirmSubdomain` equals `subdomain`.
+   */
+  reimport?: { confirmSubdomain: string };
   /** Function names to skip. */
   excludeFunctions?: readonly string[];
   /** Path to an extra function file to add. */
@@ -897,6 +911,7 @@ export async function runDeploy(
   r: Run402Instance,
   opts: RunDeployOptions,
 ): Promise<RunDeployResult> {
+  if (opts.reimport) assertReimportConfirmed(opts.subdomain, opts.reimport.confirmSubdomain);
   const buildOptions: BuildAstroOptions = {};
   if (opts.chromeSnapshot !== undefined) {
     buildOptions.chromeSnapshot = opts.chromeSnapshot;
@@ -974,7 +989,7 @@ export async function runDeploy(
         .filter((entry): entry is MaterializedCustomPageFile => entry !== null)
     : materializeCustomPageStaticFiles(distDir, deploySeed);
 
-  const sql = readMigrations(ROOT, opts.seedFile);
+  const sql = readMigrations(ROOT, opts.seedFile, { reimport: opts.reimport !== undefined });
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
   const releaseManifestOptions: Parameters<typeof buildEngineReleaseManifest>[0] = {
     migrationId,
@@ -1627,6 +1642,13 @@ export async function prettyPrintError(err: unknown): Promise<string> {
 /** Tiny argv check for the --dry-run flag. */
 export function isDryRun(argv: readonly string[]): boolean {
   return argv.includes("--dry-run");
+}
+
+/** `--reimport=<subdomain>` → re-import request; a bare `--reimport` carries no confirmation and is refused by runDeploy. */
+export function reimportFromArgv(argv: readonly string[]): RunDeployOptions["reimport"] | undefined {
+  const flag = argv.find((arg) => arg === "--reimport" || arg.startsWith("--reimport="));
+  if (!flag) return undefined;
+  return { confirmSubdomain: flag.includes("=") ? flag.slice("--reimport=".length) : "" };
 }
 
 export function deployModeFromArgv(argv: readonly string[]): RunDeployOptions["deployMode"] | undefined {

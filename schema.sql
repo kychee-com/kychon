@@ -35,6 +35,26 @@ CREATE TABLE IF NOT EXISTS sections (
   visible BOOLEAN DEFAULT true
 );
 
+-- Initial import marker: one row once the project's seed or import bundle has
+-- been applied. The deploy pipeline wraps the seed so it only runs while this
+-- table is empty (scripts/initial-import.ts), so later deploys and schema
+-- changes never touch live content.
+CREATE TABLE IF NOT EXISTS kychon_install (
+  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
+  installed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  import_source TEXT NOT NULL,
+  import_checksum TEXT,
+  engine_version TEXT
+);
+
+-- Projects that were live before the marker existed are adopted as installed
+-- so their content is never re-imported. Keyed on pages/sections because
+-- schema.sql itself writes site_config defaults on a fresh project.
+INSERT INTO kychon_install (import_source)
+SELECT 'adopted'
+WHERE EXISTS (SELECT 1 FROM sections) OR EXISTS (SELECT 1 FROM pages)
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================
 -- SECTION: Members
 -- ============================================

@@ -11,12 +11,14 @@
  *   npx tsx scripts/deploy.ts --print-spec                    # print ReleaseSpec JSON, no API call
  *   npx tsx scripts/deploy.ts --plan                          # gateway-reviewed plan, no deploy
  *   npx tsx scripts/deploy.ts --require-plan plan_...         # exact reviewed apply
+ *   npx tsx scripts/deploy.ts --reimport=<subdomain>         # re-apply the seed, replacing live content
  */
 
 import { run402 } from "@run402/sdk/node";
 
 import {
   isDryRun,
+  reimportFromArgv,
   deployModeFromArgv,
   prettyPrintError,
   reviewedPlanRequirementFromArgv,
@@ -40,6 +42,8 @@ async function main(): Promise<void> {
   };
   if (deployMode) opts.deployMode = deployMode;
   if (requiredPlan) opts.requiredPlan = requiredPlan;
+  const reimport = reimportFromArgv(process.argv);
+  if (reimport) opts.reimport = reimport;
   const seedFile = process.env["SEED_FILE"];
   if (seedFile) opts.seedFile = seedFile;
   const exclude = process.env["EXCLUDE_FUNCTIONS"];

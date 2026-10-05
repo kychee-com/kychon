@@ -1,13 +1,14 @@
 ## 1. Initial import runs once (Phase 1)
 
-- [ ] 1.1 Add `kychon_install` to `schema.sql`, plus the adoption insert (`import_source = 'adopted'` when `site_config` has rows) placed before any import SQL
-- [ ] 1.2 Make `scripts/generate-seed-sql.ts` wrap typed-seed output in the `$kychon_import$` install guard that writes the marker
-- [ ] 1.3 Make `scripts/_lib.ts` (`readMigrations` / `runDeploy`) wrap port seed files (`seedFile`) in the same guard
-- [ ] 1.4 Add local validation that the import SQL is data-manipulation statements only, failing before any platform call with the offending statement
-- [ ] 1.5 Add the explicit re-import option (`reimport` + subdomain confirmation) to `runDeploy` and the deploy CLIs; refuse when unconfirmed
-- [ ] 1.6 Tests: guard emitted for typed and port seeds; adoption ordering; validation rejects DDL; unconfirmed re-import refused
-- [ ] 1.7 Regenerate the demo reset function so a reset is a re-import that keeps the marker
-- [ ] 1.8 Verify on a scratch project: fresh deploy imports; edit and delete content; a deploy with a schema-only change leaves the content row counts and the edits unchanged
+- [x] 1.1 Add `kychon_install` to `schema.sql`, plus the adoption insert placed before any import SQL and before the first `site_config` write. Adoption is keyed on `pages`/`sections` rows, because `schema.sql` itself writes `site_config` defaults on a fresh project
+- [x] 1.2 Wrap the seed in the `$kychon_import$` install guard at deploy time in `readMigrations` (`scripts/initial-import.ts`), covering typed seeds and port seed files alike. `seed.sql` itself stays raw because the demo reset function embeds it
+- [x] 1.3 (Folded into 1.2: `runDeploy`, `patchDeploy`, and the Core manifest builder all go through `readMigrations`)
+- [x] 1.4 Validate before any platform call that the import SQL contains only data statements (top-level `SELECT` becomes `PERFORM`), naming the offending statement
+- [x] 1.5 Add `reimport: { confirmSubdomain }` to `runDeploy` and `--reimport=<subdomain>` to `scripts/deploy.ts`; refuse when unconfirmed (the restore point before a re-import arrives with task 7.3)
+- [x] 1.6 Tests (`tests/unit/initial-import.test.ts`): statement splitting, validation, the guard, `readMigrations`, schema ordering, re-import confirmation, and every committed port seed plus a generated demo seed
+- [x] 1.7 Demo reset: no change needed. The reset embeds the raw `seed.sql` and never touches `kychon_install`
+- [x] 1.8 Verify on Postgres 17 (throwaway container) for the eagles, aage, bmwclubcanberra, odbc, and sdjc seeds: fresh install, admin edits and deletions survive a schema-only redeploy, a confirmed re-import restores the seed, and an old-engine portal is adopted with its edits intact
+- [ ] 1.9 Verify live on Run402: first deploy of each demo and port after this change records `adopted` and leaves the content row counts unchanged
 
 ## 2. Revision log (Phase 2)
 
