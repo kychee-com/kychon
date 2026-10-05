@@ -731,6 +731,16 @@ export function NavBlockContent({
   const blockAttrs = blockId != null
     ? { 'data-block-id': String(blockId), 'data-block-type': 'nav' }
     : {};
+  // `header_position` is read by the [data-nav-shell] ancestor, not the links
+  // element that carries presentationStyle, so mirror it onto the shell (keeps
+  // live config edits in sync with the build-time bake in Portal.astro).
+  const headerPosition = presentationStyle?.['--nav-header-position'];
+  useIsomorphicLayoutEffect(() => {
+    const shell = hostRef.current?.closest<HTMLElement>('[data-nav-shell]');
+    if (!shell) return;
+    if (headerPosition) shell.style.setProperty('--nav-header-position', headerPosition);
+    else shell.style.removeProperty('--nav-header-position');
+  }, [headerPosition]);
   const overflowMenuId = 'nav-links-overflow-menu';
   const toggleControls = overflowActive ? overflowMenuId : 'nav-links';
   const toggleExpanded = overflowActive ? overflowMenuOpen : mobileOpen;

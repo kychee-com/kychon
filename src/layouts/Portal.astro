@@ -13,7 +13,7 @@ import AdminBar from '../components/AdminBar.astro';
 import MediaPickerHost from '../components/MediaPickerHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
-import { buildInlineManifestScript, getBakeAssetManifest } from '../lib/bake-asset-manifest';
+import { buildInlineManifestScript, getBakeAssetManifest, inlineAssetManifest } from '../lib/bake-asset-manifest';
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
@@ -87,8 +87,11 @@ const cspValue = buildCspValueFromTemplate(headersTemplate);
 // the deployed origin, just not via the virtual-module accessor).
 // `getBakeAssetManifest` also covers ports, whose manifest is staged at
 // `public/_assets-manifest.json` rather than produced by the integration.
-// Manifests above MAX_INLINE_MANIFEST_BYTES are fetched at runtime instead.
-const inlineManifestScript = buildInlineManifestScript(getBakeAssetManifest());
+// Inlined in slim form (inlineAssetManifest drops the ~5.7 KB/asset of fields the
+// browser never reads); manifests still above MAX_INLINE_MANIFEST_BYTES after
+// that are fetched at runtime instead.
+const bakeManifest = getBakeAssetManifest();
+const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAssetManifest(bakeManifest) : null);
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -144,7 +147,7 @@ const inlineManifestScript = buildInlineManifestScript(getBakeAssetManifest());
   <AdminBar />
   <MediaPickerHost />
   <div class="flex min-h-screen flex-col">
-    <nav id="zone-header" data-nav-shell data-zone="header" aria-label="Primary navigation" transition:persist>
+    <nav id="zone-header" data-nav-shell data-zone="header" aria-label="Primary navigation" style={chrome.headerPosition ? `--nav-header-position: ${chrome.headerPosition}` : undefined} transition:persist>
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>
       <AdminZoneAddButton zone="header" />
     </nav>

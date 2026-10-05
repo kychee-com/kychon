@@ -196,7 +196,7 @@ export function lookupAssetRef(
  * snake_case fields are absent. Idempotent: an already-snake_case ref
  * is returned unchanged.
  */
-function normalizeManifestAssetRef(ref: AssetRef): AssetRef {
+export function normalizeManifestAssetRef(ref: AssetRef): AssetRef {
   const raw = ref as AssetRef & {
     cdnUrl?: string;
     immutableUrl?: string;
@@ -276,12 +276,30 @@ export function rewriteAssetUrlsInHtml(
 ): string {
   if (!manifest || !html || !html.includes('/assets/')) return html;
   return html.replace(
-    /(\s(?:src|href)\s*=\s*)(["'])(\/assets\/[^"'\s>]+)\2/gi,
-    (whole, pre: string, quote: string, url: string) => {
-      const resolved = resolveAssetUrl(url, manifest);
+    /(\s(src|href)\s*=\s*)(["'])(\/assets\/[^"'\s>]+)\3/gi,
+    (whole, pre: string, attr: string, quote: string, url: string) => {
+      // `src` gets a sized variant (authored HTML has no srcset); `href`
+      // (download / full-size links) keeps the natural-size original.
+      const ref = attr.toLowerCase() === 'src' ? lookupAssetRef(url, manifest) : null;
+      const resolved = ref ? pickHtmlImageSrc(ref) || url : resolveAssetUrl(url, manifest);
       return resolved && resolved !== url ? `${pre}${quote}${escAttr(resolved)}${quote}` : whole;
     },
   );
+}
+
+/**
+ * `<img src>` for an image inside authored HTML (custom blocks, rich-text
+ * pages, event descriptions). With no `<picture>`/srcset there, the
+ * natural-size original (`display_url`, often several MB) is the wrong
+ * default: prefer the encoder's `large` (1920w) variant, then `medium`. HEIC
+ * still routes through `display_jpeg`; refs without a ladder (sub-320px
+ * sources) fall back to the original.
+ */
+function pickHtmlImageSrc(ref: AssetRef): string {
+  if (ref.variants?.display_jpeg?.cdn_url) return ref.variants.display_jpeg.cdn_url;
+  const large = ref.variants?.large as AssetVariant | undefined;
+  const medium = ref.variants?.medium as AssetVariant | undefined;
+  return large?.cdn_url || medium?.cdn_url || pickFallbackSrc(ref);
 }
 
 function hasVariantLadder(ref: AssetRef): boolean {

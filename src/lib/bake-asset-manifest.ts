@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
-import type { AssetManifest } from './kychon-image.js';
+import { normalizeManifestAssetRef, type AssetManifest } from './kychon-image.js';
 
 /**
  * Where a port stages its uploaded-asset manifest before `astro build`
@@ -18,10 +18,62 @@ export function parseAssetManifest(raw: string): AssetManifest | null {
     if (!parsed || typeof parsed !== 'object') return null;
     const candidate = parsed as { version?: unknown; assets?: unknown };
     if (candidate.version !== 1 || !candidate.assets || typeof candidate.assets !== 'object') return null;
-    return parsed as AssetManifest;
+    // Port manifests (`assets-put-dir --manifest-out`) carry camelCase `cdnUrl`
+    // only; @run402/astro's image renderer requires snake_case `cdn_url` and
+    // fails the build without it. Normalize every entry up front.
+    const manifest = parsed as AssetManifest;
+    const assets: AssetManifest['assets'] = {};
+    for (const [key, ref] of Object.entries(manifest.assets)) assets[key] = normalizeManifestAssetRef(ref);
+    return { ...manifest, assets };
   } catch {
     return null;
   }
+}
+
+// Per-entry fields nothing in the browser reads: hashes, integrity, cache
+// metadata, EXIF, and camelCase/immutable duplicates of URLs we keep in
+// snake_case. `blurhash_data_url` (~1.2 KB each) is dropped too; the client
+// decodes the short `blurhash` string instead.
+const INLINE_DROP_FIELDS = new Set([
+  'sha256', 'contentSha256', 'sri', 'etag', 'contentDigest', 'cdn', 'cacheKind',
+  'size', 'size_bytes', 'visibility', 'metadata', 'image_info', 'image_exif', 'image_exif_policy',
+  'cdnUrl', 'cdnMutableUrl', 'immutableUrl', 'thumbUrl', 'displayUrl', 'display_immutable_url',
+  'blurhash_data_url',
+]);
+const INLINE_DROP_VARIANT_FIELDS = new Set(['sha256', 'immutable_url', 'cdn_immutable_url', 'url']);
+
+/**
+ * The manifest as inlined into every page's `<head>` (Portal.astro): the same
+ * entries with fields the browser never reads stripped. A gallery-heavy port
+ * (~300 photos) inlined the raw manifest at ~1.7 MB per page; this keeps it to
+ * what `kychon-image.ts` needs (URLs, dims, blurhash, variants). The full file
+ * is still served at `/_assets-manifest.json`.
+ */
+export function inlineAssetManifest(manifest: AssetManifest): AssetManifest {
+  const assets: AssetManifest['assets'] = {};
+  for (const [key, ref] of Object.entries(manifest.assets)) {
+    const slim: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(normalizeManifestAssetRef(ref))) {
+      if (INLINE_DROP_FIELDS.has(field) || value == null) continue;
+      if (field === 'variants' && value && typeof value === 'object') {
+        const variants: Record<string, unknown> = {};
+        for (const [kind, variant] of Object.entries(value as Record<string, Record<string, unknown>>)) {
+          const v: Record<string, unknown> = {};
+          for (const [vf, vv] of Object.entries(variant ?? {})) {
+            // keep `url` only when it is the sole servable URL
+            if (INLINE_DROP_VARIANT_FIELDS.has(vf) && !(vf === 'url' && !variant.cdn_url)) continue;
+            v[vf] = vv;
+          }
+          variants[kind] = v;
+        }
+        slim.variants = variants;
+        continue;
+      }
+      slim[field] = value;
+    }
+    assets[key] = slim as unknown as AssetManifest['assets'][string];
+  }
+  return { ...manifest, assets };
 }
 
 /**

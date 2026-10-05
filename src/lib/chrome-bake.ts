@@ -7,6 +7,13 @@ import type { ProjectSeed } from '../seeds/types.js';
 
 export interface BakedChrome {
   headerHtml: string;
+  /**
+   * Global nav `presentation.header_position` (e.g. `static`), baked as
+   * `--nav-header-position` on `[data-nav-shell]`, the element that reads it.
+   * The nav block sets the var on its own links element, which is a
+   * descendant of the shell, so without this the config never applied.
+   */
+  headerPosition: string | null;
   footerHtml: string;
   fontHead: string;
   /**
@@ -274,6 +281,7 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
   if (bodyVar) themeFontVarLines.push(`--font-body: ${bodyVar};`);
   return {
     headerHtml: renderGlobalZone(seed, 'header', bakeCtx),
+    headerPosition: headerPositionFromSeed(seed),
     footerHtml: renderGlobalZone(seed, 'footer', bakeCtx),
     fontHead: renderFontHead(
       theme.font_heading as string | undefined,
@@ -293,6 +301,17 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     motion: theme.motion === 'none' ? 'none' : 'subtle',
     bakeCtx,
   };
+}
+
+const HEADER_POSITIONS = new Set(['static', 'sticky', 'relative']);
+
+/** `presentation.header_position` of the global header-zone nav section, when valid. */
+export function headerPositionFromSeed(seed: ProjectSeed): string | null {
+  const nav = (seed.sections ?? []).find(
+    (s) => s.section_type === 'nav' && s.zone === 'header' && s.visible !== false,
+  );
+  const value = (nav?.config as { presentation?: { header_position?: unknown } } | undefined)?.presentation?.header_position;
+  return typeof value === 'string' && HEADER_POSITIONS.has(value) ? value : null;
 }
 
 function colorSchemeFromTheme(theme: Record<string, unknown>): 'light' | 'dark' | 'auto' {
