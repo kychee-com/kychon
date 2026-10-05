@@ -13,6 +13,8 @@
 // never in seed.sql itself: the demo reset function embeds the raw seed.
 
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 
 export const IMPORT_TAG = "$kychon_import$";
 
@@ -172,6 +174,25 @@ export function wrapInitialImport(seedSql: string, opts: WrapInitialImportOption
     `${IMPORT_TAG};`,
   );
   return lines.join("\n");
+}
+
+/**
+ * Resolve the seed file a deploy should import. Relative paths are taken from
+ * the repo root and absolute ones as given (ports keep seeds outside the
+ * engine checkout). An explicitly named seed that does not exist is an error:
+ * silently importing nothing would report a successful deploy with no content.
+ * Only the default `seed.sql` may be absent (projects without a typed seed).
+ */
+export function resolveSeedPath(root: string, seedFile?: string): string | null {
+  if (seedFile === undefined) {
+    const fallback = join(root, "seed.sql");
+    return existsSync(fallback) ? fallback : null;
+  }
+  const path = isAbsolute(seedFile) ? seedFile : join(root, seedFile);
+  if (!existsSync(path)) {
+    throw new InitialImportError(`Seed file not found: ${path} (from seedFile "${seedFile}").`);
+  }
+  return path;
 }
 
 /** Refuse a re-import unless the caller named the exact target subdomain. */

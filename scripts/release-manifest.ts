@@ -1,8 +1,9 @@
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveSeedPath } from "./initial-import.ts";
 
 const DEFAULT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -119,8 +120,8 @@ export function writeEngineReleaseManifest(
 }
 
 function readSeedSql(root: string, seedFile?: string): string {
-  const path = join(root, seedFile ?? "seed.sql");
-  return existsSync(path) ? readFileSync(path, "utf-8") : "";
+  const path = resolveSeedPath(root, seedFile);
+  return path ? readFileSync(path, "utf-8") : "";
 }
 
 function readJson(path: string): Record<string, unknown> {

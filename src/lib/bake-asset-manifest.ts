@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 import type { AssetManifest } from './kychon-image.js';
@@ -30,14 +30,28 @@ export function parseAssetManifest(raw: string): AssetManifest | null {
  * `assetsDir` instead) or unreadable (the SSR Lambda at request time).
  */
 export function readStagedAssetManifest(root: string = process.cwd()): AssetManifest | null {
-  let raw: string;
+  const path = join(root, STAGED_ASSET_MANIFEST_PATH);
+  let mtimeMs: number;
   try {
-    raw = readFileSync(join(root, STAGED_ASSET_MANIFEST_PATH), 'utf8');
+    mtimeMs = statSync(path).mtimeMs;
   } catch {
     return null;
   }
-  return parseAssetManifest(raw);
+  // The bake asks for the manifest several times per page; a port's can be
+  // megabytes, so parse once per file version.
+  const cached = stagedCache.get(path);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.manifest;
+  let manifest: AssetManifest | null;
+  try {
+    manifest = parseAssetManifest(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+  stagedCache.set(path, { mtimeMs, manifest });
+  return manifest;
 }
+
+const stagedCache = new Map<string, { mtimeMs: number; manifest: AssetManifest | null }>();
 
 function tryGetBuildTimeManifest(): AssetManifest | null {
   // Build-time-only accessor (reads the integration's Vite virtual module);
@@ -59,4 +73,25 @@ function tryGetBuildTimeManifest(): AssetManifest | null {
  */
 export function getBakeAssetManifest(): AssetManifest | null {
   return tryGetBuildTimeManifest() ?? readStagedAssetManifest();
+}
+
+/**
+ * Largest manifest Portal inlines into every page's <head>. Demo manifests
+ * are ~60 KB; a port with thousands of gallery photos produces several MB,
+ * which would bloat every page. Above the cap the runtime fetches (and
+ * caches) `/_assets-manifest.json` instead; baked HTML is unaffected because
+ * the build resolves URLs against the full manifest server-side.
+ */
+export const MAX_INLINE_MANIFEST_BYTES = 256 * 1024;
+
+/** The `window.__KYCHON_ASSET_MANIFEST = …;` script body, or "" when absent or too large. */
+export function buildInlineManifestScript(
+  manifest: AssetManifest | null,
+  maxBytes: number = MAX_INLINE_MANIFEST_BYTES,
+): string {
+  if (!manifest) return '';
+  // Escape `<` so a `</script>` in the data cannot close the tag.
+  const json = JSON.stringify(manifest).replace(/</g, '\\u003c');
+  if (Buffer.byteLength(json, 'utf8') > maxBytes) return '';
+  return `window.__KYCHON_ASSET_MANIFEST = ${json};`;
 }

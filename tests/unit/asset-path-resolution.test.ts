@@ -9,11 +9,17 @@
  * The mock manifest mirrors the real SDJC `_assets-manifest.json` shape:
  * basename keys, camelCase-only top-level CDN fields, `.JPG` extensions.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getBakeAssetManifest, parseAssetManifest, readStagedAssetManifest } from '../../src/lib/bake-asset-manifest';
+import {
+  buildInlineManifestScript,
+  getBakeAssetManifest,
+  MAX_INLINE_MANIFEST_BYTES,
+  parseAssetManifest,
+  readStagedAssetManifest,
+} from '../../src/lib/bake-asset-manifest';
 import { type BlockRenderContext, heroImageRenderUrl, renderBlock, type Section } from '../../src/lib/blocks';
 import { bakeChrome } from '../../src/lib/chrome-bake';
 import { type AssetManifest, resolveAssetUrl, rewriteAssetUrlsInHtml } from '../../src/lib/kychon-image';
@@ -195,6 +201,16 @@ describe('port-staged manifest at public/_assets-manifest.json', () => {
     expect(readStagedAssetManifest(join(dir, 'nope'))).toBeNull();
   });
 
+  it('parses once per file version and re-reads after the file changes', () => {
+    const dir = stageManifest(JSON.stringify(manifestJson));
+    const first = readStagedAssetManifest(dir);
+    expect(readStagedAssetManifest(dir)).toBe(first);
+    const file = join(dir, 'public', '_assets-manifest.json');
+    writeFileSync(file, JSON.stringify({ version: 1, assets: {} }));
+    utimesSync(file, new Date(), new Date(Date.now() + 60_000));
+    expect(readStagedAssetManifest(dir)?.assets).toEqual({});
+  });
+
   it('feeds the build-time chrome bake: brand icon and favicon resolve', () => {
     const dir = stageManifest(JSON.stringify(manifestJson));
     vi.spyOn(process, 'cwd').mockReturnValue(dir);
@@ -214,5 +230,34 @@ describe('port-staged manifest at public/_assets-manifest.json', () => {
     expect(chrome.isSvgFavicon).toBe(false);
     expect(chrome.headerHtml).toContain(`data-brand-icon src="${LOGO}"`);
     expect(chrome.headerHtml).not.toContain('/assets/Logo_SDJC_.jpg');
+  });
+});
+
+describe('inlined manifest size cap', () => {
+  it('inlines small manifests with < escaped', () => {
+    const script = buildInlineManifestScript({
+      version: 1,
+      assets: { 'a.jpg': { url: '</script>' } },
+    } as unknown as AssetManifest);
+    expect(script.startsWith('window.__KYCHON_ASSET_MANIFEST = {')).toBe(true);
+    expect(script).not.toContain('</script>');
+  });
+
+  it('skips manifests above the cap so ports with thousands of photos do not bloat every page', () => {
+    const assets: Record<string, unknown> = {};
+    for (let i = 0; i < 4000; i++) assets[`photo-${i}.jpg`] = camelRef(`${ORIGIN}/photo-${i}.jpg`);
+    const big = { version: 1, assets } as unknown as AssetManifest;
+    expect(buildInlineManifestScript(big)).toBe('');
+    expect(buildInlineManifestScript(manifest)).not.toBe('');
+    expect(MAX_INLINE_MANIFEST_BYTES).toBe(256 * 1024);
+    expect(buildInlineManifestScript(null)).toBe('');
+  });
+});
+
+describe('SSR custom page body', () => {
+  it('resolves /assets/<basename> in the server-rendered page content', () => {
+    const source = readFileSync(join(process.cwd(), 'src/pages/[customPage].astro'), 'utf8');
+    expect(source).toMatch(/rewriteAssetUrlsInHtml\(rawBuildPage\.content \?\? '', bakeCtx\.manifest\)/);
+    expect(source).toContain('initialPage={buildPage}');
   });
 });

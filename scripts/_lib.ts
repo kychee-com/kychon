@@ -38,7 +38,7 @@ import { applyLiveConfigOverrides, fetchLiveSiteConfig } from "../src/lib/build-
 import { configFieldsJson } from "../src/lib/config-fields.ts";
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
 import { resolveActiveProjectSeed } from "../src/seeds/index.ts";
-import { assertReimportConfirmed, wrapInitialImport } from "./initial-import.ts";
+import { assertReimportConfirmed, resolveSeedPath, wrapInitialImport } from "./initial-import.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
 import {
   buildEngineReleaseManifest,
@@ -465,11 +465,13 @@ export async function resolveDeployTarget(r: Run402Instance): Promise<ResolvedDe
  */
 export function readMigrations(root: string, seedFile?: string, opts: { reimport?: boolean } = {}): string {
   const schemaPath = join(root, "schema.sql");
-  const seedName = seedFile ?? "seed.sql";
-  const seedPath = join(root, seedName);
+  const seedPath = resolveSeedPath(root, seedFile);
   const schema = readFileSync(schemaPath, "utf-8");
-  const seed = existsSync(seedPath) ? readFileSync(seedPath, "utf-8") : "";
-  const initialImport = wrapInitialImport(seed, { source: basename(seedName), reimport: opts.reimport === true });
+  const seed = seedPath ? readFileSync(seedPath, "utf-8") : "";
+  const initialImport = wrapInitialImport(seed, {
+    source: basename(seedPath ?? "seed.sql"),
+    reimport: opts.reimport === true,
+  });
   return `${schema}\n\n${initialImport}`;
 }
 

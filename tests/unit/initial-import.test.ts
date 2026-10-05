@@ -15,6 +15,7 @@ import {
   assertReimportConfirmed,
   InitialImportError,
   prepareImportStatements,
+  resolveSeedPath,
   splitSqlStatements,
   wrapInitialImport,
 } from '../../scripts/initial-import';
@@ -159,5 +160,22 @@ describe('re-import confirmation', () => {
     expect(reimportFromArgv(['node', 'deploy.ts'])).toBeUndefined();
     expect(reimportFromArgv(['node', 'deploy.ts', '--reimport=eagles'])).toEqual({ confirmSubdomain: 'eagles' });
     expect(reimportFromArgv(['node', 'deploy.ts', '--reimport'])).toEqual({ confirmSubdomain: '' });
+  });
+});
+
+describe('seed file resolution', () => {
+  it('honours absolute seed paths (ports keep seeds outside the engine checkout)', () => {
+    const abs = join(ROOT, '_odbc-port.seed.sql');
+    expect(resolveSeedPath(ROOT, abs)).toBe(abs);
+    expect(readMigrations(ROOT, abs)).toContain("VALUES ('_odbc-port.seed.sql', '");
+  });
+
+  it('refuses an explicitly named seed that does not exist instead of importing nothing', () => {
+    expect(() => resolveSeedPath(ROOT, '/nonexistent/port.seed.sql')).toThrow(/Seed file not found/);
+    expect(() => readMigrations(ROOT, 'missing.seed.sql')).toThrow(InitialImportError);
+  });
+
+  it('allows the default seed.sql to be absent', () => {
+    expect(resolveSeedPath('/nonexistent-root')).toBeNull();
   });
 });

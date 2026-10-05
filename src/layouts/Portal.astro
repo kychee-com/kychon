@@ -13,7 +13,7 @@ import AdminBar from '../components/AdminBar.astro';
 import MediaPickerHost from '../components/MediaPickerHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
-import { getBakeAssetManifest } from '../lib/bake-asset-manifest';
+import { buildInlineManifestScript, getBakeAssetManifest } from '../lib/bake-asset-manifest';
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
@@ -87,10 +87,8 @@ const cspValue = buildCspValueFromTemplate(headersTemplate);
 // the deployed origin, just not via the virtual-module accessor).
 // `getBakeAssetManifest` also covers ports, whose manifest is staged at
 // `public/_assets-manifest.json` rather than produced by the integration.
-const inlineManifest = getBakeAssetManifest();
-const inlineManifestScript = inlineManifest
-  ? `window.__KYCHON_ASSET_MANIFEST = ${JSON.stringify(inlineManifest).replace(/</g, '\\u003c')};`
-  : '';
+// Manifests above MAX_INLINE_MANIFEST_BYTES are fetched at runtime instead.
+const inlineManifestScript = buildInlineManifestScript(getBakeAssetManifest());
 ---
 <!DOCTYPE html>
 <html lang="en">

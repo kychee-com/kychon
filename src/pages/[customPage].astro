@@ -10,6 +10,7 @@ import { ensureBuildPagesLoaded, getAllBuildPages, getBuildPageBySlug } from '..
 import { ensureBuildSectionsLoaded, getBuildSections } from '../lib/build-sections';
 import { mergeSeedSections } from '../lib/merge-sections';
 import { renderMainZone, makeBakeContext } from '../lib/chrome-bake';
+import { rewriteAssetUrlsInHtml } from '../lib/kychon-image';
 
 export async function getStaticPaths() {
   const { seed } = await resolveActiveProjectSeed();
@@ -60,7 +61,13 @@ const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seedForB
 // the loading skeleton, so the served HTML carries the page body for
 // no-JS readers, crawlers, and the concierge parity gate. The runtime
 // still silently refreshes from the live DB after hydration.
-const buildPage = getBuildPageBySlug(slug);
+// Resolve `/assets/<basename>` in the page body here: the island's own
+// resolver reads the browser-side manifest, which does not exist during SSR,
+// so no-JS HTML would otherwise carry unserved `/assets/...` image URLs.
+const rawBuildPage = getBuildPageBySlug(slug);
+const buildPage = rawBuildPage
+  ? { ...rawBuildPage, content: rewriteAssetUrlsInHtml(rawBuildPage.content ?? '', bakeCtx.manifest) }
+  : null;
 ---
 <Portal title={buildPage?.title ?? 'Page'}>
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
