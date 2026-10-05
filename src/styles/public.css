@@ -451,6 +451,12 @@ main [data-section] {
 [data-hero] h1 {
   margin-bottom: 1rem;
   font-size: 3rem;
+  color: var(--foreground, var(--color-text));
+}
+/* Gradient-clipped heading only on plain light heroes (kychon#181). Image /
+   brand-scrim heroes and text-over-image heroes paint a solid `color`, so
+   colour overrides work and contrast checks read the real fill. */
+[data-hero]:not([data-hero-bg-image="true"]):not([data-hero-text-position="over_image"]) h1 {
   background: linear-gradient(135deg, var(--primary, var(--color-primary)), var(--ky-color-primary-hover, var(--color-primary-hover)));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -480,10 +486,7 @@ main [data-section] {
 }
 [data-hero][data-hero-bg-image="true"] h1 {
   color: #fff;
-  -webkit-text-fill-color: #fff;
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
+  -webkit-text-fill-color: currentColor;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 [data-hero][data-hero-bg-image="true"] p {
@@ -710,10 +713,7 @@ main [data-section] {
 }
 [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] h1 {
   color: #fff;
-  -webkit-text-fill-color: #fff;
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
+  -webkit-text-fill-color: currentColor;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 [data-hero][data-hero-mode="foreground"][data-hero-text-position="over_image"] [data-hero-text] p {
