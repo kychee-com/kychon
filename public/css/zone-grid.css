@@ -15,11 +15,37 @@
   gap: 1.5rem;
 }
 
-#sections > [data-column-span],
-#sections > [data-react-html-children] > [data-column-span],
-[data-zone="footer"] > [data-layout-container] > [data-column-span],
-[data-zone="footer"] > [data-layout-container] > [data-react-html-children] > [data-column-span] {
-  min-width: 0;
+/* Main-zone content track (#193).
+ *
+ * #sections spans the full main width so full-bleed blocks (hero,
+ * page_banner, full-span backgrounds) can reach the viewport edges, but its
+ * grid columns sit inside a centered --max-width track: the same box every
+ * block's constrained container uses. Partial spans (1/2, 1/3, 2/3) therefore
+ * line up with full-span block content instead of each taking half the
+ * viewport.
+ *
+ * The inset is percentage padding, which resolves against #main-content's
+ * width. Full spans break back out to the viewport edges with a negative
+ * margin in viewport units. 100vw counts a classic scrollbar, so a full span
+ * overhangs by half a scrollbar on each side. #main-content clips that
+ * overhang with overflow-x: clip, which creates no scroll container and no
+ * containment, so sticky and position: fixed descendants keep working. Do not
+ * use container-type or contain here: either one makes #main-content the
+ * containing block for fixed descendants (e.g. the events-calendar sheet).
+ *
+ * Below --max-width the inset and the breakout are both 0, so the tablet and
+ * mobile layouts are unchanged. The footer zone host is already a
+ * constrained container and needs none of this.
+ */
+#main-content {
+  overflow-x: clip;
+}
+#sections {
+  padding-inline: max(0px, calc((100% - var(--max-width)) / 2));
+}
+#sections > [data-column-span="1"],
+#sections > [data-react-html-children] > [data-column-span="1"] {
+  margin-inline: min(0px, calc((var(--max-width) - 100vw) / 2));
 }
 
 /* Default span mapping (desktop). */
