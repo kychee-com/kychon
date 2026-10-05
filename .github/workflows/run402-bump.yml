@@ -1,0 +1,97 @@
+# Keep every run402 package on its latest release.
+#
+# kychee-com/kychon-concierge runs the same workflow on the same schedule, so
+# the engine and the concierge tooling (which share one Run402 config dir on
+# port machines) never drift apart. The bump lands on main only after the full
+# CI check suite passes on it; then CI and the demo deploy are dispatched
+# explicitly, because pushes made with GITHUB_TOKEN don't trigger workflows.
+# Any failure opens (or comments on) one "Automatic run402 bump failed" issue.
+name: run402 bump
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+concurrency:
+  group: run402-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Bump run402 packages to latest
+        id: bump
+        run: node .github/scripts/run402-bump.mjs
+
+      # Same checks as ci.yml.
+      - name: Seed smoke check
+        if: steps.bump.outputs.changed == 'true'
+        run: npx tsx scripts/smoke-check-seeds.ts
+      - name: Tests
+        if: steps.bump.outputs.changed == 'true'
+        run: npm test
+      - name: Lint
+        if: steps.bump.outputs.changed == 'true'
+        run: npx biome check .
+      - name: Type Check (Astro)
+        if: steps.bump.outputs.changed == 'true'
+        run: npx astro check
+      - name: Type Check (scripts)
+        if: steps.bump.outputs.changed == 'true'
+        run: npx tsc --project tsconfig.scripts.json
+
+      - name: Commit and push to main
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          SUMMARY: ${{ steps.bump.outputs.summary }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "deps: bump run402 packages to latest" -m "$SUMMARY" -m "Automated by .github/workflows/run402-bump.yml after the full CI check suite passed."
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1
+
+      - name: Dispatch CI and demo deploy
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run ci.yml --ref main
+          gh workflow run deploy-demos.yml --ref main
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ steps.bump.outputs.summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Automatic run402 bump failed"
+          body="The scheduled run402 bump failed: $RUN_URL"$'\n\n'"Attempted: ${SUMMARY:-n/a}"$'\n\n'"Nothing was pushed. Fix the incompatibility on main; the next scheduled run retries."
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

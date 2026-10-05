@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Dispatched by run402-bump.yml (GITHUB_TOKEN pushes do not trigger push workflows).
+  workflow_dispatch:
 
 jobs:
   check:
