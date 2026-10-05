@@ -16,7 +16,14 @@ import { getSession, getRole } from './auth';
 import { cacheHeroImage, isFeatureEnabled, ready, siteConfig } from './config';
 import { currentPageSlugFromLocation } from './clean-routes.js';
 import { getLocale } from './i18n';
-import { BLOCK_TYPES, dedupeSingletonSections, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
+import {
+  BLOCK_TYPES,
+  dedupeSingletonSections,
+  heroImageRenderUrl,
+  renderBlock,
+  type BlockRenderContext,
+  type Section,
+} from './blocks.js';
 import { renderReactHtmlChildren } from './react-html-children';
 import {
   collectDescendantElements,
@@ -367,7 +374,13 @@ function warmHeroImageCache(sections: Section[]): void {
   const hero = sections.find(
     (s) => s.section_type === 'hero' && s.zone === 'main' && s.visible !== false,
   );
-  if (hero) cacheHeroImage(hero);
+  if (!hero) return;
+  // Cache the URL the hero actually paints (manifest-resolved CDN URL), not
+  // the configured `/assets/<basename>` path, which is not served. With no
+  // manifest yet, skip `/assets/` paths rather than warm a guaranteed miss.
+  const url = heroImageRenderUrl(hero, cachedManifest);
+  if (!url || (!cachedManifest && url.startsWith('/assets/'))) return;
+  cacheHeroImage(url);
 }
 
 export function sectionAppliesToPageSlug(section: Section, slug: string): boolean {

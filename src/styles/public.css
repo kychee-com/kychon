@@ -470,6 +470,10 @@ main [data-section] {
     color-mix(in srgb, var(--primary, var(--color-primary)) 40%, transparent) 100%
   );
 }
+/* `config.overlay` = "none", or "auto" on an image-only hero: no brand tint. */
+[data-hero][data-hero-bg-image="true"][data-hero-overlay="none"]::before {
+  display: none;
+}
 [data-hero][data-hero-bg-image="true"] [data-layout-container] {
   position: relative;
   z-index: 1;

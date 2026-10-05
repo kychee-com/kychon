@@ -62,7 +62,7 @@ import {
   registrationPriceLabel,
   visibleRegistrationOptions,
 } from '@/lib/event-registration';
-import { getGlobalManifest, lookupAssetRef } from '@/lib/kychon-image';
+import { getGlobalManifest, lookupAssetRef, rewriteAssetUrlsInHtml } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { showToast as showKychonToast, type KychonToastType } from '@/lib/toast-events';
@@ -181,7 +181,7 @@ function attendeeName(rsvp: EventRSVPWithMember): string {
 }
 
 function Description({ admin, event }: { admin: boolean; event: Event }) {
-  const html = sanitizeRichHtml(event.description);
+  const html = rewriteAssetUrlsInHtml(sanitizeRichHtml(event.description), getGlobalManifest());
   if (!html) return null;
   return (
     <div
