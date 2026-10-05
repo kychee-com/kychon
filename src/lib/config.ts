@@ -8,7 +8,7 @@ import { clearActor, loadActor, memberViewFromActor, setSessionMember } from './
 import { canonicalRouteKey } from './clean-routes.js';
 import { findDirectElementChild } from './dom-structure.js';
 import { loadLocale, setAvailableLocales } from './i18n.js';
-import { buildGoogleFontsUrl } from './theme/fonts.js';
+import { buildFontVarValue, buildGoogleFontsUrl } from './theme/fonts.js';
 
 // --- Cache layer (stale-while-revalidate) ---
 const WL_CACHE_CONFIG = 'wl_cache_site_config';
@@ -314,12 +314,32 @@ function faviconLinkElement(): HTMLLinkElement | null {
   return link instanceof HTMLLinkElement ? link : null;
 }
 
+// Font keys get the same quoted family stack the build-time bake writes
+// (chrome-bake.ts → buildFontVarValue), so runtime hydration never replaces the
+// baked value with a bare name. A bare `Source Sans 3` is invalid CSS (the `3`
+// is not an identifier) and drops every `var(--font-body)` to Times (#176).
+// System fonts — where buildFontVarValue returns null and the bake leaves the
+// stylesheet default — keep their plain, already-valid family name.
+const THEME_FONT_GENERICS: Record<string, 'serif' | 'sans-serif'> = {
+  font_heading: 'serif',
+  font_body: 'sans-serif',
+};
+
+function themeFontCssValue(key: string, safe: string): string {
+  const generic = THEME_FONT_GENERICS[key];
+  if (!generic) return safe;
+  const inner = safe.replace(/^["']|["']$/g, '');
+  if (/["'\\]/.test(inner)) return '';
+  return buildFontVarValue(safe, generic) ?? safe;
+}
+
 export function themeCssVars(theme: Record<string, any> | null): Record<string, string> {
   const vars: Record<string, string> = {};
   if (!theme) return vars;
   for (const [key, prop] of Object.entries(THEME_CSS_VAR_MAP)) {
     const safe = safeThemeCssValue(theme[key]);
-    if (safe) vars[prop] = safe;
+    const value = safe ? themeFontCssValue(key, safe) : '';
+    if (value) vars[prop] = value;
   }
   for (const [key, prop] of Object.entries(THEME_KYCHON_CSS_VAR_MAP)) {
     const safe = safeThemeCssValue(theme[key]);
