@@ -1,6 +1,7 @@
 ---
 import EventDetailPageApp from '../components/kychon/EventDetailPageApp';
 import Portal from '../layouts/Portal.astro';
+import { getBakeAssetManifest, pickAssetManifestEntries } from '../lib/bake-asset-manifest';
 import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
 
 // Single static `/event.html` serves all events; the React island reads
@@ -25,10 +26,16 @@ await ensureBuildEventsLoaded();
 const eventsById = Object.fromEntries(
   (getAllBuildEvents() ?? []).map((event) => [String(event.id), event]),
 );
+// Hero images resolve against these build-time entries first, so
+// `/assets/<name>` never reaches the DOM unresolved.
+const assetManifest = pickAssetManifestEntries(
+  getBakeAssetManifest(),
+  Object.values(eventsById).map((event) => event.image_url),
+);
 ---
 
 <Portal title="Event">
   <div class="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-    <EventDetailPageApp eventsById={eventsById} client:load />
+    <EventDetailPageApp eventsById={eventsById} assetManifest={assetManifest} client:load />
   </div>
 </Portal>

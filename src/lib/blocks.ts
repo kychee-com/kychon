@@ -2209,6 +2209,7 @@ const EVENTS_LIST: BlockType = {
       const ssrHtml = renderEventsListStaticHtml({
         events: ssrEvents as EventsListEventRow[],
         config: cfg,
+        manifest: ctx.manifest,
         // headingEditablePath is admin-only; build-time renders the
         // public view so we deliberately omit it here.
       });

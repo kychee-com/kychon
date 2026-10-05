@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/kychon/ui';
 import { get } from '@/lib/api';
 import { siteConfig } from '@/lib/config';
 import { formatEventDateTime } from '@/lib/event-display';
-import { getGlobalManifest, lookupAssetRef } from '@/lib/kychon-image';
+import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
 
@@ -38,7 +38,14 @@ interface EventsListProps {
    * between build and visit.
    */
   initialEvents?: EventRow[];
+  /**
+   * Manifest for the build-time static render (`BlockRenderContext.manifest`),
+   * where no window manifest exists. The runtime island reads the window one.
+   */
+  manifest?: AssetManifest | null;
 }
+
+type LookupAsset = (url: string) => AssetRef | null;
 
 type EventsListState =
   | { status: 'loading' }
@@ -97,7 +104,12 @@ function initialStateFromProps(initialEvents: EventRow[] | undefined): EventsLis
   return { status: 'ready', events: initialEvents };
 }
 
-function EventsListIsland({ config, headingEditablePath, initialEvents }: EventsListProps) {
+function EventsListIsland({ config, headingEditablePath, initialEvents, manifest }: EventsListProps) {
+  const globalManifest = useGlobalManifest();
+  const lookupAsset = React.useCallback<LookupAsset>(
+    (url) => lookupAssetRef(url, manifest) ?? lookupAssetRef(url, globalManifest),
+    [manifest, globalManifest],
+  );
   const [state, setState] = React.useState<EventsListState>(() => initialStateFromProps(initialEvents));
   const layout = normalizeLayout(config.layout);
   const count = normalizeCount(config.count);
@@ -150,6 +162,7 @@ function EventsListIsland({ config, headingEditablePath, initialEvents }: Events
               event={event}
               key={String(event.id ?? `${event.title}-${event.starts_at}`)}
               layout={layout}
+              lookupAsset={lookupAsset}
               showImage={config.show_image === true}
               showLocation={config.show_location !== false}
               showTime={config.show_time !== false}
@@ -185,12 +198,14 @@ function EventsLoading({ count, layout }: { count: number; layout: EventsListLay
 function EventCard({
   event,
   layout,
+  lookupAsset,
   showImage,
   showLocation,
   showTime,
 }: {
   event: EventRow;
   layout: EventsListLayout;
+  lookupAsset: LookupAsset;
   showImage: boolean;
   showLocation: boolean;
   showTime: boolean;
@@ -225,7 +240,7 @@ function EventCard({
             // loading never fires for those late-inserted in-viewport imgs
             // and they stay stuck on the placeholder. Eager loading sidesteps
             // the observer; the variant ladder still keeps bytes small.
-            const asset = lookupAssetRef(imageSrc, getGlobalManifest());
+            const asset = lookupAsset(imageSrc);
             if (asset) {
               return (
                 <Run402Image
@@ -301,25 +316,23 @@ export function mountEventsListIsland(
  * the cards land in the initial HTML payload instead of the empty
  * `data-block-hydrate` shell.
  *
- * Note: at build time `getGlobalManifest()` returns null (no `window`),
- * so `EventCard`'s manifest-hit branch is skipped and grid-layout
- * thumbnails fall through to plain `<img>`. The runtime React island
- * hydrates with the same events (passed via `data-events-payload`) and
- * its first render upgrades the thumbnails to `<picture>` via the
- * window-resident manifest — a brief `<img>` → `<picture>` swap on
- * grid pages, no visible change for the dominant sidebar/list layouts
- * that don't show images.
+ * There is no window manifest at build time, so the caller passes the
+ * build-time one (`BlockRenderContext.manifest`): grid thumbnails authored
+ * as `/assets/<name>` bake as the resolved `<picture>` instead of the
+ * unserved literal path.
  */
 export function renderEventsListStaticHtml(props: {
   events: EventRow[];
   config: EventsListConfig;
   headingEditablePath?: string;
+  manifest?: AssetManifest | null;
 }): string {
   return renderToStaticMarkup(
     <EventsListIsland
       config={props.config}
       headingEditablePath={props.headingEditablePath}
       initialEvents={props.events}
+      manifest={props.manifest}
     />,
   );
 }

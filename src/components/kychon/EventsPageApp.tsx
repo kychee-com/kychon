@@ -27,7 +27,7 @@ import { getEvents, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
 import { formatEventDateTime } from '@/lib/event-display';
-import { getGlobalManifest, lookupAssetRef } from '@/lib/kychon-image';
+import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { showToast } from '@/lib/toast-events';
 import type { Event } from '@/schemas/event';
@@ -60,7 +60,9 @@ function normalizeDateTime(value: string): string | null {
   return normalized;
 }
 
-function EventImage({ event }: { event: Event }) {
+type LookupAsset = (url: string | null | undefined) => AssetRef | null;
+
+function EventImage({ event, lookupAsset }: { event: Event; lookupAsset: LookupAsset }) {
   if (!event.image_url) {
     return (
       <div className="flex aspect-[16/7] items-center justify-center bg-muted text-muted-foreground">
@@ -90,7 +92,11 @@ function EventImage({ event }: { event: Event }) {
   // stuck on the blurhash placeholder. Eager loading bypasses the
   // observer entirely; bandwidth cost is small because the variant
   // ladder picks the appropriate width.
-  const asset = lookupAssetRef(event.image_url, getGlobalManifest());
+  //
+  // `lookupAsset` resolves against the build-time entries first (so the
+  // server render never bakes the unserved `/assets/<name>` path), then the
+  // live window manifest.
+  const asset = lookupAsset(event.image_url);
   if (asset) {
     return (
       <Run402Image
@@ -107,13 +113,13 @@ function EventImage({ event }: { event: Event }) {
   return <img alt="" className="aspect-[16/7] w-full object-cover" height={180} src={event.image_url} width={480} />;
 }
 
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, lookupAsset }: { event: Event; lookupAsset: LookupAsset }) {
   const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'card' });
 
   return (
     <Card className="h-full overflow-hidden transition-colors hover:bg-accent/50" data-event-card={event.id}>
       <a className="block h-full text-foreground no-underline" href={`/event?id=${event.id}`}>
-        <EventImage event={event} />
+        <EventImage event={event} lookupAsset={lookupAsset} />
         <CardHeader>
           <CardTitle className="break-words text-lg leading-6">{event.title}</CardTitle>
           <CardDescription className="space-y-2">
@@ -148,7 +154,17 @@ function EventCard({ event }: { event: Event }) {
   );
 }
 
-function EventSection({ title, tone, events }: { title: string; tone?: 'muted'; events: Event[] }) {
+function EventSection({
+  title,
+  tone,
+  events,
+  lookupAsset,
+}: {
+  title: string;
+  tone?: 'muted';
+  events: Event[];
+  lookupAsset: LookupAsset;
+}) {
   if (events.length === 0) return null;
 
   return (
@@ -156,7 +172,7 @@ function EventSection({ title, tone, events }: { title: string; tone?: 'muted'; 
       <h3 className={tone === 'muted' ? 'text-lg font-semibold text-muted-foreground' : 'text-lg font-semibold'}>{title}</h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-events-list={title.toLowerCase().replace(/\s+/g, '-')}>
         {events.map((event) => (
-          <EventCard event={event} key={event.id} />
+          <EventCard event={event} key={event.id} lookupAsset={lookupAsset} />
         ))}
       </div>
     </section>
@@ -285,9 +301,20 @@ interface EventsPageAppProps {
    * see the extra member-only events appear in the post-hydrate refresh.
    */
   initialEvents?: Event[];
+  /**
+   * Build-time manifest entries for `initialEvents`' images
+   * (`pickAssetManifestEntries`). The server render has no window manifest,
+   * so without these the baked cards carry the unserved `/assets/<name>`.
+   */
+  assetManifest?: AssetManifest | null;
 }
 
-export default function EventsPageApp({ initialEvents }: EventsPageAppProps = {}) {
+export default function EventsPageApp({ initialEvents, assetManifest }: EventsPageAppProps = {}) {
+  const globalManifest = useGlobalManifest();
+  const lookupAsset = useCallback<LookupAsset>(
+    (url) => lookupAssetRef(url, assetManifest) ?? lookupAssetRef(url, globalManifest),
+    [assetManifest, globalManifest],
+  );
   const [events, setEvents] = useState<Event[]>(() => initialEvents ?? []);
   const [admin, setAdmin] = useState(false);
   // Skip the skeleton when we hydrate from SSR-baked events — first
@@ -423,8 +450,8 @@ export default function EventsPageApp({ initialEvents }: EventsPageAppProps = {}
         </Card>
       ) : (
         <div className="space-y-8">
-          <EventSection events={upcoming} title="Upcoming" />
-          <EventSection events={past} title="Past Events" tone="muted" />
+          <EventSection events={upcoming} lookupAsset={lookupAsset} title="Upcoming" />
+          <EventSection events={past} lookupAsset={lookupAsset} title="Past Events" tone="muted" />
         </div>
       )}
 

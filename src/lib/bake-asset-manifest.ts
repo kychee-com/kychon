@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
-import { normalizeManifestAssetRef, type AssetManifest } from './kychon-image.js';
+import { lookupAssetRef, normalizeManifestAssetRef, type AssetManifest } from './kychon-image.js';
 
 /**
  * Where a port stages its uploaded-asset manifest before `astro build`
@@ -74,6 +74,28 @@ export function inlineAssetManifest(manifest: AssetManifest): AssetManifest {
     assets[key] = slim as unknown as AssetManifest['assets'][string];
   }
   return { ...manifest, assets };
+}
+
+/**
+ * The slim manifest entries for just the given image URLs, keyed as
+ * `lookupAssetRef` looks them up (`/assets/<basename>` → `<basename>`); null
+ * when none resolve. Islands whose images come from build-time data (event
+ * cards) take this as a prop so the server render resolves `/assets/...`
+ * without the window manifest, and without serializing the whole manifest
+ * into island props.
+ */
+export function pickAssetManifestEntries(
+  manifest: AssetManifest | null,
+  urls: Iterable<string | null | undefined>,
+): AssetManifest | null {
+  if (!manifest) return null;
+  const assets: AssetManifest['assets'] = {};
+  for (const url of urls) {
+    const ref = lookupAssetRef(url, manifest);
+    if (url && ref) assets[url.replace(/^\/assets\//, '')] = ref;
+  }
+  if (Object.keys(assets).length === 0) return null;
+  return inlineAssetManifest({ ...manifest, assets });
 }
 
 /**

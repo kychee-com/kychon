@@ -68,6 +68,10 @@ if (
 // files, which reference TypeScript sources not included in the tarball.
 const serverDeps = { inline: [/@run402\/astro\/dist\/build-manifest/] };
 
+// Match Astro's React integration (automatic JSX runtime), so islands that use
+// JSX without importing React (EventsPageApp, ...) render under Vitest.
+const reactJsx = { jsx: 'automatic' };
+
 export default defineConfig({
   resolve: {
     alias,
@@ -90,6 +94,7 @@ export default defineConfig({
       {
         resolve: { alias },
         plugins: [virtualAssetMapStub, stripRun402SourcemapTrailer],
+        esbuild: reactJsx,
         test: {
           name: 'unit',
           include: ['tests/unit/**/*.test.{js,ts}'],
@@ -99,6 +104,7 @@ export default defineConfig({
       {
         resolve: { alias },
         plugins: [virtualAssetMapStub, stripRun402SourcemapTrailer],
+        esbuild: reactJsx,
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.{js,ts}'],
