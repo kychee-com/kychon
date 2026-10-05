@@ -17,6 +17,8 @@ import { buildInlineManifestScript, getBakeAssetManifest, inlineAssetManifest } 
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
+import { mergeSeedSections } from '../lib/merge-sections';
+import type { Section } from '../lib/blocks';
 import { buildCspValueFromTemplate } from '../lib/csp';
 import { isDemoModeSeed } from '../lib/demo-mode';
 import { constrainedContainerClass } from '../lib/ui/container';
@@ -39,9 +41,20 @@ interface Props {
    * baked head tags.
    */
   extraHead?: string;
+  /**
+   * Slug of the page being rendered. When set, the header bake also includes
+   * that page's scope='page' header sections (page_banner etc.) so they are in
+   * the served HTML instead of popping in after hydration (kychon#190).
+   */
+  pageSlug?: string;
+  /**
+   * DB-fetched page-scoped sections for `pageSlug` (`getBuildSections(slug)`),
+   * merged into the seed so ported pages bake their DB-only header rows too.
+   */
+  pageSections?: Section[];
 }
 
-const { title, robots, extraHead } = Astro.props;
+const { title, robots, extraHead, pageSlug, pageSections } = Astro.props;
 
 // --- Chrome bake ---
 // Works at both build time (every prerendered route — silver-pines's
@@ -58,7 +71,8 @@ const { title, robots, extraHead } = Astro.props;
 // for every route — prerendered ones via the build-time bake, SSR ones
 // via the per-request bake.
 const { seed } = await resolveActiveProjectSeed();
-const chrome = bakeChrome(seed, title);
+const chromeSeed = pageSlug ? mergeSeedSections(seed, pageSlug, pageSections ?? []) : seed;
+const chrome = bakeChrome(chromeSeed, title, { pageSlug });
 const renderDemoBanner = isDemoModeSeed(seed);
 
 const cspValue = buildCspValueFromTemplate(headersTemplate);
@@ -151,7 +165,7 @@ const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAsse
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>
       <AdminZoneAddButton zone="header" />
     </nav>
-    <div data-fullbleed-host data-zone-fullbleed="header" transition:persist></div>
+    <div data-fullbleed-host data-zone-fullbleed="header" set:html={chrome.headerFullBleedHtml} transition:persist></div>
 
     <main class="flex-1 py-8" id="main-content">
       <slot />
