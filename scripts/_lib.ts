@@ -34,11 +34,19 @@ import {
   mergePublicPathOverrides,
   safeCustomPageSlugs,
 } from "../src/lib/clean-routes.ts";
-import { applyLiveConfigOverrides, fetchLiveSiteConfig } from "../src/lib/build-config.ts";
+import { fetchLiveSiteConfig, resolveFirstPaintSeed } from "../src/lib/build-config.ts";
 import { configFieldsJson } from "../src/lib/config-fields.ts";
 import { generateHeadersContent, validateCsp } from "../src/lib/csp.ts";
 import { resolveActiveProjectSeed } from "../src/seeds/index.ts";
-import { assertReimportConfirmed, resolveSeedPath, wrapInitialImport } from "./initial-import.ts";
+import {
+  applyWithPostImportRebuild,
+  assertReimportConfirmed,
+  type ReleasePhase,
+  readInstallMarker,
+  resolveSeedPath,
+  seedImportExpected,
+  wrapInitialImport,
+} from "./initial-import.ts";
 import type { ProjectSeed } from "../src/seeds/types.ts";
 import {
   buildEngineReleaseManifest,
@@ -914,6 +922,126 @@ export async function runDeploy(
   opts: RunDeployOptions,
 ): Promise<RunDeployResult> {
   if (opts.reimport) assertReimportConfirmed(opts.subdomain, opts.reimport.confirmSubdomain);
+  const reimport = opts.reimport !== undefined;
+  const project = await r.project(opts.projectId);
+  // Build-before-apply bakes the PRE-apply DB (#191/#153). The install marker
+  // tells us whether this release imports the seed; if it does, the first
+  // bake prefers the seed over live config and, after apply, the site is
+  // rebuilt from post-import state and published again. Ordinary redeploys
+  // (marker unchanged) build once, with live overrides, exactly as before.
+  const probeInstall = () => readInstallMarker((sql) => project.projects.sql(sql));
+
+  const localCheck = opts.dryRun === true || opts.deployMode === "check";
+  if (localCheck || opts.deployMode === "printSpec" || opts.deployMode === "plan") {
+    const seedWins = seedImportExpected(await probeInstall(), reimport);
+    return planOrCheckRelease(project, opts, await assembleDeployRelease(project, opts, { seedWins }), localCheck);
+  }
+
+  const applyOptionsFor = (phase: ReleasePhase): ApplyOptions => {
+    const applyOptions: ApplyOptions = {
+      onEvent(event) {
+        if (event.type !== "plan.warnings") return;
+        console.warn("\nDeploy plan warnings:");
+        for (const warning of event.warnings) {
+          console.warn(
+            `  [${warning.severity ?? "warning"}] ${warning.code}: ${warning.message}`,
+          );
+        }
+      },
+    };
+    if (opts.requiredPlan && opts.allowWarnings) {
+      throw new Error("Warning approvals are not used with --require-plan; the reviewed plan already binds the warning set.");
+    }
+    if (opts.allowWarnings) {
+      applyOptions.allowWarnings = true;
+      console.warn(
+        "\nContinuing past confirmation-required deploy warnings because allowWarnings is enabled.",
+      );
+    }
+    if (opts.requiredPlan && phase === "initial") {
+      applyOptions.requiredPlan = opts.requiredPlan;
+      console.log(
+        `\nApplying reviewed plan ${opts.requiredPlan.planId}${opts.requiredPlan.planFingerprint ? ` (${opts.requiredPlan.planFingerprint})` : ""}.`,
+      );
+    } else if (opts.requiredPlan) {
+      // The reviewed plan bound the initial release; the post-import re-publish
+      // only re-bakes the same site from post-import state (no migration).
+      applyOptions.allowWarnings = true;
+    }
+    return applyOptions;
+  };
+
+  const { result: applied, rebuilt } = await applyWithPostImportRebuild({
+    reimport,
+    probe: probeInstall,
+    build: (phase, { seedWins }) => {
+      if (phase === "post-import") {
+        console.log("\n[initial-import] seed imported by this deploy — rebuilding from post-import state and re-publishing");
+      }
+      return assembleDeployRelease(project, opts, { seedWins });
+    },
+    apply: async (release, phase) => {
+      const startedAt = Date.now();
+      const result = await project.apply(postImportSpec(release.spec, phase), applyOptionsFor(phase));
+      return { release, result, elapsedMs: Date.now() - startedAt };
+    },
+  });
+  const { release, result, elapsedMs } = applied;
+  if (rebuilt) console.log("[initial-import] post-import bake published");
+
+  console.log(`\nDeploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
+  console.log(`  Release id: ${result.release_id}`);
+  console.log(`  Operation id: ${result.operation_id}`);
+  for (const [k, v] of Object.entries(result.urls)) {
+    console.log(`  ${k}: ${v}`);
+  }
+  const firstPublicUrl = Object.values(result.urls)[0]?.replace(/\/+$/, "");
+  const diagnoseBase = firstPublicUrl || `https://${opts.subdomain}.kychon.com`;
+  console.log(
+    `  Diagnose clean route: run402 deploy diagnose --project ${opts.projectId} ${diagnoseBase}/search?q=hello&type=all --method GET`,
+  );
+  return reportAppliedRelease(project, opts, release, result, elapsedMs);
+}
+
+/**
+ * The spec applied in each phase. The post-import re-publish drops the
+ * database slice: the migration (schema + import) already landed with the
+ * initial release, and only the re-baked site/functions need publishing.
+ */
+export function postImportSpec(spec: KychonReleaseSpec, phase: ReleasePhase): KychonReleaseSpec {
+  if (phase === "initial") return spec;
+  const { database: _database, ...rest } = spec;
+  return rest;
+}
+
+/** Everything one build + spec assembly produces; consumed by apply/plan/check. */
+interface AssembledDeployRelease {
+  spec: KychonReleaseSpec;
+  sql: string;
+  migrationId: string;
+  releaseManifest: EngineReleaseManifest;
+  i18nSpec: I18nSpec;
+  finalFunctionsMap: Record<string, FunctionSpec>;
+  functionsMap: Record<string, FunctionSpec>;
+  fnNames: string[];
+  scheduledFns: string[];
+  fnDiff: ReturnType<typeof diffFunctionsMap> | null;
+  fileCount: number;
+  publicPaths: Record<string, PublicStaticPathSpec>;
+  publicPathEntries: Array<[string, PublicStaticPathSpec]>;
+  routes: NonNullable<Exclude<ReleaseSpec["routes"], null>>["replace"] | undefined;
+  materializedCustomPages: MaterializedCustomPageFile[];
+}
+
+/**
+ * Build Astro and assemble the release spec. `seedWins` (this deploy imports
+ * the seed) skips the live first-paint overrides so the seed's chrome is baked.
+ */
+async function assembleDeployRelease(
+  project: Awaited<ReturnType<Run402Instance["project"]>>,
+  opts: RunDeployOptions,
+  ctx: { seedWins: boolean },
+): Promise<AssembledDeployRelease> {
   const buildOptions: BuildAstroOptions = {};
   if (opts.chromeSnapshot !== undefined) {
     buildOptions.chromeSnapshot = opts.chromeSnapshot;
@@ -923,8 +1051,10 @@ export async function runDeploy(
   // fields (custom_css, theme, branding) with the project's CURRENT live
   // site_config so the baked first byte matches the deployed site — and so the
   // SEED_OWNED `theme` upsert in seed.sql doesn't clobber a live theme edit on
-  // redeploy. Runs once per deploy here in the seam (NOT in bakeChrome, which
+  // redeploy. Runs once per build here in the seam (NOT in bakeChrome, which
   // also runs per-SSR-request). Any failure → static seed, deploy unaffected.
+  // When this deploy imports the seed, the seed replaces live content, so the
+  // seed wins and any live values it is about to replace are warned about.
   try {
     const baseSeed = await resolveDeployOutputSeed(opts.chromeSnapshot);
     const liveRows = await fetchLiveSiteConfig({
@@ -932,7 +1062,12 @@ export async function runDeploy(
       projectId: opts.projectId,
       portalUrl: process.env.KYCHON_PUBLIC_URL?.trim() || `https://${opts.subdomain}.kychon.com`,
     });
-    const { seed: effectiveSeed, overridden } = applyLiveConfigOverrides(baseSeed, liveRows);
+    const { seed: effectiveSeed, overridden, discarded } = resolveFirstPaintSeed(baseSeed, liveRows, ctx);
+    if (discarded.length > 0) {
+      console.warn(
+        `[build-config] this deploy imports the seed — live config differs and will be replaced by the seed: ${discarded.join(", ")}`,
+      );
+    }
     if (overridden.length > 0) {
       buildOptions.chromeSnapshot = effectiveSeed;
       console.log(`[build-config] first paint overridden from live config: ${overridden.join(", ")}`);
@@ -962,8 +1097,6 @@ export async function runDeploy(
     if (previousProjectId === undefined) delete process.env.KYCHON_PROJECT_ID;
     else process.env.KYCHON_PROJECT_ID = previousProjectId;
   }
-
-  const project = await r.project(opts.projectId);
 
   const distDir = join(ROOT, "dist");
   // Hybrid-mode detection: the @run402/astro SSR adapter writes
@@ -1152,7 +1285,48 @@ export async function runDeploy(
     );
   }
 
-  const localCheck = opts.dryRun === true || opts.deployMode === "check";
+  return {
+    spec,
+    sql,
+    migrationId,
+    releaseManifest,
+    i18nSpec,
+    finalFunctionsMap,
+    functionsMap,
+    fnNames,
+    scheduledFns,
+    fnDiff,
+    fileCount,
+    publicPaths,
+    publicPathEntries,
+    routes,
+    materializedCustomPages,
+  };
+}
+
+/** The non-apply deploy modes: printSpec, local check, and gateway-reviewed plan. */
+async function planOrCheckRelease(
+  project: Awaited<ReturnType<Run402Instance["project"]>>,
+  opts: RunDeployOptions,
+  release: AssembledDeployRelease,
+  localCheck: boolean,
+): Promise<RunDeployResult> {
+  const {
+    spec,
+    sql,
+    migrationId,
+    releaseManifest,
+    i18nSpec,
+    functionsMap,
+    fnNames,
+    scheduledFns,
+    fnDiff,
+    fileCount,
+    publicPaths,
+    publicPathEntries,
+    routes,
+    materializedCustomPages,
+  } = release;
   if (opts.deployMode === "printSpec") {
     console.log(JSON.stringify(spec, null, 2));
     return {
@@ -1231,49 +1405,18 @@ export async function runDeploy(
     if (plan.plan_expires_at) plannedResult.planExpiresAt = plan.plan_expires_at;
     return plannedResult;
   }
+  throw new Error(`planOrCheckRelease: unexpected deploy mode ${String(opts.deployMode)}`);
+}
 
-  const applyOptions: ApplyOptions = {
-    onEvent(event) {
-      if (event.type !== "plan.warnings") return;
-      console.warn("\nDeploy plan warnings:");
-      for (const warning of event.warnings) {
-        console.warn(
-          `  [${warning.severity ?? "warning"}] ${warning.code}: ${warning.message}`,
-        );
-      }
-    },
-  };
-  if (opts.requiredPlan && opts.allowWarnings) {
-    throw new Error("Warning approvals are not used with --require-plan; the reviewed plan already binds the warning set.");
-  }
-  if (opts.allowWarnings) {
-    applyOptions.allowWarnings = true;
-    console.warn(
-      "\nContinuing past confirmation-required deploy warnings because allowWarnings is enabled.",
-    );
-  }
-  if (opts.requiredPlan) {
-    applyOptions.requiredPlan = opts.requiredPlan;
-    console.log(
-      `\nApplying reviewed plan ${opts.requiredPlan.planId}${opts.requiredPlan.planFingerprint ? ` (${opts.requiredPlan.planFingerprint})` : ""}.`,
-    );
-  }
-
-  const startedAt = Date.now();
-  const result = await project.apply(spec, applyOptions);
-  const elapsedMs = Date.now() - startedAt;
-
-  console.log(`\nDeploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
-  console.log(`  Release id: ${result.release_id}`);
-  console.log(`  Operation id: ${result.operation_id}`);
-  for (const [k, v] of Object.entries(result.urls)) {
-    console.log(`  ${k}: ${v}`);
-  }
-  const firstPublicUrl = Object.values(result.urls)[0]?.replace(/\/+$/, "");
-  const diagnoseBase = firstPublicUrl || `https://${opts.subdomain}.kychon.com`;
-  console.log(
-    `  Diagnose clean route: run402 deploy diagnose --project ${opts.projectId} ${diagnoseBase}/search?q=hello&type=all --method GET`,
-  );
+/** Post-apply readback + error gate for the release that is now live. */
+async function reportAppliedRelease(
+  project: Awaited<ReturnType<Run402Instance["project"]>>,
+  opts: RunDeployOptions,
+  release: AssembledDeployRelease,
+  result: Awaited<ReturnType<Awaited<ReturnType<Run402Instance["project"]>>["apply"]>>,
+  elapsedMs: number,
+): Promise<RunDeployResult> {
+  const { i18nSpec, finalFunctionsMap, releaseManifest, migrationId } = release;
 
   // Positive readback for the i18n slice — apply() success means both
   // validateI18nSpec (client) and the gateway validator accepted the
