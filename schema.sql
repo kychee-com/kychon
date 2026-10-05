@@ -539,7 +539,9 @@ BEGIN
       RETURN trim(result);
     WHEN 'object' THEN
       FOR item IN SELECT key, val FROM jsonb_each(value) AS t(key, val) LOOP
-        IF item.key !~* '(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id)$' THEN
+        -- Index visible copy only: skip links, media, styling, and image alt text /
+        -- fit / position settings (#194: slideshow alt + fit crowded out snippets).
+        IF item.key !~* '(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id|alt|fit|position)$' THEN
           result := concat_ws(' ', result, kychon_search_jsonb_text(item.val));
         END IF;
       END LOOP;
