@@ -3,7 +3,7 @@ import type { Section } from '@/lib/blocks';
 
 /**
  * Return a shallow-cloned seed whose `sections` includes the DB-fetched
- * page-scoped main-zone sections for `pageSlug`, merged on top of the seed's
+ * page-scoped main- and header-zone sections for `pageSlug`, merged on top of the seed's
  * own sections. Used by index.astro / [customPage].astro so that ported pages
  * (whose main-zone sections live only in the deployed DB) SSR-bake their real
  * body instead of an empty hydrate shell.
@@ -37,12 +37,11 @@ export function mergeSeedSections(
   const dbKeys = new Set(dbSections.map(keyOf));
   const seedSections = (seed.sections ?? []) as unknown as SeedSection[];
   const kept = seedSections.filter((s) => {
-    const isThisPageMain =
-      s.zone === 'main' && s.scope === 'page' && s.page_slug === pageSlug;
-    return !(isThisPageMain && dbKeys.has(keyOf(s)));
+    const isThisPageScoped = s.scope === 'page' && s.page_slug === pageSlug;
+    return !(isThisPageScoped && dbKeys.has(keyOf(s)));
   });
 
-  // `renderMainZone` sorts by `position`, so final order is position-driven
+  // `renderMainZone` / `renderHeaderZone` sort by `position`, so final order is position-driven
   // regardless of array order here.
   return {
     ...seed,

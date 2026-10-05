@@ -1,5 +1,5 @@
 import { getBakeAssetManifest } from './bake-asset-manifest.js';
-import { renderBlock, type BlockRenderContext, type Section } from './blocks.js';
+import { BLOCK_TYPES, dedupeSingletonSections, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { resolveAssetUrl } from './kychon-image.js';
 import { computeMainZoneSignature } from './main-zone-signature.js';
 import { buildFontVarValue, buildGoogleFontsUrl, renderFontHead } from './theme/fonts.js';
@@ -7,6 +7,13 @@ import type { ProjectSeed } from '../seeds/types.js';
 
 export interface BakedChrome {
   headerHtml: string;
+  /**
+   * Full-bleed header blocks (page_banner) for the baked page, rendered into
+   * the `[data-fullbleed-host][data-zone-fullbleed="header"]` sibling of the
+   * nav shell — the same host `page-render.ts:renderZoneInto('header')` paints.
+   * Empty for the slug-less (global-only) bake.
+   */
+  headerFullBleedHtml: string;
   /**
    * Global nav `presentation.header_position` (e.g. `static`), baked as
    * `--nav-header-position` on `[data-nav-shell]`, the element that reads it.
@@ -144,6 +151,43 @@ export function renderGlobalZone(
     .join('');
 }
 
+export interface HeaderZoneBake {
+  /** Chrome blocks for the constrained `#zone-header` container. */
+  html: string;
+  /** Full-bleed blocks (page_banner) for the header full-bleed host. */
+  fullBleedHtml: string;
+}
+
+// Bake the header zone for a specific page: global header sections plus the
+// page's own scope='page' header sections (page_banner, page-specific
+// brand_header, ...), in position order. Mirrors page-render.ts:renderZoneInto's
+// header branch — same singleton dedupe, same chrome / full-bleed split — so the
+// runtime hydrate repaints identical markup. Other pages' page-scoped sections
+// never leak in (kychon#190).
+export function renderHeaderZone(
+  seed: ProjectSeed,
+  pageSlug: string,
+  ctx: BlockRenderContext = makeBakeContext(seed),
+): HeaderZoneBake {
+  const filtered = dedupeSingletonSections(
+    (seed.sections as unknown as Section[])
+      .filter(
+        (s) =>
+          s.zone === 'header' &&
+          s.visible !== false &&
+          (s.scope === 'global' || (s.scope === 'page' && s.page_slug === pageSlug)),
+      )
+      .sort((a, b) => a.position - b.position),
+    pageSlug,
+  );
+  const chrome: string[] = [];
+  const fullBleed: string[] = [];
+  for (const s of filtered) {
+    (BLOCK_TYPES[s.section_type]?.fullBleed ? fullBleed : chrome).push(renderBlock(s, ctx));
+  }
+  return { html: chrome.join(''), fullBleedHtml: fullBleed.join('') };
+}
+
 // Bake page-scoped main-zone sections for a specific slug. Mirrors
 // page-render.ts:renderZoneInto's 'main' branch — admin live-edits are still
 // applied by the runtime hydrate, so this only sets the first paint.
@@ -264,8 +308,24 @@ export function cdnOriginFromManifest(
   return null;
 }
 
-export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
+export interface BakeChromeOptions {
+  /**
+   * Slug of the page being baked. When set, the header bake also includes that
+   * page's scope='page' header sections (see `renderHeaderZone`); when omitted
+   * the header is global-only.
+   */
+  pageSlug?: string;
+}
+
+export function bakeChrome(
+  seed: ProjectSeed,
+  pageTitle: string,
+  options: BakeChromeOptions = {},
+): BakedChrome {
   const bakeCtx = makeBakeContext(seed);
+  const header = options.pageSlug
+    ? renderHeaderZone(seed, options.pageSlug, bakeCtx)
+    : { html: renderGlobalZone(seed, 'header', bakeCtx), fullBleedHtml: '' };
   const theme = themeFromSeed(seed);
   // `/assets/<basename>` favicons resolve to their CDN URL; the SVG check reads
   // the source path's extension since the CDN URL need not carry one.
@@ -280,7 +340,8 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
   if (headingVar) themeFontVarLines.push(`--font-heading: ${headingVar};`);
   if (bodyVar) themeFontVarLines.push(`--font-body: ${bodyVar};`);
   return {
-    headerHtml: renderGlobalZone(seed, 'header', bakeCtx),
+    headerHtml: header.html,
+    headerFullBleedHtml: header.fullBleedHtml,
     headerPosition: headerPositionFromSeed(seed),
     footerHtml: renderGlobalZone(seed, 'footer', bakeCtx),
     fontHead: renderFontHead(

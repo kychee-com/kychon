@@ -54,7 +54,8 @@ const bakeCtx = {
 };
 // Ported custom pages carry their main-zone sections only in the deployed DB.
 // Merge them in so renderMainZone bakes the real body instead of an empty shell.
-const seedForBake = mergeSeedSections(seed, slug, getBuildSections(slug));
+const buildSections = getBuildSections(slug);
+const seedForBake = mergeSeedSections(seed, slug, buildSections);
 const { html: sectionsHtml, signature: bakeSignature } = renderMainZone(seedForBake, slug, bakeCtx);
 // SSR the page body itself: with `initialPage` the island
 // server-renders the real title + sanitized rich-text content instead of
@@ -69,7 +70,7 @@ const buildPage = rawBuildPage
   ? { ...rawBuildPage, content: rewriteAssetUrlsInHtml(rawBuildPage.content ?? '', bakeCtx.manifest) }
   : null;
 ---
-<Portal title={buildPage?.title ?? 'Page'}>
+<Portal title={buildPage?.title ?? 'Page'} pageSlug={slug} pageSections={buildSections}>
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
     <CustomPageApp client:load initialPage={buildPage} />
   </div>

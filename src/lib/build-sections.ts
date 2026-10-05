@@ -1,6 +1,6 @@
 /**
- * Build-time page-section loader. Fetches a page's page-scoped main-zone
- * `sections` rows from the deployed gateway during `astro build` (NOT at
+ * Build-time page-section loader. Fetches a page's page-scoped main- and
+ * header-zone `sections` rows from the deployed gateway during `astro build` (NOT at
  * runtime) so `chrome-bake.ts:renderMainZone` can SSR-bake the page's
  * hero/custom/events_list/slideshow blocks into the prerendered HTML.
  *
@@ -74,23 +74,25 @@ async function fetchPageSections(pageSlug: string): Promise<Section[]> {
     // gateway's `matchesInput`; the anon key adds `visibleSection` (drops
     // visible=false + admin-scoped). We re-filter + re-sort below because the
     // gateway ignores order/limit and because baked HTML is public forever.
+    // No zone filter: the page's own header-zone rows (page_banner) bake
+    // into its header chrome alongside the main-zone body (kychon#190).
     const result = await client.request<CapabilityListResult>(
       'sections.list',
       'query',
-      { page_slug: pageSlug, zone: 'main', scope: 'page' },
+      { page_slug: pageSlug, scope: 'page' },
     );
     const rows = Array.isArray(result?.rows) ? result.rows : [];
     const baked = rows
       .filter(
         (s) =>
-          s.zone === 'main' &&
+          (s.zone === 'main' || s.zone === 'header') &&
           s.scope === 'page' &&
           s.page_slug === pageSlug &&
           s.visible !== false,
       )
       .sort((a, b) => a.position - b.position);
     console.log(
-      `[build-sections] fetched ${baked.length} main-zone section(s) for ${projectId} (slug="${pageSlug}")`,
+      `[build-sections] fetched ${baked.length} page-scoped main/header section(s) for ${projectId} (slug="${pageSlug}")`,
     );
     return baked;
   } catch (error) {
@@ -120,7 +122,7 @@ export async function ensureBuildSectionsLoaded(pageSlug: string): Promise<void>
 
 /**
  * Synchronous accessor for the build-time page-section cache. Returns the
- * filtered + sorted main-zone sections for a slug, or `[]` when the loader
+ * filtered + sorted page-scoped main/header-zone sections for a slug, or `[]` when the loader
  * skipped/failed/hasn't run. Callers MERGE these into the seed sections passed
  * to `renderMainZone` — empty means "fall back to whatever the snapshot had".
  */
