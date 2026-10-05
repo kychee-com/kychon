@@ -1,6 +1,12 @@
 // i18n.ts — Translation function with English fallback, plurals, interpolation
 
+import bundledEnglishStrings from '../../public/custom/strings/en.json';
 import { findDescendantElementById } from './dom-structure';
+
+// Bundled default-language dictionary: the last-resort fallback so chrome
+// islands that render before /custom/strings/{lang}.json arrives never paint a
+// raw key (kychee-com/kychon#185). The fetched dictionaries still win.
+const bundledStrings: Record<string, any> = bundledEnglishStrings;
 
 let strings: Record<string, any> = {};
 let fallbackStrings: Record<string, any> = {};
@@ -13,11 +19,11 @@ export function t(key: string, vars: Record<string, any> = {}): string {
   let resolvedKey = key;
   if (vars.count !== undefined && vars.count === 1) {
     const oneKey = `${key}_one`;
-    const oneVal = strings[oneKey] || fallbackStrings[oneKey];
+    const oneVal = strings[oneKey] || fallbackStrings[oneKey] || bundledStrings[oneKey];
     if (oneVal) resolvedKey = oneKey;
   }
 
-  let str: string = strings[resolvedKey] || fallbackStrings[resolvedKey] || resolvedKey;
+  let str: string = strings[resolvedKey] || fallbackStrings[resolvedKey] || bundledStrings[resolvedKey] || resolvedKey;
 
   if (vars && typeof str === 'string') {
     for (const [k, v] of Object.entries(vars)) {
