@@ -129,7 +129,7 @@ kychon/
 - **Astro build step** - `astro build` outputs static HTML/JS/CSS to `dist/`, deployed to Run402
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
-- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. The `@run402/sdk` devDep is exact-pinned, so bumps are deliberate and diff-reviewed.
+- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. run402 packages are exact-pinned and kept on latest by `.github/workflows/run402-bump.yml` (every 6h, in lockstep with kychon-concierge): it pushes a bump to main only after the full CI check suite passes, then dispatches CI and the demo deploy. A failed bump opens an "Automatic run402 bump failed" issue — fix main rather than pinning back.
   - **Local-only**: this machine's `npm` config has a `before=` cutoff that filters out recently-published packages. Bumping the SDK to a release published after the cutoff requires `npm install --before=null @run402/sdk@<version>` (or temporarily `npm config delete before`). Not a Run402 issue — a personal sandbox knob.
 
 ## OpenSpec Workflow
