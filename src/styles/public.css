@@ -932,8 +932,9 @@ tr:hover td {
   text-align: left;
 }
 [data-nav-overflow-menu] [data-nav-item-wrap] {
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 @media (max-width: 520px) {
