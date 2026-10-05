@@ -51,6 +51,17 @@ export { resolveVariants };
  * hydrator runs.
  */
 const GLOBAL_MANIFEST_KEY = '__KYCHON_ASSET_MANIFEST';
+/** Set by Portal.astro's inline script next to the manifest it inlines. */
+const INLINED_FLAG_KEY = '__KYCHON_ASSET_MANIFEST_INLINED';
+
+/**
+ * True when this page's build inlined the manifest (fresh for this deploy).
+ * False when `window.__KYCHON_ASSET_MANIFEST` was filled from a previous
+ * visit's localStorage seed, which may predate the current deploy.
+ */
+export function isManifestInlinedByBuild(): boolean {
+  return typeof window !== 'undefined' && (window as unknown as Record<string, unknown>)[INLINED_FLAG_KEY] === true;
+}
 
 /**
  * localStorage key the manifest seed lives under (mirrors

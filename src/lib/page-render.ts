@@ -31,7 +31,7 @@ import {
   findDirectElementChild,
   nearestElementWithAttribute,
 } from './dom-structure';
-import { type AssetManifest, getGlobalManifest, setGlobalManifest } from './kychon-image';
+import { type AssetManifest, getGlobalManifest, isManifestInlinedByBuild, setGlobalManifest } from './kychon-image';
 import { computeMainZoneSignature } from './main-zone-signature';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
@@ -89,9 +89,14 @@ function writeManifestToLocalStorage(manifest: AssetManifest): void {
   try {
     localStorage.setItem(ASSET_MANIFEST_CACHE_KEY, JSON.stringify(manifest));
   } catch {
-    // Likely QuotaExceededError — manifest with 200+ image entries can push
-    // tens of KB. Drop the seed; the next reload re-paints via the network
-    // fetch path.
+    // Likely QuotaExceededError (a port with ~1,000+ images exceeds the
+    // quota). Drop the seed: leaving the previous, smaller manifest behind
+    // would seed every later visit with a stale asset list.
+    try {
+      localStorage.removeItem(ASSET_MANIFEST_CACHE_KEY);
+    } catch {
+      // Storage unavailable; nothing to drop.
+    }
   }
 }
 
@@ -105,7 +110,12 @@ function fetchManifest(): Promise<AssetManifest | null> {
   // The `wl_cache_assets_manifest` localStorage seed also gets refreshed
   // here so older deploys (or layouts that bypass the inline script)
   // still self-heal on the next reload.
-  const inline = getGlobalManifest();
+  //
+  // Only a manifest the BUILD inlined counts: the global is also filled
+  // from the localStorage seed (a previous visit's manifest), and trusting
+  // that would never revalidate — a port whose manifest is above the inline
+  // cap would serve a stale asset list forever after a deploy adds images.
+  const inline = isManifestInlinedByBuild() ? getGlobalManifest() : null;
   if (inline) {
     manifestPromise = Promise.resolve(inline);
     writeManifestToLocalStorage(inline);
@@ -585,3 +595,6 @@ async function fetchAndUpdate(
 export function currentPageSlug(): string {
   return currentPageSlugFromLocation(window.location.pathname, window.location.search);
 }
+
+/** The page's asset-manifest load (inlined, or fetched and cached). Exported for tests. */
+export { fetchManifest as loadAssetManifest };

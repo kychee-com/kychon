@@ -167,5 +167,7 @@ export function buildInlineManifestScript(
   // Escape `<` so a `</script>` in the data cannot close the tag.
   const json = JSON.stringify(manifest).replace(/</g, '\\u003c');
   if (Buffer.byteLength(json, 'utf8') > maxBytes) return '';
-  return `window.__KYCHON_ASSET_MANIFEST = ${json};`;
+  // The flag tells page-render.ts this manifest came from the build (fresh),
+  // not from a previous visit's localStorage seed.
+  return `window.__KYCHON_ASSET_MANIFEST = ${json}; window.__KYCHON_ASSET_MANIFEST_INLINED = true;`;
 }

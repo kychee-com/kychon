@@ -240,6 +240,7 @@ describe('inlined manifest size cap', () => {
       assets: { 'a.jpg': { url: '</script>' } },
     } as unknown as AssetManifest);
     expect(script.startsWith('window.__KYCHON_ASSET_MANIFEST = {')).toBe(true);
+    expect(script).toContain('window.__KYCHON_ASSET_MANIFEST_INLINED = true;');
     expect(script).not.toContain('</script>');
   });
 

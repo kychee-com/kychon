@@ -10,7 +10,7 @@ import {
   type SlideshowRenderItem,
 } from '@/components/kychon/SlideshowBlockView';
 import { collectDescendantElements } from '../dom-structure.js';
-import { getGlobalManifest } from '../kychon-image.js';
+import { getGlobalManifest, useGlobalManifest } from '../kychon-image.js';
 
 interface MountedSlideshow {
   onSwap: () => void;
@@ -96,6 +96,16 @@ function readSlideshowProps(host: HTMLElement): SlideshowCarouselProps | null {
   };
 }
 
+/**
+ * Re-render with the live manifest: on ports above the inline cap the
+ * manifest is fetched after mount, and a slideshow that kept its mount-time
+ * snapshot would leave every slide on the unserved `/assets/<name>` path.
+ */
+function LiveSlideshow(props: SlideshowCarouselProps) {
+  const manifest = useGlobalManifest();
+  return createElement(SlideshowCarousel, { ...props, manifest: manifest ?? props.manifest });
+}
+
 export function initSlideshow(host: HTMLElement): void {
   if (host.dataset.hydrated === 'true') return;
   const props = readSlideshowProps(host);
@@ -106,7 +116,7 @@ export function initSlideshow(host: HTMLElement): void {
   MOUNTED_SLIDESHOWS.set(host, { onSwap, root: reactRoot });
   document.addEventListener('astro:before-swap', onSwap, { once: true });
   flushSync(() => {
-    reactRoot.render(createElement(SlideshowCarousel, props));
+    reactRoot.render(createElement(LiveSlideshow, props));
   });
   host.dataset.hydrated = 'true';
 }
