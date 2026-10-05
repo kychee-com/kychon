@@ -86,14 +86,20 @@ describe('hero h1 gradient text is scoped to plain light heroes (kychon#181)', (
   });
 
   it('a foreground hero with text over the image never matches the gradient-text rule', () => {
-    const h1 = heroH1({ mode: 'foreground', image_url: '/x.png', heading: 'Hi', text_position: 'over_image' });
+    const h1 = heroH1({
+      mode: 'foreground',
+      image_url: '/x.png',
+      image_alt: 'Hero',
+      heading: 'Hi',
+      text_position: 'over_image',
+    });
     expect(rulesFor(h1).filter(isGradientText)).toEqual([]);
   });
 
   it('image heroes paint the heading with a solid color that `color` overrides can change', () => {
     for (const cfg of [
       { heading: 'Welcome', bg_image: '/img/hero.jpg' },
-      { mode: 'foreground', image_url: '/x.png', heading: 'Hi', text_position: 'over_image' },
+      { mode: 'foreground', image_url: '/x.png', image_alt: 'Hero', heading: 'Hi', text_position: 'over_image' },
     ]) {
       const matched = rulesFor(heroH1(cfg));
       expect(matched.some((r) => /(^|[;\s])color:\s*#fff/.test(r.body))).toBe(true);
