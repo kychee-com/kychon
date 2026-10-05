@@ -151,6 +151,18 @@ export function onManifestChanged(handler: () => void): () => void {
   return () => window.removeEventListener(MANIFEST_CHANGED_EVENT, handler);
 }
 
+/**
+ * The window manifest as React state: `null` during SSR and hydration (the
+ * server snapshot), then the live value, re-rendering when
+ * `setGlobalManifest` lands a new one. Islands that read the manifest during
+ * render use this instead of `getGlobalManifest()` so a manifest fetched
+ * after mount (ports above the inline cap) still upgrades `/assets/<name>`
+ * images instead of leaving the unserved path in place.
+ */
+export function useGlobalManifest(): AssetManifest | null {
+  return React.useSyncExternalStore(onManifestChanged, getGlobalManifest, () => null);
+}
+
 /** v1.49 native widths — used to pick a sensible single-URL when CSS can't host a `<picture>`. */
 const PREFERRED_FIT_VARIANT: Array<keyof NonNullable<AssetRef['variants']>> = ['medium', 'large', 'thumb'];
 

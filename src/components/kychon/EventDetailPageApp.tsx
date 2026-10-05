@@ -57,7 +57,12 @@ import {
   eventTimezonePayload,
   registrationOptionPayload,
 } from '@/lib/event-registration';
-import { getGlobalManifest, lookupAssetRef, rewriteAssetUrlsInHtml } from '@/lib/kychon-image';
+import {
+  type AssetManifest,
+  lookupAssetRef,
+  rewriteAssetUrlsInHtml,
+  useGlobalManifest,
+} from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { RegistrationOptions, RsvpPanel } from '@/components/kychon/EventRegistrationPanels';
@@ -172,8 +177,16 @@ function attendeeName(rsvp: EventRSVPWithMember): string {
   return rsvp.members?.display_name || 'Member';
 }
 
-function Description({ admin, event }: { admin: boolean; event: Event }) {
-  const html = rewriteAssetUrlsInHtml(sanitizeRichHtml(event.description), getGlobalManifest());
+function Description({
+  admin,
+  event,
+  manifest,
+}: {
+  admin: boolean;
+  event: Event;
+  manifest: AssetManifest | null;
+}) {
+  const html = rewriteAssetUrlsInHtml(sanitizeRichHtml(event.description), manifest);
   if (!html) return null;
   return (
     <div
@@ -482,9 +495,16 @@ interface EventDetailPageAppProps {
    * `output: 'hybrid'` and is its own arc.
    */
   eventsById?: Record<string, Event>;
+  /**
+   * Build-time manifest entries for `eventsById`' hero images
+   * (`pickAssetManifestEntries`), so `/assets/<name>` resolves even when the
+   * window manifest is absent (ports above the inline cap fetch it later).
+   */
+  assetManifest?: AssetManifest | null;
 }
 
-export default function EventDetailPageApp({ eventsById }: EventDetailPageAppProps = {}) {
+export default function EventDetailPageApp({ eventsById, assetManifest }: EventDetailPageAppProps = {}) {
+  const globalManifest = useGlobalManifest();
   const [event, setEvent] = useState<Event | null>(null);
   const [rsvps, setRsvps] = useState<EventRSVPWithMember[]>([]);
   const [registrationOptions, setRegistrationOptions] = useState<EventRegistrationOption[]>([]);
@@ -767,7 +787,8 @@ export default function EventDetailPageApp({ eventsById }: EventDetailPageAppPro
           // `className` lands on `<picture>` (outermost), `style` on `<img>`
           // (always). Aspect-ratio box on the wrapper, cover-fit on the img;
           // otherwise non-16:7 source images stretch into the 16:7 box.
-          const asset = lookupAssetRef(event.image_url, getGlobalManifest());
+          const asset =
+            lookupAssetRef(event.image_url, assetManifest) ?? lookupAssetRef(event.image_url, globalManifest);
           if (asset) {
             return (
               <Run402Image
@@ -818,7 +839,7 @@ export default function EventDetailPageApp({ eventsById }: EventDetailPageAppPro
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Description admin={admin} event={event} />
+          <Description admin={admin} event={event} manifest={globalManifest} />
         </CardContent>
       </Card>
 

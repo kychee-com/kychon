@@ -1,6 +1,7 @@
 ---
 import EventsPageApp from '../components/kychon/EventsPageApp';
 import Portal from '../layouts/Portal.astro';
+import { getBakeAssetManifest, pickAssetManifestEntries } from '../lib/bake-asset-manifest';
 import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
 
 // Pre-fetch the full events list once at build so the React island
@@ -14,9 +15,16 @@ import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events'
 // path.
 await ensureBuildEventsLoaded();
 const initialEvents = getAllBuildEvents();
+// The island's server render has no window manifest, so hand it the
+// build-time entries for these events' images; otherwise the baked cards
+// carry the unserved `/assets/<name>` path (404 before hydration).
+const assetManifest = pickAssetManifestEntries(
+  getBakeAssetManifest(),
+  (initialEvents ?? []).map((event) => event.image_url),
+);
 ---
 <Portal title="Events">
   <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-    <EventsPageApp initialEvents={initialEvents ?? undefined} client:load />
+    <EventsPageApp initialEvents={initialEvents ?? undefined} assetManifest={assetManifest} client:load />
   </div>
 </Portal>
