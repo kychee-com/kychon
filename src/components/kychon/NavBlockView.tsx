@@ -55,11 +55,27 @@ interface NavRuntime {
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
+// In the mobile-open / overflow menus a parent item is a wrapping row: the
+// label (link or trigger) grows, its chevron trails on the same row, and the
+// submenu (basis-full) drops to the next row. A column layout here stacked the
+// chevron on its own line under the label (#195).
 const navParentWrapClass = cn(
   'relative inline-flex',
-  '[[data-nav-overflow-menu]_&]:w-full [[data-nav-overflow-menu]_&]:flex-col [[data-nav-overflow-menu]_&]:items-stretch',
-  '[[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:w-full [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:flex-col [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:items-stretch',
-  '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:w-full [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:flex-col [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:items-stretch',
+  '[[data-nav-overflow-menu]_&]:w-full [[data-nav-overflow-menu]_&]:flex-row [[data-nav-overflow-menu]_&]:flex-wrap [[data-nav-overflow-menu]_&]:items-center',
+  '[[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:w-full [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:flex-row [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:flex-wrap [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:items-center',
+  '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:w-full [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:flex-row [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:flex-wrap [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:items-center',
+);
+
+const navParentLeadClass = cn(
+  '[[data-nav-overflow-menu]_&]:min-w-0 [[data-nav-overflow-menu]_&]:flex-1',
+  '[[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:min-w-0 [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:flex-1',
+  '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:min-w-0 [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:flex-1',
+);
+
+const topMenuListRowClass = cn(
+  '[[data-nav-overflow-menu]_&]:basis-full',
+  '[[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:basis-full',
+  '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:basis-full',
 );
 
 const menuListClass = cn(
@@ -90,7 +106,9 @@ const navMenuItemClass = 'block rounded-md px-4 py-2 text-sm font-medium transit
 
 function Chevron() {
   return (
-    <span className="inline-block text-xs leading-none transition-transform" data-nav-chevron="" aria-hidden="true">
+    <span
+      className="inline-block text-xs leading-none text-[color:var(--nav-chevron-color,currentColor)] transition-transform"
+      data-nav-chevron="" aria-hidden="true">
       ▾
     </span>
   );
@@ -256,7 +274,7 @@ function NavMenuList({
   let focusIndex = 0;
   return (
     <ul
-      className={nested ? nestedMenuListClass : menuListClass}
+      className={nested ? nestedMenuListClass : cn(menuListClass, topMenuListRowClass)}
       data-nav-menu=""
       data-nav-nested-menu={nested ? '' : undefined}
       role="menu"
@@ -397,7 +415,7 @@ function NavTopItem({
         ref={topItemRef as React.Ref<HTMLDivElement>}
         {...indexAttrs}
       >
-        <a className="border-0 bg-transparent font-[inherit]" data-nav-active={item.active ? 'true' : undefined} data-nav-link="" data-nav-parent-link="" href={item.href}>
+        <a className={cn('border-0 bg-transparent font-[inherit]', navParentLeadClass)} data-nav-active={item.active ? 'true' : undefined} data-nav-link="" data-nav-parent-link="" href={item.href}>
           {item.label}
         </a>
         <MenuButton className="h-8 min-h-8 min-w-8 self-center px-2 py-1" controls={menuId} label={`Open ${item.label} submenu`} runtime={runtime}>
@@ -420,7 +438,7 @@ function NavTopItem({
       ref={topItemRef as React.Ref<HTMLDivElement>}
       {...indexAttrs}
     >
-      <MenuButton active={item.active} className="inline-flex items-center gap-1" controls={menuId} parentTrigger runtime={runtime}>
+      <MenuButton active={item.active} className={cn('inline-flex items-center gap-1', navParentLeadClass)} controls={menuId} parentTrigger runtime={runtime}>
         {item.label}
         <Chevron />
       </MenuButton>
