@@ -690,14 +690,15 @@ export default function EventDetailPageApp({ eventsById }: EventDetailPageAppPro
         return;
       }
 
-      // Fetch event_rsvps + registration_options as best-effort — anonymous
-      // visitors typically hit `Permission denied for rsvps.listForEvent`
-      // (no anon read on that table by default). That's fine: the RSVP
-      // panel + Attendees just stay empty until sign-in; failing the
+      // Fetch event_rsvps + registration_options as best-effort; failing the
       // whole `loadEvent` would replace the SSR-baked hero with an error
-      // alert, which is worse UX than a missing attendee list.
+      // alert, which is worse UX than a missing attendee list. RSVPs need an
+      // active member (`rsvps.listForEvent`), so anonymous visitors skip the
+      // request instead of logging a 403 on every public event page.
       const [loadedRsvps, loadedOptions] = await Promise.all([
-        get(`event_rsvps?event_id=eq.${encodeURIComponent(id)}&select=*,members(display_name,avatar_url)`).catch(() => []),
+        authenticated
+          ? get(`event_rsvps?event_id=eq.${encodeURIComponent(id)}&select=*,members(display_name,avatar_url)`).catch(() => [])
+          : Promise.resolve([]),
         getEventRegistrationOptions(Number(id)).catch(() => []),
       ]);
       setRsvps(loadedRsvps as EventRSVPWithMember[]);

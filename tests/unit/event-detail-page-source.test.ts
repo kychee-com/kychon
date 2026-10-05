@@ -32,6 +32,10 @@ describe('event detail page source', () => {
     expect(app).toContain('del(`events?id=eq.');
   });
 
+  it('does not request member-only RSVPs for anonymous visitors (403 on every public event page)', () => {
+    expect(app).toMatch(/authenticated\s*\?\s*get\(`event_rsvps\?event_id=eq\./);
+  });
+
   it('renders with shared shadcn primitives and sanitized rich content', () => {
     expect(app).toContain('Card');
     expect(app).toContain('Dialog');
