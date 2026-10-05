@@ -609,11 +609,11 @@ export interface BuildKychonReleaseSpecOptions {
 }
 
 /**
- * Project-scoped release spec. The `project` field is bound by `r.project(id)`
+ * Project-scoped release spec. The `project_id` field is bound by `r.project(id)`
  * at apply time, so the assembled spec describes the release without
  * restating the target. See openspec/changes/upgrade-run402-sdk-v2 Decision 3.
  */
-export type KychonReleaseSpec = Omit<ReleaseSpec, "project">;
+export type KychonReleaseSpec = Omit<ReleaseSpec, "project_id">;
 
 export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): KychonReleaseSpec {
   const spec: KychonReleaseSpec = {
