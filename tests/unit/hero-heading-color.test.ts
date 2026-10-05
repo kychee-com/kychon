@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { type BlockRenderContext, renderBlock, type Section } from '../../src/lib/blocks.ts';
+import { bodyFixture } from '../helpers/dom-fixture.js';
 
 const baseCtx: BlockRenderContext = {
   admin: false,
@@ -54,7 +55,7 @@ function matches(el: Element, selector: string): boolean {
 }
 
 function heroH1(config: Record<string, unknown>): HTMLHeadingElement {
-  document.body.innerHTML = renderBlock(heroSection(config), baseCtx);
+  bodyFixture(renderBlock(heroSection(config), baseCtx));
   const h1 = document.querySelector('h1');
   if (!h1) throw new Error('hero rendered no h1');
   return h1 as HTMLHeadingElement;

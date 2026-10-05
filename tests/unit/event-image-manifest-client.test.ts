@@ -9,6 +9,7 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AssetManifest } from '../../src/lib/kychon-image';
+import { bodyFixture, clearBodyFixture } from '../helpers/dom-fixture.js';
 
 const event = {
   id: 7,
@@ -47,13 +48,12 @@ afterEach(async () => {
   await act(async () => {
     setGlobalManifest(null);
   });
-  document.body.innerHTML = '';
+  clearBodyFixture();
 });
 
 describe('events_list island (client)', () => {
   it('re-renders thumbnails against the manifest once it arrives', async () => {
-    const host = document.createElement('div');
-    document.body.appendChild(host);
+    const host = bodyFixture('<div></div>').firstElementChild as HTMLElement;
     await act(async () => {
       mountEventsListIsland(host, {
         config: { layout: 'grid', show_image: true, count: 4, filter: 'upcoming' },
