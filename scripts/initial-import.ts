@@ -204,3 +204,86 @@ export function assertReimportConfirmed(subdomain: string, confirmSubdomain: str
     );
   }
 }
+
+// ─── Post-import rebuild (#191 / #153) ───────────────────────────────────────
+//
+// runDeploy builds Astro BEFORE apply runs schema + seed, and the build reads
+// the live DB. When THIS deploy imports the seed (initial import or confirmed
+// reimport) the first bake reflects pre-import state, so the deploy rebuilds
+// and publishes again once the import has landed. Ordinary redeploys (marker
+// unchanged) keep the single build: live content is the source of truth.
+
+/** The `kychon_install` row, as read by `readInstallMarker`. */
+export interface InstallMarker {
+  installed_at: string;
+  import_source: string;
+}
+
+type SqlFn = (sql: string) => Promise<{ rows: Array<Record<string, unknown>> }>;
+
+/**
+ * Read the install marker. `null` = no marker (table absent on a fresh
+ * project, or empty: initial import pending); `undefined` = unknown (probe
+ * failed, e.g. credentials without SQL access). Never throws.
+ */
+export async function readInstallMarker(sql: SqlFn): Promise<InstallMarker | null | undefined> {
+  try {
+    const presence = await sql("SELECT to_regclass('kychon_install') IS NOT NULL AS present");
+    if (presence.rows[0]?.present !== true) return null;
+    const result = await sql("SELECT installed_at::text AS installed_at, import_source FROM kychon_install LIMIT 1");
+    const row = result.rows[0];
+    if (!row) return null;
+    return { installed_at: String(row.installed_at), import_source: String(row.import_source) };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Will this deploy's release import the seed? True on a confirmed reimport or
+ * when the marker is known to be absent. Unknown marker → false (keep the
+ * ordinary live-override behavior).
+ */
+export function seedImportExpected(before: InstallMarker | null | undefined, reimport: boolean): boolean {
+  return reimport || before === null;
+}
+
+/**
+ * Did the release just applied import the seed? Compares the marker before and
+ * after apply: a new non-`adopted` marker (or a re-written one) means yes.
+ * When a probe is unknown, falls back to the deploy's intent.
+ */
+export function seedAppliedInDeploy(opts: {
+  before: InstallMarker | null | undefined;
+  after: InstallMarker | null | undefined;
+  reimport: boolean;
+}): boolean {
+  const { before, after, reimport } = opts;
+  if (after === undefined) return seedImportExpected(before, reimport);
+  if (before === undefined) return reimport;
+  if (after === null || after.import_source === "adopted") return false;
+  return before === null || before.installed_at !== after.installed_at;
+}
+
+export type ReleasePhase = "initial" | "post-import";
+
+/**
+ * Two-phase apply: probe → build → apply → probe, then rebuild + re-apply only
+ * when this deploy imported the seed. `build` receives `seedWins` so the first
+ * bake prefers the seed over pre-import live config; the post-import bake reads
+ * live state again (which now IS the imported seed).
+ */
+export async function applyWithPostImportRebuild<Release, Result>(steps: {
+  reimport: boolean;
+  probe: () => Promise<InstallMarker | null | undefined>;
+  build: (phase: ReleasePhase, ctx: { seedWins: boolean }) => Promise<Release>;
+  apply: (release: Release, phase: ReleasePhase) => Promise<Result>;
+}): Promise<{ result: Result; rebuilt: boolean }> {
+  const before = await steps.probe();
+  const first = await steps.build("initial", { seedWins: seedImportExpected(before, steps.reimport) });
+  const result = await steps.apply(first, "initial");
+  const after = await steps.probe();
+  if (!seedAppliedInDeploy({ before, after, reimport: steps.reimport })) return { result, rebuilt: false };
+  const second = await steps.build("post-import", { seedWins: false });
+  return { result: await steps.apply(second, "post-import"), rebuilt: true };
+}

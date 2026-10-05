@@ -134,3 +134,20 @@ export function applyLiveConfigOverrides(
   overridden.sort();
   return { seed: { ...seed, site_config: nextConfig }, overridden };
 }
+
+/**
+ * Pick the seed the build bakes first paint from. Ordinary redeploys apply the
+ * live overrides (live is the source of truth). When this deploy imports the
+ * seed (`seedWins`: initial import or confirmed reimport) the seed replaces live
+ * content, so it wins; `discarded` lists the overridable keys whose live value
+ * differs from the seed and is about to be replaced by it.
+ */
+export function resolveFirstPaintSeed(
+  seed: ProjectSeed,
+  liveRows: LiveConfigRow[],
+  opts: { seedWins: boolean },
+): { seed: ProjectSeed; overridden: string[]; discarded: string[] } {
+  const merged = applyLiveConfigOverrides(seed, liveRows);
+  if (opts.seedWins) return { seed, overridden: [], discarded: merged.overridden };
+  return { seed: merged.seed, overridden: merged.overridden, discarded: [] };
+}
