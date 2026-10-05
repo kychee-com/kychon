@@ -454,3 +454,43 @@ describe('sanitizeCaptionHtml — allowlist enforcement', () => {
     expect(out).toContain('a ');
   });
 });
+
+// kychon#160 — background-mode brand scrim must be optional so image-only
+// heroes are not tinted in the brand colour.
+describe('hero renderer — background overlay (scrim)', () => {
+  const css = readFileSync('src/styles/public.css', 'utf8');
+
+  it('auto (default) keeps the brand scrim when text sits over the image', () => {
+    const html = renderBlock(heroSection({ heading: 'Welcome', bg_image: '/img/hero.jpg' }), baseCtx);
+    expect(html).toContain('data-hero-overlay="brand"');
+  });
+
+  it('auto drops the scrim for an image-only hero (no heading, subheading, or CTA)', () => {
+    const html = renderBlock(
+      heroSection({ heading: '', subheading: '  ', cta_text: '', bg_image: '/img/hero.jpg' }),
+      baseCtx,
+    );
+    expect(html).toContain('data-hero-overlay="none"');
+  });
+
+  it('overlay: "none" opts out even with heading text', () => {
+    const html = renderBlock(heroSection({ heading: 'Welcome', bg_image: '/img/hero.jpg', overlay: 'none' }), baseCtx);
+    expect(html).toContain('data-hero-overlay="none"');
+  });
+
+  it('overlay: "brand" forces the scrim on an image-only hero', () => {
+    const html = renderBlock(heroSection({ heading: '', bg_image: '/img/hero.jpg', overlay: 'brand' }), baseCtx);
+    expect(html).toContain('data-hero-overlay="brand"');
+  });
+
+  it('emits no overlay attribute without a bg_image (gradient fallback)', () => {
+    const html = renderBlock(heroSection({ heading: 'Welcome' }), baseCtx);
+    expect(html).not.toContain('data-hero-overlay');
+  });
+
+  it('CSS hides the scrim pseudo-element for data-hero-overlay="none"', () => {
+    expect(css).toMatch(
+      /\[data-hero\]\[data-hero-bg-image="true"\]\[data-hero-overlay="none"\]::before\s*\{\s*display:\s*none;/,
+    );
+  });
+});

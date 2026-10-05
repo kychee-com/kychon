@@ -245,6 +245,45 @@ function pickFallbackSrc(ref: AssetRef): string {
   return ref.display_url ?? ref.cdn_url;
 }
 
+/**
+ * Resolve a `/assets/<basename>` URL to its uploaded CDN URL via the manifest,
+ * returning the original URL on a miss (admin uploads, runtime URLs, non-`/assets`
+ * paths). For single-URL contexts that can't host a `<picture>` — chrome
+ * `<img>`/favicon `<link>`, custom-HTML `<img src>`, logo overlays — so a port
+ * can use the documented `/assets/<basename>` convention everywhere instead of
+ * hardcoding `_blob/astro/...` URLs. Returns the natural-size fallback (same as
+ * the `<img>` inside a `<picture>`), so intrinsic width/height attrs still match.
+ */
+export function resolveAssetUrl(
+  url: string | undefined | null,
+  manifest: AssetManifest | null | undefined,
+): string {
+  const ref = lookupAssetRef(url, manifest);
+  if (!ref) return url ?? '';
+  return pickFallbackSrc(ref) || url || '';
+}
+
+/**
+ * Rewrite `src="/assets/X"` / `href="/assets/X"` attributes in an HTML string
+ * to their resolved CDN URLs. For authored custom / rich-text HTML, which
+ * otherwise emits the literal `/assets/...` path (not served — it 403/404s).
+ * Misses and non-`/assets` URLs are left untouched; single- and double-quoted
+ * attributes are both handled. Run on already-sanitized HTML.
+ */
+export function rewriteAssetUrlsInHtml(
+  html: string,
+  manifest: AssetManifest | null | undefined,
+): string {
+  if (!manifest || !html || !html.includes('/assets/')) return html;
+  return html.replace(
+    /(\s(?:src|href)\s*=\s*)(["'])(\/assets\/[^"'\s>]+)\2/gi,
+    (whole, pre: string, quote: string, url: string) => {
+      const resolved = resolveAssetUrl(url, manifest);
+      return resolved && resolved !== url ? `${pre}${quote}${escAttr(resolved)}${quote}` : whole;
+    },
+  );
+}
+
 function hasVariantLadder(ref: AssetRef): boolean {
   const v = ref.variants;
   if (!v) return false;

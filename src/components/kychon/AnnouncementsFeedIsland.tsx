@@ -25,6 +25,7 @@ import { del, getAnnouncements, getPollOptions, getPolls, getPollVotes, patch, p
 import { getSession } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
 import { translateItems } from '@/lib/config';
+import { getGlobalManifest, rewriteAssetUrlsInHtml } from '@/lib/kychon-image';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { showToast } from '@/lib/toast-events';
 import type { Announcement } from '@/schemas/content';
@@ -368,7 +369,7 @@ function AnnouncementCard({
         <div
           className="min-w-0 break-words text-sm leading-6 text-foreground [&_a]:text-primary [&_ol]:ml-5 [&_ol]:list-decimal [&_p]:mb-3 [&_ul]:ml-5 [&_ul]:list-disc"
           data-editable-rich={`announcements.${announcement.id}.body`}
-          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(announcement.body) }}
+          dangerouslySetInnerHTML={{ __html: rewriteAssetUrlsInHtml(sanitizeRichHtml(announcement.body), getGlobalManifest()) }}
         />
         {poll ? <PollCard data={poll} onVote={onVote} votingKey={votingKey} /> : null}
       </CardContent>

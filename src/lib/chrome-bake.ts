@@ -1,5 +1,6 @@
-import { getBuildTimeManifest } from '@run402/astro/build-manifest';
+import { getBakeAssetManifest } from './bake-asset-manifest.js';
 import { renderBlock, type BlockRenderContext, type Section } from './blocks.js';
+import { resolveAssetUrl } from './kychon-image.js';
 import { computeMainZoneSignature } from './main-zone-signature.js';
 import { buildFontVarValue, buildGoogleFontsUrl, renderFontHead } from './theme/fonts.js';
 import type { ProjectSeed } from '../seeds/types.js';
@@ -114,30 +115,14 @@ export function makeBakeContext(seed: ProjectSeed): BlockRenderContext {
     brandTextShort: stringFromSeed(seed, 'brand_text_short'),
     brandIconUrl: stringFromSeed(seed, 'brand_icon_url'),
     brandWordmarkUrl: stringFromSeed(seed, 'brand_wordmark_url'),
-    // Build-time AssetManifest from @run402/astro. Null when the
-    // integration has no `assetsDir` configured (dev builds, non-demo builds);
-    // emitters fall through to plain `<img>` in that case.
-    // Chrome blocks don't consult the manifest (sub-320 icons), but main-zone
-    // bakes do — see renderMainZone.
-    //
-    // `getBuildTimeManifest` is build-time-only per its docs (reads from the
-    // integration's Vite virtual module). At request time inside the run402
-    // SSR Lambda the virtual module isn't available and the call throws.
-    // Catch + null-out so SSR-route renders (`/search` and other SSR routes)
-    // still get a valid `BlockRenderContext`; image emitters fall through to
-    // plain `<img>` for the chrome bake (sub-320 icons anyway). The runtime
-    // hydrate path still upgrades any image-pipeline assets to `<picture>`
-    // via the inlined / fetched manifest.
-    manifest: tryGetBuildTimeManifest(),
+    // Build-time AssetManifest: the @run402/astro integration's (demo builds)
+    // or a port's staged `public/_assets-manifest.json`. Null in dev builds
+    // without either and at SSR request time; emitters then fall through to
+    // the literal URL and the runtime hydrate resolves it via the fetched
+    // manifest. Chrome (brand icon/wordmark, favicon) and main-zone bakes both
+    // resolve `/assets/<basename>` through it.
+    manifest: getBakeAssetManifest(),
   };
-}
-
-function tryGetBuildTimeManifest(): ReturnType<typeof getBuildTimeManifest> {
-  try {
-    return getBuildTimeManifest();
-  } catch {
-    return null;
-  }
 }
 
 export function renderGlobalZone(
@@ -275,10 +260,13 @@ export function cdnOriginFromManifest(
 export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
   const bakeCtx = makeBakeContext(seed);
   const theme = themeFromSeed(seed);
-  const faviconUrl =
+  // `/assets/<basename>` favicons resolve to their CDN URL; the SVG check reads
+  // the source path's extension since the CDN URL need not carry one.
+  const faviconSource =
     stringFromSeed(seed, 'favicon_url') ||
     stringFromSeed(seed, 'brand_icon_url') ||
     '/favicon.svg';
+  const faviconUrl = resolveAssetUrl(faviconSource, bakeCtx.manifest);
   const headingVar = buildFontVarValue(theme.font_heading as string | undefined, 'serif');
   const bodyVar = buildFontVarValue(theme.font_body as string | undefined, 'sans-serif');
   const themeFontVarLines: string[] = [];
@@ -297,7 +285,7 @@ export function bakeChrome(seed: ProjectSeed, pageTitle: string): BakedChrome {
     ),
     customCss: stringFromSeed(seed, 'custom_css'),
     faviconUrl,
-    isSvgFavicon: isSvgFaviconUrl(faviconUrl),
+    isSvgFavicon: isSvgFaviconUrl(faviconSource),
     title: getBrandedTitle(pageTitle, bakeCtx.siteName || bakeCtx.brandText || ''),
     cdnOrigin: cdnOriginFromManifest(bakeCtx.manifest),
     themeFontVarsCss: themeFontVarLines.join(' '),

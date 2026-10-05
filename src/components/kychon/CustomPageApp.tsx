@@ -5,6 +5,7 @@ import { get } from '@/lib/api';
 import { isAdmin, isAuthenticated } from '@/lib/auth';
 import { resolveCustomPageSlugFromLocation } from '@/lib/clean-routes';
 import { ready, translateItems } from '@/lib/config';
+import { getGlobalManifest, rewriteAssetUrlsInHtml } from '@/lib/kychon-image';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { richTextContentClass } from '@/lib/ui/rich-text';
 import type { Page } from '@/schemas/content';
@@ -103,7 +104,10 @@ export default function CustomPageApp({ initialPage = null }: CustomPageAppProps
     };
   }, [loadPage]);
 
-  const contentHtml = useMemo(() => sanitizeRichHtml(page?.content), [page?.content]);
+  const contentHtml = useMemo(
+    () => rewriteAssetUrlsInHtml(sanitizeRichHtml(page?.content), getGlobalManifest()),
+    [page?.content],
+  );
 
   if (loading) return <PageSkeleton />;
 

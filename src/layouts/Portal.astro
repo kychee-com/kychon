@@ -13,7 +13,7 @@ import AdminBar from '../components/AdminBar.astro';
 import MediaPickerHost from '../components/MediaPickerHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
-import { getBuildTimeManifest } from '@run402/astro/build-manifest';
+import { getBakeAssetManifest } from '../lib/bake-asset-manifest';
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
@@ -85,12 +85,9 @@ const cspValue = buildCspValueFromTemplate(headersTemplate);
 // `page-render.ts:fetchManifest` path picks up the manifest from
 // `/_assets-manifest.json` after hydration (the file IS on disk at
 // the deployed origin, just not via the virtual-module accessor).
-let inlineManifest: ReturnType<typeof getBuildTimeManifest> = null;
-try {
-  inlineManifest = getBuildTimeManifest();
-} catch {
-  // Request-time render; fall through to client-side manifest fetch.
-}
+// `getBakeAssetManifest` also covers ports, whose manifest is staged at
+// `public/_assets-manifest.json` rather than produced by the integration.
+const inlineManifest = getBakeAssetManifest();
 const inlineManifestScript = inlineManifest
   ? `window.__KYCHON_ASSET_MANIFEST = ${JSON.stringify(inlineManifest).replace(/</g, '\\u003c')};`
   : '';

@@ -215,7 +215,7 @@ The `hero` block supports two rendering modes via `config.mode`:
 ### `mode: 'background'` (default)
 Background-image-as-mood. The image is rendered as `background-image: cover center` on a fixed-height section; heading + subheading + CTA are overlaid in the center with a gradient tint. Use when the image is decorative and the text is the message.
 
-Config keys: `heading`, `subheading`, `cta_text`, `cta_href`, `bg_image`. Existing demos with no `mode` field render in this mode. Compatible with the [hero-parallax capability](openspec/specs/composable-layout/spec.md): parallax applies only when `mode === 'background'`.
+Config keys: `heading`, `subheading`, `cta_text`, `cta_href`, `bg_image`, `overlay`. `overlay` controls the brand-colour scrim over `bg_image`: `"auto"` (default) paints it only when heading, subheading, or CTA text sits over the image; `"brand"` always paints it; `"none"` never does, so an image-only hero shows the photo untinted. Existing demos with no `mode` field render in this mode. Compatible with the [hero-parallax capability](openspec/specs/composable-layout/spec.md): parallax applies only when `mode === 'background'`.
 
 ### `mode: 'foreground'`
 Image-as-content. The image renders inside a `<picture>` at native (or a configured) aspect ratio; the section flows around it. Optional logo overlay (`logo_overlay_url` + `logo_position`), corner caption (`caption_html` at one of 8 positions), and heading-over-or-below (`text_position`). Use when the image, logo, and inscription are themselves the brand mark — e.g. a wide banner photo with a circular logo overlaid on the left and a "Founded 1880" tag in the bottom-right corner. Foreground mode is static; parallax does not apply.

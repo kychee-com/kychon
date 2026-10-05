@@ -28,7 +28,14 @@ import { constrainedContainerClass } from './ui/container.js';
 import { richTextContentClass } from './ui/rich-text.js';
 import { sanitizeRichHtmlServer } from './sanitize-html.js';
 import { renderStaticLinkButtonHtml } from './static-link-button.js';
-import { kychonImageHtml, kychonChromeImgAttrs, lookupAssetRef, pickSingleVariantUrl } from './kychon-image.js';
+import {
+  kychonImageHtml,
+  kychonChromeImgAttrs,
+  lookupAssetRef,
+  pickSingleVariantUrl,
+  resolveAssetUrl,
+  rewriteAssetUrlsInHtml,
+} from './kychon-image.js';
 import {
   adminDragHandleHtml,
   adminNavEditButtonHtml,
@@ -448,6 +455,13 @@ function renderMarkdownLine(text: string): string {
 
 // Hero block config — both modes share heading/subheading/cta_*, with mode-specific keys layered on top.
 export type HeroMode = 'background' | 'foreground';
+/**
+ * Background-mode scrim over `bg_image`. `auto` (default) paints the brand
+ * scrim only when there is heading / subheading / CTA text over the image
+ * (the scrim exists for text legibility); `brand` always paints it; `none`
+ * never does, so an image-only hero shows the photo untinted.
+ */
+export type HeroOverlay = 'auto' | 'brand' | 'none';
 export type HeroAspect = 'auto' | '16/9' | '4/3' | '21/9';
 export type HeroLogoPosition = 'left' | 'center' | 'right';
 export type HeroCaptionPosition =
@@ -471,6 +485,7 @@ export interface HeroConfig {
   mode?: HeroMode;
   // Background mode
   bg_image?: string;
+  overlay?: HeroOverlay;
   // Foreground mode
   image_url?: string;
   image_alt?: string;
@@ -641,16 +656,53 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   // first-paint fast, large enough to avoid visible blur at typical hero
   // widths. Miss → keep the original `/assets/X.jpg` URL (admin uploads or
   // dev builds without an assetsDir, anything not in the manifest).
-  const bgRef = cfg.bg_image ? lookupAssetRef(cfg.bg_image, ctx.manifest) : null;
-  const rawBg = bgRef ? pickSingleVariantUrl(bgRef) : (cfg.bg_image as string | undefined);
+  const rawBg = heroImageRenderUrl(section, ctx.manifest);
   const safeBg = rawBg ? safeCssUrl(rawBg) : '';
   const styleAttr = safeBg ? ` style="background-image:url('${safeBg}')"` : '';
   const adminCtrls = sid != null && ctx.admin
     ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
-  const bgImageAttr = safeBg ? ' data-hero-bg-image="true"' : '';
+  const bgImageAttr = safeBg
+    ? ` data-hero-bg-image="true" data-hero-overlay="${resolveHeroOverlay(cfg)}"`
+    : '';
   return `<section data-section data-hero data-hero-mode="background"${bgImageAttr}${sortable}${cfgAttr}${imgAttr}${styleAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
+}
+
+function hasText(value: unknown): boolean {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+/**
+ * Resolve a background hero's effective scrim (`brand` | `none`) from
+ * `config.overlay` — see `HeroOverlay`. Unknown values behave as `auto`.
+ */
+export function resolveHeroOverlay(cfg: HeroConfig | Record<string, unknown>): 'brand' | 'none' {
+  const overlay = (cfg as HeroConfig).overlay;
+  if (overlay === 'none' || overlay === 'brand') return overlay;
+  const c = cfg as HeroConfig;
+  return hasText(c.heading) || hasText(c.subheading) || hasText(c.cta_text) ? 'brand' : 'none';
+}
+
+/**
+ * The image URL a hero section actually paints: background mode's single
+ * CSS `background-image` URL (manifest variant, as `renderBackgroundHero`
+ * emits) or foreground mode's `<img>` fallback. `/assets/<basename>` resolves
+ * through the manifest; a miss returns the configured URL unchanged. Used for
+ * the hero warm-cache so the next visit preloads the URL that is served, not
+ * the unserved `/assets/...` path.
+ */
+export function heroImageRenderUrl(
+  section: Pick<Section, 'config'>,
+  manifest: BlockRenderContext['manifest'],
+): string | null {
+  const cfg = (section.config || {}) as HeroConfig;
+  if (cfg.mode === 'foreground') {
+    return hasText(cfg.image_url) ? resolveAssetUrl(cfg.image_url, manifest) : null;
+  }
+  if (!hasText(cfg.bg_image)) return null;
+  const ref = lookupAssetRef(cfg.bg_image, manifest);
+  return ref ? pickSingleVariantUrl(ref) : (cfg.bg_image as string);
 }
 
 function renderForegroundHero(section: Section, ctx: BlockRenderContext): string {
@@ -706,7 +758,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   // single <img> for sub-320 sources, but the explicit max-height inline
   // style needs the imgAttrs splice which would be a bigger refactor.
   const logoMarkup = cfg.logo_overlay_url
-    ? `<div data-hero-logo-overlay data-hero-position="${escAttr(logoPosition)}"><img src="${escAttr(cfg.logo_overlay_url)}" alt="" style="max-height:${escAttr(logoMaxHeight)}" /></div>`
+    ? `<div data-hero-logo-overlay data-hero-position="${escAttr(logoPosition)}"><img src="${escAttr(resolveAssetUrl(cfg.logo_overlay_url, ctx.manifest))}" alt="" style="max-height:${escAttr(logoMaxHeight)}" /></div>`
     : '';
 
   const safeCaption = cfg.caption_html ? sanitizeCaptionHtml(cfg.caption_html) : '';
@@ -1303,12 +1355,12 @@ const BRAND_HEADER: BlockType = {
       const subtitleSpan = brandSubtitle
         ? `<span data-brand-subtitle>${escHtml(brandSubtitle)}</span>`
         : '';
-      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="icon" aria-label="${escAttr(brandText)}"><img data-brand-icon src="${escAttr(iconUrl)}" alt=""${iconChromeAttrs}${editableIcon}><span data-brand-copy><span data-brand-text><span data-brand-text-full${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
+      return `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="icon" aria-label="${escAttr(brandText)}"><img data-brand-icon src="${escAttr(resolveAssetUrl(iconUrl, ctx.manifest))}" alt=""${iconChromeAttrs}${editableIcon}><span data-brand-copy><span data-brand-text><span data-brand-text-full${editableText}>${escHtml(brandText)}</span>${shortSpan}</span>${subtitleSpan}</span></a>`;
     };
     // Mode 2: wordmark alone — the image already contains the org name, so no
     // separate text element is rendered.
     const renderWordmark = () =>
-      `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(wordmarkUrl)}" alt="${escAttr(brandText)}"${wordmarkChromeAttrs}${editableWordmark}></a>`;
+      `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="wordmark" aria-label="${escAttr(brandText)}"><img data-brand-wordmark src="${escAttr(resolveAssetUrl(wordmarkUrl, ctx.manifest))}" alt="${escAttr(brandText)}"${wordmarkChromeAttrs}${editableWordmark}></a>`;
     // Mode 3: text fallback (equivalent to today's logo_url=NULL behavior).
     const renderText = () =>
       `<a href="${escAttr(href)}" data-nav-brand data-brand-mode="text"${editableText}>${escHtml(brandText)}</a>`;
@@ -1545,7 +1597,7 @@ const CUSTOM: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const richEdit = richEditableAttr(section, 'html', ctx);
-    const richContent = `<div class="${richTextContentClass}"${richEdit}>${sanitizeRichHtmlServer(cfg.html || '')}</div>`;
+    const richContent = `<div class="${richTextContentClass}"${richEdit}>${rewriteAssetUrlsInHtml(sanitizeRichHtmlServer(cfg.html || ''), ctx.manifest)}</div>`;
     const inner = constrainedContainerHtml('', richContent);
     return adminWrap(section, ctx, inner);
   },
@@ -1794,7 +1846,7 @@ const FEATURE_PANELS: BlockType = {
           ctx.admin && section.id != null ? `sections.${section.id}.config.panels.${index}.image_url` : undefined;
         const image =
           imageUrl || ctx.admin
-            ? `<img data-feature-panel-image src="${escAttr(imageUrl)}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" class="aspect-[4/3] w-full bg-muted" style="object-fit:${fit};object-position:${position}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
+            ? `<img data-feature-panel-image src="${escAttr(resolveAssetUrl(imageUrl, ctx.manifest))}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" class="aspect-[4/3] w-full bg-muted" style="object-fit:${fit};object-position:${position}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
             : '';
         const headingField =
           p.heading || ctx.admin
@@ -1924,7 +1976,7 @@ const MEMBER_LOGIN: BlockType = {
     const botProtection = cfg.enable_bot_protection === true;
 
     const icon = iconUrl
-      ? `<img data-member-login-icon src="${escAttr(iconUrl)}" alt="" loading="lazy" decoding="async" class="h-12 w-12 rounded-full object-cover">`
+      ? `<img data-member-login-icon src="${escAttr(resolveAssetUrl(iconUrl, ctx.manifest))}" alt="" loading="lazy" decoding="async" class="h-12 w-12 rounded-full object-cover">`
       : '';
     const subtitleHtml =
       subtitle || ctx.admin
