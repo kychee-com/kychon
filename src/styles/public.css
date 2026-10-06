@@ -881,6 +881,9 @@ tr:hover td {
 [data-nav-shell][data-nav-source-mobile="true"] [data-nav-links][data-nav-mobile-open="true"],
 [data-nav-links][data-nav-source-mobile="true"][data-nav-mobile-open="true"] {
   display: flex;
+  /* The bar's centered cross-axis alignment would shrink-wrap and center
+     leaf links in this column while full-width parent rows sit left (#220). */
+  align-items: stretch;
 }
 [data-nav-shell][data-nav-overflow="true"] [data-nav-toggle],
 [data-nav-toggle][data-nav-overflow="true"] {

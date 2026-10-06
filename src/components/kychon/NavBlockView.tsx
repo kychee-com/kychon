@@ -72,6 +72,15 @@ const navParentLeadClass = cn(
   '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:min-w-0 [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:flex-1',
 );
 
+// A top-level leaf link in the same menus spans the row and starts at the
+// left edge, so it lines up with the parent labels instead of shrink-wrapping
+// and centering in the column (#220).
+const navLeafLinkClass = cn(
+  '[[data-nav-overflow-menu]_&]:w-full [[data-nav-overflow-menu]_&]:text-left',
+  '[[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:w-full [[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:text-left',
+  '[[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:w-full [[data-nav-shell][data-nav-source-mobile=true]_[data-nav-links][data-nav-mobile-open=true]_&]:text-left',
+);
+
 const topMenuListRowClass = cn(
   '[[data-nav-overflow-menu]_&]:basis-full',
   '[[data-nav-links][data-nav-source-mobile=true][data-nav-mobile-open=true]_&]:basis-full',
@@ -385,6 +394,7 @@ function NavTopItem({
   if (!item.children.length) {
     return (
       <a
+        className={navLeafLinkClass}
         data-nav-active={item.active ? 'true' : undefined}
         data-nav-link=""
         href={item.href}

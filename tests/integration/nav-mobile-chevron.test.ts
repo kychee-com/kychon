@@ -98,3 +98,22 @@ describe('#168 nav chevron_color has a consumer', () => {
     }
   });
 });
+
+describe('#220 mobile menu leaf items align with parent items', () => {
+  it('top-level leaf links span the row and start left in mobile/overflow menus', () => {
+    const leaves = renderNav().querySelectorAll('#nav-links > a[data-nav-link]');
+    expect(leaves.length).toBe(1);
+    expect(leaves[0]?.textContent).toBe('Contact');
+    for (const context of MOBILE_CONTEXTS) {
+      expect(classes(leaves[0] ?? null)).toContain(`${context}:w-full`);
+      expect(classes(leaves[0] ?? null)).toContain(`${context}:text-left`);
+    }
+  });
+
+  it('public.css stretches items in the open mobile panel instead of centering them', () => {
+    const selector = '[data-nav-links][data-nav-source-mobile="true"][data-nav-mobile-open="true"] {';
+    const rule = css.split(selector)[1]?.split('}')[0] ?? '';
+    expect(rule).toContain('align-items: stretch');
+    expect(rule).not.toContain('align-items: center');
+  });
+});
