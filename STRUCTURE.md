@@ -43,6 +43,7 @@ kychon/
 │   │   ├── blocks.ts       # Block-type registry + isomorphic renderBlock (build + runtime)
 │   │   ├── block-hydrators.ts # Browser-only hydration for dynamic blocks (announcements, polls, etc.)
 │   │   ├── page-render.ts  # Runtime zone hydration (cache → fetch → render → hydrate)
+│   │   ├── content-history.ts # Admin history: list/revisions/revert over history.* capabilities
 │   │   ├── config.ts       # Loads site_config; applies theme, branding, custom_css, fonts at runtime
 │   │   ├── config-fields.ts # Registry: per-field apply-mode (runtime vs redeploy) → /config-fields.json
 │   │   └── i18n.ts         # t(key, vars), locale loading, plurals, RTL
@@ -83,6 +84,7 @@ kychon/
 │   ├── translate-text.js       # Live translation endpoint
 │   ├── upload-resource.js      # Resource file uploads
 │   ├── export-csv.js           # CSV exports for admin
+│   ├── prune-history.js        # schedule: "23 3 * * *" — trims content history
 │   └── ai-content.js           # Newsletter/insights (dormant)
 └── tests/
     ├── unit/               # Vitest + Node (imports from src/lib/, src/schemas/)
@@ -113,6 +115,11 @@ All shadcn components are available to Kychon, but missing ones are added on dem
 
 ### Typed Seeds
 Each forkable project has a `src/seeds/{project}.ts` module exporting a `ProjectSeed`. `scripts/generate-seed-sql.ts` translates the typed seed into idempotent `seed.sql` (gitignored). `KYCHON_PROJECT` env var picks which project: `kychon` (default), `eagles`, `silver-pines`, `barrio-unido`. Demo content (members, sample events, etc.) lives in per-demo SQL files referenced via `extraSqlFile`.
+
+### Initial Import and Content History
+A seed is a project's **initial import**: `readMigrations` wraps it so it applies only while `kychon_install` is empty (`scripts/initial-import.ts`). Later deploys never touch live content; `--reimport=<subdomain>` replaces it on purpose and takes a `before_reimport` Run402 snapshot first (`scripts/restore-points.ts`).
+
+Every write to a content table is recorded: row triggers (`kychon_record_revision`) write `revisions` (before/after JSON), grouped into `changesets` by transaction. The capability API (`functions/kychon-api.js`) claims each mutation's changeset with its actor (`admin`, `agent`, `jwt`) and returns `history.changesetIds`; raw SQL shows up as `unattributed` unless the agent labels it with `kychon_label_changeset` (see `CUSTOMIZING.md`). Admins browse and revert through `history.list` / `history.revisions` / `history.revert` — the History button in the admin bar, the per-section History button, and Undo on save toasts (`src/components/kychon/HistoryHost.tsx`, `src/lib/content-history.ts`). A revert is itself a changeset and refuses rows changed since, unless forced. `functions/prune-history.js` trims history past `history_retention_days` nightly.
 
 ### Island Hydration
 Components in the layout use `client:*` directives for progressive hydration:
