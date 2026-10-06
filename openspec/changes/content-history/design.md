@@ -39,7 +39,7 @@ DO $kychon_import$ BEGIN
 END $kychon_import$;
 ```
 
-**Existing projects are adopted.** `schema.sql` inserts the marker (`import_source = 'adopted'`) when `site_config` already has rows, and that runs before the guarded block. Live portals are therefore never re-imported on the first deploy after this change.
+**Existing projects are adopted.** `schema.sql` inserts the marker (`import_source = 'adopted'`) when `pages` or `sections` already have rows, and that runs before the guarded block. It keys on those tables rather than `site_config` because `schema.sql` itself writes `site_config` defaults on a fresh project. Live portals are therefore never re-imported on the first deploy after this change.
 
 Alternatives:
 - A separate migration with a fixed id: the SDK hard-errors when the same id arrives with a different checksum.
@@ -97,7 +97,7 @@ A daily scheduled function (`prune-history`) deletes revisions older than `histo
 ## Risks / Trade-offs
 
 - [Write amplification: every content write adds revision and changeset rows, and large JSON configs (custom HTML, slideshows with 100+ items) duplicate on each save.] → Revisions are append-only and pruned (D8). No-op UPDATEs are skipped. Tracked tables are low-write admin content.
-- [The adoption heuristic (`site_config` has rows) could mark a half-provisioned project as installed.] → Re-import (D1) recovers it explicitly. A fresh project has no `site_config` rows until its import runs.
+- [The adoption heuristic (`pages` or `sections` have rows) could mark a half-provisioned project as installed.] → Re-import (D1) recovers it explicitly. A fresh project has no `pages` or `sections` rows until its import runs.
 - [Port seeds that rely on non-DML statements inside the guard fail at deploy.] → The generator and port path validate the import SQL (DML only) before deploying and fail with a clear message.
 - [Unattributed changesets erode the AI-audit story.] → Agent docs make labelling mandatory. The history UI shows `Unattributed SQL` prominently, and a check in agent tooling flags unlabelled runs.
 - [A forced revert overwrites later edits.] → It is opt-in per call, shows the conflicting rows first, and is itself revertible.
