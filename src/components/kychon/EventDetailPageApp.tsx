@@ -52,7 +52,7 @@ import {
 } from '@/lib/api';
 import { getSession, isAdmin, isAuthenticated } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
-import { formatEventDateTime } from '@/lib/event-display';
+import { formatEventDateTime, formatEventDateTimeStable } from '@/lib/event-display';
 import {
   eventTimezonePayload,
   registrationOptionPayload,
@@ -65,6 +65,7 @@ import {
 } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
+import { useHydrated } from '@/lib/use-event-date-time';
 import { RegistrationOptions, RsvpPanel } from '@/components/kychon/EventRegistrationPanels';
 import { showToast as showKychonToast, type KychonToastType } from '@/lib/toast-events';
 import type { Event, EventRegistrationOption, EventRSVP } from '@/schemas/event';
@@ -499,6 +500,7 @@ interface EventDetailPageAppProps {
 
 export default function EventDetailPageApp({ initialEvent, assetManifest }: EventDetailPageAppProps = {}) {
   const globalManifest = useGlobalManifest();
+  const hydrated = useHydrated();
   const [event, setEvent] = useState<Event | null>(initialEvent ?? null);
   const [rsvps, setRsvps] = useState<EventRSVPWithMember[]>([]);
   const [registrationOptions, setRegistrationOptions] = useState<EventRegistrationOption[]>([]);
@@ -734,7 +736,11 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
 
   if (!event) return null;
 
-  const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'long' });
+  // Stable zone until hydrated (server HTML and hydration must agree), then
+  // the visitor's zone and the site's display settings.
+  const dateTime = hydrated
+    ? formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'long' })
+    : formatEventDateTimeStable(event, undefined, { dateStyle: 'long' });
 
   return (
     <div className="space-y-6">

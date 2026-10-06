@@ -29,6 +29,21 @@ const virtualAssetMapStub = {
   },
 };
 
+// Astro's `astro:transitions/client` virtual module exists only inside an
+// Astro build. Islands import it lazily (admin delete → navigate); Vite's
+// browser transform (happy-dom tests) still resolves the specifier and fails.
+const astroTransitionsStub = {
+  name: 'kychon-astro-transitions-stub',
+  resolveId(source) {
+    if (source === 'astro:transitions/client') return '\0astro:transitions/client';
+    return null;
+  },
+  load(id) {
+    if (id === '\0astro:transitions/client') return 'export function navigate() {}\n';
+    return null;
+  },
+};
+
 // `@run402/astro@0.2.4` ships `.js.map` sourcemaps that reference the original
 // `.ts` sources, but the published tarball doesn't include the `src/` directory.
 // When Vite loads `build-manifest.js` (inlined below) it reads the map and
@@ -76,7 +91,7 @@ export default defineConfig({
   resolve: {
     alias,
   },
-  plugins: [virtualAssetMapStub],
+  plugins: [virtualAssetMapStub, astroTransitionsStub],
   test: {
     server: { deps: serverDeps },
     include: ['tests/**/*.test.{js,ts}'],
@@ -93,7 +108,7 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias },
-        plugins: [virtualAssetMapStub, stripRun402SourcemapTrailer],
+        plugins: [virtualAssetMapStub, astroTransitionsStub, stripRun402SourcemapTrailer],
         esbuild: reactJsx,
         test: {
           name: 'unit',
@@ -103,7 +118,7 @@ export default defineConfig({
       },
       {
         resolve: { alias },
-        plugins: [virtualAssetMapStub, stripRun402SourcemapTrailer],
+        plugins: [virtualAssetMapStub, astroTransitionsStub, stripRun402SourcemapTrailer],
         esbuild: reactJsx,
         test: {
           name: 'integration',

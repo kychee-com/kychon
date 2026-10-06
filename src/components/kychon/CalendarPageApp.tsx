@@ -16,7 +16,8 @@ import {
 import { get, getEvents } from '@/lib/api';
 import { getSession } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
-import { eventDayKey, formatEventDateTime } from '@/lib/event-display';
+import { eventDayKey } from '@/lib/event-display';
+import { useEventDateTime } from '@/lib/use-event-date-time';
 import type { Event } from '@/schemas/event';
 
 type CalendarFilter = 'all' | 'members' | 'open' | 'my_rsvps' | 'past';
@@ -109,7 +110,7 @@ function eventsByDay(events: Event[]): Map<string, Event[]> {
 }
 
 function EventMeta({ event }: { event: Event }) {
-  const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'card' });
+  const dateTime = useEventDateTime(event, { dateStyle: 'card' });
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1">
@@ -127,7 +128,7 @@ function EventMeta({ event }: { event: Event }) {
 }
 
 function EventPill({ event }: { event: Event }) {
-  const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'card' });
+  const dateTime = useEventDateTime(event, { dateStyle: 'card' });
   return (
     <a
       className="block rounded-md border border-border bg-background px-2 py-1 text-left text-xs text-foreground no-underline transition-colors hover:bg-accent"
@@ -140,7 +141,7 @@ function EventPill({ event }: { event: Event }) {
 }
 
 function AgendaEvent({ event }: { event: Event }) {
-  const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'agenda' });
+  const dateTime = useEventDateTime(event, { dateStyle: 'agenda' });
   return (
     <Card>
       <a className="block text-foreground no-underline" href={`/event?id=${event.id}`}>

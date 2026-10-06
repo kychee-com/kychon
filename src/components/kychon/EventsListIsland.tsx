@@ -5,8 +5,7 @@ import { CalendarDays, MapPin } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/kychon/ui';
 import { get } from '@/lib/api';
-import { siteConfig } from '@/lib/config';
-import { formatEventDateTime } from '@/lib/event-display';
+import { useEventDateTime } from '@/lib/use-event-date-time';
 import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { cn } from '@/lib/ui/cn';
@@ -210,7 +209,7 @@ function EventCard({
   showLocation: boolean;
   showTime: boolean;
 }) {
-  const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'card' });
+  const dateTime = useEventDateTime(event, { dateStyle: 'card' });
   const href = event.id ? `/event?id=${encodeURIComponent(String(event.id))}` : '/events';
   const imageSrc = safeImageSrc(event.image_url || event.cover_image_url);
   const showImageBlock = layout === 'grid' && showImage && imageSrc;

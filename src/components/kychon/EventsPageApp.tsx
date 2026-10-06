@@ -25,8 +25,8 @@ import {
 } from '@/components/kychon/ui';
 import { getEvents, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
-import { ready, siteConfig, translateItems } from '@/lib/config';
-import { formatEventDateTime } from '@/lib/event-display';
+import { ready, translateItems } from '@/lib/config';
+import { useEventDateTime } from '@/lib/use-event-date-time';
 import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
 import { showToast } from '@/lib/toast-events';
@@ -114,7 +114,7 @@ function EventImage({ event, lookupAsset }: { event: Event; lookupAsset: LookupA
 }
 
 function EventCard({ event, lookupAsset }: { event: Event; lookupAsset: LookupAsset }) {
-  const dateTime = formatEventDateTime(event, undefined, siteConfig, { dateStyle: 'card' });
+  const dateTime = useEventDateTime(event, { dateStyle: 'card' });
 
   return (
     <Card className="h-full overflow-hidden transition-colors hover:bg-accent/50" data-event-card={event.id}>

@@ -175,3 +175,30 @@ export function eventDayKey(
   const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '';
   return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
 }
+
+/**
+ * Labels that come out identically on the server and in the browser's
+ * hydration pass: pinned to the event's own source timezone (UTC when it has
+ * none) and always labelled with it. `formatEventDateTime` in 'visitor' mode
+ * formats in the runtime's local zone, which is UTC in the SSR Lambda and the
+ * build but the visitor's zone in the browser, so its first-pass output both
+ * misstates the time to no-JS readers and fails React hydration (#418).
+ */
+export function formatEventDateTimeStable(
+  event: EventTimeSource,
+  locale = 'en',
+  opts: EventDateTimeFormatOptions = {},
+): EventDateTimeLabels {
+  const ownZone = isValidTimeZone(event.source_timezone);
+  return formatEventDateTime(
+    {
+      ...event,
+      source_timezone: ownZone ? event.source_timezone : 'UTC',
+      source_timezone_label: ownZone ? event.source_timezone_label : null,
+      time_display_mode: 'source',
+    },
+    locale,
+    {},
+    { ...opts, includeTimezone: true },
+  );
+}
