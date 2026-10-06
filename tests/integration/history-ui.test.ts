@@ -21,7 +21,8 @@ vi.mock('../../src/lib/content-history', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/lib/content-history')>()),
   ...history,
 }));
-vi.mock('../../src/lib/auth', () => ({ getRole: () => 'admin' }));
+const role = vi.hoisted(() => ({ value: 'admin' as string | null }));
+vi.mock('../../src/lib/auth', () => ({ getRole: () => role.value }));
 
 const sonner = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }));
 vi.mock('../../src/components/kychon/ui', async (importOriginal) => ({
@@ -96,6 +97,34 @@ describe('HistoryHost', () => {
     await flush();
     expect(history.revertChangeset).toHaveBeenNthCalledWith(2, '12', true);
     expect(sonner.success).toHaveBeenCalled();
+  });
+});
+
+describe('HistoryHost before the session resolves', () => {
+  it('opens on request once the admin role is known, even if it mounted before', async () => {
+    role.value = null;
+    history.listChangesets.mockResolvedValue({ changesets: [], nextBeforeId: null });
+    const { default: HistoryHost } = await import('../../src/components/kychon/HistoryHost');
+    const { openHistory } = await import('../../src/lib/content-history');
+    root = createRoot(host);
+    await act(async () => root?.render(createElement(HistoryHost)));
+
+    role.value = 'admin'; // session finished loading; no auth-changed event fired
+    await act(async () => openHistory());
+    await flush();
+    expect(document.querySelector('[data-history-dialog]')).not.toBeNull();
+  });
+
+  it('ignores requests from non-admins', async () => {
+    role.value = 'member';
+    const { default: HistoryHost } = await import('../../src/components/kychon/HistoryHost');
+    const { openHistory } = await import('../../src/lib/content-history');
+    root = createRoot(host);
+    await act(async () => root?.render(createElement(HistoryHost)));
+    await act(async () => openHistory());
+    await flush();
+    expect(document.querySelector('[data-history-dialog]')).toBeNull();
+    role.value = 'admin';
   });
 });
 

@@ -101,16 +101,19 @@ export default function HistoryHost() {
     return () => document.removeEventListener('wl-auth-changed', refresh);
   }, []);
 
+  // Listen from mount and check the role when asked: an admin can click History
+  // before the session finishes loading, and that click must still open.
   useEffect(() => {
-    if (!isAdmin) return;
     function onOpen(event: Event) {
+      if (!isAdminRole()) return;
+      setIsAdmin(true);
       const detail = (event as CustomEvent<HistoryOpenDetail>).detail ?? {};
       setMode(detail.table && detail.key != null ? { kind: 'row', table: detail.table, key: detail.key, title: detail.title } : { kind: 'site' });
       setOpen(true);
     }
     document.addEventListener(HISTORY_OPEN_EVENT, onOpen);
     return () => document.removeEventListener(HISTORY_OPEN_EVENT, onOpen);
-  }, [isAdmin]);
+  }, []);
 
   const revert = useCallback(async (changesetId: string, force = false) => {
     setBusy(changesetId);
