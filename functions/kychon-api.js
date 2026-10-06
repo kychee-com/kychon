@@ -7,7 +7,7 @@
 // anonymous). The marker below changes the source digest to force a one-time
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { adminDb, auth, events } from '@run402/functions';
+import { adminDb, ai, auth, events } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
 const SUPPORTED_API_VERSIONS = [API_VERSION];
@@ -746,7 +746,12 @@ async function handleExecute(correlationId, envelope, operation, actor) {
   let executionRecord = null;
   try {
     const execution = await beginExecution(envelope, operation, actor, correlationId);
-    if (execution.kind === 'replay') return successResponse(correlationId, execution.record.result_payload);
+    if (execution.kind === 'replay') {
+      return successResponse(
+        correlationId,
+        await replayResult(operation.name, envelope.input, actor, execution.record),
+      );
+    }
     if (execution.kind === 'conflict') {
       // Don't echo the prior operation name back to the caller — it's an
       // info leak about other clients' traffic and a free oracle for
@@ -782,18 +787,25 @@ async function handleExecute(correlationId, envelope, operation, actor) {
       historyContext.changesetIds?.length && isPlainObject(outcome) && Array.isArray(outcome.changed)
         ? { ...outcome, history: { changesetIds: historyContext.changesetIds } }
         : outcome;
-    await completeExecution(executionRecord, data);
+    await completeExecution(executionRecord, ledgerResult(operation.name, data));
     await emitAppEvent(envelope, operation, data);
     return successResponse(correlationId, data);
   } catch (error) {
     if (executionRecord) await failExecution(executionRecord, executionFailurePayload(error));
     if (error?.capabilityCode) {
-      return errorResponse(correlationId, mutationStatus(error.capabilityCode), {
-        code: mutationErrorCode(error.capabilityCode),
-        message: error.message,
-        ...(error.detail ? { detail: error.detail } : {}),
-        retryable: false,
-      });
+      const code = mutationErrorCode(error.capabilityCode);
+      const retryAfter = code === 'rateLimit.exceeded' ? error.detail?.retryAfterSeconds : undefined;
+      return errorResponse(
+        correlationId,
+        mutationStatus(error.capabilityCode),
+        {
+          code,
+          message: error.message,
+          ...(error.detail ? { detail: error.detail } : {}),
+          retryable: code === 'rateLimit.exceeded',
+        },
+        retryAfter ? { 'Retry-After': String(retryAfter) } : {},
+      );
     }
     console.error('kychon-api execute failed:', error);
     return errorResponse(correlationId, 500, {
@@ -879,6 +891,28 @@ function isStaleExecution(record) {
   return Date.now() - new Date(record.updated_at).getTime() > 5 * 60 * 1000;
 }
 
+// What the ledger keeps of a result. capability_executions is never pruned and
+// admins can read it (jobs.status), so a translation of a stored post keeps
+// only its metadata: the text is cached in content_translations, where
+// translations.delete can remove it, and a cached translation is free to
+// request, so storing the text would grow the ledger by up to a post per call.
+function ledgerResult(operationName, data) {
+  if (operationName !== 'translations.translateText' || !data?.result?.contentType) return data;
+  const { translated: _translated, translatedText: _translatedText, ...result } = data.result;
+  return { ...data, result };
+}
+
+// A replay returns the stored result. A translation of a stored post is stored
+// without its text (ledgerResult), so it is served again from the cache, with
+// the current actor's access checked again.
+async function replayResult(operationName, input, actor, record) {
+  const stored = record.result_payload;
+  if (operationName !== 'translations.translateText' || !stored?.result?.contentType) return stored;
+  return HISTORY_CONTEXT.run({ actor, executionId: record.id ?? null, label: operationName }, () =>
+    translateText(input, actor),
+  );
+}
+
 function executionFailurePayload(error) {
   if (error?.capabilityCode) {
     return {
@@ -933,7 +967,8 @@ async function executeMutation(name, input, actor) {
   if (name === 'pollVotes.clearMine') return clearMinePollVotes(input, actor);
   if (name === 'reactions.toggle') return toggleReaction(input, actor);
   if (name === 'resources.upload') return uploadResource(input, actor);
-  if (name === 'assets.upload' || name === 'translations.translateText') return notImplementedAction(name);
+  if (name === 'assets.upload') return notImplementedAction(name);
+  if (name === 'translations.translateText') return translateText(input, actor);
   if (name === 'translations.translateContent') return translateContent(input);
   if (name === 'newsletters.drafts.generate') return generateNewsletterDraft(input);
   if (name.startsWith('jobs.') || name.startsWith('exports.')) return notImplementedAction(name);
@@ -1027,6 +1062,8 @@ async function validateMutationSemantics(operation, input, actor) {
       await ensureActiveAdminRemains(operation, requiredId(input, operation), { role });
     } else if (operation === 'members.suspend' || operation === 'members.reject') {
       await ensureActiveAdminRemains(operation, requiredId(input, operation), rowForUpdate(operation, input, actor));
+    } else if (operation === 'translations.translateText') {
+      await resolveTranslateTextRequest(input, actor);
     }
     return null;
   } catch (error) {
@@ -1559,6 +1596,224 @@ async function translateContent(input) {
     translated_text: input.translated_text || input.translatedText || input.text || '',
   });
   return actionResult(row, [changedObject('translation', row.id)], verification('translations.list', { id: row.id }));
+}
+
+// --- AI translation: translations.translateText ------------------------------------
+// Spends the project's metered Run402 translation quota (ai.translate), so every
+// request is bounded. An active member translates a stored forum post they can
+// see: the stored text is translated, never caller text, once per enabled
+// language, and cached in content_translations for every reader after that.
+// Admins may also translate ad hoc text (block editor fields). Both need
+// feature_ai_translation and an enabled target language, and translations not
+// served from the cache are rate limited per actor.
+
+// content_type -> source table and the fields that can be translated.
+const TRANSLATABLE_CONTENT = new Map([
+  ['forum_topic', { table: 'forum_topics', objectType: 'forum.topic', fields: ['title', 'body'] }],
+  ['forum_reply', { table: 'forum_replies', objectType: 'forum.reply', fields: ['body'] }],
+]);
+
+// A stored post is translated up to this many characters; longer ad hoc text is refused.
+const MAX_TRANSLATE_CHARS = 5000;
+
+// Translations not served from the cache, per actor per window.
+const TRANSLATE_RATE_LIMIT = { windowSeconds: 3600, member: 30, admin: 200 };
+
+async function translateText(input, actor) {
+  const request = await resolveTranslateTextRequest(input, actor);
+  if (request.content) {
+    const cached = await cachedTranslation(request);
+    if (cached) return actionResult(translationResult(request, cached.translated_text, true), [], null);
+  }
+  await assertTranslateRateLimit(actor);
+
+  const context = request.content
+    ? `${request.content.contentType} on a community portal`
+    : 'website text on a community portal';
+  const response = await ai.translate(request.text.slice(0, MAX_TRANSLATE_CHARS), request.language, { context });
+  const translated = typeof response?.text === 'string' ? response.text.trim() : '';
+  if (!translated) throw new Error('ai.translate returned no text.');
+
+  const row = request.content ? await cacheTranslation(request, translated) : null;
+  return actionResult(
+    translationResult(request, translated, false),
+    row?.id != null ? [changedObject('translation', row.id)] : [],
+    null,
+  );
+}
+
+// Checks a translateText request and resolves what to translate: the stored
+// text of a forum post the actor can see, or (admins only) the given text.
+// Shared by the validate and execute phases.
+async function resolveTranslateTextRequest(input, actor) {
+  const requested = input.targetLang ?? input.target_lang ?? input.language;
+  if (typeof requested !== 'string' || !requested) {
+    throw capabilityError('validation.failed', 'translations.translateText requires target_lang.');
+  }
+  const contentType = input.contentType ?? input.content_type;
+  const contentId = rowIdFrom(input.contentId ?? input.content_id);
+  const namesContent =
+    contentType != null || input.contentId != null || input.content_id != null || input.field != null;
+  const source = namesContent ? TRANSLATABLE_CONTENT.get(contentType) : null;
+  if (namesContent && (!source?.fields.includes(input.field) || contentId == null)) {
+    throw capabilityError(
+      'validation.failed',
+      'content_type, content_id, and field must name a forum post: a forum_topic title or body, or a forum_reply body.',
+    );
+  }
+  if (!namesContent) {
+    if (!isAdminLike(actor)) {
+      throw capabilityError(
+        'permission.denied',
+        'Only admins can translate ad hoc text. Name a forum post with content_type, content_id, and field.',
+        { actorState: actor.state },
+      );
+    }
+    if (typeof input.text !== 'string' || !input.text.trim()) {
+      throw capabilityError('validation.failed', 'translations.translateText requires text or a forum post.');
+    }
+    if (input.text.length > MAX_TRANSLATE_CHARS) {
+      throw capabilityError('validation.failed', `text is limited to ${MAX_TRANSLATE_CHARS} characters.`, {
+        length: input.text.length,
+        maxLength: MAX_TRANSLATE_CHARS,
+      });
+    }
+  }
+
+  const config = await readSiteConfig();
+  if (config.get('feature_ai_translation') !== true) {
+    throw capabilityError('conflict.state', 'AI translation is turned off on this portal.', {
+      feature: 'feature_ai_translation',
+    });
+  }
+  // Use the enabled language's own spelling, so the cache key set stays bounded.
+  const languages = enabledLanguages(config);
+  const language = languages.find((lang) => lang.toLowerCase() === requested.toLowerCase());
+  if (!language) {
+    throw capabilityError('validation.failed', 'target_lang is not enabled on this portal.', {
+      target_lang: requested,
+      enabled: languages,
+    });
+  }
+  if (!source) return { language, text: input.text, content: null };
+
+  // Not found and not visible look the same, so hidden posts are not revealed.
+  const row = await selectOneRow(source.table, 'id', contentId);
+  // A reply is visible only under a topic the actor can see.
+  let topic = row;
+  if (row && contentType === 'forum_reply') {
+    topic = row.topic_id != null ? await selectOneRow('forum_topics', 'id', row.topic_id) : null;
+  }
+  if (!row || !topic || !visibleForumRow(row, actor) || !visibleForumRow(topic, actor)) {
+    throw capabilityError('notFound.object', 'Forum post not found.', {
+      object: changedObject(source.objectType, contentId),
+    });
+  }
+  const text = row[input.field];
+  if (typeof text !== 'string' || !text.trim()) {
+    throw capabilityError('validation.failed', `That forum post has no ${input.field} to translate.`, {
+      object: changedObject(source.objectType, contentId),
+    });
+  }
+  return { language, text, content: { contentType, contentId, field: input.field } };
+}
+
+function translationResult({ language, content }, translated, cached) {
+  return { translated, translatedText: translated, cached, language, ...content };
+}
+
+async function cachedTranslation({ language, content }) {
+  const rows = await adminDb()
+    .from('content_translations')
+    .select('id,translated_text')
+    .eq('content_type', content.contentType)
+    .eq('content_id', content.contentId)
+    .eq('language', language)
+    .eq('field', content.field)
+    .limit(1);
+  return normalizeDbRows(rows)[0] || null;
+}
+
+// Another request may have cached this translation first (the cache key is
+// unique); the fresh translation is returned either way.
+async function cacheTranslation({ language, content }, translated) {
+  try {
+    return await insertRow('content_translations', {
+      content_type: content.contentType,
+      content_id: content.contentId,
+      language,
+      field: content.field,
+      translated_text: translated,
+    });
+  } catch (error) {
+    console.warn('translations.translateText: cache write failed', error?.message || error);
+    return null;
+  }
+}
+
+// Counts the actor's recent translations that may have spent quota: in flight,
+// translated (not served from the cache), or failed while translating. Requests
+// refused before translating do not count, so retrying while limited does not
+// extend the limit.
+async function assertTranslateRateLimit(actor) {
+  const { windowSeconds } = TRANSLATE_RATE_LIMIT;
+  const limit = isAdminLike(actor) ? TRANSLATE_RATE_LIMIT.admin : TRANSLATE_RATE_LIMIT.member;
+  const ref = actorReference(actor);
+  const result = await adminDb().sql(
+    `SELECT count(*)::int AS recent, min(created_at) AS oldest
+       FROM capability_executions
+      WHERE operation = 'translations.translateText'
+        AND actor_ref->>'type' = $1
+        AND actor_ref->>'id' = $2
+        AND created_at > $3::timestamptz
+        AND ($4::bigint IS NULL OR id <> $4::bigint)
+        AND (status = 'started'
+             OR (status = 'succeeded' AND result_payload->'result'->>'cached' = 'false')
+             OR (status = 'failed' AND error_payload->>'code' = 'internal.error'))`,
+    [
+      ref.type,
+      String(ref.id ?? ''),
+      new Date(Date.now() - windowSeconds * 1000).toISOString(),
+      HISTORY_CONTEXT.getStore()?.executionId ?? null,
+    ],
+  );
+  const { recent, oldest } = normalizeDbRows(result)[0] || {};
+  if (Number(recent || 0) < limit) return;
+  const freesAt = (oldest ? new Date(oldest).getTime() : Date.now()) + windowSeconds * 1000;
+  const retryAfterSeconds = Math.max(1, Math.ceil((freesAt - Date.now()) / 1000));
+  const minutes = Math.ceil(retryAfterSeconds / 60);
+  throw capabilityError(
+    'rateLimit.exceeded',
+    `Translation limit reached. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+    { limit, windowSeconds, retryAfterSeconds },
+  );
+}
+
+// A positive int4 row id from a number or a digit string, else null.
+function rowIdFrom(value) {
+  const id = typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value)) ? Number(value) : NaN;
+  return Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null;
+}
+
+// site_config keyed by key; some values are JSON-encoded text ('"en"', '["en","es"]').
+async function readSiteConfig() {
+  const rows = await selectRows('site_config');
+  return new Map(rows.map((row) => [row.key, parseConfigValue(row.value)]));
+}
+
+function parseConfigValue(value) {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+// site_config.languages_enabled (or the legacy `languages`) lists the enabled language codes.
+function enabledLanguages(config) {
+  const value = config.get('languages_enabled') ?? config.get('languages');
+  return Array.isArray(value) ? value.filter((lang) => typeof lang === 'string' && lang) : [];
 }
 
 async function generateNewsletterDraft(input) {
@@ -2689,8 +2944,8 @@ function capabilityError(code, message, detail) {
 }
 
 // These capability operations have no backing implementation on the portal
-// gateway (translation/storage/jobs run as separate functions; exports are
-// not wired). An honest notImplemented error beats a fake ok:true — or, for
+// gateway (storage/jobs run as separate functions; exports are not wired).
+// An honest notImplemented error beats a fake ok:true — or, for
 // exports, a retryable internal.error from letting the capability_executions
 // insert run anyway.
 function notImplementedAction(name) {
@@ -2703,6 +2958,7 @@ function mutationStatus(code) {
   if (code === 'notFound.object') return 404;
   if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
+  if (code === 'rateLimit.exceeded') return 429;
   if (code === 'api.notImplemented') return 501;
   return 501;
 }
@@ -2715,6 +2971,7 @@ function mutationErrorCode(code) {
       'notFound.object',
       'conflict.idempotencyKey',
       'conflict.state',
+      'rateLimit.exceeded',
       'api.notImplemented',
     ].includes(code)
   )
@@ -3103,7 +3360,9 @@ function minimumActorState(name) {
     name.startsWith('rsvps.') ||
     name.startsWith('reactions.') ||
     name.startsWith('activity.') ||
-    ['members.updateProfile'].includes(name)
+    // translateText checks per request what the actor may translate: members
+    // only a forum post they can see, admins also ad hoc text.
+    ['members.updateProfile', 'translations.translateText'].includes(name)
   ) {
     return 'active_member';
   }
@@ -3129,8 +3388,11 @@ function successResponse(correlationId, data, status = 200) {
   return new Response(JSON.stringify({ ok: true, correlationId, data }), { status, headers: JSON_HEADERS });
 }
 
-function errorResponse(correlationId, status, error) {
-  return new Response(JSON.stringify({ ok: false, correlationId, error }), { status, headers: JSON_HEADERS });
+function errorResponse(correlationId, status, error, headers = {}) {
+  return new Response(JSON.stringify({ ok: false, correlationId, error }), {
+    status,
+    headers: { ...JSON_HEADERS, ...headers },
+  });
 }
 
 function normalizeEmail(value) {

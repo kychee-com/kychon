@@ -439,6 +439,9 @@ describe('Capability API mutation bug fixes', () => {
   });
 
   it('GH-110: unwired service/export ops return notImplemented, not fake success', async () => {
+    // No storage/ai/jobs service is wired into the context here. (The deployed
+    // gateway, functions/kychon-api.js, wires translateText to Run402's
+    // ai.translate; see security-translate-text-capability.test.ts.)
     const cases: Array<[string, JsonObject]> = [
       ['assets.upload', { file: { name: 'x.png' }, path: 'x.png' }],
       ['translations.translateText', { text: 'Hi', target_language: 'es' }],
@@ -450,5 +453,51 @@ describe('Capability API mutation bug fixes', () => {
         code: 'api.notImplemented',
       });
     }
+  });
+
+  it('translations.translateText: members translate only a named forum post; admins also ad hoc text', async () => {
+    const ai = {
+      translateText: vi.fn(async () => ({ translated: 'Hola' })),
+      translateContent: vi.fn(async () => ({})),
+      generateNewsletter: vi.fn(async () => ({})),
+    };
+    const forumPost = { content_type: 'forum_reply', content_id: 1, field: 'body', target_lang: 'es' };
+
+    await expect(
+      executeCapabilityMutation('translations.translateText', forumPost, { actor: anonymousActor, db: makeDb(), ai }),
+    ).rejects.toMatchObject({ code: 'permission.denied' });
+    await expect(
+      executeCapabilityMutation(
+        'translations.translateText',
+        { text: 'Hi', target_lang: 'es' },
+        { actor: memberActor, db: makeDb(), ai },
+      ),
+    ).rejects.toMatchObject({ code: 'permission.denied' });
+    for (const notAForumPost of [
+      { ...forumPost, content_type: 'announcement' },
+      { ...forumPost, content_id: true },
+    ]) {
+      await expect(
+        executeCapabilityMutation('translations.translateText', notAForumPost, {
+          actor: memberActor,
+          db: makeDb(),
+          ai,
+        }),
+      ).rejects.toMatchObject({ code: 'permission.denied' });
+    }
+    expect(ai.translateText).not.toHaveBeenCalled();
+
+    const member = await executeCapabilityMutation('translations.translateText', forumPost, {
+      actor: memberActor,
+      db: makeDb(),
+      ai,
+    });
+    expect(member.result).toEqual({ translated: 'Hola' });
+    await executeCapabilityMutation(
+      'translations.translateText',
+      { text: 'Hi', target_lang: 'es' },
+      { actor: adminActor, db: makeDb(), ai },
+    );
+    expect(ai.translateText).toHaveBeenCalledTimes(2);
   });
 });

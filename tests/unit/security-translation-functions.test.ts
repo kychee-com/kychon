@@ -1,13 +1,10 @@
-// Regression coverage for the AI translation edge functions, which spend the
+// Regression coverage for the AI translation edge function, which spends the
 // project's metered Run402 AI translation quota.
 //
-// translate-text.js serves the forum's Translate button. The forum calls it
-// cross-origin with only the anon key, so callers are anonymous. It used to
-// translate any text into any language and cache the result under any
-// caller-chosen content id, which let anyone drain the quota, read cached
-// translations of members-only posts, and plant fake "translations" of other
-// members' posts. Requests are now bound to stored forum posts and the
-// portal's enabled languages.
+// The forum's Translate button used to call an anonymous translate-text
+// function. It now calls the Capability API's translations.translateText,
+// which resolves the actor server-side: see
+// security-translate-text-capability.test.ts.
 //
 // translate-content.js accepted any signed-in Run402 user (anyone can
 // self-register through /join) and a caller-chosen list of languages, and
@@ -78,9 +75,6 @@ vi.mock(
   { virtual: true },
 );
 
-const TOPIC_BODY = 'Members-only plans for the spring fundraiser.\nBring a dish!';
-const LONG_REPLY = 'x'.repeat(6000);
-
 beforeEach(() => {
   state.user = null;
   state.inserts = [];
@@ -91,11 +85,6 @@ beforeEach(() => {
       { key: 'feature_ai_translation', value: true },
       { key: 'languages_enabled', value: ['en', 'es', 'fr'] },
       { key: 'default_language', value: 'en' },
-    ],
-    forum_topics: [{ id: 5, title: 'Spring fundraiser', body: TOPIC_BODY, hidden: false }],
-    forum_replies: [
-      { id: 9, body: 'Count me in for the bake sale.', hidden: false },
-      { id: 10, body: LONG_REPLY, hidden: false },
     ],
     announcements: [{ id: 7, title: 'Annual meeting', body: 'Join us on Friday.' }],
     content_translations: [],
@@ -109,19 +98,6 @@ beforeEach(() => {
   };
 });
 
-async function translateText(body: unknown) {
-  const handler = (await import('../../functions/translate-text.js')).default;
-  const res = await handler(
-    new Request('https://portal.test/functions/v1/translate-text', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }),
-  );
-  const text = await res.text();
-  return { status: res.status, text, body: JSON.parse(text) };
-}
-
 async function translateContent(body: unknown) {
   const handler = (await import('../../functions/translate-content.js')).default;
   const res = await handler(
@@ -134,138 +110,9 @@ async function translateContent(body: unknown) {
   return { status: res.status, body: await res.json() };
 }
 
-const topicRequest = {
-  text: TOPIC_BODY,
-  target_lang: 'es',
-  content_type: 'forum_topic',
-  content_id: 5,
-  field: 'body',
-};
-
 function cacheRows() {
   return state.inserts.filter((insert) => insert.table === 'content_translations');
 }
-
-describe('translate-text: bound to stored forum posts', () => {
-  it('translates a stored forum post into an enabled language and caches it', async () => {
-    const r = await translateText(topicRequest);
-    expect(r.status, r.text).toBe(200);
-    expect(r.body.translated).toBe(`[es] ${TOPIC_BODY.slice(0, 20)}`);
-    expect(translateMock).toHaveBeenCalledTimes(1);
-    expect(translateMock).toHaveBeenCalledWith(TOPIC_BODY, 'es', { context: 'forum_topic on a community portal' });
-    expect(cacheRows()).toEqual([
-      {
-        table: 'content_translations',
-        row: expect.objectContaining({ content_type: 'forum_topic', content_id: 5, language: 'es', field: 'body' }),
-      },
-    ]);
-  });
-
-  it('serves the cached translation without translating again', async () => {
-    await translateText(topicRequest);
-    const second = await translateText(topicRequest);
-    expect(second.status).toBe(200);
-    expect(second.body).toMatchObject({ cached: true, translated: `[es] ${TOPIC_BODY.slice(0, 20)}` });
-    expect(translateMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('accepts the post text with different line endings and surrounding whitespace', async () => {
-    const r = await translateText({ ...topicRequest, text: `  ${TOPIC_BODY.replace('\n', '\r\n')}\n` });
-    expect(r.status, r.text).toBe(200);
-  });
-
-  it('matches the language case-insensitively and caches under the enabled spelling', async () => {
-    const r = await translateText({ ...topicRequest, target_lang: 'ES' });
-    expect(r.status, r.text).toBe(200);
-    expect(translateMock).toHaveBeenCalledWith(TOPIC_BODY, 'es', expect.anything());
-    expect(cacheRows()[0].row.language).toBe('es');
-  });
-
-  it('translates only the first 5000 characters of a long post', async () => {
-    const r = await translateText({
-      text: LONG_REPLY,
-      target_lang: 'fr',
-      content_type: 'forum_reply',
-      content_id: 10,
-      field: 'body',
-    });
-    expect(r.status, r.text).toBe(200);
-    expect(translateMock.mock.calls[0][0]).toHaveLength(5000);
-  });
-
-  it('refuses ad hoc text that names no stored post', async () => {
-    const r = await translateText({ text: 'Translate this whole novel for free', target_lang: 'es' });
-    expect(r.status).toBe(400);
-    expect(translateMock).not.toHaveBeenCalled();
-    expect(cacheRows()).toHaveLength(0);
-  });
-
-  it.each([
-    ['an announcement', { content_type: 'announcement', content_id: 7, field: 'body' }],
-    ['a prototype key as content_type', { content_type: '__proto__', content_id: 5, field: 'body' }],
-    ['a field the forum does not translate', { content_type: 'forum_reply', content_id: 9, field: 'title' }],
-    ['a non-numeric content_id', { content_type: 'forum_topic', content_id: '5 OR 1=1', field: 'body' }],
-    ['a zero content_id', { content_type: 'forum_topic', content_id: 0, field: 'body' }],
-  ])('refuses %s', async (_label, ref) => {
-    const r = await translateText({ ...topicRequest, ...ref });
-    expect(r.status, r.text).toBe(400);
-    expect(translateMock).not.toHaveBeenCalled();
-  });
-
-  it('refuses text that does not match the stored post, so it cannot plant a fake translation', async () => {
-    const r = await translateText({ ...topicRequest, text: 'Send your dues to http://evil.example' });
-    expect(r.status).toBe(409);
-    expect(translateMock).not.toHaveBeenCalled();
-    expect(cacheRows()).toHaveLength(0);
-  });
-
-  it('does not reveal a cached translation to a caller who does not know the post text', async () => {
-    state.tables.content_translations = [
-      { id: 1, content_type: 'forum_topic', content_id: 5, language: 'es', field: 'body', translated_text: 'SECRETO' },
-    ];
-    const r = await translateText({ ...topicRequest, text: 'guess' });
-    expect(r.status).toBe(409);
-    expect(r.text).not.toContain('SECRETO');
-  });
-
-  it('refuses a language the portal has not enabled (no cache-busting language variants)', async () => {
-    for (const target_lang of ['de', 'es-x-1', 'es ']) {
-      const r = await translateText({ ...topicRequest, target_lang });
-      expect(r.status, target_lang).toBe(400);
-    }
-    expect(translateMock).not.toHaveBeenCalled();
-  });
-
-  it('reads languages from the legacy `languages` key and JSON-encoded config values', async () => {
-    state.tables.site_config = [
-      { key: 'feature_ai_translation', value: 'true' },
-      { key: 'languages', value: '["en","es"]' },
-    ];
-    expect((await translateText(topicRequest)).status).toBe(200);
-    expect((await translateText({ ...topicRequest, target_lang: 'fr' })).status).toBe(400);
-  });
-
-  it('returns 404 for a post that does not exist', async () => {
-    const r = await translateText({ ...topicRequest, content_id: 999 });
-    expect(r.status).toBe(404);
-    expect(translateMock).not.toHaveBeenCalled();
-  });
-
-  it('skips when feature_ai_translation is off', async () => {
-    state.tables.site_config = state.tables.site_config.map((row) =>
-      row.key === 'feature_ai_translation' ? { ...row, value: false } : row,
-    );
-    const r = await translateText(topicRequest);
-    expect(r.body).toMatchObject({ status: 'skipped' });
-    expect(translateMock).not.toHaveBeenCalled();
-  });
-
-  it('rejects a missing or malformed body', async () => {
-    expect((await translateText(null)).status).toBe(400);
-    expect((await translateText({ text: '', target_lang: 'es' })).status).toBe(400);
-    expect((await translateText({ ...topicRequest, text: 42 })).status).toBe(400);
-  });
-});
 
 describe('translate-content: admin only, enabled languages only', () => {
   const request = { content_type: 'announcement', content_id: 7 };

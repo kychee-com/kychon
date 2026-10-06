@@ -27,7 +27,8 @@ import { localeLabel } from '@/lib/locale-pool';
  * Two-column layout per field: source value on the left (read-only), the
  * translation Textarea on the right. Saves to `section_translations` via
  * `sections.translate` UPSERT. "Translate with AI" calls
- * `translations.translateText` for each field and fills the textareas.
+ * `translations.translateText` (admin ad hoc text) for each field and fills
+ * the textareas.
  *
  * Array notation in `translatableFields` (`items[].title`) is rendered as
  * grouped rows per array index — one heading per item, then its fields.
@@ -220,10 +221,12 @@ export function BlockTranslationEditor({
     setAiBusy(true);
     setError(null);
     try {
-      // translate-text edge function exists; call it once per field.
-      // Per-field calls are fine — the field count is small (max ~10 for a
-      // typical block).
+      // One translations.translateText call per field — the field count is
+      // small (max ~10 for a typical block). The first failure (feature off,
+      // language not enabled, rate limit) stops the fill and is shown; fields
+      // filled before it are kept.
       const next: Record<string, string> = { ...values };
+      let failure: string | null = null;
       for (const field of flatFields) {
         if (!field.source) continue;
         try {
@@ -234,13 +237,13 @@ export function BlockTranslationEditor({
           const translated = res?.translatedText || res?.translated;
           if (typeof translated === 'string') next[field.path] = translated;
         } catch (perFieldErr) {
-          console.warn(`AI translate failed for ${field.path}`, perFieldErr);
+          failure = perFieldErr instanceof Error ? perFieldErr.message : String(perFieldErr ?? 'AI translate failed');
+          break;
         }
       }
       setValues(next);
-      toast.success('Filled with AI — review and save when ready.');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err ?? 'AI translate failed'));
+      if (failure) setError(`AI translation stopped: ${failure}`);
+      else toast.success('Filled with AI — review and save when ready.');
     } finally {
       setAiBusy(false);
     }

@@ -239,7 +239,7 @@ const mutationDefinitions: readonly MutationDefinition[] = [
   ['moderation.approve', 'moderator', 'Approve content in the moderation queue.', 'recommended'],
   ['moderation.hide', 'moderator', 'Hide content from the moderation queue.', 'recommended'],
   ['moderation.markReviewed', 'moderator', 'Mark moderation content reviewed.'],
-  ['translations.translateText', 'admin', 'Translate ad hoc text.', 'recommended', 'metered'],
+  ['translations.translateText', 'active_member', 'Translate a visible forum post, or ad hoc text as an admin.', 'recommended', 'metered'],
   ['translations.translateContent', 'admin', 'Translate product content.', 'recommended', 'metered'],
   ['translations.delete', 'admin', 'Delete a translation record.', 'required'],
   ['newsletters.drafts.generate', 'admin', 'Generate a newsletter draft.', 'recommended', 'metered'],

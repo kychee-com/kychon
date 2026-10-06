@@ -4,6 +4,7 @@ import {
   type CapabilityExecutionRecord,
   type CapabilityExecutionStore,
   type CapabilityMutationDb,
+  CapabilityMutationError,
   handleCapabilityApiRequest,
   type JsonObject,
   KYCHON_API_VERSION,
@@ -306,6 +307,43 @@ describe('Capability API gateway', () => {
         code: 'notFound.object',
         detail: { object: { type: 'member', id: '99999999' } },
       },
+    });
+  });
+
+  it('maps rateLimit.exceeded to a retryable 429', async () => {
+    const ai = {
+      translateText: vi.fn(async () => {
+        throw new CapabilityMutationError('rateLimit.exceeded', 'Translation limit reached.', {
+          retryAfterSeconds: 60,
+        });
+      }),
+      translateContent: vi.fn(async () => ({})),
+      generateNewsletter: vi.fn(async () => ({})),
+    };
+    const res = await handleCapabilityApiRequest(
+      request({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'translations.translateText',
+        phase: 'execute',
+        idempotencyKey: 'translate-limited',
+        input: { content_type: 'forum_topic', content_id: 1, field: 'body', target_lang: 'es' },
+      }),
+      {
+        ...deps({
+          user: { id: 'member-user' },
+          members: [{ id: 2, user_id: 'member-user', role: 'member', status: 'active' }],
+          mutationDb: new MemoryMutationDb({}),
+        }),
+        ai,
+      },
+    );
+    const out = await json(res);
+
+    expect(out.status).toBe(429);
+    expect(out.body.error).toMatchObject({
+      code: 'rateLimit.exceeded',
+      retryable: true,
+      detail: { retryAfterSeconds: 60 },
     });
   });
 

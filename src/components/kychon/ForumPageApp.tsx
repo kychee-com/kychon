@@ -44,7 +44,7 @@ import {
   SelectValue,
   Textarea,
 } from '@/components/kychon/ui';
-import { del, get, getPollOptions, getPollVotes, patch, post } from '@/lib/api';
+import { del, execOp, get, getPollOptions, getPollVotes, patch, post } from '@/lib/api';
 import { getSession, isAdmin, isAuthenticated } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
 import { getConfig, isFeatureEnabled, ready, siteConfig, translateItems } from '@/lib/config';
@@ -128,6 +128,10 @@ function sameId(left: number | string | null | undefined, right: number | string
 
 function isPermissionDenied(error: unknown): boolean {
   return (error as { code?: string } | null)?.code === 'permission.denied';
+}
+
+function isRateLimited(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === 'rateLimit.exceeded';
 }
 
 function showForumToast(message: string, type: KychonToastType = 'info'): void {
@@ -679,7 +683,7 @@ function TranslateButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [translated, setTranslated] = useState('');
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState('');
   const locale = typeof window === 'undefined' ? 'en' : localStorage.getItem('wl_locale') || siteConfig.default_language || 'en';
   const defaultLanguage = siteConfig.default_language || 'en';
 
@@ -687,28 +691,20 @@ function TranslateButton({
 
   async function translate() {
     setBusy(true);
-    setFailed(false);
+    setFailure('');
     try {
-      const response = await fetch(`${window.__KYCHON_API}/functions/v1/translate-text`, {
-        body: JSON.stringify({
-          text,
-          target_lang: locale,
-          content_type: contentType,
-          content_id: contentId,
-          field,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${window.__KYCHON_ANON_KEY}`,
-          apikey: window.__KYCHON_ANON_KEY,
-        },
-        method: 'POST',
-      });
-      const data = (await response.json()) as { translated?: string };
-      if (!data.translated) throw new Error('Translation unavailable');
-      setTranslated(data.translated);
-    } catch {
-      setFailed(true);
+      // The server translates the stored post (once per language, then cached),
+      // after checking the signed-in member can see it.
+      const result = (await execOp('translations.translateText', {
+        content_type: contentType,
+        content_id: contentId,
+        field,
+        target_lang: locale,
+      })) as { translated?: string } | null;
+      if (!result?.translated) throw new Error('Translation unavailable');
+      setTranslated(result.translated);
+    } catch (error) {
+      setFailure(isRateLimited(error) ? 'Try again later' : 'Translation unavailable');
     } finally {
       setBusy(false);
     }
@@ -727,7 +723,7 @@ function TranslateButton({
     <div className="mt-3">
       <Button disabled={busy} onClick={translate} size="sm" type="button" variant="outline">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {failed ? 'Translation unavailable' : busy ? 'Translating...' : 'Translate'}
+        {failure || (busy ? 'Translating...' : 'Translate')}
       </Button>
     </div>
   );

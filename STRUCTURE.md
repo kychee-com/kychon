@@ -80,8 +80,8 @@ kychon/
 │   ├── check-expirations.js    # schedule: "0 8 * * *"
 │   ├── event-reminders.js      # schedule: "0 * * * *"
 │   ├── moderate-content.js     # schedule: "*/15 * * * *"
+│   ├── kychon-api.js           # Capability API gateway (also the forum "Translate" button)
 │   ├── translate-content.js    # Admin-triggered content translation
-│   ├── translate-text.js       # Forum "Translate" button (stored posts only)
 │   ├── upload-resource.js      # Resource file uploads
 │   ├── prune-history.js        # schedule: "23 3 * * *" — trims content history
 │   └── ai-content.js           # Newsletter/insights (dormant)

@@ -189,7 +189,7 @@ export async function handleCapabilityApiRequest(
           code: mutationErrorCode(error.code),
           message: error.message,
           ...(error.detail ? { detail: error.detail } : {}),
-          retryable: false,
+          retryable: error.code === 'rateLimit.exceeded',
         });
       }
       throw error;
@@ -210,6 +210,7 @@ function mutationStatus(code: string): number {
   if (code === 'notFound.object') return 404;
   if (code === 'conflict.idempotencyKey') return 409;
   if (code === 'conflict.state') return 409;
+  if (code === 'rateLimit.exceeded') return 429;
   if (code === 'api.notImplemented') return 501;
   return 501;
 }
@@ -221,6 +222,7 @@ function mutationErrorCode(code: string) {
     code === 'notFound.object' ||
     code === 'conflict.idempotencyKey' ||
     code === 'conflict.state' ||
+    code === 'rateLimit.exceeded' ||
     code === 'api.notImplemented'
   ) {
     return code;

@@ -54,7 +54,7 @@ Mutations return an `ActionPlan` during validation and an `ActionResult` during 
 
 There are two error layers, distinguishable by a `source` field on the error.
 
-**Operation errors** are raised by a capability handler once the request reaches the function. They return `{ ok: false, correlationId, error: { code, message, ... } }` with stable dotted codes such as `request.invalidJson`, `api.unsupportedVersion`, `permission.denied`, `validation.failed`, `conflict.idempotencyKey`, `notFound.object`, `confirmation.required`, and `api.notImplemented`.
+**Operation errors** are raised by a capability handler once the request reaches the function. They return `{ ok: false, correlationId, error: { code, message, ... } }` with stable dotted codes such as `request.invalidJson`, `api.unsupportedVersion`, `permission.denied`, `validation.failed`, `conflict.idempotencyKey`, `notFound.object`, `confirmation.required`, `rateLimit.exceeded`, and `api.notImplemented`. A `rateLimit.exceeded` error is HTTP 429 with `retryable: true`, `detail.retryAfterSeconds`, and a matching `Retry-After` header.
 
 **Gateway-boundary errors** are raised by the Run402 gateway *before* the function runs — a malformed JSON body, or a missing or invalid `apikey`. These carry `source: "gateway"`, a `category`, a coarse `code` (`VALIDATION_FAILED`, `AUTH_REQUIRED`, `INVALID_AUTH`), and a `next_actions` array describing how to recover. They are **not** part of the dotted operation catalog — branch on `source === "gateway"` to handle them.
 

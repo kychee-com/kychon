@@ -704,7 +704,30 @@ function isModeratorLike(ctx: CapabilityMutationContext): boolean {
 
 export { sanitizeRichHtmlServer };
 
+// content_type -> the fields a member may translate.
+const TRANSLATABLE_FORUM_FIELDS: ReadonlyMap<string, readonly string[]> = new Map([
+  ['forum_topic', ['title', 'body']],
+  ['forum_reply', ['body']],
+]);
+
+function namesForumPost(input: JsonObject): boolean {
+  const contentType = input.contentType ?? input.content_type;
+  const rawId = input.contentId ?? input.content_id;
+  const contentId = typeof rawId === 'number' || (typeof rawId === 'string' && /^\d+$/.test(rawId)) ? Number(rawId) : NaN;
+  const fields = typeof contentType === 'string' ? TRANSLATABLE_FORUM_FIELDS.get(contentType) : undefined;
+  return !!fields && typeof input.field === 'string' && fields.includes(input.field) && Number.isInteger(contentId) && contentId > 0;
+}
+
+// Members may translate only a stored forum post (the deployed gateway also
+// checks that they can see it); admins may also translate ad hoc text.
 async function translateText(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  if (!isAdminLike(ctx) && !namesForumPost(input)) {
+    throw new CapabilityMutationError(
+      'permission.denied',
+      'Only admins can translate ad hoc text. Name a forum post with content_type, content_id, and field.',
+      { actorState: ctx.actor.state },
+    );
+  }
   if (!ctx.ai) notImplemented('translations.translateText');
   const result = await ctx.ai.translateText(input);
   return actionResult(result, [changedObject('translation', String(result.id || 'text'))], null);
