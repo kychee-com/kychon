@@ -16,6 +16,7 @@ const request = vi.fn();
 
 vi.mock('@kychon/sdk', () => ({
   createKychonClient: () => ({ request }),
+  KYCHON_CAPABILITY_FUNCTION_PATH: '/functions/v1/kychon-api',
 }));
 
 const { ssrPageHeaderSections, ssrRequestOrigin } = await import('../../src/lib/ssr-api');
