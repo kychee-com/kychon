@@ -16,13 +16,32 @@
  * `astro.config.mjs`.
  */
 
-import { createKychonClient } from '@kychon/sdk';
+import { createKychonClient, KYCHON_CAPABILITY_FUNCTION_PATH } from '@kychon/sdk';
 import { parseAssetManifest } from './bake-asset-manifest';
 import type { AssetManifest } from './kychon-image';
 
 type KychonClient = ReturnType<typeof createKychonClient>;
 
 const API_BASE_URL = 'https://api.run402.com';
+
+// The endpoint is fixed rather than discovered: without `apiEndpoint` the SDK
+// first fetches the portal's own `/.well-known/kychon.json`, which is itself
+// an SSR route. `middleware.ts` makes an API call on every cold invocation,
+// so each discovery fetch cold-started another invocation that discovered
+// again, until requests piled up into the function's 60s timeout.
+const API_ENDPOINT = `${API_BASE_URL}${KYCHON_CAPABILITY_FUNCTION_PATH}`;
+
+/**
+ * Every server-side API call is bounded. All callers already treat a failed
+ * read as "render the shell and let the island fetch", so a slow API costs a
+ * few seconds of TTFB instead of holding the request to the SSR function's
+ * 60s timeout (a gateway 500).
+ */
+export const SSR_API_TIMEOUT_MS = 5000;
+
+function boundedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(SSR_API_TIMEOUT_MS) });
+}
 
 // Anon-key JWT baked in at build time via `astro.config.mjs:vite.define`.
 // Browser reads it from `window.__KYCHON_ANON_KEY` (env.js); the SSR
@@ -42,6 +61,8 @@ function client(host: string): KychonClient {
     portalUrl: `https://${host}`,
     apiKey: ANON_KEY || (() => null),
     apiBaseUrl: API_BASE_URL,
+    apiEndpoint: API_ENDPOINT,
+    fetch: boundedFetch,
   });
   return cachedClient;
 }
