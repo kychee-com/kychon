@@ -653,12 +653,28 @@ export interface RunDeployResult {
   /** Present on real deploys; absent on dry-run. */
   releaseId?: string;
   operationId?: string;
+  /**
+   * What the bound subdomain serves once the deploy finishes — after the
+   * post-import re-publish when this deploy imported the seed. Hand it to
+   * `r.subdomains.add({ name, deploymentId, projectId })` to move a canonical
+   * name onto a release deployed under a temporary one. Absent on dry-run.
+   */
+  deploymentId?: string;
   urls?: Record<string, string>;
   elapsedMs?: number;
   /** Present for gateway-reviewed plan mode. */
   planId?: string;
   planFingerprint?: string;
   planExpiresAt?: string;
+}
+
+/**
+ * The deployment a subdomain should bind to serve this apply's release. The
+ * gateway reports it as `urls.deployment_id`; when it does not, the release id
+ * binds the same release (`subdomains.add` resolves `rel_…` ids too).
+ */
+export function appliedDeploymentId(result: { release_id: string; urls?: Record<string, string> | null }): string {
+  return result.urls?.deployment_id || result.release_id;
 }
 
 export interface BuildKychonReleaseSpecOptions {
@@ -1109,6 +1125,7 @@ export async function runDeploy(
   console.log(`\nDeploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
   console.log(`  Release id: ${result.release_id}`);
   console.log(`  Operation id: ${result.operation_id}`);
+  console.log(`  Deployment id: ${appliedDeploymentId(result)}${rebuilt ? " (post-import re-publish)" : ""}`);
   for (const [k, v] of Object.entries(result.urls)) {
     console.log(`  ${k}: ${v}`);
   }
@@ -1648,6 +1665,7 @@ async function reportAppliedRelease(
     schemaChecksum: releaseManifest.schemaChecksum,
     releaseId: result.release_id,
     operationId: result.operation_id,
+    deploymentId: appliedDeploymentId(result),
     urls: result.urls,
     elapsedMs,
   };
@@ -1897,6 +1915,7 @@ export async function patchDeploy(
   console.log(`\nPatch deploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
   console.log(`  Release id: ${result.release_id}`);
   console.log(`  Operation id: ${result.operation_id}`);
+  console.log(`  Deployment id: ${appliedDeploymentId(result)}`);
   for (const [k, v] of Object.entries(result.urls)) {
     console.log(`  ${k}: ${v}`);
   }
@@ -1926,6 +1945,7 @@ export async function patchDeploy(
     schemaChecksum: releaseManifest.schemaChecksum,
     releaseId: result.release_id,
     operationId: result.operation_id,
+    deploymentId: appliedDeploymentId(result),
     urls: result.urls,
     elapsedMs,
     siteFilesChanged: siteChanged,

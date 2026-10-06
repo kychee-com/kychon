@@ -83,6 +83,14 @@ describe('Capability API discovery documents', () => {
     );
     expect(readFileSync(join(import.meta.dirname, '../../src/pages/llms.txt.ts'), 'utf8')).toContain('buildLlmsTxt');
   });
+
+  it('renders host-bearing discovery documents per request, never from the build-time URL (kychon#222)', () => {
+    for (const route of ['.well-known/kychon.json.ts', 'llms.txt.ts']) {
+      const source = readFileSync(join(import.meta.dirname, '../../src/pages', route), 'utf8');
+      expect(source, route).toContain('export const prerender = false');
+      expect(source, route).not.toContain('KYCHON_PUBLIC_URL');
+    }
+  });
 });
 
 describe('discovery document AI connector', () => {

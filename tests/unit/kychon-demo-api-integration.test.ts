@@ -122,13 +122,18 @@ describe('official demo portal API integration', () => {
       await expect(client.polls.results.get({ id: 1 })).resolves.toMatchObject({ totalVotes: 1 });
     });
 
-    it(`${demo.name} discovery documents bake the demo portal URL`, async () => {
-      process.env.KYCHON_PUBLIC_URL = demo.portalUrl;
-      const url = new URL('https://build-origin.invalid');
+    it(`${demo.name} discovery documents name the requested host, not the build-time URL`, async () => {
+      // A temp-host cut-over: built under a temporary subdomain, now served
+      // from the canonical one (kychon#222).
+      process.env.KYCHON_PUBLIC_URL = 'https://temp-v2.run402.com';
+      const url = new URL(`${demo.portalUrl}/.well-known/kychon.json`);
 
       const wellKnown = await (await wellKnownGet({ url })).json();
       const llms = await llmsGet({ url }).text();
 
+      expect(JSON.stringify(wellKnown)).not.toContain('temp-v2');
+      expect(llms).not.toContain('temp-v2');
+      expect(llms).toContain(`${demo.portalUrl}/.well-known/kychon.json`);
       expect(wellKnown).toMatchObject({
         portalUrl: demo.portalUrl,
         api: {
