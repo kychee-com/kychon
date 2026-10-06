@@ -725,6 +725,10 @@ export async function writeAdapterAwareArtifacts(opts: {
 export const ERROR_WATCH_DEFAULT_SECONDS = 300;
 /** Poll cadence (ms). Matches the run402 CLI `errors --watch` default. */
 export const ERROR_WATCH_INTERVAL_MS = 15_000;
+/** Adaptive clean exit: earliest the watch may pass (seconds). RUN402_ERROR_WATCH_MIN_SECONDS. */
+export const ERROR_WATCH_DEFAULT_MIN_SECONDS = 60;
+/** Adaptive clean exit: invocations the release must serve first. RUN402_ERROR_WATCH_MIN_INVOCATIONS. */
+export const ERROR_WATCH_DEFAULT_MIN_INVOCATIONS = 20;
 
 /** One occurrence pointer id for a fingerprint row (newest, else the pinned first). */
 export function pickErrorSampleId(row: Record<string, unknown> | undefined): string | null {
@@ -755,6 +759,26 @@ export function classifyErrorWatchOutcome(observed: {
   if (observed.newFingerprints > 0) return "new";
   if (!observed.anyVerdict) return "unavailable";
   return "clean";
+}
+
+/**
+ * Adaptive clean exit. The window is a cap, not a fixed wait: once the release
+ * has been live `minSeconds` AND served `minInvocations` with zero new
+ * fingerprints, the gate passes. A release with no traffic never stops early
+ * (0-over-0 is not health) and still waits out the full window.
+ */
+export function errorWatchCanStopEarly(observed: {
+  elapsedSeconds: number;
+  invocations: number;
+  newFingerprints: number;
+  minSeconds: number;
+  minInvocations: number;
+}): boolean {
+  return (
+    observed.newFingerprints === 0 &&
+    observed.elapsedSeconds >= observed.minSeconds &&
+    observed.invocations >= observed.minInvocations
+  );
 }
 
 /** Human render for the fail-fast (exit 1) case — one block per new identity. */
@@ -827,11 +851,18 @@ export interface WatchReleaseErrorsOptions {
  * releases and enforce the exit-code contract:
  *   - new fingerprint(s)          → print each + `process.exit(1)` (fail fast)
  *   - verdict unavailable (outage)→ print distinct notice + `process.exit(2)`
- *   - clean at window end         → print the verdict and RETURN (deploy proceeds)
+ *   - clean                       → print the verdict and RETURN (deploy proceeds),
+ *                                   either at window end or early once the release
+ *                                   has run MIN_SECONDS and served MIN_INVOCATIONS
  * Transient poll failures are tolerated — a single verdict anywhere in the
  * window is enough to distinguish "clean" from "outage". Skipped entirely when
  * `RUN402_SKIP_ERROR_WATCH=1` or `RUN402_ERROR_WATCH_SECONDS<=0`.
  */
+function envNumber(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export async function watchReleaseErrors(opts: WatchReleaseErrorsOptions): Promise<void> {
   if (process.env.RUN402_SKIP_ERROR_WATCH === "1") {
     console.log("[error-watch] skipped (RUN402_SKIP_ERROR_WATCH=1)");
@@ -859,11 +890,14 @@ export async function watchReleaseErrors(opts: WatchReleaseErrorsOptions): Promi
   const apiBase = (opts.apiBase ?? process.env.RUN402_API_BASE ?? "https://api.run402.com").replace(/\/+$/, "");
   const url = `${apiBase}/projects/v1/${encodeURIComponent(opts.projectId)}/errors?new_in=${encodeURIComponent(opts.releaseId)}`;
   const intervalMs = ERROR_WATCH_INTERVAL_MS;
-  const deadline = Date.now() + windowSeconds * 1000;
+  const startedAt = Date.now();
+  const deadline = startedAt + windowSeconds * 1000;
+  const minSeconds = envNumber("RUN402_ERROR_WATCH_MIN_SECONDS", ERROR_WATCH_DEFAULT_MIN_SECONDS);
+  const minInvocations = envNumber("RUN402_ERROR_WATCH_MIN_INVOCATIONS", ERROR_WATCH_DEFAULT_MIN_INVOCATIONS);
 
   console.log(
     `\n[error-watch] watching release ${opts.releaseId} for new error fingerprints ` +
-      `(window ${windowSeconds}s, poll ${Math.round(intervalMs / 1000)}s)…`,
+      `(window ${windowSeconds}s, poll ${Math.round(intervalMs / 1000)}s; passes early after ${minSeconds}s + ${minInvocations} invocations)…`,
   );
 
   let anyVerdict = false;
@@ -882,14 +916,19 @@ export async function watchReleaseErrors(opts: WatchReleaseErrorsOptions): Promi
       anyVerdict = true;
       lastVerdict = page.verdict;
       const newCount = Number(page.verdict["new_fingerprints"] ?? 0);
-      const elapsed = Math.round((Date.now() - (deadline - windowSeconds * 1000)) / 1000);
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+      const invocations = Number(page.verdict["invocations_in_window"] ?? 0);
       process.stderr.write(
-        `[error-watch] poll ${poll} · ${elapsed}s elapsed · ${newCount} new fingerprint(s) so far\n`,
+        `[error-watch] poll ${poll} · ${elapsed}s elapsed · ${invocations} invocation(s) · ${newCount} new fingerprint(s) so far\n`,
       );
       if (classifyErrorWatchOutcome({ anyVerdict, newFingerprints: newCount }) === "new") {
         console.error(renderNewFingerprintFailure(page, opts.releaseId));
         console.error("[error-watch] deploy gate FAILED — revert or fix; the new release introduced errors.");
         process.exit(1);
+      }
+      if (errorWatchCanStopEarly({ elapsedSeconds: elapsed, invocations, newFingerprints: newCount, minSeconds, minInvocations })) {
+        console.log(`[error-watch] passing early: ${elapsed}s live, ${invocations} invocations, 0 new.`);
+        break;
       }
     }
     if (Date.now() >= deadline) break;

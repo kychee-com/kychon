@@ -80,7 +80,12 @@ After an apply lands, both `runDeploy()` and `patchDeploy()` (so `deploy.ts`,
 <anon key>`). It baselines the freshly-activated release against the previously
 active one, so a **new fingerprint** is an error identity this deploy
 introduced (rollback-safe — recurring/pre-existing errors don't count). It polls
-every ~15s for the window and **fails fast** the instant a new identity lands.
+every ~15s and **fails fast** the instant a new identity lands. The window is a
+cap: the gate **passes early** once the release has been live
+`RUN402_ERROR_WATCH_MIN_SECONDS` (60) and served
+`RUN402_ERROR_WATCH_MIN_INVOCATIONS` (20) invocations with zero new
+fingerprints. A release that gets no traffic never passes early; it waits out
+the full window.
 
 Exit semantics:
 
@@ -97,7 +102,9 @@ Knobs:
 
 | Var | Purpose |
 |---|---|
-| `RUN402_ERROR_WATCH_SECONDS` | Watch window in seconds (default `300`). `<=0` skips the gate. |
+| `RUN402_ERROR_WATCH_SECONDS` | Maximum watch window in seconds (default `300`). `<=0` skips the gate. |
+| `RUN402_ERROR_WATCH_MIN_SECONDS` | Earliest the gate may pass clean (default `60`). |
+| `RUN402_ERROR_WATCH_MIN_INVOCATIONS` | Invocations the release must serve before an early pass (default `20`). |
 | `RUN402_SKIP_ERROR_WATCH` | Set to `1` to skip the gate entirely. |
 | `RUN402_API_BASE` | Gateway base URL (default `https://api.run402.com`). |
 

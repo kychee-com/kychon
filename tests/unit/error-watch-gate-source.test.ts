@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   classifyErrorWatchOutcome,
+  errorWatchCanStopEarly,
   pickErrorCommand,
   pickErrorSampleId,
   renderErrorVerdict,
@@ -81,5 +82,32 @@ describe('error fingerprint field extraction', () => {
     );
     expect(out).toContain('PASS');
     expect(out).toContain('invocations_in_window=0');
+  });
+});
+
+describe('errorWatchCanStopEarly — adaptive clean exit', () => {
+  const base = { elapsedSeconds: 60, invocations: 20, newFingerprints: 0, minSeconds: 60, minInvocations: 20 };
+
+  it('stops once the minimum time and traffic are both met with zero new fingerprints', () => {
+    expect(errorWatchCanStopEarly(base)).toBe(true);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 75, invocations: 116 })).toBe(true);
+  });
+
+  it('keeps watching before the minimum time, even with plenty of traffic', () => {
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 30, invocations: 500 })).toBe(false);
+  });
+
+  it('keeps watching while traffic is below the minimum — 0-over-0 is never health', () => {
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 290, invocations: 0 })).toBe(false);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 120, invocations: 19 })).toBe(false);
+  });
+
+  it('never stops early as clean when a new fingerprint exists', () => {
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 200, invocations: 200, newFingerprints: 1 })).toBe(false);
+  });
+
+  it('minSeconds <= 0 or minInvocations <= 0 still requires the other bound', () => {
+    expect(errorWatchCanStopEarly({ ...base, minSeconds: 0, elapsedSeconds: 0, invocations: 20 })).toBe(true);
+    expect(errorWatchCanStopEarly({ ...base, minInvocations: 0, invocations: 0 })).toBe(true);
   });
 });
