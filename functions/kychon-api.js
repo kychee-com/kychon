@@ -8,6 +8,8 @@
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { adminDb, ai, assets, auth, events, functions } from '@run402/functions';
 
 // The AI connector: Run402 serves every app as an MCP server at
@@ -50,7 +52,7 @@ export const tool = {
     required: ['operation'],
     additionalProperties: false,
   },
-  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
 };
 
 const API_VERSION = '2026-05-08';
@@ -110,6 +112,7 @@ const READ_OPERATIONS = [
   'translations.list',
   'sections.getTranslation',
   'media.list',
+  'media.requestUpload',
   'newsletters.drafts.list',
   'newsletters.drafts.get',
   'insights.list',
@@ -144,6 +147,7 @@ const MUTATION_OPERATIONS = [
   'sections.translate',
   'history.revert',
   'media.delete',
+  'media.importFromUrl',
   'members.updateProfile',
   'members.approve',
   'members.reject',
@@ -533,6 +537,14 @@ const CONNECTOR_GUIDE_AREAS = [
       {
         "task": "Find images already uploaded",
         "operation": "media.list"
+      },
+      {
+        "task": "Add an image from a public web address",
+        "operation": "media.importFromUrl"
+      },
+      {
+        "task": "Get a link where the person uploads an image, such as one in the chat",
+        "operation": "media.requestUpload"
       }
     ]
   },
@@ -1502,6 +1514,32 @@ const CONNECTOR_SCHEMAS = {
           "type": "string"
         }
       }
+    },
+    "example": {}
+  },
+  "media.importFromUrl": {
+    "summary": "Add a public image (an https URL to a JPEG, PNG, GIF, WebP or AVIF of up to 10 MB) to the media library. Use the returned url in a section or setting.",
+    "input": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "url"
+      ]
+    },
+    "example": {
+      "url": "https://example.org/team-photo.jpg"
+    }
+  },
+  "media.requestUpload": {
+    "summary": "Get a link where the person uploads an image themselves, for example a photo they have in the chat.",
+    "input": {
+      "type": "object",
+      "properties": {}
     },
     "example": {}
   },
@@ -2504,6 +2542,9 @@ function handleQuery(correlationId, envelope, operation, actor, req) {
   if (operation.name === 'media.list') {
     return handleMediaList(correlationId, envelope.input, actor);
   }
+  if (operation.name === 'media.requestUpload') {
+    return successResponse(correlationId, requestMediaUpload(new URL(req.url).origin));
+  }
   if (operation.name.startsWith('history.')) {
     return handleHistoryQuery(correlationId, operation.name, envelope.input || {}, actor);
   }
@@ -2958,6 +2999,7 @@ async function executeMutation(name, input, actor) {
   if (name === 'pages.delete') return deletePageWithCascade(input, actor);
   // admin-content-management: media library wrappers + section_translations
   if (name === 'media.delete') return deleteMediaAsset(input, actor);
+  if (name === 'media.importFromUrl') return importMediaFromUrl(input, actor);
   if (name === 'sections.translate') return upsertSectionTranslation(input, actor);
   if (name === 'history.revert') return revertChangeset(input, actor);
   return genericMutation(name, input, actor);
@@ -4576,6 +4618,188 @@ async function deleteMediaAsset(input, _actor) {
   }
   const result = await callUploadAssetFn({ action: 'delete', path });
   return actionResult({ ...result, inUse }, [changedObject('asset', path)], null);
+}
+
+// -- media from an AI connector -----------------------------------------------
+// An assistant can't send image bytes usefully (ChatGPT writes them out as
+// base64, minutes for a few KB), so it imports a public image by URL, or hands
+// the person a link to upload one themselves.
+
+const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+const IMPORT_MAX_REDIRECTS = 3;
+const IMPORT_TIMEOUT_MS = 10_000;
+// Raster images only: an SVG can carry script.
+const IMPORT_IMAGE_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/avif': 'avif',
+};
+const MEDIA_UPLOAD_PATH = '/media-upload';
+
+function importError(message, detail = {}) {
+  return capabilityError('validation.failed', message, detail);
+}
+
+function parseImportUrl(value) {
+  let url;
+  try {
+    url = new URL(String(value || ''));
+  } catch {
+    throw importError('media.importFromUrl needs an absolute https URL.', { field: 'url' });
+  }
+  if (url.protocol !== 'https:') throw importError('The image URL must use https.', { field: 'url' });
+  if (url.port && url.port !== '443')
+    throw importError('The image URL must use the standard https port.', { field: 'url' });
+  if (url.username || url.password) throw importError('The image URL must not contain credentials.', { field: 'url' });
+  return url;
+}
+
+// Loopback, private, link-local, carrier-grade NAT, documentation, benchmark,
+// multicast and reserved ranges, for IPv4 and IPv6 (including IPv4-mapped).
+function isNonPublicAddress(address) {
+  if (isIP(address) === 4) {
+    const [a, b] = address.split('.').map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && (b === 0 || b === 168)) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224
+    );
+  }
+  const v6 = address.toLowerCase();
+  if (v6 === '::' || v6 === '::1') return true;
+  const mapped = v6.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return isNonPublicAddress(mapped[1]);
+  return /^(f[cd]|fe[89ab]|ff|2001:db8)/.test(v6);
+}
+
+async function assertPublicHost(hostname) {
+  const host = hostname.replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost')) {
+    throw importError('The image URL points to a private or local address.', { field: 'url' });
+  }
+  const addresses = isIP(host)
+    ? [{ address: host }]
+    : await lookup(host, { all: true, verbatim: true }).catch(() => []);
+  if (!addresses.length) throw importError("The image URL's host could not be found.", { field: 'url' });
+  if (addresses.some(({ address }) => isNonPublicAddress(address))) {
+    throw importError('The image URL points to a private or local address.', { field: 'url' });
+  }
+}
+
+function safeDecode(value) {
+  try {
+    return decodeURIComponent(value || '');
+  } catch {
+    return value || '';
+  }
+}
+
+async function readCapped(response, max) {
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const buffer = new Uint8Array(await response.arrayBuffer());
+    if (buffer.length > max) throw importError('The image is larger than 10 MB.', { limitBytes: max });
+    return buffer;
+  }
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > max) {
+      await reader.cancel().catch(() => {});
+      throw importError('The image is larger than 10 MB.', { limitBytes: max });
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
+}
+
+// Fetch a public image (re-checking the address on every redirect) and add it
+// to the media library the way the upload button does.
+async function importMediaFromUrl(input, actor) {
+  let url = parseImportUrl(input.url);
+  let response;
+  for (let hop = 0; ; hop += 1) {
+    await assertPublicHost(url.hostname);
+    response = await fetch(url, {
+      redirect: 'manual',
+      headers: { accept: Object.keys(IMPORT_IMAGE_TYPES).join(', ') },
+      signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
+    });
+    const location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
+    if (!location) break;
+    if (hop >= IMPORT_MAX_REDIRECTS) throw importError('The image URL redirects too many times.', { field: 'url' });
+    url = parseImportUrl(new URL(location, url).href);
+  }
+  if (!response.ok) throw importError(`The image URL answered HTTP ${response.status}.`, { status: response.status });
+  const contentType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const extension = IMPORT_IMAGE_TYPES[contentType];
+  if (!extension) {
+    throw importError('The URL must point to a JPEG, PNG, GIF, WebP or AVIF image.', {
+      contentType: contentType || null,
+    });
+  }
+  if (Number(response.headers.get('content-length')) > IMPORT_MAX_BYTES) {
+    throw importError('The image is larger than 10 MB.', { limitBytes: IMPORT_MAX_BYTES });
+  }
+  const bytes = await readCapped(response, IMPORT_MAX_BYTES);
+  const digest = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
+  const base =
+    (safeDecode(url.pathname.split('/').pop()) || 'image')
+      .replace(/\.[^.]*$/, '')
+      .replace(/[^A-Za-z0-9_-]+/g, '-')
+      .slice(0, 60) || 'image';
+  const path = `imports/${digest}-${base}.${extension}`;
+  const ref = await assets.put(`assets/${path}`, bytes, {
+    contentType,
+    visibility: 'public',
+    immutable: true,
+    metadata: {
+      filename: `${base}.${extension}`,
+      uploaded_by: String(actor?.user?.id ?? ''),
+      source_url: url.href.slice(0, 500),
+    },
+    exifPolicy: 'strip',
+  });
+  const assetUrl =
+    ref?.cdn_immutable_url || ref?.immutable_url || ref?.cdn_url || ref?.url || `/storage/assets/${path}`;
+  return actionResult(
+    {
+      url: assetUrl,
+      path,
+      contentType,
+      sizeBytes: bytes.length,
+      ...(ref?.width_px && ref?.height_px ? { width: ref.width_px, height: ref.height_px } : {}),
+    },
+    [changedObject('asset', path)],
+    null,
+  );
+}
+
+// A link where the signed-in admin uploads a file themselves (one that is in
+// the chat, say); it then shows up in media.list.
+function requestMediaUpload(origin) {
+  return {
+    uploadUrl: `${origin}${MEDIA_UPLOAD_PATH}`,
+    instructions:
+      'Give the person this link. They upload the file there while signed in to the portal, then come back; find the new file with media.list.',
+  };
 }
 
 // -- section_translations: per-locale partial config overrides ---------------

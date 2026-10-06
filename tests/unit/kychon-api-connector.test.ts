@@ -16,6 +16,17 @@ type MockDbChain = Promise<JsonObject[]> & {
   limit(count: number): Promise<JsonObject[]>;
 };
 
+// Image import: DNS answers for the hosts the tests use, and the asset store.
+const mockDns = vi.hoisted(() => ({
+  lookup: vi.fn(async (host: string) => [
+    { address: host.startsWith('internal') ? '10.0.0.5' : '93.184.216.34', family: 4 },
+  ]),
+}));
+vi.mock('node:dns/promises', () => ({ lookup: mockDns.lookup }));
+const mockAssets = vi.hoisted(() => ({
+  put: vi.fn(async (key: string) => ({ cdn_immutable_url: `https://cdn.test/${key}`, width_px: 640, height_px: 480 })),
+}));
+
 const mockState = vi.hoisted(() => ({
   user: null as null | { id: string; email?: string },
   tables: {} as Record<string, JsonObject[]>,
@@ -103,6 +114,7 @@ vi.mock(
     getUser: vi.fn(async () => mockState.user),
     events: { emit: vi.fn(async () => ({ deduplicated: false })) },
     functions: { runs: { create: vi.fn(async () => ({ run_id: 'fnrun_test' })) } },
+    assets: { put: mockAssets.put },
     auth: {
       user: vi.fn(async () => mockState.user),
       // The platform's AuthRequiredError: on a tool call it becomes the HTTP 401
@@ -148,6 +160,8 @@ vi.mock(
 // Changeset claims kychon-api made (content-history attribution).
 const mockClaims: Array<Record<string, unknown>> = [];
 const mockTxid = { value: 1000 };
+// changesets.channel stamps for connector writes.
+const mockChannels: Array<Record<string, unknown>> = [];
 
 function maxId(rows: JsonObject[]) {
   return Math.max(0, ...rows.map((row) => Number(row.id || 0)));
@@ -213,6 +227,10 @@ function mockSql(query: string, params: unknown[]) {
   if (trackedDelete) {
     const [, table, column] = trackedDelete;
     return withTxid(mockState.deleteSql(table, column, params[0]));
+  }
+  if (normalized.startsWith('UPDATE changesets SET channel = $2')) {
+    mockChannels.push({ id: params[0], channel: params[1], client: params[2] });
+    return Promise.resolve([]);
   }
   if (normalized.startsWith('SELECT kychon_claim_changeset(')) {
     const [txid, actorType, actorId, label, executionId] = params;
@@ -361,6 +379,7 @@ describe('kychon-api connector envelope defaults', () => {
     expect(res.status).toBe(200);
     expect(mockState.tables.events).toHaveLength(1);
     expect(mockState.tables.capability_executions[0].idempotency_key).toMatch(/^connector:/);
+    expect(mockChannels.at(-1)).toMatchObject({ channel: 'ai_connector', client: null });
   });
 
   it('keeps requiring an idempotency key outside the connector', async () => {
@@ -659,3 +678,102 @@ function guideOperations(data: JsonObject): string[] {
     (area.tasks as JsonObject[]).map((task) => String(task.operation)),
   );
 }
+
+describe('kychon-api connector images', () => {
+  function image(status = 200, headers: Record<string, string> = { 'content-type': 'image/png' }) {
+    return new Response(status === 200 ? new Uint8Array([137, 80, 78, 71]) : null, { status, headers });
+  }
+
+  function importUrl(url: string) {
+    return connectorRequest({ operation: 'media.importFromUrl', phase: 'execute', input: { url } });
+  }
+
+  beforeEach(() => {
+    mockAssets.put.mockClear();
+    signIn('admin');
+  });
+
+  it('imports a public image into the media library', async () => {
+    const fetchMock = vi.fn(async () => image());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await json(await importUrl('https://photos.example.org/team/Club%20Photo.png'));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.result).toMatchObject({ contentType: 'image/png', sizeBytes: 4, width: 640, height: 480 });
+    expect(res.body.data.result.path).toMatch(/^imports\/[0-9a-f]{12}-Club-Photo\.png$/);
+    expect(mockAssets.put).toHaveBeenCalledWith(
+      `assets/${res.body.data.result.path}`,
+      expect.any(Uint8Array),
+      expect.objectContaining({ contentType: 'image/png', visibility: 'public', exifPolicy: 'strip' }),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ['http://photos.example.org/a.png', 'must use https'],
+    ['https://internal.example.org/a.png', 'private or local address'],
+    ['https://10.0.0.8/a.png', 'private or local address'],
+    ['https://localhost/a.png', 'private or local address'],
+    ['https://photos.example.org:8443/a.png', 'standard https port'],
+  ])('refuses %s', async (url, message) => {
+    const fetchMock = vi.fn(async () => image());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await json(await importUrl(url));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('validation.failed');
+    expect(res.body.error.message).toContain(message);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockAssets.put).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('re-checks the address after a redirect', async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 302, headers: { location: 'https://internal.example.org/x.png' } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await json(await importUrl('https://photos.example.org/a.png'));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toContain('private or local address');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('refuses something that is not a raster image, or too large', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => image(200, { 'content-type': 'image/svg+xml' })),
+    );
+    expect((await json(await importUrl('https://photos.example.org/a.svg'))).body.error.message).toContain('JPEG, PNG');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => image(200, { 'content-type': 'image/png', 'content-length': String(11 * 1024 * 1024) })),
+    );
+    expect((await json(await importUrl('https://photos.example.org/big.png'))).body.error.message).toContain(
+      'larger than 10 MB',
+    );
+    expect(mockAssets.put).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('gives an admin an upload link on this portal', async () => {
+    const res = await json(await connectorRequest({ operation: 'media.requestUpload' }));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.uploadUrl).toBe('https://portal.test/media-upload');
+  });
+
+  it('keeps the upload link for admins', async () => {
+    signIn('member');
+
+    const res = await json(await connectorRequest({ operation: 'media.requestUpload' }));
+
+    expect(res.status).toBe(403);
+  });
+});

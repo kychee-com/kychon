@@ -108,6 +108,8 @@ export const CONNECTOR_GUIDE_AREAS: ConnectorGuideArea[] = [
       { task: 'Change the name, logo or tagline', operation: 'config.branding.update' },
       { task: 'Change colors and fonts', operation: 'config.theme.update' },
       { task: 'Find images already uploaded', operation: 'media.list' },
+      { task: 'Add an image from a public web address', operation: 'media.importFromUrl' },
+      { task: 'Get a link where the person uploads an image, such as one in the chat', operation: 'media.requestUpload' },
     ],
   },
   {
@@ -338,6 +340,17 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
   'media.list': {
     summary: 'List images and files already uploaded. Pass nextCursor back as cursor for the next page.',
     input: object({ cursor: { type: 'string' } }),
+    example: {},
+  },
+  'media.importFromUrl': {
+    summary:
+      'Add a public image (an https URL to a JPEG, PNG, GIF, WebP or AVIF of up to 10 MB) to the media library. Use the returned url in a section or setting.',
+    input: object({ url: { type: 'string', format: 'uri' } }, { required: ['url'] }),
+    example: { url: 'https://example.org/team-photo.jpg' },
+  },
+  'media.requestUpload': {
+    summary: 'Get a link where the person uploads an image themselves, for example a photo they have in the chat.',
+    input: object({}),
     example: {},
   },
   'events.create': {
