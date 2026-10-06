@@ -25,6 +25,7 @@ import { freshKychonDb, rows } from '../helpers/pglite-db';
 
 const HERO_BYTES = new TextEncoder().encode('hero image bytes');
 const LOGO_BYTES = new TextEncoder().encode('logo bytes');
+const REPORT_BYTES = new TextEncoder().encode('%PDF-1.4 report');
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const HERO_SHA = sha(HERO_BYTES);
 const LOGO_SHA = sha(LOGO_BYTES);
@@ -79,7 +80,7 @@ beforeEach(async () => {
     INSERT INTO members (user_id, email, display_name, role, status) VALUES
       ('${ADMIN.id}', '${ADMIN.email}', 'Admin', 'admin', 'active');
     INSERT INTO announcements (title, body, author_id) VALUES
-      ('Gala', '<p><img src="${HERO_IMMUTABLE}"><img src="${HERO_VARIANT}"><img src="/assets/logo.png"></p>',
+      ('Gala', '<p><img src="${HERO_IMMUTABLE}"><img src="${HERO_VARIANT}"><img src="/assets/logo.png"><a href="/assets/report.pdf">Report</a></p>',
        (SELECT id FROM members WHERE email = '${ADMIN.email}'));
   `);
   vi.stubGlobal(
@@ -99,7 +100,10 @@ beforeEach(async () => {
           },
         });
       }
-      return new Response('not found', { status: 404 });
+      if (url === 'https://eagles.example.org/assets/report.pdf') {
+        return new Response(REPORT_BYTES, { headers: { 'content-type': 'application/pdf' } });
+      }
+      return new Response('<html>not found</html>', { status: 200, headers: { 'content-type': 'text/html' } });
     }),
   );
 });
@@ -112,6 +116,7 @@ function sourceFetch(overrides: Record<string, Uint8Array> = {}) {
   const files: Record<string, Uint8Array> = {
     [HERO_IMMUTABLE]: HERO_BYTES,
     [LOGO_IMMUTABLE]: LOGO_BYTES,
+    'https://eagles.example.org/assets/report.pdf': REPORT_BYTES,
     ...overrides,
   };
   return (async (url: string) =>
@@ -151,8 +156,17 @@ describe('bundle.export', () => {
         expect.objectContaining({ url: HERO_IMMUTABLE, sha256: HERO_SHA, variant: null, source_url: HERO_IMMUTABLE }),
         expect.objectContaining({ url: HERO_VARIANT, sha256: HERO_SHA, variant: 'large', source_url: HERO_IMMUTABLE }),
         expect.objectContaining({ url: '/assets/logo.png', sha256: LOGO_SHA, source_url: LOGO_IMMUTABLE }),
+        expect.objectContaining({
+          url: '/assets/report.pdf',
+          key: 'imported/assets/report.pdf',
+          sha256: sha(REPORT_BYTES),
+          content_type: 'application/pdf',
+          source_url: 'https://eagles.example.org/assets/report.pdf',
+        }),
       ]),
     );
+    // The eagles seed's demo images are neither uploaded nor served in this test.
+    expect(bundle.unresolved_asset_urls).toContain('/assets/about-hero.jpg');
   });
 
   it('includes members only on request, unlinked from their logins', async () => {
@@ -174,9 +188,8 @@ describe('bundle import', () => {
   it('round trip: a fresh project imports the bundle and matches the source, with target asset URLs', async () => {
     const bundle = parseBundle((await exportBundle()).body.data.bundle);
     const verified = await fetchVerifiedAssets(bundle, sourceFetch());
-    expect(verified.size).toBe(2);
-    const { urlMap, manifestAssets } = await uploadBundleAssets(bundle, verified, fakePut);
-    expect(Object.keys(manifestAssets)).toEqual(['logo.png']);
+    expect(verified.size).toBe(3);
+    const urlMap = await uploadBundleAssets(bundle, verified, fakePut);
     const tables = rewriteBundleUrls(bundle.tables, urlMap);
 
     const b = await freshKychonDb();
@@ -189,8 +202,10 @@ describe('bundle import', () => {
     const [announcement] = await rows<{ body: string }>(b, "SELECT body FROM announcements WHERE title = 'Gala'");
     expect(announcement.body).toContain(`https://pr-target.run402.com/_blob/assets/hero-${HERO_SHA.slice(0, 8)}.jpg`);
     expect(announcement.body).toContain('-large.webp');
-    expect(announcement.body).toContain('/assets/logo.png');
+    expect(announcement.body).toContain(`https://pr-target.run402.com/_blob/astro/logo-${LOGO_SHA.slice(0, 8)}.png`);
     expect(announcement.body).not.toContain('pr-source');
+    expect(announcement.body).not.toContain('src="/assets/logo.png"');
+    expect(announcement.body).toContain('https://pr-target.run402.com/_blob/imported/assets/report-');
 
     // The import ran once, and ids keep counting past the imported rows.
     expect(await rows(b, 'SELECT import_source FROM kychon_install')).toEqual([{ import_source: 'bundle' }]);
@@ -207,6 +222,30 @@ describe('bundle import', () => {
     await expect(attempt).rejects.toThrow(BundleImportError);
     await expect(attempt).rejects.toThrow(HERO_IMMUTABLE);
     expect(put).not.toHaveBeenCalled();
+  });
+
+  it('rewrites whole URLs only, in one pass', () => {
+    const map = new Map([
+      ['/assets/logo.png', 'https://t/_blob/astro/logo-1.png'],
+      ['https://s/_blob/a/x.jpg', 'https://t/_blob/a/x-2.jpg'],
+    ]);
+    const tables = rewriteBundleUrls(
+      {
+        pages: [
+          {
+            id: 1,
+            html: '<img src="/assets/logo.png"> https://other.org/assets/logo.png /assets/logo.png.bak https://s/_blob/a/x.jpg',
+            nested: { list: ['/assets/logo.png'] },
+          },
+        ],
+      },
+      map,
+    );
+    expect(tables.pages[0]).toEqual({
+      id: 1,
+      html: '<img src="https://t/_blob/astro/logo-1.png"> https://other.org/assets/logo.png /assets/logo.png.bak https://t/_blob/a/x-2.jpg',
+      nested: { list: ['https://t/_blob/astro/logo-1.png'] },
+    });
   });
 
   it('rejects a document that is not a kychon bundle', () => {

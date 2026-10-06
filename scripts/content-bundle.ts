@@ -145,36 +145,24 @@ export interface UploadedAssetRef {
 
 export type PutAsset = (asset: VerifiedAsset) => Promise<UploadedAssetRef>;
 
-export interface UploadedAssets {
-  /** Old URL → new URL for every absolute asset URL the content references. */
-  urlMap: Map<string, string>;
-  /** `/assets/<name>` name → target ref, staged as the target's asset manifest. */
-  manifestAssets: Record<string, UploadedAssetRef>;
-}
-
 /**
- * Upload each verified asset to the target once, and map every referenced URL
- * to the target's. `/assets/<name>` references keep their path and resolve
- * through the target's asset manifest.
+ * Upload each verified asset to the target once, and map every URL the content
+ * uses (absolute `/_blob/` URLs, image variants and `/assets/<name>` paths) to
+ * the target's immutable URL.
  */
 export async function uploadBundleAssets(
   bundle: KychonBundle,
   verified: Map<string, VerifiedAsset>,
   put: PutAsset,
-): Promise<UploadedAssets> {
+): Promise<Map<string, string>> {
   const refs = new Map<string, UploadedAssetRef>();
   for (const asset of verified.values()) refs.set(asset.sha256, await put(asset));
 
   const urlMap = new Map<string, string>();
-  const manifestAssets: Record<string, UploadedAssetRef> = {};
   const missing: string[] = [];
   for (const asset of bundle.assets) {
     const ref = refs.get(asset.sha256);
     if (!ref) continue;
-    if (asset.url.startsWith("/assets/")) {
-      manifestAssets[asset.url.slice("/assets/".length)] = ref;
-      continue;
-    }
     const target = asset.variant ? ref.variants?.[asset.variant] : ref;
     const next = target?.cdn_immutable_url || target?.immutable_url || target?.url;
     if (next) urlMap.set(asset.url, next);
@@ -183,22 +171,31 @@ export async function uploadBundleAssets(
   if (missing.length) {
     throw new BundleImportError(`The target returned no URL for ${missing.length} asset(s): ${missing.join(", ")}`, missing);
   }
-  return { urlMap, manifestAssets };
+  return urlMap;
 }
 
-/** Replace every mapped URL in every string value (longest URLs first). */
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Replace every mapped URL in every string value, in one pass so a replaced URL
+ * is never matched again. `/assets/<name>` paths match only as whole relative
+ * paths, not inside a longer URL.
+ */
 export function rewriteBundleUrls(
   tables: KychonBundle["tables"],
   urlMap: Map<string, string>,
 ): KychonBundle["tables"] {
-  const pairs = [...urlMap.entries()].sort((a, b) => b[0].length - a[0].length);
-  if (pairs.length === 0) return tables;
+  if (urlMap.size === 0) return tables;
+  const alternatives = [...urlMap.keys()]
+    .sort((a, b) => b.length - a.length)
+    .map((url) =>
+      url.startsWith("/assets/")
+        ? `(?<![\\w.~/-])${escapeRegExp(url)}(?![\\w.~-])`
+        : `${escapeRegExp(url)}(?![\\w.~/-])`,
+    );
+  const pattern = new RegExp(alternatives.join("|"), "g");
   const rewrite = (value: unknown): unknown => {
-    if (typeof value === "string") {
-      let out = value;
-      for (const [from, to] of pairs) if (out.includes(from)) out = out.split(from).join(to);
-      return out;
-    }
+    if (typeof value === "string") return value.replace(pattern, (match) => urlMap.get(match) ?? match);
     if (Array.isArray(value)) return value.map(rewrite);
     if (value && typeof value === "object") {
       return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, rewrite(v)]));
@@ -242,7 +239,3 @@ export function bundleToSeedSql(tables: KychonBundle["tables"]): string {
   return `${lines.join("\n")}\n`;
 }
 
-/** A version-1 asset manifest for the target, so `/assets/<name>` resolves there. */
-export function targetAssetManifest(projectId: string, assets: Record<string, UploadedAssetRef>): string {
-  return `${JSON.stringify({ version: 1, project_id: projectId, assets }, null, 2)}\n`;
-}

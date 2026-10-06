@@ -7,6 +7,7 @@
 // anonymous). The marker below changes the source digest to force a one-time
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash } from 'node:crypto';
 import { adminDb, ai, assets, auth, events, functions } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
@@ -2453,7 +2454,10 @@ async function resolveBundleAssets(urls, siteUrl) {
         ref?.cdn_url ||
         ref?.url;
       if (!sha256 || !sourceUrl) {
-        unresolved.push(url);
+        // Not an uploaded asset: a static file the site serves at this path.
+        const file = siteUrl ? await fetchSiteFile(`${siteUrl}${url}`) : null;
+        if (file) assetRefs.push(bundleAssetRef(url, { key: `imported${url}`, ...file }, `${siteUrl}${url}`, null));
+        else unresolved.push(url);
         continue;
       }
       assetRefs.push(
@@ -2495,6 +2499,27 @@ async function listAllBlobs() {
     cursor = page.next_cursor || undefined;
   } while (cursor);
   return blobs;
+}
+
+// Largest static file the export hashes inline; bigger ones are listed as unresolved.
+const BUNDLE_MAX_SITE_FILE_BYTES = 25 * 1024 * 1024;
+
+async function fetchSiteFile(url) {
+  try {
+    const res = await fetch(url);
+    const contentType = (res.headers.get('content-type') || '').split(';')[0].trim();
+    // A missing path can come back as the HTML 404 page.
+    if (!res.ok || contentType === 'text/html') return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length > BUNDLE_MAX_SITE_FILE_BYTES) return null;
+    return {
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      content_type: contentType || 'application/octet-stream',
+      size_bytes: bytes.length,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function fetchSiteAssetManifest(siteUrl) {

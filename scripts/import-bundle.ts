@@ -12,19 +12,17 @@
  * written to the target; a mismatch names the asset and leaves the target as it was.
  */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { run402 } from "@run402/sdk/node";
 
-import { STAGED_ASSET_MANIFEST_PATH } from "../src/lib/bake-asset-manifest.ts";
-import { prettyPrintError, ROOT, reimportFromArgv, resolveDeployTarget, runDeploy } from "./_lib.ts";
+import { prettyPrintError, reimportFromArgv, resolveDeployTarget, runDeploy } from "./_lib.ts";
 import {
   bundleToSeedSql,
   fetchVerifiedAssets,
   parseBundle,
   rewriteBundleUrls,
-  targetAssetManifest,
   uploadBundleAssets,
 } from "./content-bundle.ts";
 import { assertReimportConfirmed, readInstallMarker } from "./initial-import.ts";
@@ -54,24 +52,16 @@ async function main(): Promise<void> {
     );
   }
 
-  const stagedManifest = join(ROOT, STAGED_ASSET_MANIFEST_PATH);
-  if (existsSync(stagedManifest)) {
-    throw new Error(`${STAGED_ASSET_MANIFEST_PATH} already exists; move it aside before importing a bundle.`);
-  }
-
   console.log(`[bundle] verifying ${bundle.assets.length} asset reference(s)`);
   const verified = await fetchVerifiedAssets(bundle);
   console.log(`[bundle] uploading ${verified.size} asset(s) to ${target.projectId}`);
-  const { urlMap, manifestAssets } = await uploadBundleAssets(bundle, verified, (asset) =>
+  const urlMap = await uploadBundleAssets(bundle, verified, (asset) =>
     project.assets.put(asset.key, asset.bytes, { contentType: asset.contentType, visibility: "public", immutable: true }),
   );
 
   const workDir = mkdtempSync(join(tmpdir(), "kychon-bundle-"));
   const seedFile = join(workDir, "bundle.seed.sql");
   writeFileSync(seedFile, bundleToSeedSql(rewriteBundleUrls(bundle.tables, urlMap)));
-  if (Object.keys(manifestAssets).length) {
-    writeFileSync(stagedManifest, targetAssetManifest(target.projectId, manifestAssets));
-  }
   try {
     await runDeploy(r, {
       projectId: target.projectId,
@@ -81,7 +71,6 @@ async function main(): Promise<void> {
       ...(reimport ? { reimport } : {}),
     });
   } finally {
-    rmSync(stagedManifest, { force: true });
     rmSync(workDir, { recursive: true, force: true });
   }
   console.log(`[bundle] imported ${bundle.source.site_url ?? "bundle"} into ${target.subdomain}`);
