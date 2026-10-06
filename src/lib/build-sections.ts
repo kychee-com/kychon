@@ -31,6 +31,7 @@
 import { createKychonClient } from '@kychon/sdk';
 
 import type { Section } from '@/lib/blocks';
+import { readBuildSeedRows, seedSections } from '@/lib/build-seed-rows';
 
 interface CapabilityListResult {
   rows?: Section[];
@@ -49,6 +50,14 @@ function readEnv(key: string): string | undefined {
 }
 
 async function fetchPageSections(pageSlug: string): Promise<Section[]> {
+  const seedRows = readBuildSeedRows();
+  if (seedRows) {
+    const baked = (seedSections(seedRows, { page_slug: pageSlug, scope: 'page' }) as unknown as Section[])
+      .filter((s) => s.zone === 'main' || s.zone === 'header')
+      .sort((a, b) => a.position - b.position);
+    console.log(`[build-sections] ${baked.length} page-scoped main/header section(s) from seed rows (slug="${pageSlug}")`);
+    return baked;
+  }
   const anonKey = readEnv('KYCHON_ANON_KEY');
   const projectId = readEnv('KYCHON_PROJECT_ID');
   const portalUrl = readEnv('KYCHON_PUBLIC_URL');

@@ -2,33 +2,14 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
 import { lookupAssetRef, normalizeManifestAssetRef, type AssetManifest } from './kychon-image.js';
+import { parseAssetManifest, STAGED_ASSET_MANIFEST_PATH } from './staged-asset-manifest.js';
 
-/**
- * Where a port stages its uploaded-asset manifest before `astro build`
- * (`run402:project -- assets-put-dir ... --manifest-out public/_assets-manifest.json`).
- * Astro copies it to `dist/_assets-manifest.json`, served at
- * `/_assets-manifest.json`.
- */
-export const STAGED_ASSET_MANIFEST_PATH = join('public', '_assets-manifest.json');
-
-/** Parse a manifest JSON string; null unless it is a `version: 1` manifest. */
-export function parseAssetManifest(raw: string): AssetManifest | null {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object') return null;
-    const candidate = parsed as { version?: unknown; assets?: unknown };
-    if (candidate.version !== 1 || !candidate.assets || typeof candidate.assets !== 'object') return null;
-    // Port manifests (`assets-put-dir --manifest-out`) carry camelCase `cdnUrl`
-    // only; @run402/astro's image renderer requires snake_case `cdn_url` and
-    // fails the build without it. Normalize every entry up front.
-    const manifest = parsed as AssetManifest;
-    const assets: AssetManifest['assets'] = {};
-    for (const [key, ref] of Object.entries(manifest.assets)) assets[key] = normalizeManifestAssetRef(ref);
-    return { ...manifest, assets };
-  } catch {
-    return null;
-  }
-}
+export {
+  assertStagedAssetManifestServable,
+  parseAssetManifest,
+  STAGED_ASSET_MANIFEST_PATH,
+  StagedAssetManifestError,
+} from './staged-asset-manifest.js';
 
 // Per-entry fields nothing in the browser reads: hashes, integrity, cache
 // metadata, EXIF, and camelCase/immutable duplicates of URLs we keep in

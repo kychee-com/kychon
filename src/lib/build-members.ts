@@ -29,6 +29,7 @@
 import { createKychonClient } from '@kychon/sdk';
 
 import type { Member, MemberTier } from '@/schemas/member';
+import { readBuildSeedRows, seedMembers, seedTiers } from '@/lib/build-seed-rows';
 
 const MEMBERS_LIMIT = 500;
 
@@ -52,6 +53,13 @@ function readEnv(key: string): string | undefined {
 }
 
 async function fetchAll(): Promise<State> {
+  const seedRows = readBuildSeedRows();
+  if (seedRows) {
+    const members = seedMembers(seedRows, MEMBERS_LIMIT) as unknown as Member[];
+    const tiers = seedTiers(seedRows) as unknown as MemberTier[];
+    console.log(`[build-members] ${members.length} member(s) + ${tiers.length} tier(s) from seed rows`);
+    return { members, tiers };
+  }
   const anonKey = readEnv('KYCHON_ANON_KEY');
   const projectId = readEnv('KYCHON_PROJECT_ID');
   const portalUrl = readEnv('KYCHON_PUBLIC_URL');

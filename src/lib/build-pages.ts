@@ -24,6 +24,7 @@
 import { createKychonClient } from '@kychon/sdk';
 
 import type { Page } from '@/schemas/content';
+import { readBuildSeedRows, seedPages } from '@/lib/build-seed-rows';
 
 interface CapabilityListResult {
   rows?: Page[];
@@ -40,6 +41,12 @@ function readEnv(key: string): string | undefined {
 }
 
 async function fetchAllPages(): Promise<Page[]> {
+  const seedRows = readBuildSeedRows();
+  if (seedRows) {
+    const pages = seedPages(seedRows) as unknown as Page[];
+    console.log(`[build-pages] ${pages.length} page(s) from seed rows`);
+    return pages;
+  }
   const anonKey = readEnv('KYCHON_ANON_KEY');
   const projectId = readEnv('KYCHON_PROJECT_ID');
   const portalUrl = readEnv('KYCHON_PUBLIC_URL');

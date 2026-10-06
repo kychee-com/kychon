@@ -57,6 +57,10 @@ import {
 import { type RestorePointReason, takeRestorePoint } from "./restore-points.ts";
 import type { PublicStaticPathSpec } from "../src/lib/clean-routes.ts";
 import { connectorUrlDrift } from "../src/lib/connector-url.ts";
+import { assertStagedAssetManifestServable } from "../src/lib/staged-asset-manifest.ts";
+import { BUILD_SEED_ROWS_ENV } from "../src/lib/build-seed-rows.ts";
+import { generateSeedSql } from "./generate-seed-sql.ts";
+import { seedRenderRows } from "./seed-render-rows.ts";
 
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
@@ -176,6 +180,12 @@ function hasScheduleTrigger(spec: FunctionSpec | undefined): boolean {
  */
 export interface BuildAstroOptions {
   chromeSnapshot?: string | ProjectSeed;
+  /**
+   * Path to a seed-rows JSON file (`scripts/seed-render-rows.ts`). When set,
+   * the build-time loaders read these rows instead of the live database —
+   * check mode's render of a not-yet-imported seed (kychon#224).
+   */
+  seedRows?: string;
 }
 
 function resolveChromeSnapshotForBuild(input: string | ProjectSeed | undefined): string | undefined {
@@ -200,6 +210,12 @@ export function buildAstro(opts: BuildAstroOptions = {}): void {
   } else {
     delete env.KYCHON_CHROME_SNAPSHOT;
     console.log("First-byte chrome source: typed seed or neutral fallback");
+  }
+  if (opts.seedRows) {
+    env[BUILD_SEED_ROWS_ENV] = opts.seedRows;
+    console.log(`Build-time content source: seed rows (${opts.seedRows})`);
+  } else {
+    delete env[BUILD_SEED_ROWS_ENV];
   }
 
   console.log("Generating seed.sql from active project's TS seed...");
@@ -1025,6 +1041,11 @@ export async function runDeploy(
   const localCheck = opts.dryRun === true || opts.deployMode === "check";
   if (localCheck || opts.deployMode === "printSpec" || opts.deployMode === "plan") {
     const seedWins = seedImportExpected(await probeInstall(), reimport);
+    // The check build below bakes the pre-import DB (empty on a fresh
+    // project), so render the seed's own content once first: a render error
+    // in seeded pages then fails the free check, not the paid deploy's
+    // post-import rebuild (kychon#224).
+    if (localCheck && seedWins) await checkSeedRender(opts);
     return planOrCheckRelease(project, opts, await assembleDeployRelease(project, opts, { seedWins }), localCheck);
   }
 
@@ -1102,6 +1123,37 @@ export async function runDeploy(
 }
 
 /**
+ * Build once against the rows this deploy's seed will import, without
+ * publishing anything. Throws (via `astro build`) on any render error.
+ */
+export async function checkSeedRender(
+  opts: Pick<RunDeployOptions, "anonKey" | "projectId" | "seedFile" | "chromeSnapshot">,
+): Promise<void> {
+  const seedPath = opts.seedFile !== undefined ? resolveSeedPath(ROOT, opts.seedFile) : null;
+  const seedSql = seedPath
+    ? readFileSync(seedPath, "utf-8")
+    : generateSeedSql(await resolveDeployOutputSeed(opts.chromeSnapshot), ROOT);
+  const rows = await seedRenderRows(ROOT, seedSql, basename(seedPath ?? "seed.sql"));
+  const counts = Object.entries(rows.tables).map(([table, list]) => `${table}=${list?.length ?? 0}`).join(", ");
+  const tmpDir = join(ROOT, "tmp");
+  mkdirSync(tmpDir, { recursive: true });
+  const seedRowsPath = join(tmpDir, "kychon-seed-rows.build.json");
+  writeFileSync(seedRowsPath, JSON.stringify(rows), "utf-8");
+  console.log(`\n[check] this deploy imports the seed — rendering the seed's content first (${counts})`);
+  const buildOptions: BuildAstroOptions = { seedRows: seedRowsPath };
+  if (opts.chromeSnapshot !== undefined) buildOptions.chromeSnapshot = opts.chromeSnapshot;
+  try {
+    buildAstroForProject(buildOptions, opts);
+  } catch (error) {
+    throw new Error(
+      "[check] the site fails to build from the seed's content; the paid deploy would publish the pre-import bake and then fail its post-import rebuild. Fix the render error above.",
+      { cause: error },
+    );
+  }
+  console.log("[check] seed content renders; building the release as the deploy will publish it");
+}
+
+/**
  * The spec applied in each phase. The post-import re-publish drops the
  * database slice: the migration (schema + import) already landed with the
  * initial release, and only the re-baked site/functions need publishing.
@@ -1151,6 +1203,9 @@ export function buildAstroForProject(
   process.env.KYCHON_ANON_KEY = opts.anonKey;
   process.env.KYCHON_PROJECT_ID = opts.projectId;
   try {
+    // A staged manifest the bake cannot render fails here, before any build
+    // or apply, instead of mid-bake in a paid deploy (kychon#224).
+    assertStagedAssetManifestServable(ROOT);
     buildAstro(buildOptions);
   } finally {
     if (previousAnonKey === undefined) delete process.env.KYCHON_ANON_KEY;

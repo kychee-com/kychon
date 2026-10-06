@@ -32,6 +32,7 @@
 import { createKychonClient } from '@kychon/sdk';
 
 import type { Event } from '@/schemas/event';
+import { readBuildSeedRows, seedEvents } from '@/lib/build-seed-rows';
 
 const EVENTS_LIMIT = 100;
 
@@ -50,6 +51,12 @@ function readEnv(key: string): string | undefined {
 }
 
 async function fetchAllEvents(): Promise<Event[]> {
+  const seedRows = readBuildSeedRows();
+  if (seedRows) {
+    const events = seedEvents(seedRows, EVENTS_LIMIT) as unknown as Event[];
+    console.log(`[build-events] ${events.length} event(s) from seed rows`);
+    return events;
+  }
   const anonKey = readEnv('KYCHON_ANON_KEY');
   const projectId = readEnv('KYCHON_PROJECT_ID');
   const portalUrl = readEnv('KYCHON_PUBLIC_URL');

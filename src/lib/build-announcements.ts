@@ -24,6 +24,7 @@
 import { createKychonClient } from '@kychon/sdk';
 
 import type { Announcement } from '@/schemas/content';
+import { readBuildSeedRows, seedAnnouncements } from '@/lib/build-seed-rows';
 
 const ANNOUNCEMENTS_LIMIT = 50;
 
@@ -42,6 +43,12 @@ function readEnv(key: string): string | undefined {
 }
 
 async function fetchAllAnnouncements(): Promise<Announcement[]> {
+  const seedRows = readBuildSeedRows();
+  if (seedRows) {
+    const rows = seedAnnouncements(seedRows, ANNOUNCEMENTS_LIMIT) as unknown as Announcement[];
+    console.log(`[build-announcements] ${rows.length} row(s) from seed rows`);
+    return rows;
+  }
   const anonKey = readEnv('KYCHON_ANON_KEY');
   const projectId = readEnv('KYCHON_PROJECT_ID');
   const portalUrl = readEnv('KYCHON_PUBLIC_URL');

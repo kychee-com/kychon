@@ -215,12 +215,15 @@ export function lookupAssetRef(
 }
 
 /**
- * Fill snake_case URL fields from their camelCase counterparts when the
- * snake_case fields are absent. Idempotent: an already-snake_case ref
- * is returned unchanged.
+ * Fill snake_case URL fields from their camelCase counterparts (or the
+ * plain `url`) when the snake_case fields are absent, on the entry and on
+ * each variant. `<Run402Image>` throws at render time on an entry without
+ * `cdn_url`, failing the build (kychon#224). Idempotent: an
+ * already-snake_case ref is returned unchanged.
  */
 export function normalizeManifestAssetRef(ref: AssetRef): AssetRef {
   const raw = ref as AssetRef & {
+    url?: string;
     cdnUrl?: string;
     immutableUrl?: string;
     cdnImmutableUrl?: string;
@@ -228,16 +231,57 @@ export function normalizeManifestAssetRef(ref: AssetRef): AssetRef {
   };
   // Only fill when the canonical field is missing or empty — preserves
   // any genuinely-snake_case sources untouched.
-  const cdnUrl = ref.cdn_url || raw.cdnUrl || raw.cdnMutableUrl;
+  const cdnUrl = ref.cdn_url || raw.cdnUrl || raw.cdnMutableUrl || raw.url;
   const immutableUrl = ref.immutable_url || raw.immutableUrl;
-  if (cdnUrl === ref.cdn_url && immutableUrl === ref.immutable_url) {
+  const variants = normalizeManifestVariants(ref.variants);
+  if (cdnUrl === ref.cdn_url && immutableUrl === ref.immutable_url && variants === ref.variants) {
     return ref;
   }
   return {
     ...ref,
     ...(cdnUrl ? { cdn_url: cdnUrl } : {}),
     ...(immutableUrl ? { immutable_url: immutableUrl } : {}),
+    ...(variants ? { variants } : {}),
   };
+}
+
+function normalizeManifestVariants(variants: AssetRef['variants']): AssetRef['variants'] {
+  if (!variants || typeof variants !== 'object') return variants;
+  let changed = false;
+  const out: Record<string, unknown> = {};
+  for (const [kind, variant] of Object.entries(variants as Record<string, AssetVariant | null | undefined>)) {
+    const raw = variant as (AssetVariant & { url?: string; cdnUrl?: string }) | null | undefined;
+    const cdnUrl = raw ? raw.cdn_url || raw.cdnUrl || raw.url : undefined;
+    if (raw && cdnUrl && cdnUrl !== raw.cdn_url) {
+      out[kind] = { ...raw, cdn_url: cdnUrl };
+      changed = true;
+    } else {
+      out[kind] = variant;
+    }
+  }
+  return changed ? (out as AssetRef['variants']) : variants;
+}
+
+/**
+ * Why a manifest entry cannot be rendered by `<Run402Image>`, after
+ * normalization: the entry or one of its variants has no servable URL.
+ * Empty when the entry is renderable.
+ */
+export function assetRefServabilityProblems(ref: unknown): string[] {
+  if (!ref || typeof ref !== 'object' || Array.isArray(ref)) return ['entry is not an object'];
+  const normalized = normalizeManifestAssetRef(ref as AssetRef);
+  const problems: string[] = [];
+  if (typeof normalized.cdn_url !== 'string' || normalized.cdn_url === '') {
+    problems.push('no servable URL (cdn_url, cdnUrl, cdnMutableUrl or url)');
+  }
+  const variants = normalized.variants as Record<string, unknown> | undefined;
+  if (variants && typeof variants === 'object') {
+    for (const [kind, variant] of Object.entries(variants)) {
+      const url = (variant as { cdn_url?: unknown } | null)?.cdn_url;
+      if (typeof url !== 'string' || url === '') problems.push(`variant "${kind}" has no servable URL (cdn_url or url)`);
+    }
+  }
+  return problems;
 }
 
 /**
