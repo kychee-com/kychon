@@ -33,6 +33,15 @@
  * use container-type or contain here: either one makes #main-content the
  * containing block for fixed descendants (e.g. the events-calendar sheet).
  *
+ * Negative margins alone widen only a stretched item. Block roots carry
+ * `w-full` (width: 100%, which on a grid item is the grid area), so the
+ * margins would just shift a track-wide box left of the track (#214). The
+ * min-width restores the breakout width (area + 2 x |margin|); it beats
+ * width without fighting the cascade, which matters because this file is
+ * bundled into @layer components below Tailwind's utilities. Block roots
+ * must still be full-bleed shells that cap their content in an inner
+ * constrained container, never capped (max-width) themselves.
+ *
  * Below --max-width the inset and the breakout are both 0, so the tablet and
  * mobile layouts are unchanged. The footer zone host is already a
  * constrained container and needs none of this.
@@ -46,6 +55,7 @@
 #sections > [data-column-span="1"],
 #sections > [data-react-html-children] > [data-column-span="1"] {
   margin-inline: min(0px, calc((var(--max-width) - 100vw) / 2));
+  min-width: calc(100% + max(0px, 100vw - var(--max-width)));
 }
 
 /* Default span mapping (desktop). */
