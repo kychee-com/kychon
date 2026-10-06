@@ -130,8 +130,8 @@ Expected output lists:
 - Core API base source
 - active project source
 - migration id
-- included functions: `export-csv`, `kychon-api`, `site-search`, `ssr`,
-  `upload-asset`, `upload-resource`
+- included functions: `kychon-api`, `site-search`, `ssr`, `upload-asset`,
+  `upload-resource`
 - omitted Cloud-only or scheduled functions, also recorded in
   `x-run402-omitted_features` inside `app.json`
 

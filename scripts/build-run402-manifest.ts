@@ -32,7 +32,6 @@ const ASTRO_SSR_CAPABILITY = "astro.ssr.v1";
 export const CORE_INCLUDED_FUNCTIONS = [
   "kychon-api",
   "site-search",
-  "export-csv",
   "upload-asset",
   "upload-resource",
 ] as const;

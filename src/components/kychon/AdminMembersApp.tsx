@@ -30,6 +30,7 @@ import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
 import { get, patch } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { ready, refreshMemberRecord } from '@/lib/config';
+import { membersCsvHref } from '@/lib/members-csv';
 import { showToast } from '@/lib/toast-events';
 
 interface Member {
@@ -42,6 +43,7 @@ interface Member {
   tier_name?: string;
   role?: string;
   joined_at?: string;
+  custom_fields?: Record<string, unknown> | null;
 }
 
 interface Tier {
@@ -80,27 +82,6 @@ function badgeVariant(status?: string): 'default' | 'secondary' | 'outline' | 'd
   if (status === 'pending') return 'outline';
   if (status === 'expired' || status === 'suspended' || status === 'rejected') return 'destructive';
   return 'default';
-}
-
-function csvCell(value: unknown): string {
-  return `"${String(value || '').replace(/"/g, '""')}"`;
-}
-
-function buildMembersCsv(members: Member[]): string {
-  const headers = ['display_name', 'email', 'status', 'role', 'tier', 'joined_at'];
-  const rows = members.map((member) => [
-    member.display_name,
-    member.email,
-    member.status,
-    member.role,
-    member.tier_name,
-    member.joined_at,
-  ]);
-  return [headers.join(','), ...rows.map((row) => row.map(csvCell).join(','))].join('\n');
-}
-
-function csvHref(members: Member[]): string {
-  return `data:text/csv;charset=utf-8,${encodeURIComponent(buildMembersCsv(members))}`;
 }
 
 export default function AdminMembersApp() {
@@ -230,7 +211,7 @@ export default function AdminMembersApp() {
           <p className="text-sm text-muted-foreground">{hydratedMembers.length} total member records</p>
         </div>
         <Button asChild variant="outline">
-          <a href={csvHref(hydratedMembers)} download="members.csv">
+          <a href={membersCsvHref(hydratedMembers)} download="members.csv">
             <Download className="h-4 w-4" />
             Export CSV
           </a>

@@ -97,7 +97,9 @@ beforeEach(() => {
     site_config: [
       { key: 'feature_ai_moderation', value: true },
       { key: 'feature_ai_translation', value: true },
+      { key: 'languages_enabled', value: ['en', 'es'] },
     ],
+    members: [{ id: 1, user_id: 'user-1', email: 'user@example.test', role: 'admin', status: 'active' }],
     forum_topics: [{ id: 1, title: 'Topic', body: 'Body', created_at: '2026-01-01T00:00:00Z', hidden: false }],
     forum_replies: [{ id: 2, body: 'Reply', created_at: '2026-01-01T00:00:00Z', hidden: false }],
     moderation_log: [],

@@ -361,8 +361,7 @@ kychon/
 │   ├── moderate-content.js       # schedule: "*/15 * * * *" — AI content moderation (feature flag)
 │   ├── translate-content.js      # Triggered on new content — AI auto-translation (feature flag)
 │   ├── generate-newsletter.js    # schedule: "0 9 * * 1" — AI weekly newsletter draft (feature flag)
-│   ├── generate-recap.js         # Triggered after event — AI event recap draft (feature flag)
-│   └── export-csv.js             # Manual trigger: export members/events to CSV
+│   └── generate-recap.js         # Triggered after event — AI event recap draft (feature flag)
 └── tests/
     ├── unit/                     # Vitest + Node
     ├── integration/              # Vitest + happy-dom
@@ -800,7 +799,6 @@ functions/
 ├── on-signup.js              ← triggered by client after auth
 ├── check-expirations.js      ← schedule: "0 8 * * *" (daily 8AM)
 ├── event-reminders.js        ← schedule: "0 * * * *" (hourly)
-├── export-csv.js             ← triggered manually from admin
 └── invite.js                 ← triggered from admin panel
 ```
 

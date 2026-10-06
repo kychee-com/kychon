@@ -357,7 +357,7 @@ UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_moderation';
 UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_translation';
 ```
 
-Moderation (`moderate-content.js`) runs on a 15-minute schedule and is free. Translation (`translate-content.js`) runs on demand when content is published and uses Run402's quota-tracked translation service.
+Moderation (`moderate-content.js`) runs on a 15-minute schedule and is free. Translation uses Run402's quota-tracked translation service and targets the languages in `site_config.languages_enabled`: an admin runs `translate-content.js` to translate an announcement, event, or page, and the forum's Translate button calls `translate-text.js`, which translates a stored post at most once per language and caches the result.
 
 Additional generative AI features (insights, onboarding, newsletter, event recaps) are paused pending a Run402 LLM endpoint. Their flags exist in `site_config` but are not exposed in the admin UI.
 
