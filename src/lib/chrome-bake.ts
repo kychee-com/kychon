@@ -2,6 +2,7 @@ import { getBakeAssetManifest } from './bake-asset-manifest.js';
 import { BLOCK_TYPES, dedupeSingletonSections, renderBlock, type BlockRenderContext, type Section } from './blocks.js';
 import { resolveAssetUrl } from './kychon-image.js';
 import { computeMainZoneSignature } from './main-zone-signature.js';
+import { isSeoNoindex } from './seo.js';
 import { buildFontVarValue, buildGoogleFontsUrl, renderFontHead } from './theme/fonts.js';
 import type { ProjectSeed } from '../seeds/types.js';
 
@@ -65,6 +66,8 @@ export interface BakedChrome {
   /** theme.motion: 'subtle' (default — scroll-reveal + stat count-up via
    *  src/lib/delight.ts) or 'none' to keep every page static. */
   motion: 'subtle' | 'none';
+  /** site_config.seo_noindex: the whole portal is unlisted (kychon#189). */
+  noindex: boolean;
   bakeCtx: BlockRenderContext;
 }
 
@@ -367,6 +370,7 @@ export function bakeChrome(
     themeFontVarsCss: themeFontVarLines.join(' '),
     colorScheme: colorSchemeFromTheme(theme),
     motion: theme.motion === 'none' ? 'none' : 'subtle',
+    noindex: isSeoNoindex(seedValue(seed, 'seo_noindex')),
     bakeCtx,
   };
 }

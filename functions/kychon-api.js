@@ -371,13 +371,15 @@ const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo
 // Brand-identity keys are always anonymously readable so hydrated chrome matches
 // the baked chrome even when a porter wrote them under a non-public category (or
 // no category at all). Key-scoped, so it does not widen any other config
-// surface the category gate protects.
+// surface the category gate protects. `seo_noindex` likewise: the anonymous
+// runtime, /robots.txt and /llms.txt read it (kychon#189).
 const PUBLIC_CONFIG_KEYS = new Set([
   'brand_text',
   'brand_text_short',
   'brand_icon_url',
   'brand_wordmark_url',
   'favicon_url',
+  'seo_noindex',
 ]);
 
 // BEGIN GENERATED: connector guide and schemas (scripts/generate-connector-schemas.ts)

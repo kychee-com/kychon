@@ -25,6 +25,9 @@ const mockState = vi.hoisted(() => ({
   },
 }));
 
+// /llms.txt reads site_config.seo_noindex per request; no network in tests.
+vi.mock('../../src/lib/ssr-api', () => ({ ssrConfigValue: vi.fn(async () => null) }));
+
 vi.mock(
   '@run402/functions',
   () => ({
@@ -129,7 +132,7 @@ describe('official demo portal API integration', () => {
       const url = new URL(`${demo.portalUrl}/.well-known/kychon.json`);
 
       const wellKnown = await (await wellKnownGet({ url })).json();
-      const llms = await llmsGet({ url }).text();
+      const llms = await (await llmsGet({ url })).text();
 
       expect(JSON.stringify(wellKnown)).not.toContain('temp-v2');
       expect(llms).not.toContain('temp-v2');

@@ -32,8 +32,9 @@ import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
 import { AiConnectorCard, CONNECTOR_FLAG, connectorEnabled } from './AiConnectorCard';
 import { del, get, patch, post, queryOp } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
-import { applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
+import { applyRobots, applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
 import { t } from '@/lib/i18n';
+import { isSeoNoindex } from '@/lib/seo';
 import { showToast } from '@/lib/toast-events';
 
 type ConfigMap = Record<string, any>;
@@ -81,6 +82,7 @@ interface GeneralForm {
   default_language: string;
   directory_public: boolean;
   polls_member_create: boolean;
+  seo_noindex: boolean;
 }
 
 interface EventDisplayForm {
@@ -157,6 +159,7 @@ const EMPTY_GENERAL: GeneralForm = {
   default_language: 'en',
   directory_public: false,
   polls_member_create: false,
+  seo_noindex: false,
 };
 
 const EMPTY_EVENT_DISPLAY: EventDisplayForm = {
@@ -232,6 +235,7 @@ function generalFromConfig(config: ConfigMap): GeneralForm {
     default_language: asText(config.default_language) || 'en',
     directory_public: config.directory_public === true,
     polls_member_create: config.polls_member_create === true,
+    seo_noindex: isSeoNoindex(config.seo_noindex),
   };
 }
 
@@ -647,7 +651,10 @@ export default function AdminSettingsApp() {
           patchConfig('default_language', general.default_language),
           patchConfig('directory_public', general.directory_public),
           patchConfig('polls_member_create', general.polls_member_create),
+          patchConfig('seo_noindex', general.seo_noindex),
         ]);
+        applyRobots(general.seo_noindex);
+        clearCache('wl_cache_site_config');
       },
       'General settings saved',
     );
@@ -1018,6 +1025,11 @@ export default function AdminSettingsApp() {
                   checked={general.polls_member_create}
                   label="Members can create polls"
                   onCheckedChange={(checked) => setGeneral({ ...general, polls_member_create: checked })}
+                />
+                <CheckboxField
+                  checked={general.seo_noindex}
+                  label="Hide this site from search engines (noindex)"
+                  onCheckedChange={(checked) => setGeneral({ ...general, seo_noindex: checked })}
                 />
               </div>
               <SectionError message={sectionErrors.general} />

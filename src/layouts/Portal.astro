@@ -26,6 +26,7 @@ import type { Section } from '../lib/blocks';
 import { buildCspValueFromTemplate } from '../lib/csp';
 import { isDemoModeSeed } from '../lib/demo-mode';
 import { constrainedContainerClass } from '../lib/ui/container';
+import { ROBOTS_META_ID, effectiveRobots } from '../lib/seo';
 
 // CSP template inlined via Vite `?raw` — the file is read from disk at
 // build time and baked into the bundle as a string literal. Necessary
@@ -104,6 +105,11 @@ if (pageSlug && !headerSections) {
 const chromeSeed = pageSlug ? mergeSeedSections(seed, pageSlug, headerSections ?? []) : seed;
 const chrome = bakeChrome(chromeSeed, title, { pageSlug, manifest: requestManifest });
 const renderDemoBanner = isDemoModeSeed(seed);
+// site_config.seo_noindex wins over the page's own `robots` (kychon#189).
+// The meta is always baked (`all` when nothing restricts the page) so
+// config.ts:applyRobots can reconcile a live toggle in place;
+// `data-page-robots` keeps the page's own directive for when it is turned off.
+const robotsContent = effectiveRobots(robots, chrome.noindex);
 
 const cspValue = buildCspValueFromTemplate(headersTemplate);
 
@@ -144,7 +150,7 @@ const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAsse
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content={cspValue}>
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  {robots && <meta name="robots" content={robots}>}
+  <meta id={ROBOTS_META_ID} name="robots" content={robotsContent} data-page-robots={robots ?? ''}>
   <title>{chrome.title}</title>
   {description && <meta name="description" content={description}>}
   {(description || image) && <meta property="og:title" content={chrome.title}>}

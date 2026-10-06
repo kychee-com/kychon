@@ -234,7 +234,15 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
 const PUBLIC_CONFIG_CATEGORIES = new Set(['branding', 'features', 'theme', 'demo', 'general']);
 // Brand-identity keys are always anonymously readable so hydrated chrome matches
 // baked chrome even when written under a non-public category. Key-scoped.
-const PUBLIC_CONFIG_KEYS = new Set(['brand_text', 'brand_text_short', 'brand_icon_url', 'brand_wordmark_url', 'favicon_url']);
+// `seo_noindex` likewise: the anonymous runtime, /robots.txt and /llms.txt read it.
+const PUBLIC_CONFIG_KEYS = new Set([
+  'brand_text',
+  'brand_text_short',
+  'brand_icon_url',
+  'brand_wordmark_url',
+  'favicon_url',
+  'seo_noindex',
+]);
 
 async function configGet(input: JsonObject, ctx: CapabilityQueryContext): Promise<JsonValue> {
   const rows = await ctx.db.select('site_config');

@@ -39,6 +39,9 @@ export const CONFIG_FIELD_REGISTRY: readonly ConfigFieldSpec[] = [
   // --- Custom CSS (live-config-coherence fix: applyCustomCss) ---
   { key: 'custom_css', applyMode: 'runtime', reason: 'Applied live into <style id="wl-custom-css"> by applyCustomCss on every config load.' },
 
+  // --- Indexing (kychon#189: applyRobots reconciles the robots meta) ---
+  { key: 'seo_noindex', applyMode: 'runtime', reason: 'Baked as <meta name="robots" content="noindex,nofollow">, reconciled live by applyRobots; /robots.txt and /llms.txt read it per request.' },
+
   // --- Theme (tokens reconciled live by applyTheme) ---
   { key: 'theme', applyMode: 'runtime', reason: 'Theme tokens (colors, radius, max_width, nav/footer/social maps) applied live via applyTheme CSS custom properties.' },
   { key: 'theme.font_heading', applyMode: 'runtime', reason: 'applyTheme sets --font-heading and ensures the web-font <link> at runtime; live font changes load on reload.' },

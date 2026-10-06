@@ -447,4 +447,10 @@ describe('Capability API query bug fixes', () => {
     expect(keys).toContain('brand_wordmark_url');
     expect(keys).not.toContain('secret_token');
   });
+
+  it('kychon#189: config.get exposes seo_noindex to anon under any category', async () => {
+    const db = new MemoryQueryDb({ site_config: [{ key: 'seo_noindex', value: true, category: 'seo' }] });
+    const row = await runCapabilityQuery('config.get', { key: 'seo_noindex' }, { actor: anonymousActor, db });
+    expect(row).toMatchObject({ key: 'seo_noindex', value: true });
+  });
 });

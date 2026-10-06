@@ -8,6 +8,7 @@ import { clearActor, loadActor, memberViewFromActor, setSessionMember } from './
 import { canonicalRouteKey } from './clean-routes.js';
 import { findDirectElementChild } from './dom-structure.js';
 import { loadLocale, setAvailableLocales } from './i18n.js';
+import { ROBOTS_META_ID, effectiveRobots, isSeoNoindex } from './seo.js';
 import { buildFontVarValue, buildGoogleFontsUrl } from './theme/fonts.js';
 
 // --- Cache layer (stale-while-revalidate) ---
@@ -422,6 +423,30 @@ export function applyCustomCss(css: unknown): void {
   if (el.textContent !== value) el.textContent = value;
 }
 
+// --- Indexing (site_config.seo_noindex, kychon#189) ---
+// Portal.astro bakes <meta id="wl-robots"> from the build-time value and keeps
+// the page's own directive in `data-page-robots`. This reconciles a live admin
+// toggle: noindex on → `noindex,nofollow`; off → the page's own directive.
+function robotsMetaElement(): HTMLMetaElement | null {
+  const el = findDirectElementChild(document.head, (child) => child.id === ROBOTS_META_ID);
+  return el instanceof HTMLMetaElement ? el : null;
+}
+
+export function applyRobots(value: unknown): void {
+  if (typeof document === 'undefined') return;
+  const meta = robotsMetaElement();
+  if (!meta) return; // Portal.astro bakes <meta id="wl-robots"> on every page.
+  const content = effectiveRobots(meta.dataset.pageRobots, isSeoNoindex(value));
+  if (meta.content !== content) meta.content = content;
+}
+
+// A view-transition swap brings the next page's baked head, which may predate
+// the live value; re-apply it. ConfigProvider is transition:persist, so this
+// module loads once per full page load and the listener is registered once.
+if (typeof document !== 'undefined') {
+  document.addEventListener('astro:after-swap', () => applyRobots(siteConfig.seo_noindex));
+}
+
 // --- Branding ---
 // Only updates document.title and favicon — the visible brand row in the header
 // is owned by the `brand_header` block.
@@ -571,6 +596,7 @@ export async function init(): Promise<Record<string, any>> {
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
     applyCustomCss(siteConfig.custom_css);
+    applyRobots(siteConfig.seo_noindex);
 
     // Prefer `languages_enabled` (runtime-mutable via the admin AddLanguage
     // dialog); fall back to the legacy `languages` value for portals that
@@ -591,6 +617,7 @@ export async function init(): Promise<Record<string, any>> {
           applyTheme(siteConfig.theme);
           applyBranding(siteConfig);
           applyCustomCss(siteConfig.custom_css);
+          applyRobots(siteConfig.seo_noindex);
           // Notify page-render so chrome blocks can re-hydrate from fresh config.
           document.dispatchEvent(new CustomEvent('wl-config-changed'));
         }
@@ -610,6 +637,7 @@ export async function init(): Promise<Record<string, any>> {
     applyTheme(siteConfig.theme);
     applyBranding(siteConfig);
     applyCustomCss(siteConfig.custom_css);
+    applyRobots(siteConfig.seo_noindex);
 
     // Prefer `languages_enabled` (runtime-mutable via the admin AddLanguage
     // dialog); fall back to the legacy `languages` value for portals that
