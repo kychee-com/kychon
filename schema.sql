@@ -515,7 +515,10 @@ AS $$
   ));
 $$;
 
-CREATE OR REPLACE FUNCTION kychon_search_jsonb_text(value JSONB)
+-- Walks a section config and returns its visible copy (#194): strings are indexed
+-- only under copy keys (key_hint), and link/media/style/alt subtrees are skipped.
+-- Patterns mirror SEARCH_COPY_KEY_PATTERN / SEARCH_SKIP_KEY_PATTERN in src/lib/search.ts.
+CREATE OR REPLACE FUNCTION kychon_search_jsonb_copy(value JSONB, key_hint TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
 IMMUTABLE
@@ -531,18 +534,19 @@ BEGIN
 
   CASE jsonb_typeof(value)
     WHEN 'string' THEN
-      RETURN kychon_search_strip_html(value #>> '{}');
+      IF key_hint = '' OR key_hint ~* '^(heading|subheading|subtitle|tagline|text|title|desc|description|summary|intro|content|q|a|quote|name|role|label|caption|caption_html|html|body|badge|category|price|value)$|_(text|label)$' THEN
+        RETURN kychon_search_strip_html(value #>> '{}');
+      END IF;
+      RETURN '';
     WHEN 'array' THEN
       FOR elem IN SELECT jsonb_array_elements(value) LOOP
-        result := concat_ws(' ', result, kychon_search_jsonb_text(elem));
+        result := concat_ws(' ', result, kychon_search_jsonb_copy(elem, key_hint));
       END LOOP;
       RETURN trim(result);
     WHEN 'object' THEN
       FOR item IN SELECT key, val FROM jsonb_each(value) AS t(key, val) LOOP
-        -- Index visible copy only: skip links, media, styling, and image alt text /
-        -- fit / position settings (#194: slideshow alt + fit crowded out snippets).
-        IF item.key !~* '(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id|alt|fit|position)$' THEN
-          result := concat_ws(' ', result, kychon_search_jsonb_text(item.val));
+        IF item.key !~* '(^|_)(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id|alt|fit|position)$' THEN
+          result := concat_ws(' ', result, kychon_search_jsonb_copy(item.val, item.key));
         END IF;
       END LOOP;
       RETURN trim(result);
@@ -550,6 +554,14 @@ BEGIN
       RETURN '';
   END CASE;
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION kychon_search_jsonb_text(value JSONB)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT kychon_search_jsonb_copy(value, '');
 $$;
 
 CREATE OR REPLACE FUNCTION kychon_search_resource_file_label(file_url TEXT)

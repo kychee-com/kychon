@@ -42,27 +42,17 @@ const SOURCE_TO_TYPE: Record<SearchSourceType, Exclude<SearchType, 'all'>> = {
   event: 'events',
 };
 
-const BLOCK_TEXT_KEYS = new Set([
-  'heading',
-  'subheading',
-  'text',
-  'title',
-  'desc',
-  'description',
-  'q',
-  'a',
-  'quote',
-  'name',
-  'role',
-  'label',
-  'caption',
-  'caption_html',
-  'html',
-  'body',
-  'cta_text',
-]);
+// Visible-copy allowlist for page search text (#194). Mirrored verbatim by
+// kychon_search_jsonb_copy in schema.sql; a unit test keeps the two in sync.
+// Strings under any other key (layout, size, alignment, alt text, …) are not indexed.
+export const SEARCH_COPY_KEY_PATTERN =
+  '^(heading|subheading|subtitle|tagline|text|title|desc|description|summary|intro|content|q|a|quote|name|role|label|caption|caption_html|html|body|badge|category|price|value)$|_(text|label)$';
+// Keys whose whole subtree is skipped: links, media, styling, alt text, image fit/position.
+export const SEARCH_SKIP_KEY_PATTERN =
+  '(^|_)(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id|alt|fit|position)$';
 
-const BLOCK_SKIP_KEYS = /(^|_)(href|url|src|image|icon|color|class|style|target|rel|provider|acknowledged|id)$/i;
+const BLOCK_COPY_KEYS = new RegExp(SEARCH_COPY_KEY_PATTERN, 'i');
+const BLOCK_SKIP_KEYS = new RegExp(SEARCH_SKIP_KEY_PATTERN, 'i');
 
 export function normalizeSearchType(input: unknown): SearchType {
   return SEARCH_TYPES.includes(input as SearchType) ? (input as SearchType) : 'all';
@@ -123,7 +113,7 @@ export function safeResourceFileLabel(fileUrl: unknown): string {
 function collectText(value: unknown, keyHint = ''): string[] {
   if (value == null || typeof value === 'boolean' || typeof value === 'number') return [];
   if (typeof value === 'string') {
-    if (!keyHint || BLOCK_TEXT_KEYS.has(keyHint) || keyHint.endsWith('_text')) {
+    if (!keyHint || BLOCK_COPY_KEYS.test(keyHint)) {
       const text = stripHtml(value);
       return text ? [text] : [];
     }
