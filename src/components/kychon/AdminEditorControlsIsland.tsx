@@ -45,7 +45,16 @@ import {
 } from '@/lib/admin/copied-theme-editor';
 import { chooseNavigationSection } from '@/lib/admin/navigation-section';
 import { del, get, patch, post } from '@/lib/api';
-import { BLOCK_TYPES, getSupportedSpans, isSingletonBlockType } from '@/lib/blocks';
+import {
+  BLOCK_TYPES,
+  getSupportedSpans,
+  headerPlacement,
+  isSingletonBlockType,
+  supportsHeaderPlacement,
+  withHeaderPlacement,
+  type HeaderMobilePlacement,
+  type HeaderSlot,
+} from '@/lib/blocks';
 import {
   BlockListEditor,
   LIST_BLOCK_SCHEMAS,
@@ -307,6 +316,71 @@ function EditorSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+const HEADER_SLOT_OPTIONS: Array<[string, string]> = [
+  ['', 'Automatic'],
+  ['top_right', 'Top row, right'],
+  ['bottom_right', 'Nav row, right'],
+];
+const HEADER_MOBILE_OPTIONS: Array<[string, string]> = [
+  ['', 'Automatic'],
+  ['row', 'Own row below nav'],
+];
+
+// kychon#192: per-block header placement (config.header_slot /
+// config.header_mobile), rendered as data attributes the nav shell grid reads.
+function HeaderPlacementFields({
+  row,
+  disabled,
+  onSaved,
+}: {
+  row: SectionRow;
+  disabled?: boolean;
+  onSaved: (config: Record<string, any>) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const placement = headerPlacement(row.config);
+
+  async function save(next: { slot?: HeaderSlot | null; mobile?: HeaderMobilePlacement | null }) {
+    const config = withHeaderPlacement(row.config, next);
+    setSaving(true);
+    try {
+      await patch(`sections?id=eq.${row.id}`, { config });
+      clearSectionCaches();
+      onSaved(config);
+      showToast({ type: 'success', message: 'Header placement saved' });
+      emitSectionsChanged();
+    } catch (saveError) {
+      console.error('Header placement save failed:', saveError);
+      showToast({ type: 'error', message: 'Save failed' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field id={`header-slot-${row.id}`} label="Desktop placement">
+        <EditorSelect
+          id={`header-slot-${row.id}`}
+          value={placement.slot ?? ''}
+          options={HEADER_SLOT_OPTIONS}
+          disabled={disabled || saving}
+          onValueChange={(value) => void save({ slot: (value || null) as HeaderSlot | null })}
+        />
+      </Field>
+      <Field id={`header-mobile-${row.id}`} label="Mobile placement">
+        <EditorSelect
+          id={`header-mobile-${row.id}`}
+          value={placement.mobile ?? ''}
+          options={HEADER_MOBILE_OPTIONS}
+          disabled={disabled || saving}
+          onValueChange={(value) => void save({ mobile: (value || null) as HeaderMobilePlacement | null })}
+        />
+      </Field>
+    </div>
   );
 }
 
@@ -746,6 +820,16 @@ function AdminEditorControls() {
 
   const spans = useMemo(() => (row ? getSupportedSpans(row.section_type) : []), [row]);
   const sectionDef = row ? BLOCK_TYPES[row.section_type] : null;
+  const headerLayoutRows = useMemo(() => {
+    if (addZone !== 'header') return [];
+    const slug = typeof window === 'undefined' ? 'index' : currentPageSlugForNavEditor();
+    return addRows.filter(
+      (section) =>
+        section.zone === 'header' &&
+        sectionAppliesToCurrentPage(section, slug) &&
+        supportsHeaderPlacement(section.section_type),
+    );
+  }, [addRows, addZone]);
   const addCandidates = useMemo(() => {
     const slug = typeof window === 'undefined' ? 'index' : currentPageSlugForNavEditor();
     return Object.entries(BLOCK_TYPES)
@@ -1721,6 +1805,17 @@ function AdminEditorControls() {
                 </Button>
               </div>
 
+              {row.zone === 'header' && supportsHeaderPlacement(row.section_type) ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Header placement</div>
+                  <HeaderPlacementFields
+                    row={row}
+                    disabled={saving !== null}
+                    onSaved={(config) => setRow({ ...row, config })}
+                  />
+                </div>
+              ) : null}
+
             {canEditHero && heroDraft ? (
               <div className="space-y-4 rounded-md border border-border p-4">
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -1909,6 +2004,34 @@ function AdminEditorControls() {
               </Button>
             ))}
           </div>
+
+          {headerLayoutRows.length > 0 ? (
+            <div className="space-y-3 border-t border-border pt-4">
+              <div>
+                <div className="text-sm font-medium">Header layout</div>
+                <p className="text-xs text-muted-foreground">
+                  Place calls to action, search, and sign-in in the header rows.
+                </p>
+              </div>
+              {headerLayoutRows.map((headerRow) => (
+                <div key={headerRow.id} className="space-y-2 rounded-md border border-border p-3">
+                  <div className="text-sm font-medium">
+                    {BLOCK_TYPES[headerRow.section_type]?.label || headerRow.section_type}
+                    {typeof headerRow.config?.label === 'string' && headerRow.config.label ? (
+                      <span className="font-normal text-muted-foreground"> - {headerRow.config.label}</span>
+                    ) : null}
+                  </div>
+                  <HeaderPlacementFields
+                    row={headerRow}
+                    disabled={addSaving !== null}
+                    onSaved={(config) =>
+                      setAddRows((rows) => rows.map((r) => (r.id === headerRow.id ? { ...r, config } : r)))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>

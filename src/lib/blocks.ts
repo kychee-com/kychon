@@ -1422,9 +1422,13 @@ const SITE_SEARCH: BlockType = {
       submit_label: config.submitLabel,
     })}"`;
     const inner = `<div data-block-hydrate="site_search" data-site-search-root${cfgAttr}></div>`;
+    // A configured header placement (kychon#192) owns the grid cell, so the
+    // default column/row utilities (which outrank public.css) step aside.
+    const placement = headerPlacement(section.config);
+    const cell = placement.slot || placement.mobile ? '' : 'col-[4] row-[1] justify-self-end ';
     const headerClasses = config.mode === 'header_icon'
-      ? 'col-[4] row-[1] flex w-9 justify-self-end py-0'
-      : 'col-[4] row-[1] flex w-full min-w-0 max-w-md justify-self-end py-0 sm:max-w-[18rem]';
+      ? `${cell}flex w-9 py-0`
+      : `${cell}flex w-full min-w-0 max-w-md py-0 sm:max-w-[18rem]`;
     const classes = section.zone === 'header' ? headerClasses : 'w-full py-1';
     return adminWrap(section, ctx, inner, classes);
   },
@@ -2538,6 +2542,68 @@ export function applyColumnSpan(html: string, span: ColumnSpan): string {
   );
 }
 
+/**
+ * Header placement (kychon#192): header-zone blocks opt into named slots of
+ * the nav shell grid through two config keys, so a club header (brand + title
+ * | CTAs | sign-in on row 1, nav | search on row 2, CTAs on their own row on
+ * mobile) is data rather than custom_css grid rules.
+ *
+ * - `header_slot`: desktop (>900px) slot. `top_right` blocks line up after
+ *   the brand on row 1 in position order; `bottom_right` sits right of the
+ *   nav links on row 2. Omitted = the shell's default auto placement.
+ * - `header_mobile`: `row` moves the block to its own full-width row below
+ *   the nav on mobile (<=900px); the first such block aligns start, the next
+ *   end, and labels never wrap or clip.
+ */
+export const HEADER_SLOTS = ['top_right', 'bottom_right'] as const;
+export type HeaderSlot = (typeof HEADER_SLOTS)[number];
+export const HEADER_MOBILE_PLACEMENTS = ['row'] as const;
+export type HeaderMobilePlacement = (typeof HEADER_MOBILE_PLACEMENTS)[number];
+
+export interface HeaderPlacement {
+  slot: HeaderSlot | null;
+  mobile: HeaderMobilePlacement | null;
+}
+
+export function headerPlacement(config: Record<string, any> | null | undefined): HeaderPlacement {
+  const cfg = config || {};
+  const slot = (HEADER_SLOTS as readonly string[]).includes(cfg.header_slot) ? (cfg.header_slot as HeaderSlot) : null;
+  const mobile = (HEADER_MOBILE_PLACEMENTS as readonly string[]).includes(cfg.header_mobile)
+    ? (cfg.header_mobile as HeaderMobilePlacement)
+    : null;
+  return { slot, mobile };
+}
+
+/** Header blocks that are the shell's fixed frame, never slotted. */
+export function supportsHeaderPlacement(type: string): boolean {
+  const def = BLOCK_TYPES[type];
+  return Boolean(def) && type !== 'nav' && type !== 'brand_header' && !def.fullBleed;
+}
+
+/** Return a copy of `config` with the given placement keys set (null clears). */
+export function withHeaderPlacement(
+  config: Record<string, any> | null | undefined,
+  next: Partial<HeaderPlacement>,
+): Record<string, any> {
+  const out: Record<string, any> = { ...(config || {}) };
+  if ('slot' in next) {
+    if (next.slot) out.header_slot = next.slot;
+    else delete out.header_slot;
+  }
+  if ('mobile' in next) {
+    if (next.mobile) out.header_mobile = next.mobile;
+    else delete out.header_mobile;
+  }
+  return out;
+}
+
+/** Stamp header placement attributes on a rendered block's leading element. */
+export function applyHeaderPlacement(html: string, placement: HeaderPlacement): string {
+  const attrs = `${placement.slot ? ` data-header-slot="${placement.slot}"` : ''}${placement.mobile ? ` data-header-mobile="${placement.mobile}"` : ''}`;
+  if (!attrs) return html;
+  return html.replace(/^(\s*<[a-zA-Z][^>]*?)(\s*\/?\s*>)/, `$1${attrs}$2`);
+}
+
 export function renderBlock(section: Section, ctx: BlockRenderContext): string {
   const type = BLOCK_TYPES[section.section_type];
   if (!type) {
@@ -2547,7 +2613,8 @@ export function renderBlock(section: Section, ctx: BlockRenderContext): string {
   if (section.visible === false) return '';
   const html = type.render(section, ctx);
   const span: ColumnSpan = section.column_span ?? '1';
-  return applyColumnSpan(html, span);
+  const spanned = applyColumnSpan(html, span);
+  return section.zone === 'header' ? applyHeaderPlacement(spanned, headerPlacement(section.config)) : spanned;
 }
 
 export function renderZone(sections: Section[], zone: 'header' | 'main' | 'footer', ctx: BlockRenderContext): string {
