@@ -17,6 +17,8 @@
  */
 
 import { createKychonClient } from '@kychon/sdk';
+import { parseAssetManifest } from './bake-asset-manifest';
+import type { AssetManifest } from './kychon-image';
 
 type KychonClient = ReturnType<typeof createKychonClient>;
 
@@ -131,4 +133,71 @@ export async function ssrConfigValue<T = unknown>(params: SsrConfigParams): Prom
     console.warn('[ssr-api] config.get failed:', error instanceof Error ? error.message : error);
     return null;
   }
+}
+
+export interface SsrEventParams {
+  /** Raw `?id=` value from the request URL. */
+  id: string;
+  /** Request host (`Astro.request.headers.get('host')`). */
+  host: string;
+}
+
+/**
+ * Outcome of a per-request event read. `missing` covers both nonexistent and
+ * members-only events: the anonymous read can't tell them apart, and must
+ * not reveal which one it is. `error` means the read itself failed, so the
+ * route renders the shell and lets the island retry instead of claiming 404.
+ */
+export type SsrEventResult<T> =
+  | { status: 'found'; event: T }
+  | { status: 'missing' }
+  | { status: 'error' };
+
+/**
+ * Server-side `events.get` for `/event?id=N`. Anonymous-min with
+ * `visibleMembersOnly`, so members-only events come back null and only
+ * surface through the island's post-hydrate refetch with the visitor's
+ * session. Non-integer ids are `missing` without a call (the capability
+ * would reject them as a validation error).
+ */
+export async function ssrEventGet<T = unknown>(params: SsrEventParams): Promise<SsrEventResult<T>> {
+  const id = params.id.trim();
+  if (!/^\d+$/.test(id) || !Number.isSafeInteger(Number(id))) return { status: 'missing' };
+  try {
+    const event = await client(params.host).request<T | null>('events.get', 'query', { id: Number(id) });
+    return event ? { status: 'found', event } : { status: 'missing' };
+  } catch (error) {
+    console.warn('[ssr-api] events.get failed:', error instanceof Error ? error.message : error);
+    return { status: 'error' };
+  }
+}
+
+const ASSET_MANIFEST_TTL_MS = 5 * 60 * 1000;
+const ASSET_MANIFEST_TIMEOUT_MS = 2000;
+const assetManifestCache = new Map<string, { at: number; manifest: Promise<AssetManifest | null> }>();
+
+/**
+ * The site's uploaded-asset manifest, read from its own
+ * `/_assets-manifest.json` at request time. The build-time accessors
+ * (`getBakeAssetManifest`) return null inside the SSR Lambda, and a port's
+ * `/assets/<name>` paths are not served, so without this an SSR route bakes
+ * unresolvable image URLs. Cached per origin across warm invocations; any
+ * failure resolves to null and the island resolves images after hydration.
+ */
+export function ssrAssetManifest(origin: string, now: number = Date.now()): Promise<AssetManifest | null> {
+  const cached = assetManifestCache.get(origin);
+  if (cached && now - cached.at < ASSET_MANIFEST_TTL_MS) return cached.manifest;
+  const manifest = fetch(`${origin}/_assets-manifest.json`, { signal: AbortSignal.timeout(ASSET_MANIFEST_TIMEOUT_MS) })
+    .then(async (res) => (res.ok ? parseAssetManifest(await res.text()) : null))
+    .catch((error: unknown) => {
+      console.warn('[ssr-api] asset manifest fetch failed:', error instanceof Error ? error.message : error);
+      return null;
+    });
+  assetManifestCache.set(origin, { at: now, manifest });
+  return manifest;
+}
+
+/** Test hook: forget cached manifests. */
+export function resetSsrAssetManifestCache(): void {
+  assetManifestCache.clear();
 }

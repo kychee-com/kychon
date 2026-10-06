@@ -22,7 +22,7 @@ kychon/
 │   │   ├── profile.astro   # Profile editor
 │   │   ├── page.astro      # Generic page renderer (?slug=about)
 │   │   ├── events.astro    # Events listing (upcoming, past, RSVP)
-│   │   ├── event.astro     # Single event detail + RSVP
+│   │   ├── event.astro     # Single event detail + RSVP (SSR: one event per request)
 │   │   ├── resources.astro # Resource library
 │   │   ├── forum.astro     # Forum (categories, topics, replies)
 │   │   ├── committees.astro# Committees listing + detail

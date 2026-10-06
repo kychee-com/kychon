@@ -53,9 +53,17 @@ interface Props {
    * merged into the seed so ported pages bake their DB-only header rows too.
    */
   pageSections?: Section[];
+  /**
+   * Per-page summary for `meta[name=description]` and `og:description`.
+   * Link previews read the head, not the rendered body, so dynamic routes
+   * (`/event?id=N`) pass the record they render.
+   */
+  description?: string;
+  /** Absolute URL for `og:image` (Twitter cards fall back to it). */
+  image?: string;
 }
 
-const { title, robots, extraHead, pageSlug, pageSections } = Astro.props;
+const { title, robots, extraHead, pageSlug, pageSections, description, image } = Astro.props;
 
 // --- Chrome bake ---
 // Works at both build time (every prerendered route — silver-pines's
@@ -117,6 +125,11 @@ const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAsse
   <meta name="referrer" content="strict-origin-when-cross-origin">
   {robots && <meta name="robots" content={robots}>}
   <title>{chrome.title}</title>
+  {description && <meta name="description" content={description}>}
+  {(description || image) && <meta property="og:title" content={chrome.title}>}
+  {description && <meta property="og:description" content={description}>}
+  {image && <meta property="og:image" content={image}>}
+  {image && <meta name="twitter:card" content="summary_large_image">}
   {chrome.isSvgFavicon
     ? <link rel="icon" type="image/svg+xml" href={chrome.faviconUrl} />
     : <link rel="icon" href={chrome.faviconUrl} />}

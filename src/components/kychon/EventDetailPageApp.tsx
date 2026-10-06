@@ -481,38 +481,34 @@ function RegistrationEditor({
 
 interface EventDetailPageAppProps {
   /**
-   * Map of all events the build-time anon-key fetch could see, keyed by
-   * `String(event.id)`. `event.astro` populates this from
-   * `getAllBuildEvents()` so the React island can resolve `?id=X` from
-   * URL → event synchronously on first client render, eliminating the
-   * API round-trip and ~200-1000ms of skeleton. Falls back to the
-   * runtime `loadEvent()` path for IDs not in the map (events added
-   * post-deploy, member-only events anon-key RLS hid).
-   *
-   * O(N_events) embedded bytes per page (~10-30KB for demos). Acceptable
-   * for community-portal scale; the hybrid-SSR conversion (Step 4) would
-   * collapse this to one event per page, but that needs Astro
-   * `output: 'hybrid'` and is its own arc.
+   * The requested event as `event.astro` read it server-side with the
+   * anonymous `events.get`, or null when that read found nothing (missing
+   * or members-only id) or failed. When present the first render, on the
+   * server and at hydration, is the event itself rather than a skeleton.
+   * `loadEvent()` still runs after mount for RSVPs, registration options,
+   * the visitor's locale, admin edits, and members-only events.
    */
-  eventsById?: Record<string, Event>;
+  initialEvent?: Event | null;
   /**
-   * Build-time manifest entries for `eventsById`' hero images
-   * (`pickAssetManifestEntries`), so `/assets/<name>` resolves even when the
-   * window manifest is absent (ports above the inline cap fetch it later).
+   * Request-time manifest entries for `initialEvent`'s hero and description
+   * images (`pickAssetManifestEntries`), so `/assets/<name>` resolves in the
+   * server render, where no window manifest exists.
    */
   assetManifest?: AssetManifest | null;
 }
 
-export default function EventDetailPageApp({ eventsById, assetManifest }: EventDetailPageAppProps = {}) {
+export default function EventDetailPageApp({ initialEvent, assetManifest }: EventDetailPageAppProps = {}) {
   const globalManifest = useGlobalManifest();
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<Event | null>(initialEvent ?? null);
   const [rsvps, setRsvps] = useState<EventRSVPWithMember[]>([]);
   const [registrationOptions, setRegistrationOptions] = useState<EventRegistrationOption[]>([]);
   const [registrationDrafts, setRegistrationDrafts] = useState<RegistrationDraft[]>([]);
-  const [timezoneForm, setTimezoneForm] = useState<TimezoneForm>(EMPTY_TIMEZONE_FORM);
+  const [timezoneForm, setTimezoneForm] = useState<TimezoneForm>(() =>
+    initialEvent ? timezoneFormFromEvent(initialEvent) : EMPTY_TIMEZONE_FORM,
+  );
   const [admin, setAdmin] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialEvent);
   const [error, setError] = useState('');
   const [accessDenied, setAccessDenied] = useState(false);
   const [busyAction, setBusyAction] = useState('');
@@ -522,11 +518,10 @@ export default function EventDetailPageApp({ eventsById, assetManifest }: EventD
   const [deleting, setDeleting] = useState(false);
 
   const loadEvent = useCallback(async () => {
-    // Don't unconditionally flip `loading=true` — the post-mount fast
-    // path (below, in useEffect) may have already populated `event` from
-    // `eventsById`, and toggling the skeleton would re-paint over the
-    // SSR-baked hero card on every locale/auth change. The first-mount
-    // skeleton is still covered by the `useState(true)` initializer.
+    // Don't unconditionally flip `loading=true` — `event` may already hold
+    // the server-rendered `initialEvent`, and toggling the skeleton would
+    // re-paint over it on every locale/auth change. Without one, the
+    // first-mount skeleton comes from the `useState` initializer.
     setError('');
     setAccessDenied(false);
     try {
@@ -583,20 +578,6 @@ export default function EventDetailPageApp({ eventsById, assetManifest }: EventD
   }, []);
 
   useEffect(() => {
-    // Fast path: if the build-time `eventsById` map carries the event
-    // matching `?id=X`, paint the hero/title/date/description immediately
-    // and drop the skeleton — no API round-trip needed for first paint.
-    // The slow path (`loadEvent`) still runs to pick up admin edits made
-    // post-build, member-only events RLS hid from the anon-key fetch,
-    // and the relations (rsvps, registrationOptions) that aren't in
-    // `eventsById`.
-    if (eventsById) {
-      const id = eventIdFromLocation();
-      if (id && eventsById[id]) {
-        setEvent(eventsById[id]);
-        setLoading(false);
-      }
-    }
     void loadEvent();
     document.addEventListener('wl-auth-changed', loadEvent);
     document.addEventListener('wl-locale-changed', loadEvent);
@@ -604,7 +585,7 @@ export default function EventDetailPageApp({ eventsById, assetManifest }: EventD
       document.removeEventListener('wl-auth-changed', loadEvent);
       document.removeEventListener('wl-locale-changed', loadEvent);
     };
-  }, [loadEvent, eventsById]);
+  }, [loadEvent]);
 
   const counts = useMemo(() => {
     return {
@@ -839,7 +820,7 @@ export default function EventDetailPageApp({ eventsById, assetManifest }: EventD
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Description admin={admin} event={event} manifest={globalManifest} />
+          <Description admin={admin} event={event} manifest={globalManifest ?? assetManifest ?? null} />
         </CardContent>
       </Card>
 

@@ -20,7 +20,8 @@ const DEFAULT_PATHS = [
   '/polls',
   '/profile',
   '/join',
-  '/event',
+  // /event is omitted: without a real `?id=` it answers 404 (by design), and
+  // event ids differ per portal. Pass `--paths /event?id=N` to include one.
   '/admin',
   '/admin-members',
   '/admin-settings',

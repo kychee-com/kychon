@@ -13,6 +13,7 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import EventDetailPageApp from '../../src/components/kychon/EventDetailPageApp';
 import { renderEventsListStaticHtml } from '../../src/components/kychon/EventsListIsland';
 import EventsPageApp from '../../src/components/kychon/EventsPageApp';
 import { pickAssetManifestEntries } from '../../src/lib/bake-asset-manifest';
@@ -21,12 +22,18 @@ import type { AssetManifest } from '../../src/lib/kychon-image';
 import type { Event } from '../../src/schemas/event';
 
 // `@run402/astro/react`'s <Run402Image> passes HTML `class` (not
-// `className`) to createElement for byte-identity with its HTML renderer,
-// which React's dev build reports. Upstream behavior, not under test here;
-// silence only that message so any other console.error still surfaces.
+// `className`), and with `priority` HTML `fetchpriority` (not `fetchPriority`),
+// to createElement for byte-identity with its HTML renderer, which React's dev
+// build reports. Upstream behavior, not under test here; silence only those
+// messages so any other console.error still surfaces.
 const consoleError = console.error.bind(console);
 vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-  if (typeof args[0] === 'string' && args[0].startsWith('Invalid DOM property `%s`') && args[1] === 'class') return;
+  if (
+    typeof args[0] === 'string' &&
+    args[0].startsWith('Invalid DOM property `%s`') &&
+    (args[1] === 'class' || args[1] === 'fetchpriority')
+  )
+    return;
   consoleError(...args);
 });
 
@@ -75,6 +82,35 @@ describe('/events page cards (EventsPageApp)', () => {
     );
     expect(html).toContain(CDN);
     expect(html).not.toContain('"/assets/foo.jpg"');
+  });
+});
+
+describe('/event detail (EventDetailPageApp)', () => {
+  it('server render carries the event itself and resolves its hero and description images', () => {
+    const detailed: Event = {
+      ...event,
+      description: '<p>Dinner and dancing.</p><img src="/assets/other.jpg" alt="">',
+    };
+    const html = renderToString(
+      createElement(EventDetailPageApp, {
+        initialEvent: detailed,
+        assetManifest: pickAssetManifestEntries(manifest, ['/assets/foo.jpg', '/assets/other.jpg']),
+      }),
+    );
+    expect(html).toContain('Spring Gala');
+    expect(html).toContain('Hall');
+    expect(html).toContain('Dinner and dancing.');
+    expect(html).toContain('2099');
+    expect(html).toContain(CDN);
+    expect(html).toContain(OTHER);
+    expect(html).not.toContain('"/assets/foo.jpg"');
+    expect(html).not.toContain('"/assets/other.jpg"');
+  });
+
+  it('server render without an event is the loading skeleton', () => {
+    const html = renderToString(createElement(EventDetailPageApp, { initialEvent: null }));
+    expect(html).toContain('All Events');
+    expect(html).not.toContain('Spring Gala');
   });
 });
 

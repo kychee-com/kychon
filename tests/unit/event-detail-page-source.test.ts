@@ -8,10 +8,6 @@ const app = readFileSync(join(root, 'src/components/kychon/EventDetailPageApp.ts
 
 describe('event detail page source', () => {
   it('uses a shadcn React island instead of inline DOM rendering', () => {
-    // The `<EventDetailPageApp ... client:load />` directive may now
-    // carry an `eventsById` prop wired from the build-time SSR fetch
-    // (`ensureBuildEventsLoaded`), so we match the directive + prop
-    // surface independently rather than pinning to one exact form.
     expect(page).toMatch(/<EventDetailPageApp\b[\s\S]*?client:load\b[\s\S]*?\/>/);
     expect(page).not.toContain('<script>');
     expect(page).not.toContain('class="btn');
@@ -47,5 +43,24 @@ describe('event detail page source', () => {
     expect(app).toContain('sanitizeRichHtml');
     expect(app).not.toContain('innerHTML =');
     expect(app).not.toContain('document.createElement');
+  });
+
+  it('renders the requested event per request instead of embedding every event', () => {
+    expect(page).toContain('export const prerender = false');
+    expect(page).toContain('ssrEventGet');
+    expect(page).toContain('initialEvent={event}');
+    expect(page).not.toContain('getAllBuildEvents');
+    expect(page).not.toContain('eventsById');
+    expect(app).not.toContain('eventsById');
+    expect(app).toContain('useState<Event | null>(initialEvent ?? null)');
+    expect(app).toContain('useState(!initialEvent)');
+  });
+
+  it('answers missing ids with a noindex 404 and gives link previews per-event head metadata', () => {
+    expect(page).toMatch(/lookup\.status === 'missing'\) Astro\.response\.status = 404/);
+    expect(page).toContain("robots={lookup.status === 'missing' ? 'noindex' : undefined}");
+    expect(page).toContain('title={event?.title');
+    expect(page).toContain('eventMetaDescription');
+    expect(page).toContain('eventOgImageUrl');
   });
 });

@@ -18,7 +18,7 @@ const CLIENT_DIR = join(ROOT, 'dist', 'run402', 'client');
 // (prerender = false): they read auth.user() server-side for redirect
 // guards / hosted <SignIn> returnTo, so they never appear as static HTML
 // and are covered by the SSR entry's render path. calendar / search /
-// ssr-probe are likewise SSR-only.
+// event / ssr-probe are likewise SSR-only.
 const REPRESENTATIVE_PAGES = [
   'index.html',
   'page.html',
@@ -28,7 +28,6 @@ const REPRESENTATIVE_PAGES = [
   'forum.html',
   'resources.html',
   'polls.html',
-  'event.html',
 ];
 
 function buildPortal(): void {

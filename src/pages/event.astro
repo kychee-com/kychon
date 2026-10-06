@@ -1,41 +1,53 @@
 ---
 import EventDetailPageApp from '../components/kychon/EventDetailPageApp';
 import Portal from '../layouts/Portal.astro';
-import { getBakeAssetManifest, pickAssetManifestEntries } from '../lib/bake-asset-manifest';
-import { ensureBuildEventsLoaded, getAllBuildEvents } from '../lib/build-events';
+import { pickAssetManifestEntries } from '../lib/bake-asset-manifest';
+import { eventAssetUrls, eventMetaDescription, eventOgImageUrl } from '../lib/event-meta';
+import { ssrAssetManifest, ssrEventGet } from '../lib/ssr-api';
+import type { Event } from '../schemas/event';
 
-// Single static `/event.html` serves all events; the React island reads
-// `?id=X` from `window.location` at mount and renders the matching event.
-// We can't render a specific event server-side because Astro doesn't know
-// the query string at build time — so instead we embed a `Map<id, event>`
-// of every event the build-time anon-key fetch could see, and the island
-// performs the lookup synchronously on first client render. Skeleton flash
-// shortens from "skeleton + fetch round-trip" (~300-1000ms) to "skeleton
-// + JS parse" (~50-200ms). useEffect still refetches in the background to
-// catch admin edits made between build and visit, and to pick up member-
-// only events that anon-key RLS hid at build (visible only after the
-// post-hydrate refetch sees the visitor's session).
+// /event?id=N is per-request: the event comes from the query string, which a
+// static build can't see. The requested event is read server-side with the
+// anonymous `events.get`, so the raw HTML carries its title, date and
+// description (no-JS clients, link previews, the concierge parity harness)
+// and the island hydrates from that one event instead of a build-time map of
+// every event.
 //
-// Costs O(N_events) bytes embedded in every event-detail page load —
-// ~10-30KB for a demo with 10-12 events, scales linearly. The full
-// hybrid-SSR conversion (per-request rendering, see Step 4) would
-// collapse this to one event per page, but that needs Astro's
-// `output: 'hybrid'` and `prerender = false` on this route — out of
-// scope here.
-await ensureBuildEventsLoaded();
-const eventsById = Object.fromEntries(
-  (getAllBuildEvents() ?? []).map((event) => [String(event.id), event]),
-);
-// Hero images resolve against these build-time entries first, so
-// `/assets/<name>` never reaches the DOM unresolved.
-const assetManifest = pickAssetManifestEntries(
-  getBakeAssetManifest(),
-  Object.values(eventsById).map((event) => event.image_url),
-);
+// The island still refetches after mount: RSVPs and registration options,
+// the visitor's locale, admin edits, and members-only events. Those are
+// hidden from the anonymous read, which can't distinguish them from
+// nonexistent ids, so both answer 404 + noindex while still serving the
+// shell; a signed-in member's island then loads the event as before. A
+// failed read (`error`) is not a 404: the shell renders and the island
+// retries.
+export const prerender = false;
+
+const url = new URL(Astro.request.url);
+const host = Astro.request.headers.get('host') ?? Astro.url.host;
+// Deployed portals are always https; the Lambda's internal request URL may
+// not say so. Only local dev keeps its own scheme.
+const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+const origin = `${isLocalHost ? Astro.url.protocol : 'https:'}//${host}`;
+
+const lookup = await ssrEventGet<Event>({ id: url.searchParams.get('id') ?? '', host });
+const event = lookup.status === 'found' ? lookup.event : null;
+if (lookup.status === 'missing') Astro.response.status = 404;
+
+// Hero and description images resolve against these entries first, so
+// `/assets/<name>` (not served on ports) never reaches the HTML unresolved.
+const siteManifest = event ? await ssrAssetManifest(origin) : null;
+const assetManifest = event ? pickAssetManifestEntries(siteManifest, eventAssetUrls(event)) : null;
+const description = event ? eventMetaDescription(event) : '';
+const image = event ? eventOgImageUrl(event, siteManifest, origin) : '';
 ---
 
-<Portal title="Event">
+<Portal
+  title={event?.title || 'Event'}
+  robots={lookup.status === 'missing' ? 'noindex' : undefined}
+  description={description || undefined}
+  image={image || undefined}
+>
   <div class="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-    <EventDetailPageApp eventsById={eventsById} assetManifest={assetManifest} client:load />
+    <EventDetailPageApp initialEvent={event} assetManifest={assetManifest} client:load />
   </div>
 </Portal>
