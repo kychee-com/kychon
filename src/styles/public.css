@@ -46,15 +46,6 @@ body {
   line-height: 1.6;
 }
 
-.ky-surface-shadow {
-  box-shadow: var(
-    --ky-shadow-border,
-    0px 0px 0px 1px rgba(0, 0, 0, 0.06),
-    0px 1px 2px -1px rgba(0, 0, 0, 0.06),
-    0px 2px 4px 0px rgba(0, 0, 0, 0.04)
-  );
-}
-
 /* Typography */
 h1,
 h2,
@@ -100,7 +91,7 @@ a:hover {
 }
 
 :where(
-  .ky-rich-text img,
+  [data-rich-text] img,
   [data-hero-picture] > img,
   [data-feature-panel-image],
   [data-member-login-icon],

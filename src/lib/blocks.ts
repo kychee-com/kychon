@@ -1597,7 +1597,7 @@ const CUSTOM: BlockType = {
   render(section, ctx) {
     const cfg = section.config || {};
     const richEdit = richEditableAttr(section, 'html', ctx);
-    const richContent = `<div class="${richTextContentClass}"${richEdit}>${rewriteAssetUrlsInHtml(sanitizeRichHtmlServer(cfg.html || ''), ctx.manifest)}</div>`;
+    const richContent = `<div class="${richTextContentClass}" data-rich-text${richEdit}>${rewriteAssetUrlsInHtml(sanitizeRichHtmlServer(cfg.html || ''), ctx.manifest)}</div>`;
     const inner = constrainedContainerHtml('', richContent);
     return adminWrap(section, ctx, inner);
   },

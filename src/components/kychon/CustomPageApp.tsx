@@ -135,6 +135,7 @@ export default function CustomPageApp({ initialPage = null }: CustomPageAppProps
       {contentHtml ? (
         <div
           className={richTextContentClass}
+          data-rich-text=""
           data-editable-rich={admin ? `pages.${page.id}.content` : undefined}
           dangerouslySetInnerHTML={{ __html: contentHtml }}
         />
