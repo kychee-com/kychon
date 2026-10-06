@@ -524,7 +524,7 @@ describe('kychon-api confirmation plans', () => {
 describe('kychon-api operation catalog parity', () => {
   // The function keeps its own operation lists (it deploys as one source file);
   // the typed registry drives /kychon-capabilities.json, the SDK and the docs.
-  it('serves exactly the operations of the typed registry, gated the same way', async () => {
+  it('serves exactly the operations of the typed registry, gated and priced the same way', async () => {
     const res = await json(
       await apiRequest({ apiVersion: KYCHON_API_VERSION, operation: 'portal.capabilities', phase: 'query', input: {} }),
     );
@@ -541,6 +541,7 @@ describe('kychon-api operation catalog parity', () => {
       expect(auth.minimumActorState, String(operation.name)).toBe(typed?.auth.minimumActorState);
       // The function enforces only 'required'; 'recommended' is advice in the registry.
       expect(operation.confirmation === 'required', String(operation.name)).toBe(typed?.confirmation === 'required');
+      expect(operation.costClass, String(operation.name)).toBe(typed?.costClass);
     }
   });
 });

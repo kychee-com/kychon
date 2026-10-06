@@ -276,6 +276,19 @@ const CONFIRMATION_REQUIRED = new Set([
   'jobs.generateNewsletter',
 ]);
 
+// Operations that are not free: they call the AI, reach outside the portal, or
+// hand over private data. Mirrors costClass in src/lib/capability-api/operations.ts.
+const COST_CLASSES = {
+  'translations.translateText': 'metered',
+  'translations.translateContent': 'metered',
+  'newsletters.drafts.generate': 'metered',
+  'jobs.generateNewsletter': 'metered',
+  'jobs.sendEventReminders': 'external',
+  'exports.membersCsv': 'privateData',
+  'exports.eventsCsv': 'privateData',
+  'exports.portalData': 'privateData',
+};
+
 const OPERATION_CATALOG = [
   ...READ_OPERATIONS.map((name) => operationEntry(name, ['query'])),
   ...MUTATION_OPERATIONS.map((name) => operationEntry(name, ['validate', 'execute'])),
@@ -5810,11 +5823,7 @@ function operationEntry(name, phases) {
       allowAnonymous: minimumActorState(name) === 'anonymous',
     },
     confirmation: CONFIRMATION_REQUIRED.has(name) ? 'required' : 'never',
-    costClass: name.startsWith('exports.')
-      ? 'privateData'
-      : name.startsWith('translations.') || name.includes('newsletters.drafts.generate')
-        ? 'metered'
-        : 'free',
+    costClass: COST_CLASSES[name] ?? 'free',
     inputSchema: `kychon.capabilityApi.v1.operations.${name}.input`,
     outputSchema: `kychon.capabilityApi.v1.operations.${name}.output`,
     deprecation: { deprecated: false },
