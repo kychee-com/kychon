@@ -237,3 +237,20 @@ describe('history.revert', () => {
     expect((await revert(cs)).status).toBe(403);
   });
 });
+
+describe('action results report their changesets (for Undo)', () => {
+  it('returns history.changesetIds on a save, and reverting it undoes the save', async () => {
+    state.user = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org' };
+    await db.exec(`INSERT INTO site_config (key, value, category) VALUES ('site_name', '"Old"', 'branding')`);
+    const saved = await execute('config.set', { key: 'site_name', value: 'New' }, 'undo-1');
+    const ids = saved.body.data.history.changesetIds as string[];
+    expect(ids).toHaveLength(1);
+    const [{ id }] = await rows<{ id: number }>(db, 'SELECT id FROM changesets ORDER BY id DESC LIMIT 1');
+    expect(ids).toEqual([String(id)]);
+
+    const undone = await execute('history.revert', { changeset_id: Number(ids[0]) }, 'undo-2');
+    expect(undone.status).toBe(200);
+    expect(undone.body.data.history.changesetIds).toHaveLength(1); // the revert is itself undoable
+    expect(await rows(db, `SELECT value FROM site_config WHERE key = 'site_name'`)).toEqual([{ value: 'Old' }]);
+  });
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, Eye, Globe, Plus, Sparkles, X } from 'lucide-react';
+import { ChevronDown, Eye, Globe, History, Plus, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Badge } from "@/components/kychon/ui";
@@ -15,7 +15,8 @@ import {
 } from "@/components/kychon/ui";
 import { get } from '@/lib/api';
 import { getRole } from '@/lib/auth';
-import { getLocale, setLanguage } from '@/lib/i18n';
+import { openHistory } from '@/lib/content-history';
+import { getLocale, setLanguage, t } from '@/lib/i18n';
 import { LOCALE_LABELS, LOCALE_POOL, localeLabel } from '@/lib/locale-pool';
 import { ready, siteConfig } from '@/lib/config';
 
@@ -302,6 +303,17 @@ export default function AdminBarIsland() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-slate-200 hover:bg-slate-800 hover:text-white"
+          onClick={() => openHistory()}
+          data-admin-history
+        >
+          <History className="mr-1 h-3 w-3" aria-hidden="true" />
+          {t('history.open')}
+        </Button>
 
         <Button
           variant="ghost"

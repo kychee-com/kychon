@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { ComponentProps, ComponentType, ReactElement, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { GripVertical, Pencil, Settings, X } from 'lucide-react';
+import { GripVertical, History, Pencil, Settings, X } from 'lucide-react';
 
 import { Badge, Button } from '@/components/kychon/ui';
 
@@ -116,6 +116,22 @@ export function adminNavEditButtonHtml(sectionId: number): string {
       variant: 'outline',
     },
     icon(Pencil),
+  );
+}
+
+/** Opens the block's content history (HistoryHost, `kychon:history-open`). */
+export function adminSectionHistoryButtonHtml(sectionId: number): string {
+  return buttonHtml(
+    {
+      'aria-label': 'Section history',
+      className: iconButtonClass,
+      'data-section-history': sectionId,
+      size: 'icon',
+      title: 'Section history',
+      type: 'button',
+      variant: 'outline',
+    },
+    icon(History),
   );
 }
 

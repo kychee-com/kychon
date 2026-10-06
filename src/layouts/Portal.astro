@@ -11,6 +11,7 @@ import AdminEditor from '../components/AdminEditor.astro';
 import DemoBanner from '../components/DemoBanner.astro';
 import AdminBar from '../components/AdminBar.astro';
 import MediaPickerHost from '../components/MediaPickerHost.astro';
+import HistoryHost from '../components/HistoryHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
 import { buildInlineManifestScript, getBakeAssetManifest, inlineAssetManifest } from '../lib/bake-asset-manifest';
@@ -160,6 +161,7 @@ const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAsse
   {renderDemoBanner && <DemoBanner />}
   <AdminBar />
   <MediaPickerHost />
+  <HistoryHost />
   <div class="flex min-h-screen flex-col">
     <nav id="zone-header" data-nav-shell data-zone="header" aria-label="Primary navigation" style={chrome.headerPosition ? `--nav-header-position: ${chrome.headerPosition}` : undefined} transition:persist>
       <div class={constrainedContainerClass} data-layout-container set:html={chrome.headerHtml}></div>

@@ -43,10 +43,10 @@
 
 ## 6. History UI (Phase 3)
 
-- [ ] 6.1 Add an Undo action to the admin save confirmation toast, reverting that save's changeset
-- [ ] 6.2 Add a history panel on the section toolbar and page: revision list with actor and time, plus a before/after view (shadcn components)
-- [ ] 6.3 Add a site History page: changesets grouped by capability execution, with actor/label filters and Revert with a conflict dialog and force option
-- [ ] 6.4 Add i18n strings for all history UI in `public/custom/strings/*.json`
+- [x] 6.1 Add an Undo action to the admin save confirmation toast, reverting that save's changeset
+- [x] 6.2 Add a history panel on the section toolbar and page: revision list with actor and time, plus a before/after view (shadcn components)
+- [x] 6.3 Add a site History page (implemented as a dialog opened from the admin bar, like the media picker; admin routes need server-side role gating): changesets, with actor/label filters and Revert with a conflict dialog and force option
+- [x] 6.4 Add i18n strings for all history UI in `public/custom/strings/*.json`
 - [ ] 6.5 Verify in the browser on a demo: edit, undo, history panel, revert, conflict path
 
 ## 7. Restore points (Phase 4, after the run402 SDK upgrade)

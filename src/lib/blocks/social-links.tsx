@@ -4,6 +4,7 @@ import {
   adminScopePillHtml,
   adminScopeToggleHtml,
   adminSectionEditButtonHtml,
+  adminSectionHistoryButtonHtml,
   adminSectionRemoveButtonHtml,
 } from '../admin-action-controls.js';
 import * as React from 'react';
@@ -177,7 +178,7 @@ function buildAdminControls(section: Section, ctx: BlockRenderContext): string {
   const toggleLabel = isGlobal ? 'Make page-only' : 'Make global';
   const toggleNext = isGlobal ? 'page' : 'global';
   return adminSectionActionsHtml(
-    `${pill}${adminSectionEditButtonHtml(sid)}${adminScopeToggleHtml(sid, toggleNext, toggleLabel)}${adminSectionRemoveButtonHtml(sid)}`,
+    `${pill}${adminSectionEditButtonHtml(sid)}${adminScopeToggleHtml(sid, toggleNext, toggleLabel)}${adminSectionHistoryButtonHtml(sid)}${adminSectionRemoveButtonHtml(sid)}`,
   );
 }
 

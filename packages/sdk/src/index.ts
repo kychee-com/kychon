@@ -150,6 +150,8 @@ export interface ActionResult<Result = JsonValue> {
   changed: ObjectRef[];
   audit: AuditRef | null;
   verify: QueryRef | null;
+  /** Content-history changesets this action recorded (revertible via history.revert). */
+  history?: { changesetIds: string[] };
 }
 
 export interface CapabilityRequestEnvelope<Input = JsonObject> {
@@ -468,6 +470,12 @@ export const ACTION_RESULT_SCHEMA = {
           },
         },
       ],
+    },
+    history: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['changesetIds'],
+      properties: { changesetIds: { type: 'array', items: { type: 'string' } } },
     },
   },
   $defs: {

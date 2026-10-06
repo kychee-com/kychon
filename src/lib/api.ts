@@ -11,6 +11,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@kychon/sdk';
+import { rememberChangesets } from './history-recent';
 
 declare global {
   interface Window {
@@ -499,6 +500,7 @@ async function executeOperation(operation: string, input: JsonObject): Promise<a
       idempotencyKey: createIdempotencyKey(operation.replace(/\./g, '-')),
     }),
   );
+  rememberChangesets(result);
   return representation(result);
 }
 
@@ -519,6 +521,7 @@ export async function execOp(operation: string, input: JsonObject = {}): Promise
       idempotencyKey: createIdempotencyKey(operation.replace(/\./g, '-')),
     }),
   );
+  rememberChangesets(result);
   return (result as { result?: unknown } | null)?.result ?? null;
 }
 

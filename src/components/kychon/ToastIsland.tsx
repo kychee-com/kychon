@@ -4,6 +4,9 @@ import { useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { toast, Toaster } from '@/components/kychon/ui';
 import { KYCHON_TOAST_EVENT, showToast, type KychonToast } from '@/lib/toast-events';
+import { openHistory, revertChangeset } from '@/lib/content-history';
+import { takeRecentChangesets } from '@/lib/history-recent';
+import { t } from '@/lib/i18n';
 
 let root: Root | null = null;
 let ready = false;
@@ -64,7 +67,13 @@ function notify({ message, type = 'info', description, duration }: KychonToast):
   const options = { description, duration };
 
   if (type === 'success') {
-    toast.success(message, options);
+    // A success toast right after an admin save confirms that save: offer
+    // Undo for the content-history changesets it recorded.
+    const changesetIds = takeRecentChangesets();
+    toast.success(message, {
+      ...options,
+      ...(changesetIds.length ? { action: { label: t('history.undo'), onClick: () => void undoChangesets(changesetIds) } } : {}),
+    });
     return;
   }
   if (type === 'error') {
@@ -86,4 +95,20 @@ export function emitKychonToast(detail: KychonToast): void {
   }
 
   notify(detail);
+}
+
+/** Undo a save: revert its changesets newest first, then reload to show the restored content. */
+async function undoChangesets(changesetIds: string[]): Promise<void> {
+  for (const id of [...changesetIds].sort((a, b) => Number(b) - Number(a))) {
+    const outcome = await revertChangeset(id);
+    if (!outcome.ok) {
+      toast.error(t('history.undo_failed'), {
+        description: outcome.message,
+        action: { label: t('history.open'), onClick: () => openHistory() },
+      });
+      return;
+    }
+  }
+  toast.success(t('history.undone'));
+  window.setTimeout(() => window.location.reload(), 600);
 }

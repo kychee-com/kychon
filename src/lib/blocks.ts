@@ -43,6 +43,7 @@ import {
   adminScopePillHtml,
   adminScopeToggleHtml,
   adminSectionEditButtonHtml,
+  adminSectionHistoryButtonHtml,
   adminSectionRemoveButtonHtml,
 } from './admin-action-controls.js';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
@@ -378,7 +379,7 @@ function adminWrap(section: Section, ctx: BlockRenderContext, inner: string, cla
     ? ` data-editable-config="${jsonAttr(section.config || {})}"`
     : '';
   const adminCtrls = sid != null && ctx.admin
-    ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
+    ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminScopeControls(section, ctx)}${adminSectionHistoryButtonHtml(sid)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
   return `<section data-section${classAttr}${sortable}${zoneAttr}${scopeAttr}${cfgAttr}>${dragHandle}${adminCtrls}${inner}</section>`;
@@ -660,7 +661,7 @@ function renderBackgroundHero(section: Section, ctx: BlockRenderContext): string
   const safeBg = rawBg ? safeCssUrl(rawBg) : '';
   const styleAttr = safeBg ? ` style="background-image:url('${safeBg}')"` : '';
   const adminCtrls = sid != null && ctx.admin
-    ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
+    ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionHistoryButtonHtml(sid)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
   const bgImageAttr = safeBg
@@ -782,7 +783,7 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   const sortable = sid != null ? ` data-sortable-id="sections.${sid}" data-sortable-field="position"` : '';
   const cfgAttr = sid != null && ctx.admin ? ` data-editable-config="${jsonAttr(cfg)}"` : '';
   const adminCtrls = sid != null && ctx.admin
-    ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionRemoveButtonHtml(sid)}`)
+    ? adminSectionActionsHtml(`${adminEditButton(section, ctx)}${adminSectionHistoryButtonHtml(sid)}${adminSectionRemoveButtonHtml(sid)}`)
     : '';
   const dragHandle = sid != null && ctx.admin ? adminDragHandleHtml() : '';
 

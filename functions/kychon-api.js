@@ -774,9 +774,15 @@ async function handleExecute(correlationId, envelope, operation, actor) {
 
     executionRecord = execution.record;
     const historyContext = { actor, executionId: executionRecord?.id ?? null, label: operation.name };
-    const data = await HISTORY_CONTEXT.run(historyContext, () =>
+    const outcome = await HISTORY_CONTEXT.run(historyContext, () =>
       executeMutation(operation.name, envelope.input, actor),
     );
+    // Report the content-history changesets this action recorded, so the admin
+    // UI can offer Undo (history.revert) right after a save.
+    const data =
+      historyContext.changesetIds?.length && isPlainObject(outcome) && Array.isArray(outcome.changed)
+        ? { ...outcome, history: { changesetIds: historyContext.changesetIds } }
+        : outcome;
     await completeExecution(executionRecord, data);
     await emitAppEvent(envelope, operation, data);
     return successResponse(correlationId, data);
@@ -1935,14 +1941,7 @@ async function revertChangeset(input, actor) {
   const txid = normalizeDbRows(result)[0]?.kychon_txid;
   const label = `Revert #${changesetId}`;
   if (txid) {
-    const who = historyActor(actor);
-    await adminDb().sql('SELECT kychon_claim_changeset($1::bigint, $2, $3, $4, $5::bigint) AS id', [
-      txid,
-      who.type,
-      who.id,
-      label,
-      HISTORY_CONTEXT.getStore()?.executionId ?? null,
-    ]);
+    await claimChangeset(txid, HISTORY_CONTEXT.getStore() ?? { actor, executionId: null, label }, label);
     await adminDb().sql('UPDATE changesets SET reverts_changeset_id = $1 WHERE txid = $2::bigint', [changesetId, txid]);
   }
   return actionResult(
@@ -2001,6 +2000,19 @@ async function handleHistoryQuery(correlationId, name, input, actor) {
       changesets,
       nextBeforeId: changesets.length === limit ? changesets[changesets.length - 1].id : null,
     });
+  }
+
+  if (name === 'history.revisions' && (input.changeset_id ?? input.changesetId) != null) {
+    // One changeset's revisions, with before/after (the site history detail view).
+    const changesetId = Number(input.changeset_id ?? input.changesetId);
+    if (!Number.isInteger(changesetId) || changesetId <= 0)
+      return invalid('history.revisions requires a numeric changeset_id.');
+    const result = await adminDb().sql(
+      `SELECT r.id, r.table_name, r.row_key, r.op, r.before, r.after, r.created_at, r.changeset_id
+         FROM revisions r WHERE r.changeset_id = $1 ORDER BY r.id LIMIT 500`,
+      [changesetId],
+    );
+    return successResponse(correlationId, { changeset_id: changesetId, revisions: normalizeDbRows(result) });
   }
 
   if (name === 'history.revisions') {
@@ -2367,15 +2379,20 @@ function historyActor(actor) {
   return { type: isAdminLike(actor || {}) ? 'admin' : 'jwt', id: actorId };
 }
 
-async function claimChangeset(txid, context) {
+async function claimChangeset(txid, context, label = context.label) {
   const who = historyActor(context.actor);
-  await adminDb().sql('SELECT kychon_claim_changeset($1::bigint, $2, $3, $4, $5::bigint) AS id', [
+  const result = await adminDb().sql('SELECT kychon_claim_changeset($1::bigint, $2, $3, $4, $5::bigint) AS id', [
     txid,
     who.type,
     who.id,
-    context.label,
+    label,
     context.executionId,
   ]);
+  const id = normalizeDbRows(result)[0]?.id;
+  if (id != null) {
+    context.changesetIds = [...new Set([...(context.changesetIds || []), String(id)])];
+  }
+  return id;
 }
 
 async function insertRowSql(table, row) {

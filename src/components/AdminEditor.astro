@@ -35,6 +35,8 @@ import { Input } from './kychon/ui';
   } from '../lib/admin-action-prompts';
   import { uploadFileContentAddressed } from '../lib/storage-upload';
   import { showToast as showKychonToast } from '../lib/toast-events';
+  import { openHistory } from '../lib/content-history';
+  import { t } from '../lib/i18n';
 
   type AdminEditorControlsModule = typeof import('./kychon/AdminEditorControlsIsland');
   type AdminActionPromptModule = typeof import('./kychon/AdminActionPromptIsland');
@@ -852,6 +854,14 @@ import { Input } from './kychon/ui';
   }
 
   async function handleAdminActionClick(event: MouseEvent) {
+    const historyBtn = adminActionEventTarget(event, 'data-section-history');
+    if (historyBtn) {
+      event.preventDefault();
+      const id = historyBtn.dataset.sectionHistory;
+      if (id) openHistory({ table: 'sections', key: id, title: t('history.title') });
+      return;
+    }
+
     const removeBtn = adminActionEventTarget(event, 'data-section-remove');
     if (removeBtn) {
       event.preventDefault();

@@ -1,0 +1,9 @@
+---
+// HistoryHost.astro — top-level mount of the admin content-history dialog so
+// any admin UI can open it with a `kychon:history-open` event (site-wide, or
+// `{ table, key, title }` for one block/page). Self-hides for non-admins.
+import HistoryHost from './kychon/HistoryHost';
+---
+<div transition:persist>
+  <HistoryHost client:idle />
+</div>
