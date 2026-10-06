@@ -46,6 +46,11 @@ env:
   SILVER_PINES_ANON_KEY: ${{ vars.SILVER_PINES_ANON_KEY }}
   BARRIO_PROJECT_ID: ${{ vars.BARRIO_PROJECT_ID }}
   BARRIO_ANON_KEY: ${{ vars.BARRIO_ANON_KEY }}
+  # Stable Astro encryption key. Without it Astro mints a random key per
+  # build, which changes the ssr bundle's code hash and redeploys it on every
+  # deploy. Kychon uses no server islands or actions, so it guards nothing
+  # today; it's a secret so adopting either later is safe.
+  ASTRO_KEY: ${{ secrets.ASTRO_KEY }}
   # Acknowledge platform-side confirmation-required warnings. The chunk-hash
   # cascade from any cross-cutting code change (e.g. adding kychon-image.ts
   # as a shared import across 40+ JS chunks) renames enough site paths to

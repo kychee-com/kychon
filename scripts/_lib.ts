@@ -190,6 +190,11 @@ export function buildAstro(opts: BuildAstroOptions = {}): void {
     delete env.KYCHON_CHROME_SNAPSHOT;
     console.log("First-byte chrome source: typed seed or neutral fallback");
   }
+  if (!env.ASTRO_KEY) {
+    console.warn(
+      "ASTRO_KEY is not set: Astro will mint a random key, so the ssr function's code hash changes and it redeploys even if nothing changed.",
+    );
+  }
 
   console.log("Generating seed.sql from active project's TS seed...");
   execSync("npx tsx scripts/generate-seed-sql.ts", {
