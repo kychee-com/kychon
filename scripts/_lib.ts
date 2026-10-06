@@ -54,6 +54,7 @@ import {
   writeEngineReleaseManifest,
   type EngineReleaseManifest,
 } from "./release-manifest.ts";
+import { type RestorePointReason, takeRestorePoint } from "./restore-points.ts";
 import type { PublicStaticPathSpec } from "../src/lib/clean-routes.ts";
 
 type Run402Instance = ReturnType<typeof run402>;
@@ -578,6 +579,11 @@ export interface RunDeployOptions {
    * content. Refused unless `confirmSubdomain` equals `subdomain`.
    */
   reimport?: { confirmSubdomain: string };
+  /**
+   * Take a Run402 snapshot before applying (e.g. `before_engine_upgrade` from
+   * the fleet upgrade). A re-import always takes `before_reimport`.
+   */
+  restorePoint?: RestorePointReason;
   /** Function names to skip. */
   excludeFunctions?: readonly string[];
   /** Path to an extra function file to add. */
@@ -1048,6 +1054,11 @@ export async function runDeploy(
     }
     return applyOptions;
   };
+
+  // A re-import replaces the portal's content with the seed, and an engine
+  // upgrade migrates it; keep a way back.
+  const restorePoint = reimport ? "before_reimport" : opts.restorePoint;
+  if (restorePoint) await takeRestorePoint(project.snapshots, restorePoint);
 
   const { result: applied, rebuilt } = await applyWithPostImportRebuild({
     reimport,

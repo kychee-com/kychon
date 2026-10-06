@@ -19,7 +19,7 @@ import { run402 } from "@run402/sdk/node";
 
 import { findDemoPortalByDeployKey } from "../src/lib/demo-portals.ts";
 import { bootstrapDemoAccounts } from "./bootstrap-demo.ts";
-import { prettyPrintError, ROOT, runDeploy, type Run402Instance, type RunDeployResult } from "./_lib.ts";
+import { prettyPrintError, ROOT, runDeploy, type Run402Instance, type RunDeployOptions, type RunDeployResult } from "./_lib.ts";
 
 export interface DemoConfig {
   /** Display name for log headers ("Eagles", "Silver Pines", "Barrio Unido"). */
@@ -63,6 +63,8 @@ export interface DeployOneDemoOptions {
   dryRun?: boolean;
   /** Continue past confirmation-required Run402 deploy warnings. */
   allowWarnings?: boolean;
+  /** Snapshot the demo before applying (the fleet upgrade passes `before_engine_upgrade`). */
+  restorePoint?: RunDeployOptions["restorePoint"];
 }
 
 export const DEMOS: Record<string, DemoConfig> = {
@@ -285,6 +287,7 @@ export async function deployOneDemo(
       extraFunction: config.resetDemoFile,
       allowWarnings: opts.allowWarnings ?? process.env.RUN402_ALLOW_WARNINGS === "true",
       dryRun: opts.dryRun === true,
+      ...(opts.restorePoint ? { restorePoint: opts.restorePoint } : {}),
       // Demos re-generate reset-demo.js on every run; the other 11 functions
       // only change when the engine version bumps. Patch mode skips unchanged
       // function uploads and only sends reset-demo (and any engine-bumped fns).
