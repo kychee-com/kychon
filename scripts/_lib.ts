@@ -1489,10 +1489,33 @@ export interface PatchDeployResult extends RunDeployResult {
   siteFilesChanged: number;
   /** Site files identical to the live release — skipped from upload. */
   siteFilesSkipped: number;
-  /** Function specs uploaded (new + changed). */
+  /**
+   * Functions the gateway redeploys (new + changed). After a real apply this
+   * comes from the gateway's plan diff; on a dry run it's the client-side
+   * estimate (every function when the live release can't be read, as in CI).
+   */
   functionsChanged: number;
-  /** Functions identical to the live release — skipped from upload. */
+  /** Functions the gateway left as they were (no redeploy). */
   functionsSkipped: number;
+  /** Names the gateway redeployed. Absent when no plan diff was available. */
+  functionsRedeployed?: string[];
+}
+
+/**
+ * Which functions the gateway actually redeploys, from the apply plan diff.
+ * A `functions.replace` sends every function, but the gateway compares each
+ * against the live release and only redeploys new or changed ones, so this,
+ * not the size of the spec, is the real count. Null when the diff carries no
+ * functions bucket.
+ */
+export function gatewayFunctionChanges(
+  diff: { functions?: { added: string[]; changed: Array<{ name: string }> } } | undefined,
+  totalFunctions: number,
+): { changed: number; skipped: number; names: string[] } | null {
+  const fns = diff?.functions;
+  if (!fns) return null;
+  const names = [...new Set([...fns.added, ...fns.changed.map((c) => c.name)])].sort();
+  return { changed: names.length, skipped: Math.max(0, totalFunctions - names.length), names };
 }
 
 /**
@@ -1662,7 +1685,7 @@ export async function patchDeploy(
   console.log(
     `Patch deploy to ${opts.projectId} (subdomain: ${opts.subdomain}) [${modeSuffix}]\n` +
     `${siteLine}\n` +
-    `  Functions: ${fnDiff ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped` : `${fnNames.length} (replace)`} (of ${fnNames.length} total, ${scheduledFns.length} scheduled)\n` +
+    `  Functions: ${fnDiff ? `${fnDiff.changed} changed, ${fnDiff.skipped} skipped` : `${fnNames.length} sent as replace (no live inventory; gateway redeploys only changed ones)`} (of ${fnNames.length} total, ${scheduledFns.length} scheduled)\n` +
     `  i18n: (omitted — CI OIDC forbids; carries forward from base release)\n` +
     `  ${sql.length} migration bytes (id: ${migrationId})`,
   );
@@ -1699,11 +1722,19 @@ export async function patchDeploy(
   const result = await project.apply(spec, applyOptions);
   const elapsedMs = Date.now() - startedAt;
 
+  const gatewayFns = gatewayFunctionChanges(result.diff, fnNames.length);
+
   console.log(`\nPatch deploy successful in ${(elapsedMs / 1000).toFixed(1)}s`);
   console.log(`  Release id: ${result.release_id}`);
   console.log(`  Operation id: ${result.operation_id}`);
   for (const [k, v] of Object.entries(result.urls)) {
     console.log(`  ${k}: ${v}`);
+  }
+  if (gatewayFns) {
+    console.log(
+      `  Functions redeployed by gateway: ${gatewayFns.changed} of ${fnNames.length}` +
+      (gatewayFns.names.length > 0 ? ` (${gatewayFns.names.join(", ")})` : ""),
+    );
   }
 
   // Post-deploy error gate (run402 release-error-rollup) — SHARED with
@@ -1729,8 +1760,9 @@ export async function patchDeploy(
     elapsedMs,
     siteFilesChanged: siteChanged,
     siteFilesSkipped: siteSkipped,
-    functionsChanged: fnDiff?.changed ?? fnNames.length,
-    functionsSkipped: fnDiff?.skipped ?? 0,
+    functionsChanged: gatewayFns?.changed ?? fnDiff?.changed ?? fnNames.length,
+    functionsSkipped: gatewayFns?.skipped ?? fnDiff?.skipped ?? 0,
+    ...(gatewayFns ? { functionsRedeployed: gatewayFns.names } : {}),
   };
 }
 

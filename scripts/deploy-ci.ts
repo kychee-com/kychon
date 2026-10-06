@@ -100,7 +100,8 @@ try {
   // bytes server-side, so the client-side changed count is unknown).
   const siteChangedLabel = result.siteFilesChanged < 0 ? "(astro slice, CAS-deduped)" : `${result.siteFilesChanged} changed, ${result.siteFilesSkipped} skipped`;
   console.log(`  Site:      ${siteChangedLabel}`);
-  console.log(`  Functions: ${result.functionsChanged} changed, ${result.functionsSkipped} skipped`);
+  const redeployedNames = result.functionsRedeployed?.length ? ` (${result.functionsRedeployed.join(", ")})` : "";
+  console.log(`  Functions: ${result.functionsChanged} redeployed, ${result.functionsSkipped} unchanged${redeployedNames}`);
   console.log(`  Live at:   ${config.liveUrl}`);
 } finally {
   cleanupAssets();

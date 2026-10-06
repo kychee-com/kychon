@@ -118,6 +118,13 @@ describe('inlineAssetManifest', () => {
     }
     expect(JSON.stringify(slim).length).toBeLessThan(JSON.stringify(full).length / 3);
   });
+
+  it('is byte-identical across builds that differ only in generated_at', () => {
+    const a = inlineAssetManifest({ ...full, generated_at: '2026-10-06T07:47:12.943Z' });
+    const b = inlineAssetManifest({ ...full, generated_at: '2026-10-06T07:51:11.542Z' });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(a.generated_at).toBe('');
+  });
 });
 
 describe('rewriteAssetUrlsInHtml', () => {

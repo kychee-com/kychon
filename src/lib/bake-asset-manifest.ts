@@ -48,6 +48,10 @@ const INLINE_DROP_VARIANT_FIELDS = new Set(['sha256', 'immutable_url', 'cdn_immu
  * (~300 photos) inlined the raw manifest at ~1.7 MB per page; this keeps it to
  * what `kychon-image.ts` needs (URLs, dims, blurhash, variants). The full file
  * is still served at `/_assets-manifest.json`.
+ *
+ * `generated_at` is blanked: `@run402/astro` stamps it with the build's
+ * wall-clock time and nothing in the browser reads it, so carrying it would
+ * change every baked page's bytes on every deploy even when no asset changed.
  */
 export function inlineAssetManifest(manifest: AssetManifest): AssetManifest {
   const assets: AssetManifest['assets'] = {};
@@ -73,7 +77,7 @@ export function inlineAssetManifest(manifest: AssetManifest): AssetManifest {
     }
     assets[key] = slim as unknown as AssetManifest['assets'][string];
   }
-  return { ...manifest, assets };
+  return { ...manifest, generated_at: '', assets };
 }
 
 /**
