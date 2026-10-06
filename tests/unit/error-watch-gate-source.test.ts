@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyErrorWatchOutcome,
   errorWatchCanStopEarly,
+  invocationsSinceWatchStart,
   pickErrorCommand,
   pickErrorSampleId,
   renderErrorVerdict,
@@ -86,28 +87,50 @@ describe('error fingerprint field extraction', () => {
 });
 
 describe('errorWatchCanStopEarly — adaptive clean exit', () => {
-  const base = { elapsedSeconds: 60, invocations: 20, newFingerprints: 0, minSeconds: 60, minInvocations: 20 };
+  const base = { elapsedSeconds: 60, newInvocations: 20, newFingerprints: 0, minSeconds: 60, minInvocations: 20 };
 
   it('stops once the minimum time and traffic are both met with zero new fingerprints', () => {
     expect(errorWatchCanStopEarly(base)).toBe(true);
-    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 75, invocations: 116 })).toBe(true);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 75, newInvocations: 116 })).toBe(true);
   });
 
   it('keeps watching before the minimum time, even with plenty of traffic', () => {
-    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 30, invocations: 500 })).toBe(false);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 30, newInvocations: 500 })).toBe(false);
   });
 
   it('keeps watching while traffic is below the minimum — 0-over-0 is never health', () => {
-    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 290, invocations: 0 })).toBe(false);
-    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 120, invocations: 19 })).toBe(false);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 290, newInvocations: 0 })).toBe(false);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 120, newInvocations: 19 })).toBe(false);
   });
 
   it('never stops early as clean when a new fingerprint exists', () => {
-    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 200, invocations: 200, newFingerprints: 1 })).toBe(false);
+    expect(errorWatchCanStopEarly({ ...base, elapsedSeconds: 200, newInvocations: 200, newFingerprints: 1 })).toBe(
+      false,
+    );
   });
 
   it('minSeconds <= 0 or minInvocations <= 0 still requires the other bound', () => {
-    expect(errorWatchCanStopEarly({ ...base, minSeconds: 0, elapsedSeconds: 0, invocations: 20 })).toBe(true);
-    expect(errorWatchCanStopEarly({ ...base, minInvocations: 0, invocations: 0 })).toBe(true);
+    expect(errorWatchCanStopEarly({ ...base, minSeconds: 0, elapsedSeconds: 0, newInvocations: 20 })).toBe(true);
+    expect(errorWatchCanStopEarly({ ...base, minInvocations: 0, newInvocations: 0 })).toBe(true);
+  });
+});
+
+describe('invocationsSinceWatchStart — traffic the new release actually served', () => {
+  it('a rolling count that never moves (131 → 131 over 62s, eagles 2026-10-06) is zero new traffic', () => {
+    expect(invocationsSinceWatchStart(131, 131)).toBe(0);
+    expect(
+      errorWatchCanStopEarly({
+        elapsedSeconds: 62,
+        newInvocations: invocationsSinceWatchStart(131, 131),
+        newFingerprints: 0,
+        minSeconds: 60,
+        minInvocations: 20,
+      }),
+    ).toBe(false);
+  });
+
+  it('counts growth from the first poll, never negative when the rolling window shrinks', () => {
+    expect(invocationsSinceWatchStart(131, 160)).toBe(29);
+    expect(invocationsSinceWatchStart(131, 90)).toBe(0);
   });
 });

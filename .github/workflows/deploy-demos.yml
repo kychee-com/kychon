@@ -56,7 +56,7 @@ env:
   # Post-deploy error gate (run402 release-error-rollup). After each demo's
   # apply lands, patchDeploy watches the new release for error fingerprints
   # FIRST seen under it and fails the job (exit 1) if any appear, using the
-  # demo's anon key. The gate passes early after 60s + 20 invocations with no
+  # demo's anon key. The gate passes early after 60s + 20 new invocations with no
   # new errors; this caps a low-traffic demo at 120s (demos are reset hourly
   # and replaced by the next push, so a long hold buys little). Set
   # RUN402_SKIP_ERROR_WATCH=1 (or this to "0") to skip. See README

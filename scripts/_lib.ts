@@ -727,7 +727,7 @@ export const ERROR_WATCH_DEFAULT_SECONDS = 300;
 export const ERROR_WATCH_INTERVAL_MS = 15_000;
 /** Adaptive clean exit: earliest the watch may pass (seconds). RUN402_ERROR_WATCH_MIN_SECONDS. */
 export const ERROR_WATCH_DEFAULT_MIN_SECONDS = 60;
-/** Adaptive clean exit: invocations the release must serve first. RUN402_ERROR_WATCH_MIN_INVOCATIONS. */
+/** Adaptive clean exit: invocations served after the watch starts. RUN402_ERROR_WATCH_MIN_INVOCATIONS. */
 export const ERROR_WATCH_DEFAULT_MIN_INVOCATIONS = 20;
 
 /** One occurrence pointer id for a fingerprint row (newest, else the pinned first). */
@@ -763,13 +763,13 @@ export function classifyErrorWatchOutcome(observed: {
 
 /**
  * Adaptive clean exit. The window is a cap, not a fixed wait: once the release
- * has been live `minSeconds` AND served `minInvocations` with zero new
- * fingerprints, the gate passes. A release with no traffic never stops early
+ * has been live `minSeconds` AND served `minInvocations` NEW invocations
+ * (see invocationsSinceWatchStart) with zero new fingerprints, the gate passes. A release with no traffic never stops early
  * (0-over-0 is not health) and still waits out the full window.
  */
 export function errorWatchCanStopEarly(observed: {
   elapsedSeconds: number;
-  invocations: number;
+  newInvocations: number;
   newFingerprints: number;
   minSeconds: number;
   minInvocations: number;
@@ -777,8 +777,18 @@ export function errorWatchCanStopEarly(observed: {
   return (
     observed.newFingerprints === 0 &&
     observed.elapsedSeconds >= observed.minSeconds &&
-    observed.invocations >= observed.minInvocations
+    observed.newInvocations >= observed.minInvocations
   );
+}
+
+/**
+ * Invocations the release served since the watch started. The verdict's
+ * `invocations_in_window` is a rolling count that already includes traffic
+ * from before this release (eagles read 131 on the first poll and stayed
+ * there), so only growth from the first poll counts as new traffic.
+ */
+export function invocationsSinceWatchStart(baseline: number, current: number): number {
+  return Math.max(0, current - baseline);
 }
 
 /** Human render for the fail-fast (exit 1) case — one block per new identity. */
@@ -897,11 +907,12 @@ export async function watchReleaseErrors(opts: WatchReleaseErrorsOptions): Promi
 
   console.log(
     `\n[error-watch] watching release ${opts.releaseId} for new error fingerprints ` +
-      `(window ${windowSeconds}s, poll ${Math.round(intervalMs / 1000)}s; passes early after ${minSeconds}s + ${minInvocations} invocations)…`,
+      `(window ${windowSeconds}s, poll ${Math.round(intervalMs / 1000)}s; passes early after ${minSeconds}s + ${minInvocations} new invocations)…`,
   );
 
   let anyVerdict = false;
   let lastVerdict: Record<string, unknown> | undefined;
+  let baselineInvocations: number | null = null;
   let poll = 0;
   for (;;) {
     poll += 1;
@@ -918,16 +929,18 @@ export async function watchReleaseErrors(opts: WatchReleaseErrorsOptions): Promi
       const newCount = Number(page.verdict["new_fingerprints"] ?? 0);
       const elapsed = Math.round((Date.now() - startedAt) / 1000);
       const invocations = Number(page.verdict["invocations_in_window"] ?? 0);
+      baselineInvocations ??= invocations;
+      const newInvocations = invocationsSinceWatchStart(baselineInvocations, invocations);
       process.stderr.write(
-        `[error-watch] poll ${poll} · ${elapsed}s elapsed · ${invocations} invocation(s) · ${newCount} new fingerprint(s) so far\n`,
+        `[error-watch] poll ${poll} · ${elapsed}s elapsed · ${newInvocations} new invocation(s) · ${newCount} new fingerprint(s) so far\n`,
       );
       if (classifyErrorWatchOutcome({ anyVerdict, newFingerprints: newCount }) === "new") {
         console.error(renderNewFingerprintFailure(page, opts.releaseId));
         console.error("[error-watch] deploy gate FAILED — revert or fix; the new release introduced errors.");
         process.exit(1);
       }
-      if (errorWatchCanStopEarly({ elapsedSeconds: elapsed, invocations, newFingerprints: newCount, minSeconds, minInvocations })) {
-        console.log(`[error-watch] passing early: ${elapsed}s live, ${invocations} invocations, 0 new.`);
+      if (errorWatchCanStopEarly({ elapsedSeconds: elapsed, newInvocations, newFingerprints: newCount, minSeconds, minInvocations })) {
+        console.log(`[error-watch] passing early: ${elapsed}s live, ${newInvocations} new invocations, 0 new errors.`);
         break;
       }
     }
