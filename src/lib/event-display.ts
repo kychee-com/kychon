@@ -202,3 +202,13 @@ export function formatEventDateTimeStable(
     { ...opts, includeTimezone: true },
   );
 }
+
+/**
+ * The calendar day (`YYYY-MM-DD`) an event falls on, pinned to the same zone
+ * `formatEventDateTimeStable` labels it in (its own source zone, UTC when it
+ * has none) so server HTML and the hydration pass bucket it identically.
+ */
+export function eventDayKeyStable(event: EventTimeSource): string {
+  const ownZone = isValidTimeZone(event.source_timezone);
+  return eventDayKey({ ...event, source_timezone: ownZone ? event.source_timezone : 'UTC', time_display_mode: 'source' });
+}

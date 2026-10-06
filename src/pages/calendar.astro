@@ -27,5 +27,5 @@ const result = await ssrEventsList<EventsListResult>({ host, order: 'starts_at.a
 const initialEvents = result?.rows ?? [];
 ---
 <Portal title="Calendar">
-  <CalendarPageApp initialEvents={initialEvents} client:load />
+  <CalendarPageApp initialEvents={initialEvents} renderedAt={new Date().toISOString()} client:load />
 </Portal>

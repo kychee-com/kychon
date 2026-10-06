@@ -16,8 +16,8 @@ import {
 import { get, getEvents } from '@/lib/api';
 import { getSession } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
-import { eventDayKey } from '@/lib/event-display';
-import { useEventDateTime } from '@/lib/use-event-date-time';
+import { eventDayKey, eventDayKeyStable } from '@/lib/event-display';
+import { useEventDateTime, useHydrated } from '@/lib/use-event-date-time';
 import type { Event } from '@/schemas/event';
 
 type CalendarFilter = 'all' | 'members' | 'open' | 'my_rsvps' | 'past';
@@ -30,78 +30,110 @@ const FILTERS: Array<{ label: string; value: CalendarFilter }> = [
   { label: 'Past', value: 'past' },
 ];
 
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+/** A calendar month (`month` 0-based). A month's grid is the same in every zone. */
+interface CalendarMonth {
+  year: number;
+  month: number;
 }
 
-function startOfDay(date: Date): Date {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
+interface CalendarDay {
+  key: string;
+  day: number;
+  inMonth: boolean;
 }
 
-function startOfWeek(date: Date): Date {
-  const next = new Date(date);
-  next.setDate(date.getDate() - date.getDay());
-  next.setHours(0, 0, 0, 0);
-  return next;
+/**
+ * The calendar's "now": current month, today, and how event days and labels
+ * are computed. The server render and the hydration pass must agree, so they
+ * use the request's render time in UTC, the fixed 'en' locale, and each
+ * event's source zone (`eventDayKeyStable`, matching `formatEventDateTimeStable`).
+ * After hydration the grid switches to the visitor's clock, zone, locale and
+ * the site's display settings.
+ */
+interface CalendarClock {
+  month: CalendarMonth;
+  todayKey: string;
+  startOfToday: number;
+  locale: string | undefined;
+  dayKeyOf: (event: Event) => string;
 }
 
-function addDays(date: Date, amount: number): Date {
-  const next = new Date(date);
-  next.setDate(date.getDate() + amount);
-  return next;
+const DAY_MS = 86_400_000;
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
 }
 
-function addMonths(date: Date, amount: number): Date {
-  const next = new Date(date);
-  next.setMonth(date.getMonth() + amount);
-  return startOfMonth(next);
+function localDayKey(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function dayKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function utcDayKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
-function sameDay(left: Date, right: Date): boolean {
-  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+function stableClock(now: Date): CalendarClock {
+  return {
+    month: { year: now.getUTCFullYear(), month: now.getUTCMonth() },
+    todayKey: utcDayKey(now),
+    startOfToday: Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    locale: 'en',
+    dayKeyOf: eventDayKeyStable,
+  };
 }
 
-function monthLabel(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+function localClock(now: Date): CalendarClock {
+  return {
+    month: { year: now.getFullYear(), month: now.getMonth() },
+    todayKey: localDayKey(now),
+    startOfToday: new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(),
+    locale: undefined,
+    dayKeyOf: (event) => eventDayKey(event, siteConfig),
+  };
 }
 
-function weekdayLabels(): string[] {
-  const start = startOfWeek(new Date(2026, 0, 4));
-  return Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(addDays(start, index)));
+function addMonths(value: CalendarMonth, amount: number): CalendarMonth {
+  const next = new Date(Date.UTC(value.year, value.month + amount, 1));
+  return { year: next.getUTCFullYear(), month: next.getUTCMonth() };
 }
 
-function visibleDays(month: Date): Date[] {
-  const first = startOfWeek(startOfMonth(month));
-  return Array.from({ length: 42 }, (_, index) => addDays(first, index));
+function monthLabel(value: CalendarMonth, locale: string | undefined): string {
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(value.year, value.month, 1));
 }
 
-function isPastEvent(event: Event, now: Date): boolean {
-  return new Date(event.starts_at) < startOfDay(now);
+function weekdayLabels(locale: string | undefined): string[] {
+  const format = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+  // 2026-01-04 is a Sunday.
+  return Array.from({ length: 7 }, (_, index) => format.format(Date.UTC(2026, 0, 4 + index)));
 }
 
-function filterEvents(events: Event[], filter: CalendarFilter, myRsvpEventIds: Set<number>, now: Date): Event[] {
+function visibleDays(value: CalendarMonth): CalendarDay[] {
+  const first = Date.UTC(value.year, value.month, 1);
+  const start = first - new Date(first).getUTCDay() * DAY_MS;
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start + index * DAY_MS);
+    return { key: utcDayKey(date), day: date.getUTCDate(), inMonth: date.getUTCMonth() === value.month };
+  });
+}
+
+function isPastEvent(event: Event, startOfToday: number): boolean {
+  return new Date(event.starts_at).getTime() < startOfToday;
+}
+
+function filterEvents(events: Event[], filter: CalendarFilter, myRsvpEventIds: Set<number>, startOfToday: number): Event[] {
   return events.filter((event) => {
     if (filter === 'members' && !event.is_members_only) return false;
     if (filter === 'open' && event.is_members_only) return false;
     if (filter === 'my_rsvps' && !myRsvpEventIds.has(event.id)) return false;
-    if (filter === 'past') return isPastEvent(event, now);
-    return !isPastEvent(event, now);
+    if (filter === 'past') return isPastEvent(event, startOfToday);
+    return !isPastEvent(event, startOfToday);
   });
 }
 
-function eventsByDay(events: Event[]): Map<string, Event[]> {
+function eventsByDay(events: Event[], dayKeyOf: (event: Event) => string): Map<string, Event[]> {
   const byDay = new Map<string, Event[]>();
   for (const event of events) {
-    const key = eventDayKey(event, siteConfig) || dayKey(new Date(event.starts_at));
+    const key = dayKeyOf(event);
     const list = byDay.get(key) || [];
     list.push(event);
     byDay.set(key, list);
@@ -173,36 +205,39 @@ function AgendaEvent({ event }: { event: Event }) {
 function CalendarGrid({
   days,
   events,
-  month,
+  locale,
+  todayKey,
 }: {
-  days: Date[];
+  days: CalendarDay[];
   events: Map<string, Event[]>;
-  month: Date;
+  locale: string | undefined;
+  todayKey: string;
 }) {
-  const today = new Date();
   return (
     <Card className="overflow-hidden">
       <div className="grid grid-cols-7 border-b border-border bg-muted/40 text-center text-xs font-medium text-muted-foreground">
-        {weekdayLabels().map((label) => (
+        {weekdayLabels(locale).map((label) => (
           <div className="px-2 py-2" key={label}>
             {label}
           </div>
         ))}
       </div>
       <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-7 sm:divide-x sm:divide-y-0">
-        {days.map((date) => {
-          const key = dayKey(date);
-          const dayEvents = events.get(key) || [];
-          const inMonth = date.getMonth() === month.getMonth();
+        {days.map((day) => {
+          const dayEvents = events.get(day.key) || [];
           return (
-            <div className={`min-h-28 space-y-2 p-3 ${inMonth ? 'bg-background' : 'bg-muted/20 text-muted-foreground'}`} key={key}>
+            <div
+              className={`min-h-28 space-y-2 p-3 ${day.inMonth ? 'bg-background' : 'bg-muted/20 text-muted-foreground'}`}
+              data-day={day.key}
+              key={day.key}
+            >
               <div className="flex items-center justify-between gap-2">
                 <span
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium ${
-                    sameDay(date, today) ? 'bg-primary text-primary-foreground' : ''
+                    day.key === todayKey ? 'bg-primary text-primary-foreground' : ''
                   }`}
                 >
-                  {date.getDate()}
+                  {day.day}
                 </span>
                 {dayEvents.length ? <Badge variant="secondary">{dayEvents.length}</Badge> : null}
               </div>
@@ -237,13 +272,19 @@ interface CalendarPageAppProps {
    * and hydrate.
    */
   initialEvents?: Event[];
+  /**
+   * When the server rendered the page (ISO). The hydration pass reuses it as
+   * "now" so the month, today and past/upcoming split match the server HTML
+   * even across a UTC midnight; without it the first pass reads the clock.
+   */
+  renderedAt?: string;
 }
 
-export default function CalendarPageApp({ initialEvents }: CalendarPageAppProps = {}) {
+export default function CalendarPageApp({ initialEvents, renderedAt }: CalendarPageAppProps = {}) {
   const [events, setEvents] = useState<Event[]>(() => initialEvents ?? []);
   const [myRsvpEventIds, setMyRsvpEventIds] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<CalendarFilter>('all');
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const [shownMonth, setShownMonth] = useState<CalendarMonth | null>(null);
   const [loading, setLoading] = useState(() => !initialEvents);
   const [error, setError] = useState('');
 
@@ -291,11 +332,18 @@ export default function CalendarPageApp({ initialEvents }: CalendarPageAppProps 
     };
   }, [loadCalendar]);
 
+  const hydrated = useHydrated();
+  const clock = useMemo(
+    () => (hydrated ? localClock(new Date()) : stableClock(renderedAt ? new Date(renderedAt) : new Date())),
+    [hydrated, renderedAt],
+  );
+  const month = shownMonth ?? clock.month;
+
   const filteredEvents = useMemo(() => {
-    return filterEvents(events, filter, myRsvpEventIds, new Date()).sort((left, right) => left.starts_at.localeCompare(right.starts_at));
-  }, [events, filter, myRsvpEventIds]);
+    return filterEvents(events, filter, myRsvpEventIds, clock.startOfToday).sort((left, right) => left.starts_at.localeCompare(right.starts_at));
+  }, [events, filter, myRsvpEventIds, clock]);
   const visible = useMemo(() => visibleDays(month), [month]);
-  const dayEvents = useMemo(() => eventsByDay(filteredEvents), [filteredEvents]);
+  const dayEvents = useMemo(() => eventsByDay(filteredEvents, clock.dayKeyOf), [filteredEvents, clock]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -328,17 +376,17 @@ export default function CalendarPageApp({ initialEvents }: CalendarPageAppProps 
         <Card>
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <Button aria-label="Previous month" onClick={() => setMonth((value) => addMonths(value, -1))} size="icon" type="button" variant="outline">
+              <Button aria-label="Previous month" onClick={() => setShownMonth(addMonths(month, -1))} size="icon" type="button" variant="outline">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button onClick={() => setMonth(startOfMonth(new Date()))} type="button" variant="outline">
+              <Button onClick={() => setShownMonth(null)} type="button" variant="outline">
                 Today
               </Button>
-              <Button aria-label="Next month" onClick={() => setMonth((value) => addMonths(value, 1))} size="icon" type="button" variant="outline">
+              <Button aria-label="Next month" onClick={() => setShownMonth(addMonths(month, 1))} size="icon" type="button" variant="outline">
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <div className="text-lg font-semibold">{monthLabel(month)}</div>
+            <div className="text-lg font-semibold">{monthLabel(month, clock.locale)}</div>
           </CardContent>
         </Card>
 
@@ -356,7 +404,7 @@ export default function CalendarPageApp({ initialEvents }: CalendarPageAppProps 
           </Card>
         ) : (
           <>
-            <CalendarGrid days={visible} events={dayEvents} month={month} />
+            <CalendarGrid days={visible} events={dayEvents} locale={clock.locale} todayKey={clock.todayKey} />
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold tracking-normal">Agenda</h3>
