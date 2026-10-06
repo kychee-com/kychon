@@ -137,3 +137,16 @@ function djb2(str: string): string {
   // URL-safe (a-z0-9), suitable for HTML attributes.
   return (hash >>> 0).toString(36);
 }
+
+/**
+ * Whether the SSR-baked main zone can stay in place. The bake is always the
+ * visitor render (no section ids, admin controls or `data-editable-config`),
+ * so an admin needs the re-render even when the content signature matches.
+ */
+export function canKeepBakedMainZone(input: {
+  bakedSignature: string | null;
+  currentSignature: string;
+  admin: boolean;
+}): boolean {
+  return !input.admin && input.bakedSignature != null && input.bakedSignature === input.currentSignature;
+}

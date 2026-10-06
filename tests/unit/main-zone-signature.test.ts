@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Section } from '@/lib/blocks';
-import { computeMainZoneSignature } from '@/lib/main-zone-signature';
+import { canKeepBakedMainZone, computeMainZoneSignature } from '@/lib/main-zone-signature';
 
 function baseSection(overrides: Partial<Section> = {}): Section {
   return {
@@ -123,5 +123,25 @@ describe('computeMainZoneSignature', () => {
     const sigVisible = computeMainZoneSignature({ sections: [visible], manifestGeneratedAt: null });
     const sigHidden = computeMainZoneSignature({ sections: [hidden], manifestGeneratedAt: null });
     expect(sigVisible).not.toBe(sigHidden);
+  });
+});
+
+describe('canKeepBakedMainZone', () => {
+  const sig = computeMainZoneSignature({ sections: [baseSection()], manifestGeneratedAt: null });
+
+  it('keeps the bake for visitors when the signature matches', () => {
+    expect(canKeepBakedMainZone({ bakedSignature: sig, currentSignature: sig, admin: false })).toBe(true);
+  });
+
+  it('re-renders when the signature drifts', () => {
+    expect(canKeepBakedMainZone({ bakedSignature: 'stale', currentSignature: sig, admin: false })).toBe(false);
+  });
+
+  it('always re-renders for admins: the bake has no section ids or editing controls', () => {
+    expect(canKeepBakedMainZone({ bakedSignature: sig, currentSignature: sig, admin: true })).toBe(false);
+  });
+
+  it('re-renders when there is no bake', () => {
+    expect(canKeepBakedMainZone({ bakedSignature: null, currentSignature: sig, admin: false })).toBe(false);
   });
 });

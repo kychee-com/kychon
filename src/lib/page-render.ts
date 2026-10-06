@@ -32,7 +32,7 @@ import {
   nearestElementWithAttribute,
 } from './dom-structure';
 import { type AssetManifest, getGlobalManifest, isManifestInlinedByBuild, setGlobalManifest } from './kychon-image';
-import { computeMainZoneSignature } from './main-zone-signature';
+import { canKeepBakedMainZone, computeMainZoneSignature } from './main-zone-signature';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -268,16 +268,21 @@ function renderZoneInto(
     // Preserves SSR-rendered `<Run402Image>` content — variant ladder +
     // v1.54 pre-decoded blurhash placeholder — instead of clobbering it
     // with byte-identical bytes. Falls through to re-render when content
-    // or manifest drifts (admin edits, new uploads, demo reset).
-    const existingSignature = sectionsHost.getAttribute('data-bake-signature');
-    if (existingSignature) {
-      const currentSignature = computeMainZoneSignature({
-        sections: filtered,
-        manifestGeneratedAt: ctx.manifest?.generated_at ?? null,
-      });
-      if (currentSignature === existingSignature) {
-        return;
-      }
+    // or manifest drifts (admin edits, new uploads, demo reset), and always
+    // for admins, whose render carries the editing controls the bake lacks.
+    const bakedSignature = sectionsHost.getAttribute('data-bake-signature');
+    if (
+      bakedSignature &&
+      canKeepBakedMainZone({
+        bakedSignature,
+        currentSignature: computeMainZoneSignature({
+          sections: filtered,
+          manifestGeneratedAt: ctx.manifest?.generated_at ?? null,
+        }),
+        admin: ctx.admin,
+      })
+    ) {
+      return;
     }
     const newHtml = filtered.map((s) => renderBlock(s, ctx)).join('');
     renderReactHtmlChildren(sectionsHost, newHtml);
