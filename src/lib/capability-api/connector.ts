@@ -153,6 +153,8 @@ export const CONNECTOR_GUIDE_AREAS: ConnectorGuideArea[] = [
 // send extra keys keep working.
 const ID: JsonObject = { type: ['integer', 'string'], description: 'Numeric id.' };
 const DATE_TIME: JsonObject = { type: 'string', format: 'date-time' };
+const ALL_DAY_DESCRIPTION =
+  'Date only, no time (a trip, a holiday). starts_at is local midnight of the first day in source_timezone (else the site event timezone, else UTC); ends_at is any time on the last day.';
 const PAGING_NOTE = 'Returns { rows, count } in database order; there is no paging or date filter, so sort and filter the rows yourself.';
 
 function object(properties: JsonObject, extra: JsonObject = {}): JsonObject {
@@ -366,6 +368,7 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
         image_url: { type: 'string', description: 'Image URL or site path.' },
         is_members_only: { type: 'boolean' },
         source_timezone: { type: 'string', description: 'IANA time zone, for example America/New_York.' },
+        all_day: { type: 'boolean', description: ALL_DAY_DESCRIPTION },
       },
       { required: ['title', 'starts_at'] },
     ),
@@ -384,6 +387,7 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
         capacity: { type: 'integer', minimum: 0 },
         image_url: { type: 'string', description: 'Image URL or site path.' },
         is_members_only: { type: 'boolean' },
+        all_day: { type: 'boolean', description: ALL_DAY_DESCRIPTION },
       },
       { required: ['id'] },
     ),

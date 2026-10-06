@@ -52,6 +52,7 @@ type EventsListState =
   | { status: 'ready'; events: EventRow[] };
 
 interface EventRow {
+  all_day?: boolean | null;
   cover_image_url?: string | null;
   ends_at?: string | null;
   id?: number | string | null;

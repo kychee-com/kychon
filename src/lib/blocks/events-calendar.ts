@@ -24,7 +24,7 @@ import type { Event } from '../../schemas/event.js';
 import type { RsvpAvatar } from '../api.js';
 import { siteConfig } from '../config.js';
 import { findDirectElementChild, nearestAncestorWithAttribute } from '../dom-structure.js';
-import { eventDayKey, formatEventDateTime } from '../event-display.js';
+import { allDayRange, eventDayKey, formatEventDateTime } from '../event-display.js';
 import {
   EventsCalendarAgendaView,
   EventsCalendarControls,
@@ -261,9 +261,25 @@ function fmtIcsDate(d: Date): string {
   return `${y}${m}${dd}T${h}${mi}${s}Z`;
 }
 
-function eventToIcs(evt: Event, host: string): string {
+/** `YYYY-MM-DD` -> iCalendar DATE (`YYYYMMDD`), optionally days later. */
+function fmtIcsDay(dayKey: string, addDays = 0): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const date = new Date(Date.UTC(y ?? 0, (m ?? 1) - 1, (d ?? 1) + addDays));
+  return date.toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+export function icsTimeLines(evt: Event): string[] {
+  const range = evt.all_day ? allDayRange(evt, siteConfig) : null;
+  if (range) {
+    // All-day: DATE values, DTEND exclusive (the day after the last day).
+    return [`DTSTART;VALUE=DATE:${fmtIcsDay(range.startDay)}`, `DTEND;VALUE=DATE:${fmtIcsDay(range.endDay, 1)}`];
+  }
   const start = new Date(evt.starts_at);
   const end = evt.ends_at ? new Date(evt.ends_at) : new Date(start.getTime() + 60 * 60 * 1000);
+  return [`DTSTART:${fmtIcsDate(start)}`, `DTEND:${fmtIcsDate(end)}`];
+}
+
+function eventToIcs(evt: Event, host: string): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -272,8 +288,7 @@ function eventToIcs(evt: Event, host: string): string {
     'BEGIN:VEVENT',
     `UID:event-${evt.id}@${host}`,
     `DTSTAMP:${fmtIcsDate(new Date())}`,
-    `DTSTART:${fmtIcsDate(start)}`,
-    `DTEND:${fmtIcsDate(end)}`,
+    ...icsTimeLines(evt),
     `SUMMARY:${escIcs(evt.title || '')}`,
     evt.location ? `LOCATION:${escIcs(evt.location)}` : null,
     evt.description ? `DESCRIPTION:${escIcs(evt.description)}` : null,
@@ -356,6 +371,7 @@ const STRINGS_EN: Record<string, string> = {
   'Previous week': 'Previous week',
   'Next week': 'Next week',
   'Loading…': 'Loading…',
+  'All day': 'All day',
 };
 function t(key: string, _locale: string): string {
   // Future: lookup against active i18n strings. Today, en-only is fine — the
@@ -388,7 +404,7 @@ function eventChipProps(
   now: Date,
   density: Density,
 ): EventsCalendarChipProps {
-  const time = formatEventDateTime(evt, locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
+  const time = formatEventDateTime(evt, locale, siteConfig, { dateStyle: 'card', allDayLabel: t('All day', locale) }).timeRangeLabel;
   const safeThumbUrl = density === 'rich' && evt.image_url ? safeCssUrl(evt.image_url) : '';
   const avatarStack = density === 'rich'
     ? rsvpAvatarStackData(evt.id, state.rsvps)
@@ -735,7 +751,7 @@ export function initCalendar(root: HTMLElement, _section: Section, ctx: BlockRen
     const heading = fmtDateLong(dayDate, ctx.locale);
     const host = window.location.host || 'kychon.run402.com';
     const items = events.map((e) => {
-      const time = formatEventDateTime(e, ctx.locale, siteConfig, { dateStyle: 'card' }).timeRangeLabel;
+      const time = formatEventDateTime(e, ctx.locale, siteConfig, { dateStyle: 'card', allDayLabel: t('All day', ctx.locale) }).timeRangeLabel;
       const avatars = rsvpAvatarStackData(e.id, state.rsvps);
       return {
         avatarOverflow: avatars.overflow,

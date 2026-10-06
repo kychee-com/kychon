@@ -100,6 +100,7 @@ interface TimezoneForm {
   source_timezone_label: string;
   time_display_mode: 'visitor' | 'source';
   import_review_state: string;
+  all_day: boolean;
 }
 
 const EMPTY_TIMEZONE_FORM: TimezoneForm = {
@@ -107,6 +108,7 @@ const EMPTY_TIMEZONE_FORM: TimezoneForm = {
   source_timezone_label: '',
   time_display_mode: 'visitor',
   import_review_state: '',
+  all_day: false,
 };
 
 const AVAILABILITY_OPTIONS = ['available', 'waitlist', 'full', 'closed', 'unknown'];
@@ -171,6 +173,7 @@ function timezoneFormFromEvent(event: Event): TimezoneForm {
     source_timezone_label: event.source_timezone_label || '',
     time_display_mode: event.time_display_mode === 'source' ? 'source' : 'visitor',
     import_review_state: event.import_review_state || '',
+    all_day: event.all_day === true,
   };
 }
 
@@ -283,6 +286,14 @@ function TimezoneEditor({
             placeholder="needs_review"
             value={form.import_review_state}
           />
+        </div>
+        <div className="flex items-center gap-2 sm:col-span-2">
+          <Checkbox
+            checked={form.all_day}
+            id="event-all-day"
+            onCheckedChange={(checked) => onChange({ ...form, all_day: checked === true })}
+          />
+          <Label htmlFor="event-all-day">All day (show the date only, no time)</Label>
         </div>
       </CardContent>
       <CardFooter>
@@ -634,7 +645,7 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
     if (!event) return;
     setSavingTimezone(true);
     try {
-      await updateEventTimezone(event.id, eventTimezonePayload(timezoneForm));
+      await updateEventTimezone(event.id, { ...eventTimezonePayload(timezoneForm), all_day: timezoneForm.all_day });
       showToast('Timezone saved', 'success');
       await loadEvent();
     } catch {

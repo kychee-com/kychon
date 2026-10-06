@@ -34,7 +34,7 @@ export default async (req) => {
   const event = (
     await admin
       .from('events')
-      .select('id,title,starts_at,location,source_timezone,source_timezone_label')
+      .select('id,title,starts_at,all_day,location,source_timezone,source_timezone_label')
       .eq('id', eventId)
       .limit(1)
   )[0];
@@ -90,15 +90,20 @@ async function claimRsvps(admin, eventId) {
 
 function reminderHtml(event, attendee, startsAt) {
   const where = event.location ? ` at ${escapeHtml(event.location)}` : '';
-  return `<p>Hi ${escapeHtml(attendee.display_name)},</p><p><strong>${escapeHtml(event.title)}</strong> starts at ${escapeHtml(startsAt)}${where}.</p><p>See you there!</p>`;
+  return `<p>Hi ${escapeHtml(attendee.display_name)},</p><p><strong>${escapeHtml(event.title)}</strong> starts ${escapeHtml(startsAt)}${where}.</p><p>See you there!</p>`;
 }
 
 // An email has no reader time zone, so give the start time in the event's own
 // time zone (or the portal's default for events), else in UTC, and name it.
+// An all-day event gives its date instead ("on Sunday, October 18"), read in
+// that same zone, which is where it was stored as local midnight.
 function startTimeLabel(event, portalTimezone) {
   const start = new Date(event.starts_at);
   const own = isTimeZone(event.source_timezone);
   const timeZone = own ? event.source_timezone.trim() : isTimeZone(portalTimezone) ? portalTimezone.trim() : 'UTC';
+  if (event.all_day === true) {
+    return `on ${new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric', timeZone }).format(start)}`;
+  }
   const time = new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit', timeZone }).format(start);
   const zone =
     (own && event.source_timezone_label) ||
@@ -106,7 +111,7 @@ function startTimeLabel(event, portalTimezone) {
       .formatToParts(start)
       .find((part) => part.type === 'timeZoneName')?.value ||
     timeZone;
-  return `${time} ${zone}`;
+  return `at ${time} ${zone}`;
 }
 
 function isTimeZone(value) {

@@ -1593,6 +1593,10 @@ const CONNECTOR_SCHEMAS = {
         "source_timezone": {
           "type": "string",
           "description": "IANA time zone, for example America/New_York."
+        },
+        "all_day": {
+          "type": "boolean",
+          "description": "Date only, no time (a trip, a holiday). starts_at is local midnight of the first day in source_timezone (else the site event timezone, else UTC); ends_at is any time on the last day."
         }
       },
       "required": [
@@ -1646,6 +1650,10 @@ const CONNECTOR_SCHEMAS = {
         },
         "is_members_only": {
           "type": "boolean"
+        },
+        "all_day": {
+          "type": "boolean",
+          "description": "Date only, no time (a trip, a holiday). starts_at is local midnight of the first day in source_timezone (else the site event timezone, else UTC); ends_at is any time on the last day."
         }
       },
       "required": [

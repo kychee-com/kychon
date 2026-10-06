@@ -13,6 +13,7 @@ export const EventSchema = z.object({
   source_timezone: z.string().nullable().optional(),
   source_timezone_label: z.string().nullable().optional(),
   time_display_mode: z.enum(['visitor', 'source']).nullable().optional(),
+  all_day: z.boolean().nullable().optional(),
   import_review_state: z.string().nullable().optional(),
   source_metadata: z.unknown().nullable().optional(),
   created_by: z.number().nullable(),

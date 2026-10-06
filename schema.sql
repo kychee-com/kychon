@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS events (
   source_timezone TEXT,
   source_timezone_label TEXT,
   time_display_mode TEXT NOT NULL DEFAULT 'visitor' CHECK (time_display_mode IN ('visitor', 'source')),
+  all_day BOOLEAN NOT NULL DEFAULT false,
   import_review_state TEXT,
   source_metadata JSONB DEFAULT '{}',
   created_by INT REFERENCES members(id),
@@ -458,6 +459,15 @@ DO $$ BEGIN
   ALTER TABLE events ADD CONSTRAINT events_time_display_mode_check
     CHECK (time_display_mode IN ('visitor', 'source'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- all-day events (kychon#188): a date-only event shows its date (or date
+-- range) and no time. `starts_at` stays a timestamptz: local midnight of the
+-- first day in the event's source zone (else the site's, else UTC), and
+-- `ends_at` any instant on the last day. Added nullable so "Config defaults"
+-- below can tell rows that predate the column (NULL, backfilled once from the
+-- `source_metadata.all_day` ports stashed before it existed) from rows an
+-- admin has since set; it then becomes NOT NULL DEFAULT false.
+DO $$ BEGIN ALTER TABLE events ADD COLUMN all_day BOOLEAN; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- event-reminders claims an RSVP (sets reminder_sent_at) before emailing it,
 -- so each RSVP gets at most one reminder however often the function runs.
@@ -1142,6 +1152,15 @@ WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
 INSERT INTO site_config (key, value, category)
 SELECT 'history_retention_days', '365'::jsonb, 'history'
 WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'history_retention_days');
+
+-- all-day events: backfill the rows that predate `events.all_day` (NULL) from
+-- the `source_metadata.all_day` flag ports stashed. Rows written since are
+-- never NULL, so this touches nothing on later migrations.
+UPDATE events
+SET all_day = COALESCE(lower(source_metadata->>'all_day') = 'true', false)
+WHERE all_day IS NULL;
+ALTER TABLE events ALTER COLUMN all_day SET DEFAULT false;
+ALTER TABLE events ALTER COLUMN all_day SET NOT NULL;
 
 DROP TRIGGER IF EXISTS trg_kychon_revision ON site_config;
 CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON site_config FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('key');

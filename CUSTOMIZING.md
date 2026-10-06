@@ -339,6 +339,21 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, category = EXCLUDED.cate
 Individual events can override the site default with `events.source_timezone`,
 `events.source_timezone_label`, and `events.time_display_mode`.
 
+### All-Day Events
+
+An event with a date but no time (a multi-day trip, a holiday) sets
+`events.all_day = true`. Cards, `/events`, the calendar, the event page, reminder
+emails and the `.ics` download then show the date, or the date range, and never a
+time. Store `starts_at` as local midnight of the first day in the event's source
+timezone (`source_timezone`, else `event_source_timezone`, else UTC) and `ends_at`
+as any instant on the last day; the dates are read in that zone whatever the
+display mode, so they never shift for a visitor elsewhere:
+
+```sql
+INSERT INTO events (title, starts_at, ends_at, all_day, source_timezone)
+VALUES ('Ski trip', '2027-01-22 00:00 America/Toronto', '2027-01-29 00:00 America/Toronto', true, 'America/Toronto');
+```
+
 ### Structured Registration Options
 
 Ported Wild Apricot-style registration classes live in

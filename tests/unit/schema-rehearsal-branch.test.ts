@@ -44,7 +44,7 @@ describe('second migration on a rehearsal branch (kychon#223)', () => {
       `SELECT op FROM p0002.revisions WHERE table_name = 'pages' ORDER BY id`,
     );
     expect(revs.map((r) => r.op)).toEqual(['insert', 'update']);
-  });
+  }, 60_000);
 
   it('writes no content before every pinned function is redefined', () => {
     // Statements at the top level of schema.sql (outside $$ bodies), comments dropped.

@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -25,7 +26,8 @@ import {
 } from '@/components/kychon/ui';
 import { getEvents, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
-import { ready, translateItems } from '@/lib/config';
+import { ready, siteConfig, translateItems } from '@/lib/config';
+import { allDayStartIso } from '@/lib/event-display';
 import { useEventDateTime } from '@/lib/use-event-date-time';
 import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
@@ -40,6 +42,7 @@ interface EventFormState {
   endsAt: string;
   capacity: string;
   isMembersOnly: boolean;
+  allDay: boolean;
 }
 
 const EMPTY_FORM: EventFormState = {
@@ -50,6 +53,7 @@ const EMPTY_FORM: EventFormState = {
   endsAt: '',
   capacity: '0',
   isMembersOnly: false,
+  allDay: false,
 };
 
 function normalizeDateTime(value: string): string | null {
@@ -58,6 +62,16 @@ function normalizeDateTime(value: string): string | null {
   const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
   if (Number.isNaN(Date.parse(normalized))) throw new Error('Use a valid date and time.');
   return normalized;
+}
+
+// An all-day event is stored as local midnight of each day in the site's event
+// timezone (UTC without one), which is the zone its dates are read back in.
+function normalizeAllDayDate(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const iso = allDayStartIso(trimmed, siteConfig.event_source_timezone);
+  if (!iso) throw new Error('Use a valid date (YYYY-MM-DD).');
+  return iso;
 }
 
 type LookupAsset = (url: string | null | undefined) => AssetRef | null;
@@ -223,23 +237,31 @@ function CreateEventDialog({
             <Label htmlFor="event-location">Location</Label>
             <Input id="event-location" onChange={(event) => onFormChange({ ...form, location: event.target.value })} value={form.location} />
           </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={form.allDay}
+              id="event-all-day"
+              onCheckedChange={(checked) => onFormChange({ ...form, allDay: checked === true })}
+            />
+            <Label htmlFor="event-all-day">All day</Label>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="event-starts-at">Starts</Label>
+              <Label htmlFor="event-starts-at">{form.allDay ? 'First day' : 'Starts'}</Label>
               <Input
                 id="event-starts-at"
                 onChange={(event) => onFormChange({ ...form, startsAt: event.target.value })}
-                placeholder="2026-06-30 18:00"
+                placeholder={form.allDay ? '2026-06-30' : '2026-06-30 18:00'}
                 required
                 value={form.startsAt}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-ends-at">Ends</Label>
+              <Label htmlFor="event-ends-at">{form.allDay ? 'Last day' : 'Ends'}</Label>
               <Input
                 id="event-ends-at"
                 onChange={(event) => onFormChange({ ...form, endsAt: event.target.value })}
-                placeholder="2026-06-30 20:00"
+                placeholder={form.allDay ? '2026-07-02' : '2026-06-30 20:00'}
                 value={form.endsAt}
               />
             </div>
@@ -371,8 +393,9 @@ export default function EventsPageApp({ initialEvents, assetManifest }: EventsPa
     let startsAt: string | null;
     let endsAt: string | null;
     try {
-      startsAt = normalizeDateTime(form.startsAt);
-      endsAt = normalizeDateTime(form.endsAt);
+      const normalize = form.allDay ? normalizeAllDayDate : normalizeDateTime;
+      startsAt = normalize(form.startsAt);
+      endsAt = normalize(form.endsAt);
     } catch (dateError) {
       showToast(dateError instanceof Error ? dateError.message : 'Use a valid date and time.', 'warning');
       return;
@@ -394,6 +417,7 @@ export default function EventsPageApp({ initialEvents, assetManifest }: EventsPa
         ends_at: endsAt,
         capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
         is_members_only: form.isMembersOnly,
+        all_day: form.allDay,
       });
       setForm(EMPTY_FORM);
       setCreateOpen(false);
