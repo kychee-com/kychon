@@ -21,11 +21,11 @@
 
 ## 3. Attribution in the capability API (Phase 2)
 
-- [ ] 3.1 Move `kychon-api` content-write helpers for tracked tables to parameterized `adminDb().sql()` with `RETURNING txid_current()`
-- [ ] 3.2 Claim each write's changeset with the authenticated actor, the capability execution id, and the operation label
-- [ ] 3.3 Add `history.list`, `history.revisions` (per page/block), and `history.revision` (before/after) capability queries, admin-only
-- [ ] 3.4 Document mandatory `kychon_label_changeset` usage for agents in the agent docs (Studio and Pro instructions)
-- [ ] 3.5 Tests: admin save attributed to the admin; labelled agent SQL attributed; unlabelled SQL recorded as `unattributed`; non-admin refused
+- [x] 3.1 Move `kychon-api` content-write helpers for tracked tables to parameterized `adminDb().sql()` with `RETURNING txid_current()`
+- [x] 3.2 Claim each write's changeset with the authenticated actor, the capability execution id, and the operation label
+- [x] 3.3 Add `history.list`, `history.revisions` (per page/block), and `history.revision` (before/after) capability queries, admin-only
+- [x] 3.4 Document mandatory `kychon_label_changeset` usage for agents in the agent docs (`CUSTOMIZING.md`, the AI agents' customization guide)
+- [x] 3.5 Tests: admin save attributed to the admin; labelled agent SQL attributed; unlabelled SQL recorded as `unattributed`; non-admin refused
 
 ## 4. Revert (Phase 2)
 

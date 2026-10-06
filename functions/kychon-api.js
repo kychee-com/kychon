@@ -6,6 +6,7 @@
 // older runtime that could not verify the envelope (cookie sessions resolved as
 // anonymous). The marker below changes the source digest to force a one-time
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { adminDb, auth, events } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
@@ -65,6 +66,9 @@ const READ_OPERATIONS = [
   'insights.list',
   'activity.list',
   'jobs.status',
+  'history.list',
+  'history.revisions',
+  'history.revision',
 ];
 
 const MUTATION_OPERATIONS = [
@@ -267,6 +271,31 @@ const TABLE_QUERIES = {
 };
 
 const SQL_WRITE_TABLES = new Set(['events', 'resources']);
+
+// Content-history tracked tables (schema.sql trg_kychon_revision). Writes to
+// these go through SQL that RETURNs txid_current(), so the changeset the
+// trigger opened can be claimed for the capability caller (openspec
+// content-history D3). Keep in sync with schema.sql.
+const HISTORY_TABLES = new Set([
+  'site_config',
+  'pages',
+  'sections',
+  'section_translations',
+  'content_translations',
+  'events',
+  'event_registration_options',
+  'announcements',
+  'resources',
+  'committees',
+  'membership_tiers',
+  'member_custom_fields',
+  'polls',
+  'poll_options',
+  'forum_categories',
+]);
+
+// Who is writing, for the duration of one capability execution.
+const HISTORY_CONTEXT = new AsyncLocalStorage();
 
 // Site-config categories that are intentionally readable by anonymous
 // callers. Anything else (future webhook URLs, integration tokens, etc.)
@@ -506,6 +535,9 @@ function handleQuery(correlationId, envelope, operation, actor) {
   if (operation.name === 'media.list') {
     return handleMediaList(correlationId, envelope.input, actor);
   }
+  if (operation.name.startsWith('history.')) {
+    return handleHistoryQuery(correlationId, operation.name, envelope.input || {}, actor);
+  }
 
   if (operation.name === 'pollVotes.list') {
     return handlePollVotesList(correlationId, envelope.input);
@@ -740,7 +772,10 @@ async function handleExecute(correlationId, envelope, operation, actor) {
     }
 
     executionRecord = execution.record;
-    const data = await executeMutation(operation.name, envelope.input, actor);
+    const historyContext = { actor, executionId: executionRecord?.id ?? null, label: operation.name };
+    const data = await HISTORY_CONTEXT.run(historyContext, () =>
+      executeMutation(operation.name, envelope.input, actor),
+    );
     await completeExecution(executionRecord, data);
     await emitAppEvent(envelope, operation, data);
     return successResponse(correlationId, data);
@@ -1749,6 +1784,95 @@ async function callUploadAssetFn(body) {
   return json;
 }
 
+// --- Content history reads (openspec content-history) -------------------------
+// Admin-only. history.list: changesets newest first with what they touched;
+// history.revisions: one row's revisions (a page, a block, a config key);
+// history.revision: one revision with its before/after rows.
+
+const HISTORY_PAGE_SIZE = 50;
+
+function historyRowKey(table, key) {
+  const column = table === 'site_config' ? 'key' : 'id';
+  const raw = isPlainObject(key) ? key[column] : key;
+  if (raw == null || raw === '') return null;
+  return { [column]: column === 'id' && /^\d+$/.test(String(raw)) ? Number(raw) : String(raw) };
+}
+
+async function handleHistoryQuery(correlationId, name, input, actor) {
+  if (!isAdminLike(actor)) {
+    return errorResponse(correlationId, 403, {
+      code: 'auth.forbidden',
+      message: `${name} requires admin role.`,
+      detail: { actor: actor.state },
+      retryable: false,
+    });
+  }
+  const invalid = (message, detail = {}) =>
+    errorResponse(correlationId, 400, { code: 'validation.failed', message, detail, retryable: false });
+
+  if (name === 'history.list') {
+    const limit = Math.min(Math.max(Number(input.limit) || HISTORY_PAGE_SIZE, 1), 200);
+    const before = Number(input.before_id ?? input.beforeId) || null;
+    const actorType = typeof input.actor_type === 'string' ? input.actor_type : null;
+    const result = await adminDb().sql(
+      `SELECT c.id, c.actor_type, c.actor_id, c.label, c.capability_execution_id, c.reverts_changeset_id, c.created_at,
+              count(r.id)::int AS revision_count,
+              coalesce(jsonb_agg(DISTINCT jsonb_build_object('table', r.table_name, 'key', r.row_key)) FILTER (WHERE r.id IS NOT NULL), '[]'::jsonb) AS targets
+         FROM changesets c
+         LEFT JOIN revisions r ON r.changeset_id = c.id
+        WHERE ($1::bigint IS NULL OR c.id < $1::bigint)
+          AND ($2::text IS NULL OR c.actor_type = $2::text)
+        GROUP BY c.id
+       HAVING count(r.id) > 0
+        ORDER BY c.id DESC
+        LIMIT $3`,
+      [before, actorType, limit],
+    );
+    const changesets = normalizeDbRows(result);
+    return successResponse(correlationId, {
+      changesets,
+      nextBeforeId: changesets.length === limit ? changesets[changesets.length - 1].id : null,
+    });
+  }
+
+  if (name === 'history.revisions') {
+    const table = String(input.table || '');
+    if (!HISTORY_TABLES.has(table)) return invalid('history.revisions requires a tracked table.', { table });
+    const rowKey = historyRowKey(table, input.key);
+    if (!rowKey) return invalid('history.revisions requires the row key.', { table });
+    const result = await adminDb().sql(
+      `SELECT r.id, r.op, r.created_at, r.changeset_id, c.actor_type, c.actor_id, c.label
+         FROM revisions r JOIN changesets c ON c.id = r.changeset_id
+        WHERE r.table_name = $1 AND r.row_key = $2::jsonb
+        ORDER BY r.id DESC
+        LIMIT 200`,
+      [table, JSON.stringify(rowKey)],
+    );
+    return successResponse(correlationId, { table, key: rowKey, revisions: normalizeDbRows(result) });
+  }
+
+  // history.revision
+  const id = Number(input.id);
+  if (!Number.isInteger(id) || id <= 0) return invalid('history.revision requires a numeric id.');
+  const result = await adminDb().sql(
+    `SELECT r.id, r.table_name, r.row_key, r.op, r.before, r.after, r.created_at, r.changeset_id,
+            c.actor_type, c.actor_id, c.label
+       FROM revisions r JOIN changesets c ON c.id = r.changeset_id
+      WHERE r.id = $1`,
+    [id],
+  );
+  const revision = normalizeDbRows(result)[0];
+  if (!revision) {
+    return errorResponse(correlationId, 404, {
+      code: 'notFound.object',
+      message: 'Revision not found.',
+      detail: { id },
+      retryable: false,
+    });
+  }
+  return successResponse(correlationId, { revision });
+}
+
 async function handleMediaList(correlationId, input, actor) {
   if (!isAdminLike(actor)) {
     return errorResponse(correlationId, 403, {
@@ -1841,10 +1965,14 @@ async function upsertSectionTranslation(input, _actor) {
      VALUES ($1, $2, $3::jsonb, now(), now())
      ON CONFLICT (section_id, language) DO UPDATE
        SET config = EXCLUDED.config, updated_at = now()
-     RETURNING id, section_id, language, config, created_at, updated_at`,
+     RETURNING id, section_id, language, config, created_at, updated_at, txid_current()::text AS kychon_txid`,
     [sectionId, language, configJson],
   );
-  const row = (result.rows || [])[0] || { section_id: sectionId, language, config: input.config };
+  const row = (await claimTrackedWrite((result.rows || [])[0])) || {
+    section_id: sectionId,
+    language,
+    config: input.config,
+  };
   return actionResult(row, [changedObject('sectionTranslation', `${sectionId}:${language}`)], null);
 }
 
@@ -1983,6 +2111,7 @@ function spec(table, objectType, operation) {
 
 async function insertRow(table, row) {
   const cleaned = cleanRow(row);
+  if (HISTORY_TABLES.has(table)) return insertTrackedRow(table, cleaned);
   if (SQL_WRITE_TABLES.has(table)) return insertRowSql(table, cleaned);
   const result = await adminDb().from(table).insert(cleaned);
   return normalizeDbRows(result)[0] || cleaned;
@@ -1990,6 +2119,7 @@ async function insertRow(table, row) {
 
 async function updateRow(table, id, patch) {
   const cleaned = cleanRow(patch);
+  if (HISTORY_TABLES.has(table)) return updateTrackedRow(table, 'id', id, cleaned);
   if (SQL_WRITE_TABLES.has(table)) return updateRowSql(table, 'id', id, cleaned);
   const existing = await selectOneRow(table, 'id', id);
   if (!existing) return null;
@@ -1998,15 +2128,86 @@ async function updateRow(table, id, patch) {
 }
 
 async function updateConfigRow(key, patch) {
-  const result = await adminDb().from('site_config').update(cleanRow(patch)).eq('key', key);
-  return normalizeDbRows(result)[0] || { key, ...cleanRow(patch) };
+  return (await updateTrackedRow('site_config', 'key', key, cleanRow(patch))) || { key, ...cleanRow(patch) };
 }
 
 async function deleteRow(table, id) {
+  if (HISTORY_TABLES.has(table)) return deleteTrackedRow(table, 'id', id);
   if (SQL_WRITE_TABLES.has(table)) return deleteRowSql(table, 'id', id);
   const existing = (await selectRows(table)).find((row) => String(row.id) === String(id)) || { id };
   await adminDb().from(table).delete().eq('id', id);
   return existing;
+}
+
+// --- Content-history writes (openspec content-history D3) ---------------------
+// One SQL statement per write, RETURNING txid_current() so the changeset the
+// row trigger opened can be claimed for the capability caller. Values travel
+// as one jsonb parameter and jsonb_populate_record converts each to its
+// column type (arrays, jsonb, timestamps) exactly as the table declares.
+
+const TXID_COLUMN = 'kychon_txid';
+
+async function insertTrackedRow(table, row) {
+  const columns = Object.keys(row);
+  const sql = columns.length
+    ? `INSERT INTO ${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) SELECT ${columns.map(quoteIdent).join(', ')} FROM jsonb_populate_record(NULL::${quoteIdent(table)}, $1::jsonb) RETURNING *, txid_current()::text AS ${TXID_COLUMN}`
+    : `INSERT INTO ${quoteIdent(table)} DEFAULT VALUES RETURNING *, txid_current()::text AS ${TXID_COLUMN}`;
+  const result = await adminDb().sql(sql, columns.length ? [JSON.stringify(row)] : []);
+  return (await claimTrackedWrite(normalizeDbRows(result)[0])) || row;
+}
+
+async function updateTrackedRow(table, keyColumn, keyValue, patch) {
+  const columns = Object.keys(patch);
+  if (!columns.length) return selectOneRowSql(table, keyColumn, keyValue);
+  const list = columns.map(quoteIdent).join(', ');
+  const result = await adminDb().sql(
+    `UPDATE ${quoteIdent(table)} SET (${list}) = (SELECT ${list} FROM jsonb_populate_record(NULL::${quoteIdent(table)}, $1::jsonb)) WHERE ${quoteIdent(keyColumn)} = $2 RETURNING *, txid_current()::text AS ${TXID_COLUMN}`,
+    [JSON.stringify(patch), keyValue],
+  );
+  return claimTrackedWrite(normalizeDbRows(result)[0]);
+}
+
+async function deleteTrackedRow(table, keyColumn, keyValue) {
+  const result = await adminDb().sql(
+    `DELETE FROM ${quoteIdent(table)} WHERE ${quoteIdent(keyColumn)} = $1 RETURNING *, txid_current()::text AS ${TXID_COLUMN}`,
+    [keyValue],
+  );
+  return (await claimTrackedWrite(normalizeDbRows(result)[0])) || { [keyColumn]: keyValue };
+}
+
+/**
+ * Attribute the write's changeset to the current capability caller, and strip
+ * the txid column from the returned row. A failed claim never fails the write:
+ * the revision is already recorded (as `unattributed`).
+ */
+async function claimTrackedWrite(row) {
+  if (!row) return null;
+  const { [TXID_COLUMN]: txid, ...clean } = row;
+  const context = HISTORY_CONTEXT.getStore();
+  if (txid && context) {
+    try {
+      await claimChangeset(txid, context);
+    } catch (error) {
+      console.error('content-history: changeset claim failed', error);
+    }
+  }
+  return clean;
+}
+
+function historyActor(actor) {
+  const actorId = actor?.user?.id ?? (actor?.member?.id != null ? `member:${actor.member.id}` : null);
+  return { type: isAdminLike(actor || {}) ? 'admin' : 'jwt', id: actorId };
+}
+
+async function claimChangeset(txid, context) {
+  const who = historyActor(context.actor);
+  await adminDb().sql('SELECT kychon_claim_changeset($1::bigint, $2, $3, $4, $5::bigint) AS id', [
+    txid,
+    who.type,
+    who.id,
+    context.label,
+    context.executionId,
+  ]);
 }
 
 async function insertRowSql(table, row) {

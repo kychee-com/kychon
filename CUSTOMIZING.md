@@ -23,6 +23,25 @@ Use SQL/PostgREST for low-level customization:
 
 When in doubt, dry-run the domain operation first with `phase: "validate"` or the SDK `.validate()` helper.
 
+## Label your SQL changes (content history)
+
+Every write to a content table (`site_config`, `pages`, `sections`, `events`,
+`announcements`, `resources`, tiers, custom fields, polls, ...) is recorded as a
+revision that admins can browse and revert. Changes made through the Capability
+API are attributed automatically. **Raw SQL must label itself:** end the same SQL
+request with
+
+```sql
+SELECT kychon_label_changeset('agent', '<agent id, e.g. kychon-pro>', '<one-line description>');
+```
+
+so the transaction's changes show up as one labelled change ("kychon-pro: Restyle
+hero") instead of "Unattributed SQL". Keep one logical change per request; the
+label covers everything that transaction wrote.
+
+The seed is a one-time initial import. Editing `seed.sql` does not change a live
+portal; edit the live data (Capability API or labelled SQL) instead.
+
 ## New Deployment UI Contract
 
 Before adding custom HTML/CSS or a new React component, check the Kychon library first. New demo, Fresh Start, copied-site, and ported deployments should use these paths in order:
@@ -111,7 +130,7 @@ INSERT INTO membership_tiers (name, description, benefits, price_label, position
 VALUES ('Student', 'Discounted student membership', ARRAY['Member directory', 'Events'], '$20/year', 3, false);
 ```
 
-Deploy: `npx tsx scripts/deploy.ts` (or add to `seed.sql` for permanence).
+Run it against the live database (label it, see above). A `seed.sql` edit only affects new portals: the seed is applied once.
 
 ## Add a Custom Member Field
 

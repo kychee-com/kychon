@@ -128,6 +128,10 @@ vi.mock(
   { virtual: true },
 );
 
+// Changeset claims kychon-api made (content-history attribution).
+const mockClaims: Array<Record<string, unknown>> = [];
+const mockTxid = { value: 1000 };
+
 function maxId(rows: JsonObject[]) {
   return Math.max(0, ...rows.map((row) => Number(row.id || 0)));
 }
@@ -165,6 +169,38 @@ function mockSql(query: string, params: unknown[]) {
   if (del) {
     const [, table, column] = del;
     return mockState.deleteSql(table, column, params[0]);
+  }
+
+  // Content-history tracked writes (functions/kychon-api.js insertTrackedRow &
+  // co.): values arrive as one jsonb param; every returned row carries the
+  // transaction id the caller then claims.
+  const withTxid = (rows: Promise<JsonObject[]>) =>
+    rows.then((list) => list.map((row) => ({ ...row, kychon_txid: String(++mockTxid.value) })));
+  const trackedInsert = normalized.match(
+    /^INSERT INTO "([^"]+)" \(([^)]+)\) SELECT .+ FROM jsonb_populate_record\(NULL::"[^"]+", \$1::jsonb\) RETURNING \*, txid_current\(\)::text AS kychon_txid$/,
+  );
+  if (trackedInsert) {
+    const [, table] = trackedInsert;
+    return withTxid(mockState.insertSql(table, JSON.parse(String(params[0]))));
+  }
+  const trackedUpdate = normalized.match(
+    /^UPDATE "([^"]+)" SET \(.+\) = \(SELECT .+ FROM jsonb_populate_record\(NULL::"[^"]+", \$1::jsonb\)\) WHERE "([^"]+)" = \$2 RETURNING \*, txid_current\(\)::text AS kychon_txid$/,
+  );
+  if (trackedUpdate) {
+    const [, table, column] = trackedUpdate;
+    return withTxid(mockState.updateSql(table, column, params[1], JSON.parse(String(params[0]))));
+  }
+  const trackedDelete = normalized.match(
+    /^DELETE FROM "([^"]+)" WHERE "([^"]+)" = \$1 RETURNING \*, txid_current\(\)::text AS kychon_txid$/,
+  );
+  if (trackedDelete) {
+    const [, table, column] = trackedDelete;
+    return withTxid(mockState.deleteSql(table, column, params[0]));
+  }
+  if (normalized.startsWith('SELECT kychon_claim_changeset(')) {
+    const [txid, actorType, actorId, label, executionId] = params;
+    mockClaims.push({ txid, actorType, actorId, label, executionId });
+    return Promise.resolve([{ id: mockClaims.length }]);
   }
 
   throw new Error(`Unexpected SQL: ${normalized}`);
@@ -406,6 +442,42 @@ describe('deployable kychon-api execute mutations', () => {
     const stored = String(mockState.tables.announcements[0]?.body || '');
     expect(stored).toContain('<p>safe</p>');
     expect(stored).not.toMatch(/onload|ontoggle|style\s*=|javascript:|&#106;avascript|<svg|<details/i);
+  });
+
+  it('attributes a content write to the admin who made it (content-history)', async () => {
+    mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.tables.members = [
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
+    ];
+    mockState.tables.announcements = [];
+    mockClaims.length = 0;
+
+    const created = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'announcements.publish',
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: 'announcement-history-claim',
+        input: { title: 'Picnic', body: '<p>Saturday</p>' },
+      }),
+    );
+
+    expect(created.status).toBe(200);
+    // The write's changeset is claimed for the admin, labelled with the operation
+    // and linked to the capability execution; the txid never leaks to callers.
+    expect(mockClaims).toHaveLength(1);
+    expect(mockClaims[0]).toMatchObject({ actorType: 'admin', actorId: 'admin-user', label: 'announcements.publish' });
+    expect(mockClaims[0].executionId).not.toBeNull();
+    expect(mockState.tables.announcements[0]).not.toHaveProperty('kychon_txid');
+    expect(JSON.stringify(created)).not.toContain('kychon_txid');
   });
 
   it.each(['members.suspend', 'members.reject'])('refuses to %s the only active admin', async (operation) => {
