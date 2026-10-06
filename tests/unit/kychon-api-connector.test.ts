@@ -2,14 +2,15 @@
 // the static tool declaration, the envelope defaults a tool call gets, the
 // admin on/off switch, the operations a connector may never run, the plans
 // confirmation-required operations return, and the sign-in challenge an
-// anonymous assistant gets for member features.
+// anonymous assistant gets for member features. Also pins the function's
+// operation catalog to the typed registry behind the docs and the SDK.
 import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import kychonApi, { tool } from '../../functions/kychon-api.js';
-import { type JsonObject, KYCHON_API_VERSION } from '../../src/lib/capability-api/index.ts';
+import { type JsonObject, KYCHON_API_VERSION, V1_OPERATION_CATALOG } from '../../src/lib/capability-api/index.ts';
 
 type MockDbChain = Promise<JsonObject[]> & {
   eq(column: string, value: unknown): MockDbChain;
@@ -517,6 +518,30 @@ describe('kychon-api confirmation plans', () => {
     expect(res.body.error.message).toBe(
       'Executing events.delete requires confirmed: true. It will delete the event "Board meeting". This can be undone from History.',
     );
+  });
+});
+
+describe('kychon-api operation catalog parity', () => {
+  // The function keeps its own operation lists (it deploys as one source file);
+  // the typed registry drives /kychon-capabilities.json, the SDK and the docs.
+  it('serves exactly the operations of the typed registry, gated the same way', async () => {
+    const res = await json(
+      await apiRequest({ apiVersion: KYCHON_API_VERSION, operation: 'portal.capabilities', phase: 'query', input: {} }),
+    );
+    expect(res.status).toBe(200);
+    const served = res.body.data.operations as JsonObject[];
+    const names = (list: readonly { name: unknown }[]) => list.map((operation) => String(operation.name)).sort();
+    expect(names(served)).toEqual(names(V1_OPERATION_CATALOG));
+
+    const registry = new Map(V1_OPERATION_CATALOG.map((operation) => [operation.name as string, operation]));
+    for (const operation of served) {
+      const typed = registry.get(String(operation.name));
+      const auth = operation.auth as JsonObject;
+      expect(operation.phases, String(operation.name)).toEqual(typed?.phases);
+      expect(auth.minimumActorState, String(operation.name)).toBe(typed?.auth.minimumActorState);
+      // The function enforces only 'required'; 'recommended' is advice in the registry.
+      expect(operation.confirmation === 'required', String(operation.name)).toBe(typed?.confirmation === 'required');
+    }
   });
 });
 

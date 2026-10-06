@@ -44,6 +44,7 @@ const expectedOperationNames = [
   'pages.delete',
   'sections.list',
   'sections.get',
+  'sections.getTranslation',
   'sections.create',
   'sections.updateConfig',
   'sections.reorder',
@@ -51,6 +52,7 @@ const expectedOperationNames = [
   'sections.setScope',
   'sections.setColumnSpan',
   'sections.delete',
+  'sections.translate',
   'members.list',
   'members.get',
   'members.updateProfile',
@@ -184,6 +186,15 @@ const expectedOperationNames = [
   'jobs.sendEventReminders',
   'jobs.generateNewsletter',
   'jobs.status',
+  'media.list',
+  'media.requestUpload',
+  'media.delete',
+  'media.importFromUrl',
+  'history.list',
+  'history.revisions',
+  'history.revision',
+  'history.revert',
+  'bundle.export',
 ] as const;
 
 function sorted(values: readonly string[]): string[] {

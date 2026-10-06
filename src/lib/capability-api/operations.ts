@@ -93,6 +93,7 @@ const readDefinitions: readonly ReadDefinition[] = [
   ['pages.get', 'anonymous', 'Read one visible page.'],
   ['sections.list', 'anonymous', 'List visible page sections.'],
   ['sections.get', 'anonymous', 'Read one visible page section.'],
+  ['sections.getTranslation', 'admin', 'Read the per-language config override saved for a page section.'],
   // Anonymous in the capability registry; the handler in
   // `query-handlers.ts` enforces `site_config.directory_public` at
   // call time. Portals with `directory_public: true` let anon view
@@ -129,12 +130,19 @@ const readDefinitions: readonly ReadDefinition[] = [
   ['committeeMembers.list', 'active_member', 'List committee members visible to the current actor.'],
   ['reactions.list', 'active_member', 'List reactions for a visible domain object.'],
   ['moderation.queue', 'moderator', 'List content requiring moderation review.'],
+  ['media.list', 'admin', 'List images and files already uploaded to the media library.'],
+  // A read: it only returns a link; the upload happens on that page.
+  ['media.requestUpload', 'admin', 'Return a link where the signed-in admin uploads a file to the media library.'],
   ['translations.list', 'admin', 'List translation records and status.'],
   ['newsletters.drafts.list', 'admin', 'List newsletter drafts.'],
   ['newsletters.drafts.get', 'admin', 'Read one newsletter draft.'],
   ['insights.list', 'admin', 'List AI insights and their workflow status.'],
   ['activity.list', 'active_member', 'List activity entries visible to the current actor.'],
   ['jobs.status', 'admin', 'Read scheduled or async job status.'],
+  ['history.list', 'admin', 'List recent content changesets, newest first, with who made them.'],
+  ['history.revisions', 'admin', "List one content row's revisions, or one changeset's revisions with before and after."],
+  ['history.revision', 'admin', 'Read one content revision with its before and after rows.'],
+  ['bundle.export', 'admin', 'Export portal content as a kychon-bundle/v1 document, optionally with members.'],
 ] as const;
 
 const mutationDefinitions: readonly MutationDefinition[] = [
@@ -157,6 +165,10 @@ const mutationDefinitions: readonly MutationDefinition[] = [
   ['sections.setScope', 'admin', 'Set a page section scope.'],
   ['sections.setColumnSpan', 'admin', 'Set a page section column span.'],
   ['sections.delete', 'admin', 'Delete a page section.', 'required'],
+  ['sections.translate', 'admin', 'Save the per-language config override for a page section.'],
+  ['history.revert', 'admin', 'Revert one content changeset; fails if the content changed since, unless forced.', 'recommended'],
+  ['media.delete', 'admin', 'Delete a media library file; previews first when the file is still in use.', 'recommended'],
+  ['media.importFromUrl', 'admin', 'Import a public image by URL into the media library.'],
   ['members.updateProfile', 'active_member', 'Update a member profile.'],
   ['members.approve', 'admin', 'Approve a pending member.', 'recommended'],
   ['members.reject', 'admin', 'Reject a pending member.', 'required'],
