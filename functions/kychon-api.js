@@ -7,7 +7,7 @@
 // anonymous). The marker below changes the source digest to force a one-time
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { adminDb, ai, auth, events, functions } from '@run402/functions';
+import { adminDb, ai, assets, auth, events, functions } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
 const SUPPORTED_API_VERSIONS = [API_VERSION];
@@ -72,6 +72,7 @@ const READ_OPERATIONS = [
   'history.list',
   'history.revisions',
   'history.revision',
+  'bundle.export',
 ];
 
 const MUTATION_OPERATIONS = [
@@ -381,7 +382,7 @@ export default async (req) => {
   }
 
   if (envelope.phase === 'query') {
-    return handleQuery(correlationId, envelope, operation, actor);
+    return handleQuery(correlationId, envelope, operation, actor, req);
   }
 
   if (envelope.phase === 'validate') {
@@ -464,7 +465,7 @@ function invalidEnvelope(message) {
   };
 }
 
-function handleQuery(correlationId, envelope, operation, actor) {
+function handleQuery(correlationId, envelope, operation, actor, req) {
   if (operation.name === 'portal.discover') {
     return successResponse(correlationId, {
       product: 'Kychon',
@@ -540,6 +541,9 @@ function handleQuery(correlationId, envelope, operation, actor) {
   }
   if (operation.name.startsWith('history.')) {
     return handleHistoryQuery(correlationId, operation.name, envelope.input || {}, actor);
+  }
+  if (operation.name === 'bundle.export') {
+    return handleBundleExport(correlationId, envelope.input || {}, actor, req);
   }
 
   if (operation.name === 'pollVotes.list') {
@@ -2309,6 +2313,211 @@ async function handleHistoryQuery(correlationId, name, input, actor) {
     });
   }
   return successResponse(correlationId, { revision });
+}
+
+// --- Content export (kychon-bundle/v1) -------------------------------------------
+// Admin-only. One JSON document with every row of the history-tracked tables,
+// plus the SHA-256, type and size of every project asset that content
+// references, so another project can import it (scripts/bundle-import.ts).
+// Members only with include_members; history never.
+
+const BUNDLE_FORMAT = 'kychon-bundle/v1';
+// Columns that point at members; nulled when members are not exported.
+const BUNDLE_MEMBER_REFS = {
+  events: ['created_by'],
+  announcements: ['author_id'],
+  resources: ['uploaded_by'],
+  polls: ['created_by'],
+};
+const BLOB_URL_RE = /https?:\/\/[^\s"'()<>\\]+\/_blob\/[^\s"'()<>?#\\]+/g;
+// `/assets/<name>` not preceded by URL characters (so not `https://x/assets/...`
+// or `/_blob/assets/...`).
+const ASSET_PATH_RE = /(?<![\w.~/-])\/assets\/[A-Za-z0-9._-]+/g;
+const IMMUTABLE_BLOB_PATH_RE = /^(.*?)-([0-9a-f]{8})(?:-v\d+-([a-z_]+)-[0-9a-f]{8})?(\.[A-Za-z0-9]+)$/;
+
+async function handleBundleExport(correlationId, input, actor, req) {
+  if (!isAdminLike(actor)) {
+    return errorResponse(correlationId, 403, {
+      code: 'auth.forbidden',
+      message: 'bundle.export requires admin role.',
+      detail: { actor: actor.state },
+      retryable: false,
+    });
+  }
+  const includeMembers = input.include_members === true || input.includeMembers === true;
+  const db = adminDb();
+  const tables = {};
+  for (const table of HISTORY_TABLES) {
+    const key = historyKeyColumn(table);
+    tables[table] = normalizeDbRows(await db.sql(`SELECT * FROM ${table} ORDER BY ${key}`));
+  }
+  if (includeMembers) {
+    // A login belongs to one project; imported members re-link by email when they sign in.
+    tables.members = normalizeDbRows(await db.sql('SELECT * FROM members ORDER BY id')).map((row) => ({
+      ...row,
+      user_id: null,
+    }));
+  } else {
+    for (const [table, columns] of Object.entries(BUNDLE_MEMBER_REFS)) {
+      tables[table] = tables[table].map((row) => {
+        const out = { ...row };
+        for (const column of columns) if (column in out) out[column] = null;
+        return out;
+      });
+    }
+  }
+
+  const siteUrl = requestSiteUrl(req);
+  const { assets: assetRefs, unresolved } = await resolveBundleAssets(collectBundleAssetUrls(tables), siteUrl);
+  return successResponse(correlationId, {
+    bundle: {
+      format: BUNDLE_FORMAT,
+      engine_version: ENGINE_VERSION,
+      exported_at: new Date().toISOString(),
+      source: { project_id: process.env.RUN402_PROJECT_ID || null, site_url: siteUrl },
+      include_members: includeMembers,
+      tables,
+      assets: assetRefs,
+      unresolved_asset_urls: unresolved,
+    },
+  });
+}
+
+function requestSiteUrl(req) {
+  const forwarded = req?.headers?.get('x-forwarded-host');
+  if (forwarded) return `https://${forwarded.split(',')[0].trim()}`;
+  try {
+    return new URL(req.url).origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Every asset URL in the rows: absolute `/_blob/` URLs and `/assets/<name>` paths. */
+function collectBundleAssetUrls(tables) {
+  const urls = new Set();
+  const visit = (value) => {
+    if (typeof value === 'string') {
+      for (const match of value.matchAll(BLOB_URL_RE)) urls.add(match[0]);
+      for (const match of value.matchAll(ASSET_PATH_RE)) urls.add(match[0]);
+    } else if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+  };
+  visit(tables);
+  return [...urls].sort();
+}
+
+async function resolveBundleAssets(urls, siteUrl) {
+  const assetRefs = [];
+  const unresolved = [];
+  const blobUrls = urls.filter((url) => url.includes('/_blob/'));
+  const assetPaths = urls.filter((url) => url.startsWith('/assets/'));
+
+  if (blobUrls.length) {
+    const blobs = await listAllBlobs();
+    const byKey = new Map(blobs.map((blob) => [blob.key, blob]));
+    for (const url of blobUrls) {
+      const [origin, path] = splitBlobUrl(url);
+      let blob = byKey.get(path);
+      let variant = null;
+      let sourceUrl = url;
+      if (!blob) {
+        const match = IMMUTABLE_BLOB_PATH_RE.exec(path);
+        if (match) {
+          const [, stem, sha8, kind] = match;
+          blob = blobs.find((b) => keyStem(b.key) === stem && b.sha256?.startsWith(sha8));
+          if (blob) {
+            variant = kind || null;
+            sourceUrl = `${origin}/_blob/${stem}-${sha8}${keyExtension(blob.key)}`;
+          }
+        }
+      }
+      if (!blob?.sha256) {
+        unresolved.push(url);
+        continue;
+      }
+      assetRefs.push(bundleAssetRef(url, blob, sourceUrl, variant));
+    }
+  }
+
+  if (assetPaths.length) {
+    const manifest = siteUrl ? await fetchSiteAssetManifest(siteUrl) : null;
+    for (const url of assetPaths) {
+      const ref = manifest?.assets?.[url.slice('/assets/'.length)];
+      const sha256 = ref?.sha256 || ref?.contentSha256;
+      const sourceUrl =
+        ref?.cdn_immutable_url ||
+        ref?.immutable_url ||
+        ref?.cdnImmutableUrl ||
+        ref?.immutableUrl ||
+        ref?.cdn_url ||
+        ref?.url;
+      if (!sha256 || !sourceUrl) {
+        unresolved.push(url);
+        continue;
+      }
+      assetRefs.push(
+        bundleAssetRef(
+          url,
+          {
+            key: ref.key,
+            sha256,
+            content_type: ref.content_type || ref.contentType,
+            size_bytes: ref.size_bytes ?? ref.size,
+          },
+          sourceUrl,
+          null,
+        ),
+      );
+    }
+  }
+  return { assets: assetRefs, unresolved };
+}
+
+function bundleAssetRef(url, blob, sourceUrl, variant) {
+  return {
+    url,
+    key: blob.key,
+    sha256: blob.sha256,
+    content_type: blob.content_type || 'application/octet-stream',
+    size_bytes: Number(blob.size_bytes ?? 0),
+    variant,
+    source_url: sourceUrl,
+  };
+}
+
+async function listAllBlobs() {
+  const blobs = [];
+  let cursor;
+  do {
+    const page = await assets.list({ limit: 500, ...(cursor ? { cursor } : {}) });
+    blobs.push(...(page.blobs || []));
+    cursor = page.next_cursor || undefined;
+  } while (cursor);
+  return blobs;
+}
+
+async function fetchSiteAssetManifest(siteUrl) {
+  try {
+    const res = await fetch(`${siteUrl}/_assets-manifest.json`);
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+function splitBlobUrl(url) {
+  const index = url.indexOf('/_blob/');
+  return [url.slice(0, index), url.slice(index + '/_blob/'.length)];
+}
+
+function keyExtension(key) {
+  const match = /\.[A-Za-z0-9]+$/.exec(key);
+  return match ? match[0] : '';
+}
+
+function keyStem(key) {
+  return key.slice(0, key.length - keyExtension(key).length);
 }
 
 async function handleMediaList(correlationId, input, actor) {

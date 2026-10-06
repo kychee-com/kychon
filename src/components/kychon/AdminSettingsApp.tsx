@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Clock, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { Check, Clock, Download, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Alert,
@@ -29,7 +29,7 @@ import {
   Textarea,
 } from '@/components/kychon/ui';
 import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
-import { del, get, patch, post } from '@/lib/api';
+import { del, get, patch, post, queryOp } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
 import { showToast } from '@/lib/toast-events';
@@ -380,6 +380,74 @@ function CheckboxField({
         {label}
       </Label>
     </div>
+  );
+}
+
+/**
+ * Export the site's content as a kychon-bundle/v1 JSON file: pages, blocks,
+ * settings, events and the assets they use, for backup or moving to another
+ * Kychon project. Members only when ticked.
+ */
+export function ContentExportCard() {
+  const [includeMembers, setIncludeMembers] = useState(false);
+  const [state, setState] = useState<{ status: 'idle' | 'loading' | 'ready' | 'error'; href?: string; message?: string }>(
+    { status: 'idle' },
+  );
+
+  useEffect(() => {
+    const href = state.href;
+    return () => {
+      if (href) URL.revokeObjectURL(href);
+    };
+  }, [state.href]);
+
+  async function prepare() {
+    setState({ status: 'loading' });
+    try {
+      const data = await queryOp('bundle.export', { include_members: includeMembers });
+      const blob = new Blob([JSON.stringify(data.bundle, null, 2)], { type: 'application/json' });
+      setState({ status: 'ready', href: URL.createObjectURL(blob) });
+    } catch (error) {
+      setState({ status: 'error', message: error instanceof Error ? error.message : 'Export failed' });
+    }
+  }
+
+  const filename = `kychon-export-${new Date().toISOString().slice(0, 10)}.json`;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Export content</CardTitle>
+        <CardDescription>
+          Download your pages, blocks, settings, events and the images they use as one file, to keep as a backup or
+          import into another Kychon site. Change history is not included.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <SectionError message={state.status === 'error' ? state.message : undefined} />
+        <CheckboxField
+          checked={includeMembers}
+          label="Include member records (names, emails, profiles)"
+          onCheckedChange={(checked) => {
+            setIncludeMembers(checked);
+            setState({ status: 'idle' });
+          }}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={state.status === 'loading'} onClick={() => void prepare()}>
+            {state.status === 'loading' ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
+            {state.status === 'loading' ? 'Preparing export' : 'Prepare export'}
+          </Button>
+          {state.status === 'ready' && state.href ? (
+            <Button asChild>
+              <a href={state.href} download={filename}>
+                <Download aria-hidden="true" />
+                Download {filename}
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1125,6 +1193,8 @@ export default function AdminSettingsApp() {
           ) : null}
         </CardContent>
       </Card>
+
+      <ContentExportCard />
 
       <Dialog open={editingTier !== null} onOpenChange={(open) => !open && setEditingTier(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
