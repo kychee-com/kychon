@@ -380,8 +380,12 @@ block's tag filter in the block's settings dialog. Through the capability API,
 **Ports.** Copy the source's per-event categories into `events.tags`, and the
 filter of each per-page event list into that page's `events_list.config.tags`.
 A Wild Apricot "Upcoming events" gadget is filtered by event tags, so seed
-each event's Wild Apricot tags and the gadget's selected tags. A port that
-already kept the source tags in `source_metadata` can copy them over once:
+each event's Wild Apricot tags and the gadget's selected tags. Read them from
+the gadgets in the page body only: Wild Apricot themes also put a site-wide,
+unfiltered "Upcoming events" gadget in the sidebar (`#id_Sidebar`) of every
+page, and counting it tags every listed event with every activity. A port
+that already kept correct source tags in `source_metadata` can copy them over
+once (check them first; tags gathered with the sidebar gadget are wrong):
 
 ```sql
 UPDATE events
