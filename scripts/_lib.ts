@@ -56,6 +56,7 @@ import {
 } from "./release-manifest.ts";
 import { type RestorePointReason, takeRestorePoint } from "./restore-points.ts";
 import type { PublicStaticPathSpec } from "../src/lib/clean-routes.ts";
+import { connectorUrlDrift } from "../src/lib/connector-url.ts";
 
 type Run402Instance = ReturnType<typeof run402>;
 export type { FileSet, FunctionSpec, ReleaseSpec, Run402Instance };
@@ -1090,6 +1091,8 @@ export async function runDeploy(
   for (const [k, v] of Object.entries(result.urls)) {
     console.log(`  ${k}: ${v}`);
   }
+  const connectorDrift = connectorUrlDrift(result.urls);
+  if (connectorDrift) console.warn(`  Warning: ${connectorDrift}`);
   const firstPublicUrl = Object.values(result.urls)[0]?.replace(/\/+$/, "");
   const diagnoseBase = firstPublicUrl || `https://${opts.subdomain}.kychon.com`;
   console.log(

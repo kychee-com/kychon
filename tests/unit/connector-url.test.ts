@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { connectorMcpUrl } from '../../src/lib/connector-url.ts';
+import { connectorMcpUrl, connectorUrlDrift } from '../../src/lib/connector-url.ts';
 
 describe('connectorMcpUrl', () => {
   it('uses a custom domain as it is', () => {
@@ -15,5 +15,20 @@ describe('connectorMcpUrl', () => {
   it('leaves an app host and look-alikes alone', () => {
     expect(connectorMcpUrl('https://ocey.run402.app')).toBe('https://ocey.run402.app/_run402/mcp');
     expect(connectorMcpUrl('https://run402.com.example.org')).toBe('https://run402.com.example.org/_run402/mcp');
+  });
+});
+
+describe('connectorUrlDrift', () => {
+  it('is quiet when Run402 reports the URL Kychon shows', () => {
+    expect(
+      connectorUrlDrift({ site: 'https://eagles.run402.com', mcp: 'https://eagles.run402.app/_run402/mcp' }),
+    ).toBeNull();
+    expect(connectorUrlDrift({ site: 'https://eagles.run402.com' })).toBeNull();
+  });
+
+  it('names both URLs when they differ', () => {
+    expect(connectorUrlDrift({ site: 'https://eagles.run402.com', mcp: 'https://mcp.run402.net/eagles' })).toContain(
+      'Run402 reports https://mcp.run402.net/eagles',
+    );
   });
 });

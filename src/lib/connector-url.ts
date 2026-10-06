@@ -10,3 +10,14 @@ export function connectorMcpUrl(portalUrl: string): string {
   if (url.hostname.endsWith('.run402.com')) url.hostname = url.hostname.replace(/\.run402\.com$/, '.run402.app');
   return `${url.protocol}//${url.host}${CONNECTOR_PATH}`;
 }
+
+/**
+ * Deploy check: the URL Kychon shows for the release's Run402 site against the
+ * `urls.mcp` Run402 reports. A message means Run402 changed its host rule.
+ */
+export function connectorUrlDrift(urls: Record<string, string | undefined>): string | null {
+  if (!urls.mcp || !urls.site) return null;
+  const expected = connectorMcpUrl(urls.site);
+  if (expected === urls.mcp.replace(/\/+$/, '')) return null;
+  return `AI connector URL drift: Kychon shows ${expected} for ${urls.site}, but Run402 reports ${urls.mcp}. Update src/lib/connector-url.ts.`;
+}
