@@ -1,75 +1,82 @@
-// prototype-schedule: "*/15 * * * *" (requires hobby tier — prototype allows only 1 scheduled fn)
+// schedule: none — moderates one forum post per run. kychon-api queues a
+// Run402 function run of this function for each topic or reply a member
+// creates (event type forum.post_created); an admin may also call it with
+// { content_type, content_id } to moderate a post by hand.
 import { adminDb, ai, auth } from '@run402/functions';
+
+const POSTS = new Map([
+  ['forum_topic', { table: 'forum_topics', columns: 'id,title,body,hidden', text: (p) => `${p.title}\n\n${p.body}` }],
+  ['forum_reply', { table: 'forum_replies', columns: 'id,body,hidden', text: (p) => p.body }],
+]);
 
 export default async (req) => {
   const admin = adminDb();
 
-  // A run spends the project's AI moderation quota, hides posts, and on a large
-  // backlog outlasts the function timeout, so anonymous callers must not start one.
+  // A run spends the project's AI moderation quota and hides posts, so
+  // anonymous callers must not start one.
   const denied = await authorizeRun(req, admin);
   if (denied) return denied;
+
+  const ref = await postReference(req);
+  const post = POSTS.get(ref.contentType);
+  if (!post || ref.contentId == null) {
+    return json({ error: 'content_type (forum_topic or forum_reply) and content_id are required' }, 400);
+  }
 
   // Check if feature is enabled
   const flag = await admin.from('site_config').select('value').eq('key', 'feature_ai_moderation').limit(1);
   if (!flag.length || (flag[0].value !== true && flag[0].value !== 'true')) {
-    return new Response(JSON.stringify({ status: 'skipped', reason: 'feature_ai_moderation disabled' }));
+    return json({ status: 'skipped', reason: 'feature_ai_moderation disabled' });
   }
 
-  let moderated = 0;
+  // A retried or repeated run moderates a post once.
+  const logged = await admin
+    .from('moderation_log')
+    .select('id')
+    .eq('content_type', ref.contentType)
+    .eq('content_id', ref.contentId)
+    .limit(1);
+  if (logged.length) return json({ status: 'skipped', reason: 'already moderated' });
 
-  // Find last moderation timestamp
-  const lastCheck = await admin.sql('SELECT max(created_at) as last_at FROM moderation_log');
-  const lastAt = (lastCheck.rows || lastCheck)[0]?.last_at || '1970-01-01T00:00:00Z';
+  const row = (await admin.from(post.table).select(post.columns).eq('id', ref.contentId).limit(1))[0];
+  if (!row) return json({ status: 'skipped', reason: 'post not found' });
+  if (row.hidden === true) return json({ status: 'skipped', reason: 'post already hidden' });
 
-  // Get new forum topics since last check
-  const newTopics = await admin
-    .from('forum_topics')
-    .select('id,title,body,author_id')
-    .gt('created_at', lastAt)
-    .eq('hidden', false);
-
-  for (const topic of newTopics) {
-    const result = await moderateContent(`${topic.title}\n\n${topic.body}`);
-    if (result.confidence > 0.7 && result.flagged) {
-      await admin.from('forum_topics').update({ hidden: true }).eq('id', topic.id);
-    }
-    await admin.from('moderation_log').insert({
-      content_type: 'forum_topic',
-      content_id: topic.id,
-      action: result.action,
-      reason: result.reason,
-      confidence: result.confidence,
-    });
-    moderated++;
+  const result = await moderateContent(post.text(row));
+  if (result.confidence > 0.7 && result.flagged) {
+    await admin.from(post.table).update({ hidden: true }).eq('id', row.id);
   }
+  await admin.from('moderation_log').insert({
+    content_type: ref.contentType,
+    content_id: row.id,
+    action: result.action,
+    reason: result.reason,
+    confidence: result.confidence,
+  });
 
-  // Get new forum replies since last check
-  const newReplies = await admin
-    .from('forum_replies')
-    .select('id,body,author_id')
-    .gt('created_at', lastAt)
-    .eq('hidden', false);
-
-  for (const reply of newReplies) {
-    const result = await moderateContent(reply.body);
-    if (result.confidence > 0.7 && result.flagged) {
-      await admin.from('forum_replies').update({ hidden: true }).eq('id', reply.id);
-    }
-    await admin.from('moderation_log').insert({
-      content_type: 'forum_reply',
-      content_id: reply.id,
-      action: result.action,
-      reason: result.reason,
-      confidence: result.confidence,
-    });
-    moderated++;
-  }
-
-  return new Response(JSON.stringify({ status: 'ok', moderated }));
+  return json({ status: 'ok', action: result.action });
 };
 
-// Only the platform (a schedule trigger, or the owner's `run402 functions runs
-// create`) or an admin may run this. The gateway sets x-run402-trigger on the
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), { status });
+}
+
+// The post to moderate: a function run's payload, or an admin's request body.
+async function postReference(req) {
+  let body = null;
+  try {
+    body = await req.json();
+  } catch {}
+  const input = body?.trigger === 'function_run' && body.payload ? body.payload : body;
+  const id = Number(input?.content_id);
+  return {
+    contentType: typeof input?.content_type === 'string' ? input.content_type : null,
+    contentId: Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null,
+  };
+}
+
+// Only the platform (a function run it starts, such as the ones kychon-api
+// queues) or an admin may run this. The gateway sets x-run402-trigger on the
 // runs it starts and never forwards a caller's x-run402-* headers to a function.
 async function authorizeRun(req, admin) {
   if (req.headers.get('x-run402-trigger')) return null;

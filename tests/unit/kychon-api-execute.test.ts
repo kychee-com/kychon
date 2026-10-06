@@ -94,6 +94,7 @@ vi.mock(
   () => ({
     getUser: vi.fn(async () => mockState.user),
     events: { emit: vi.fn(async () => ({ deduplicated: false })) },
+    functions: { runs: { create: vi.fn(async () => ({ run_id: 'fnrun_test' })) } },
     auth: { user: vi.fn(async () => mockState.user) },
     adminDb: () => ({
       sql(query: string, params: unknown[] = []) {

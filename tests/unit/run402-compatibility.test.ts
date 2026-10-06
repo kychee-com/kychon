@@ -117,13 +117,18 @@ describe('Run402 database helper compatibility', () => {
   it('moderate-content uses explicit adminDb table access, not the legacy db shim', async () => {
     const moderateContent = (await import('../../functions/moderate-content.js')).default;
 
-    const response = await moderateContent(new Request('https://portal.test/functions/v1/moderate-content'));
+    const response = await moderateContent(
+      new Request('https://portal.test/functions/v1/moderate-content', {
+        method: 'POST',
+        body: JSON.stringify({ content_type: 'forum_topic', content_id: 1 }),
+      }),
+    );
 
-    await expect(response.json()).resolves.toMatchObject({ status: 'ok', moderated: 2 });
+    await expect(response.json()).resolves.toMatchObject({ status: 'ok', action: 'hidden' });
     expect(state.adminCalls).toBeGreaterThan(0);
     expect(state.legacyDbCalls).toBe(0);
-    expect(state.updates.map((update) => update.table)).toEqual(['forum_topics', 'forum_replies']);
-    expect(state.inserts.filter((insert) => insert.table === 'moderation_log')).toHaveLength(2);
+    expect(state.updates.map((update) => update.table)).toEqual(['forum_topics']);
+    expect(state.inserts.filter((insert) => insert.table === 'moderation_log')).toHaveLength(1);
   });
 
   it('translate-content uses explicit adminDb table access for cache reads and writes', async () => {

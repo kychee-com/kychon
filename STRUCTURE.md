@@ -78,13 +78,13 @@ kychon/
 ├── functions/              # Run402 edge functions (unchanged)
 │   ├── on-signup.js        # Post-auth: create member, first-user-admin
 │   ├── check-expirations.js    # schedule: "0 8 * * *"
-│   ├── event-reminders.js      # schedule: "0 * * * *"
-│   ├── moderate-content.js     # schedule: "*/15 * * * *"
+│   ├── event-reminders.js      # One-off run kychon-api queues per event: RSVP reminders an hour before
+│   ├── moderate-content.js     # One-off run kychon-api queues per new forum post
 │   ├── kychon-api.js           # Capability API gateway (also the forum "Translate" button)
 │   ├── translate-content.js    # Admin-triggered content translation
 │   ├── upload-resource.js      # Resource file uploads
 │   ├── prune-history.js        # schedule: "23 3 * * *" — trims content history
-│   └── ai-content.js           # Newsletter/insights (dormant)
+│   └── ai-content.js           # Newsletter/recaps (dormant; an admin runs it)
 └── tests/
     ├── unit/               # Vitest + Node (imports from src/lib/, src/schemas/)
     ├── integration/        # Vitest + happy-dom

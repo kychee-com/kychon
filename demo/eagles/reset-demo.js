@@ -2042,7 +2042,15 @@ const MUTABLE_TABLES = [
   'resources', 'announcements',
 ];
 
-export default async (_req) => {
+export default async (req) => {
+  // Only a run Run402 starts may reset the demo: the hourly schedule, or the
+  // owner through Run402. The gateway sets x-run402-trigger on the runs it
+  // starts and never forwards a caller's x-run402-* headers, so a visitor
+  // (even one signed in as the demo admin) cannot wipe the demo on demand.
+  if (!req.headers.get('x-run402-trigger')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
   // 1. Read demo account user_ids
   const configResult = await adminDb().sql("SELECT value FROM site_config WHERE key = 'demo_accounts'");
   const demoAccounts = configResult.rows?.[0]?.value || {};

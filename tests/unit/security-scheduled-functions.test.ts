@@ -1,5 +1,6 @@
-// Regression coverage for the cron-style edge functions: moderate-content,
-// event-reminders, check-expirations, ai-content, and prune-history.
+// Regression coverage for the background edge functions: moderate-content and
+// event-reminders (one-off runs that kychon-api queues), check-expirations and
+// prune-history (scheduled), and ai-content (run by hand).
 //
 // Every functions/*.js file ships to every portal, and anyone holding the
 // portal's public anon key can call it at /functions/v1/<name>. These functions
@@ -94,6 +95,19 @@ const PROJECT_ADMIN = {
 
 const PLATFORM_RUN = { 'x-run402-trigger': 'function_run', 'x-run402-run-id': 'fnrun_test' };
 
+// What each function is asked to work on: the post to moderate, the event to remind about.
+const PAYLOADS: Record<string, Record<string, unknown>> = {
+  'moderate-content': { content_type: 'forum_topic', content_id: 1 },
+  'event-reminders': { event_id: 1 },
+};
+
+// A platform-started run carries its payload in a function-run envelope; an
+// admin sends the payload as the request body.
+function request(name: FunctionName, platform: boolean) {
+  const payload = PAYLOADS[name] ?? {};
+  return platform ? { trigger: 'function_run', run_id: 'fnrun_test', event_type: 'test', payload } : payload;
+}
+
 const NON_ADMIN_CALLERS: Array<[string, MockUser]> = [
   ['a self-registered user with no member record', STRANGER],
   ['an active non-admin member', MEMBER],
@@ -102,7 +116,7 @@ const NON_ADMIN_CALLERS: Array<[string, MockUser]> = [
 ];
 
 const ALLOWED_CALLERS: Array<[string, MockUser | null, Record<string, string>]> = [
-  ['a platform-started run (schedule trigger)', null, PLATFORM_RUN],
+  ['a platform-started run', null, PLATFORM_RUN],
   ['an active admin', ADMIN, {}],
   ['an active admin matched by email', UNLINKED_ADMIN, {}],
   ['a project admin', PROJECT_ADMIN, {}],
@@ -216,15 +230,15 @@ afterEach(() => {
 // What a successful run of each function does, starting from the fixture.
 const EXPECTED_RUN: Record<FunctionName, (r: Awaited<ReturnType<typeof invoke>>) => Promise<void>> = {
   async 'moderate-content'(r) {
-    expect(r.body).toEqual({ status: 'ok', moderated: 2 });
-    expect(aiModerate).toHaveBeenCalledTimes(2);
-    expect(await rows(db, 'SELECT content_type, action FROM moderation_log ORDER BY id')).toEqual([
-      { content_type: 'forum_topic', action: 'hidden' },
-      { content_type: 'forum_reply', action: 'hidden' },
+    expect(r.body).toEqual({ status: 'ok', action: 'hidden' });
+    expect(aiModerate.mock.calls).toEqual([['Cheap pills\n\nBuy now']]);
+    expect(await rows(db, 'SELECT content_type, content_id, action FROM moderation_log')).toEqual([
+      { content_type: 'forum_topic', content_id: 1, action: 'hidden' },
     ]);
+    expect(await rows(db, 'SELECT hidden FROM forum_topics')).toEqual([{ hidden: true }]);
   },
   async 'event-reminders'(r) {
-    expect(r.body).toEqual({ status: 'ok', events_checked: 1, reminders_sent: 2 });
+    expect(r.body).toEqual({ status: 'ok', reminders_sent: 2 });
     expect(emailSend.mock.calls.map(([message]) => message.to).sort()).toEqual([
       'ada@example.org',
       'grace@example.org',
@@ -254,7 +268,7 @@ describe.each(Object.keys(HANDLERS) as FunctionName[])('%s: only the platform or
 
   it('rejects an anonymous caller with 401 before any database, AI, or email work', async () => {
     const before = await snapshot();
-    const r = await invoke(name);
+    const r = await invoke(name, {}, request(name, false));
     expect(r.status, r.text).toBe(401);
     expect(r.body).toEqual({ error: 'Unauthorized' });
     expect(state.calls).toEqual([]);
@@ -265,7 +279,7 @@ describe.each(Object.keys(HANDLERS) as FunctionName[])('%s: only the platform or
   });
 
   it('does not treat an empty x-run402-trigger header as a platform run', async () => {
-    const r = await invoke(name, { 'x-run402-trigger': '' });
+    const r = await invoke(name, { 'x-run402-trigger': '' }, request(name, true));
     expect(r.status, r.text).toBe(401);
     expect(state.calls).toEqual([]);
   });
@@ -273,7 +287,7 @@ describe.each(Object.keys(HANDLERS) as FunctionName[])('%s: only the platform or
   it.each(NON_ADMIN_CALLERS)('rejects %s with 403 after only a member lookup', async (_label, user) => {
     state.user = user;
     const before = await snapshot();
-    const r = await invoke(name);
+    const r = await invoke(name, {}, request(name, false));
     expect(r.status, r.text).toBe(403);
     expect(r.body).toEqual({ error: 'Admin access required' });
     expect(new Set(state.calls)).toEqual(new Set(['select members']));
@@ -287,26 +301,28 @@ describe.each(Object.keys(HANDLERS) as FunctionName[])('%s: only the platform or
     delete process.env.AI_API_KEY; // keep check-expirations to its emails
     if (name === 'ai-content') process.env.AI_API_KEY = 'sk-test';
     state.user = user;
-    const r = await invoke(name, headers);
+    const r = await invoke(name, headers, request(name, user === null));
     expect(r.status, r.text).toBe(200);
     await EXPECTED_RUN[name](r);
   });
 });
 
 describe('event-reminders: one reminder per RSVP, escaped, parameterized', () => {
+  const reminderRun = () => request('event-reminders', true);
+
   it('reminds each going/maybe RSVP once, however often it runs', async () => {
-    const first = await invoke('event-reminders', PLATFORM_RUN);
+    const first = await invoke('event-reminders', PLATFORM_RUN, reminderRun());
     expect(first.body.reminders_sent).toBe(2);
 
     // A retried run, an overlapping run, or an admin re-running it sends nothing new.
     state.user = ADMIN;
-    const again = await invoke('event-reminders');
-    expect(again.body).toEqual({ status: 'ok', events_checked: 1, reminders_sent: 0 });
+    const again = await invoke('event-reminders', {}, { event_id: 1 });
+    expect(again.body).toEqual({ status: 'ok', reminders_sent: 0 });
     expect(emailSend).toHaveBeenCalledTimes(2);
 
     // Someone who RSVPs afterwards still gets theirs on the next run.
     await db.exec(`INSERT INTO event_rsvps (event_id, member_id, status) VALUES (1, 5, 'going')`);
-    const later = await invoke('event-reminders', PLATFORM_RUN);
+    const later = await invoke('event-reminders', PLATFORM_RUN, reminderRun());
     expect(later.body.reminders_sent).toBe(1);
     expect(emailSend.mock.lastCall?.[0].to).toBe('email-admin@example.org');
 
@@ -323,7 +339,7 @@ describe('event-reminders: one reminder per RSVP, escaped, parameterized', () =>
   });
 
   it('escapes the event title, location, and member name in the email HTML', async () => {
-    await invoke('event-reminders', PLATFORM_RUN);
+    await invoke('event-reminders', PLATFORM_RUN, reminderRun());
     const toGrace = emailSend.mock.calls.find(([message]) => message.to === 'grace@example.org')?.[0];
     expect(toGrace?.html).toContain('Hi Grace &lt;script&gt;alert(1)&lt;/script&gt;,');
     expect(toGrace?.html).toContain('<strong>Bake &amp; &lt;b&gt;Sale&lt;/b&gt;</strong>');
@@ -332,10 +348,10 @@ describe('event-reminders: one reminder per RSVP, escaped, parameterized', () =>
   });
 
   it('passes the event id as a bound parameter, not SQL text', async () => {
-    await invoke('event-reminders', PLATFORM_RUN);
+    await invoke('event-reminders', PLATFORM_RUN, reminderRun());
     const claim = state.sqlCalls.find(({ text }) => /UPDATE event_rsvps/.test(text));
-    expect(claim?.text).toMatch(/r\.event_id = \$1/);
-    expect(claim?.params).toEqual([1]);
+    expect(claim?.text).toMatch(/d\.event_id = \$1/);
+    expect(claim?.params).toEqual([1, 5]);
   });
 });
 

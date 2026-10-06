@@ -228,18 +228,32 @@ Members select their language in profile settings. The picker only shows when >1
 
 ## Add a Scheduled Edge Function
 
-1. Create `functions/my-job.js`:
+1. Create `functions/my-job.js`. Anyone holding the portal's anon key can call
+   `/functions/v1/my-job`, so the function must first refuse callers Run402 did
+   not start: copy `authorizeRun` and its helpers from `functions/prune-history.js`.
+   It lets through a run Run402 started (the gateway sets `x-run402-trigger`,
+   which callers cannot send) or an admin.
    ```js
    // schedule: "0 9 * * *"
-   import { adminDb } from '@run402/functions';
-   export default async (_req) => {
-     // Your logic here
-     const rows = await adminDb().from('site_config').select('key,value').limit(5);
+   import { adminDb, auth } from '@run402/functions';
+   export default async (req) => {
+     const admin = adminDb();
+     const denied = await authorizeRun(req, admin);
+     if (denied) return denied;
+     const rows = await admin.from('site_config').select('key,value').limit(5);
      return new Response(JSON.stringify({ status: 'ok', rows_checked: rows.length }));
    };
+   // authorizeRun, isActiveAdmin, isProjectAdmin, findMember: copied from functions/prune-history.js
    ```
-2. The `// schedule:` comment is parsed by `scripts/deploy.ts` to set the cron schedule
-3. Deploy: `npx tsx scripts/deploy.ts`
+2. The `// schedule:` comment is parsed by `scripts/deploy.ts` to set the cron schedule.
+   Run402 caps scheduled functions by tier (prototype 1, hobby 3, team 10) and refuses
+   a deploy over the cap; Kychon already uses two (`check-expirations`, `prune-history`).
+   Work that follows an action needs no schedule slot: queue a one-off run with
+   `functions.runs.create` from `@run402/functions`, as `kychon-api` does for moderation
+   and event reminders.
+3. Add the file to the list in `tests/unit/scheduled-functions-source.test.ts`.
+4. Deploy: `npx tsx scripts/deploy.ts`. To run it by hand:
+   `run402 functions runs create <project> my-job --event-type my-job.manual --idempotency-key <key> --wait`.
 
 ## Restructure the Homepage
 
@@ -291,6 +305,13 @@ VALUES (
 
 The event appears on `events.html` automatically when `feature_events` is enabled.
 Members RSVP via the event detail page (`event.html?id=UUID`).
+
+Members who RSVP going or maybe get an email reminder an hour before the event
+starts. `kychon-api` queues it as a one-off Run402 function run of
+`event-reminders.js` when an event is created or edited, or when someone RSVPs, so
+an event inserted with SQL is queued by its first RSVP. Run402 queues a run at most
+7, 30, or 90 days ahead (prototype, hobby, team); an event further out than that is
+queued by a later RSVP or edit. Demo portals never send reminders.
 
 ### Source-Timezone Event Display
 
@@ -357,7 +378,7 @@ UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_moderation';
 UPDATE site_config SET value = 'true' WHERE key = 'feature_ai_translation';
 ```
 
-Moderation (`moderate-content.js`) runs on a 15-minute schedule and is free. Translation uses Run402's quota-tracked translation service and targets the languages in `site_config.languages_enabled`: an admin runs `translate-content.js` to translate an announcement, event, or page, and the forum's Translate button calls the Capability API operation `translations.translateText`. An active member can translate a forum post they can see; each post is translated at most once per language and the result is cached in `content_translations`. Admins can also translate ad hoc text of up to 5,000 characters. Translations not served from the cache are limited to 30 per hour for each member and 200 per hour for each admin; past the limit the API answers `rateLimit.exceeded` (HTTP 429).
+Moderation (`moderate-content.js`) checks each forum topic and reply as it is posted (`kychon-api` queues a one-off Run402 function run for it) and is free. Translation uses Run402's quota-tracked translation service and targets the languages in `site_config.languages_enabled`: an admin runs `translate-content.js` to translate an announcement, event, or page, and the forum's Translate button calls the Capability API operation `translations.translateText`. An active member can translate a forum post they can see; each post is translated at most once per language and the result is cached in `content_translations`. Admins can also translate ad hoc text of up to 5,000 characters. Translations not served from the cache are limited to 30 per hour for each member and 200 per hour for each admin; past the limit the API answers `rateLimit.exceeded` (HTTP 429).
 
 Additional generative AI features (insights, onboarding, newsletter, event recaps) are paused pending a Run402 LLM endpoint. Their flags exist in `site_config` but are not exposed in the admin UI.
 

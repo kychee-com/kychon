@@ -7,12 +7,15 @@
 // anonymous). The marker below changes the source digest to force a one-time
 // re-bundle onto the current runtime. Re-bundle marker: actor-context-verify v1.
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { adminDb, ai, auth, events } from '@run402/functions';
+import { adminDb, ai, auth, events, functions } from '@run402/functions';
 
 const API_VERSION = '2026-05-08';
 const SUPPORTED_API_VERSIONS = [API_VERSION];
 const API_ENDPOINT = 'https://api.run402.com/functions/v1/kychon-api';
 const ENGINE_VERSION = '__KYCHON_ENGINE_VERSION__';
+// Set at deploy time (scripts/_lib.ts): 'true' on the demo portals, whose
+// members are seeded with real-looking addresses and must never be emailed.
+const DEMO_PORTAL = '__KYCHON_DEMO_PORTAL__';
 
 const READ_OPERATIONS = [
   'portal.discover',
@@ -789,6 +792,7 @@ async function handleExecute(correlationId, envelope, operation, actor) {
         : outcome;
     await completeExecution(executionRecord, ledgerResult(operation.name, data));
     await emitAppEvent(envelope, operation, data);
+    await queueFollowUpRuns(operation.name, data);
     return successResponse(correlationId, data);
   } catch (error) {
     if (executionRecord) await failExecution(executionRecord, executionFailurePayload(error));
@@ -2778,6 +2782,66 @@ async function emitAppEvent(envelope, operation, data) {
     });
   } catch (error) {
     console.error(`app event emit failed (${mapped?.type ?? operation.name}):`, error?.message || error);
+  }
+}
+
+// Work that follows a mutation runs as one-off Run402 function runs, which need
+// no schedule slot: moderate each new forum post, and remind an event's RSVPs an
+// hour before it starts. Best effort, like emitAppEvent: the mutation already
+// succeeded, and failing to queue the follow-up must not fail it.
+async function queueFollowUpRuns(operationName, data) {
+  const row = isPlainObject(data?.result) ? data.result : null;
+  if (!row) return;
+  try {
+    if (operationName === 'forum.topics.create') await queuePostModeration('forum_topic', row.id);
+    else if (operationName === 'forum.replies.create') await queuePostModeration('forum_reply', row.id);
+    else if (operationName === 'rsvps.setStatus') {
+      if (row.status === 'going' || row.status === 'maybe') {
+        await queueEventReminder(await selectOneRow('events', 'id', row.event_id));
+      }
+    } else if (operationName.startsWith('events.') && operationName !== 'events.delete') {
+      await queueEventReminder(row);
+    }
+  } catch (error) {
+    console.error(`follow-up run not queued (${operationName}):`, error?.message || error);
+  }
+}
+
+async function queuePostModeration(contentType, contentId) {
+  if (contentId == null) return;
+  if ((await readSiteConfig()).get('feature_ai_moderation') !== true) return;
+  await functions.runs.create('moderate-content', {
+    eventType: 'forum.post_created',
+    payload: { content_type: contentType, content_id: Number(contentId) },
+    idempotencyKey: `moderate:${contentType}:${contentId}`,
+  });
+}
+
+const REMINDER_LEAD_MS = 60 * 60 * 1000;
+
+// Queues the event's reminder run for an hour before it starts. Every call for
+// the same start time sends the same key and request, so Run402 dedupes repeats
+// (an edit that keeps the time, a second RSVP); a new start time queues a new
+// run, and the run for the old time finds the reminder not due and does nothing.
+async function queueEventReminder(event) {
+  if (DEMO_PORTAL === 'true') return;
+  const startsAt = new Date(event?.starts_at ?? Number.NaN);
+  if (event?.id == null || Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) return;
+  const startsIso = startsAt.toISOString();
+  try {
+    await functions.runs.create('event-reminders', {
+      eventType: 'event.reminder',
+      payload: { event_id: Number(event.id), starts_at: startsIso },
+      idempotencyKey: `event-reminder:${event.id}:${startsIso}`,
+      runAt: new Date(startsAt.getTime() - REMINDER_LEAD_MS),
+      // A run that could not start before the event expires instead of reminding late.
+      expiresAt: startsAt,
+    });
+  } catch (error) {
+    // Run402 queues runs at most 7, 30, or 90 days ahead, depending on the
+    // tier. An event further out is queued by a later RSVP or edit.
+    if (error?.status === 400) return;
+    throw error;
   }
 }
 

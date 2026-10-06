@@ -285,6 +285,8 @@ export async function deployOneDemo(
       // contains the chrome blocks + the demo's `extraSqlFile` content.
       excludeFunctions: ["check-expirations"],
       extraFunction: config.resetDemoFile,
+      // Demo members are seeded with real-looking addresses: never email them.
+      demo: true,
       allowWarnings: opts.allowWarnings ?? process.env.RUN402_ALLOW_WARNINGS === "true",
       dryRun: opts.dryRun === true,
       ...(opts.restorePoint ? { restorePoint: opts.restorePoint } : {}),

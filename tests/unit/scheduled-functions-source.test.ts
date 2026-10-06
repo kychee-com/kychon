@@ -5,30 +5,38 @@ import { describe, expect, it } from 'vitest';
 const functionsDir = join(import.meta.dirname, '../../functions');
 const read = (file: string) => readFileSync(join(functionsDir, file), 'utf8');
 
-// Functions meant to run on a schedule: a `// schedule: "..."` directive (which
-// scripts/_lib.ts turns into a Run402 schedule trigger) or a dormant
-// `// prototype-schedule: "..."` one.
-const SCHEDULE_DIRECTIVE = /\/\/\s*(?:prototype-)?schedule:\s*"[^"]+"/;
-const scheduledFunctions = readdirSync(functionsDir)
-  .filter((file) => file.endsWith('.js'))
-  .filter((file) => SCHEDULE_DIRECTIVE.test(read(file)));
+const allFunctions = readdirSync(functionsDir).filter((file) => file.endsWith('.js'));
 
-it('finds the scheduled functions', () => {
-  expect(scheduledFunctions).toEqual(
-    expect.arrayContaining([
-      'ai-content.js',
-      'check-expirations.js',
-      'event-reminders.js',
-      'moderate-content.js',
-      'prune-history.js',
-    ]),
-  );
+// Functions that do background work with no signed-in user: scheduled ones,
+// ones that run as one-off Run402 function runs kychon-api queues
+// (moderate-content, event-reminders), and ai-content, which an admin runs.
+const backgroundFunctions = [
+  'ai-content.js',
+  'check-expirations.js',
+  'event-reminders.js',
+  'moderate-content.js',
+  'prune-history.js',
+];
+
+// The `// schedule: "..."` directive scripts/_lib.ts turns into a Run402 schedule trigger.
+const SCHEDULE_DIRECTIVE = /\/\/\s*schedule:\s*"[^"]+"/;
+
+it('covers every function that runs on a schedule', () => {
+  const scheduled = allFunctions.filter((file) => SCHEDULE_DIRECTIVE.test(read(file)));
+  expect(scheduled).toEqual(expect.arrayContaining(['check-expirations.js', 'prune-history.js']));
+  expect(scheduled.filter((file) => !backgroundFunctions.includes(file))).toEqual([]);
+});
+
+// Deploys never parsed `// prototype-schedule:`, so functions marked with it
+// silently never ran. Background work runs on a real schedule or as a function run.
+it.each(allFunctions)('%s carries no prototype-schedule directive', (file) => {
+  expect(read(file)).not.toMatch(/prototype-schedule/);
 });
 
 /**
  * Regression guard for the scheduled-function `db is not defined` bug.
  *
- * Scheduled functions run with no signed-in user and must read across every
+ * Background functions run with no signed-in user and must read across every
  * member regardless of RLS, so every DB read MUST go through `adminDb()` (not
  * the request-scoped `db(req)` and never a bare, undefined `db`). Earlier
  * revisions of `check-expirations.js` and `event-reminders.js` referenced a
@@ -40,7 +48,7 @@ it('finds the scheduled functions', () => {
 // The negative lookbehind excludes the `min` of `adminDb` (and any word char).
 const BARE_DB_READ = /(?<![A-Za-z0-9_])db\s*(?:\.|\n)/;
 
-describe.each(scheduledFunctions)('scheduled function source: %s', (file) => {
+describe.each(backgroundFunctions)('background function source: %s', (file) => {
   const source = read(file);
 
   it('imports adminDb from @run402/functions', () => {
@@ -55,7 +63,7 @@ describe.each(scheduledFunctions)('scheduled function source: %s', (file) => {
   });
 
   // Every functions/*.js file is deployed to every portal, and anyone holding
-  // the portal's anon key can call it. A scheduled function must therefore
+  // the portal's anon key can call it. A background function must therefore
   // authorize the run first: a platform-started run (x-run402-trigger) or an
   // admin. tests/unit/security-scheduled-functions.test.ts covers the behavior.
   it('authorizes the run before any database, AI, email, or body work', () => {

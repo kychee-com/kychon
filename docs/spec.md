@@ -251,7 +251,7 @@ An AI-native product should be tested by an AI-native tool. Claude Code with Chr
 | **Contact forms** | Public inquiry, membership application | DB + site |
 | **Email notifications** | Welcome, announcements, reminders | Run402 email (template-based) |
 | **CSV import/export** | Migration, reporting, board presentations | Edge function |
-| **Scheduled jobs** | Expiration checks, reminders, digests | Run402 cron (schedule field on functions) |
+| **Scheduled jobs** | Expiration checks, history pruning; moderation and event reminders run as one-off function runs | Run402 cron (schedule field on functions) and function runs |
 
 ### Nice-to-have (enable via feature flags)
 
@@ -357,8 +357,8 @@ kychon/
 │   ├── on-signup.js              # Post-signup: create member, assign first-user admin, AI welcome
 │   ├── invite.js                 # Send membership invite email
 │   ├── check-expirations.js      # schedule: "0 8 * * *" — daily expiration check + AI member insights
-│   ├── event-reminders.js        # schedule: "0 * * * *" — hourly event reminders
-│   ├── moderate-content.js       # schedule: "*/15 * * * *" — AI content moderation (feature flag)
+│   ├── event-reminders.js        # one-off run per event, queued by kychon-api — RSVP reminder an hour before
+│   ├── moderate-content.js       # one-off run per new forum post, queued by kychon-api — AI moderation (feature flag)
 │   ├── translate-content.js      # Triggered on new content — AI auto-translation (feature flag)
 │   ├── generate-newsletter.js    # schedule: "0 9 * * 1" — AI weekly newsletter draft (feature flag)
 │   └── generate-recap.js         # Triggered after event — AI event recap draft (feature flag)
@@ -798,11 +798,15 @@ Run402 has full cron support via the `schedule` field on function deploy.
 functions/
 ├── on-signup.js              ← triggered by client after auth
 ├── check-expirations.js      ← schedule: "0 8 * * *" (daily 8AM)
-├── event-reminders.js        ← schedule: "0 * * * *" (hourly)
+├── prune-history.js          ← schedule: "23 3 * * *" (daily)
+├── event-reminders.js        ← one-off run per event, an hour before it starts
+├── moderate-content.js       ← one-off run per new forum post
 └── invite.js                 ← triggered from admin panel
 ```
 
-Tier limits: Prototype 1 scheduled fn (15min min), Hobby 3 (5min), Team 10 (1min).
+Tier limits: Prototype 1 scheduled fn (15min min), Hobby 3 (5min), Team 10 (1min). Work
+that follows an action (moderating a new post, reminding an event's RSVPs) runs as a
+one-off Run402 function run that `kychon-api` queues, which uses no schedule slot.
 
 ### First-User Admin Flow
 
@@ -916,11 +920,11 @@ feature_ai_event_recaps  — true/false (dormant — awaiting LLM endpoint)
 
 ### AI Feature 1: Content Moderation Bot
 
-**Schedule**: `*/15 * * * *` (every 15 minutes)
+**Trigger**: each new forum topic or reply (`kychon-api` queues a one-off Run402 function run)
 **Phase**: 2 (after forum is built)
 
-Every 15 minutes:
-- Read new forum posts / replies since last check
+For each new post:
+- Read the forum post or reply
 - Send to AI: "Is this spam, toxic, off-topic, or appropriate?"
 - Auto-hide flagged content, mark for admin review
 - Log moderation decisions with AI reasoning
@@ -1049,7 +1053,7 @@ When a new member signs up:
 │  AI Features                                            │
 │  Platform-native. No API key required.                  │
 │                                                         │
-│  ☑ Content Moderation     (checks every 15 minutes)     │
+│  ☑ Content Moderation     (checks each new post)        │
 │  ☑ Auto-Translation       (to: PT, NL)                  │
 │                                                         │
 │  AI Activity (last 7 days):                             │
@@ -1316,7 +1320,7 @@ Four pillars:
 **AI Features** (the differentiator section)
 > Your community has a built-in AI assistant.
 >
-> 🛡 **Content Moderation** — AI reviews forum posts every 15 minutes. Spam never reaches your members.
+> 🛡 **Content Moderation** — AI reviews each forum post as it is posted. Spam never reaches your members.
 > 🌍 **Auto-Translation** — Post in Portuguese, members read in English. Automatically.
 > 📰 **Newsletter Writer** — AI drafts your weekly newsletter every Monday. You just review and send.
 > 👋 **Smart Onboarding** — New members get a personalized welcome based on their interests and tier.

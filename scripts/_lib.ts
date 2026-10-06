@@ -76,6 +76,13 @@ export interface CollectFunctionsOptions {
   exclude?: readonly string[];
   /** Path to an additional `.js` function to append (e.g. demo reset-demo). */
   extraFunction?: string;
+  /**
+   * Building a demo portal: `'__KYCHON_DEMO_PORTAL__'` becomes `'true'` in the
+   * function sources (`'false'` otherwise). Demos seed members with
+   * real-looking addresses, so their functions must never email members, and
+   * no admin can change a deploy-time constant.
+   */
+  demo?: boolean;
 }
 
 /**
@@ -91,7 +98,7 @@ export async function collectFunctionsMap(
   if (existsSync(dir)) {
     const entries = await readdir(dir);
     for (const f of entries.filter((e) => e.endsWith(".js"))) {
-      const code = injectFunctionBuildConstants(await readFile(join(dir, f), "utf-8"));
+      const code = injectFunctionBuildConstants(await readFile(join(dir, f), "utf-8"), opts);
       const name = f.replace(/\.js$/, "");
       out[name] = makeFunctionSpec(name, code);
     }
@@ -102,7 +109,7 @@ export async function collectFunctionsMap(
   }
 
   if (opts.extraFunction) {
-    const code = injectFunctionBuildConstants(await readFile(opts.extraFunction, "utf-8"));
+    const code = injectFunctionBuildConstants(await readFile(opts.extraFunction, "utf-8"), opts);
     const name = (opts.extraFunction.split("/").pop() ?? opts.extraFunction).replace(/\.js$/, "");
     // Demo reset-demo takes ~8s in practice (DELETE+seed against ~14 sections
     // and ~150 demo rows); the 10s default leaves no headroom. 15s also
@@ -114,8 +121,10 @@ export async function collectFunctionsMap(
   return out;
 }
 
-function injectFunctionBuildConstants(code: string): string {
-  return code.replaceAll("__KYCHON_ENGINE_VERSION__", resolveKychonEngineVersion());
+function injectFunctionBuildConstants(code: string, opts: CollectFunctionsOptions): string {
+  return code
+    .replaceAll("__KYCHON_ENGINE_VERSION__", resolveKychonEngineVersion())
+    .replaceAll("__KYCHON_DEMO_PORTAL__", opts.demo ? "true" : "false");
 }
 
 function resolveKychonEngineVersion(): string {
@@ -588,6 +597,8 @@ export interface RunDeployOptions {
   excludeFunctions?: readonly string[];
   /** Path to an extra function file to add. */
   extraFunction?: string;
+  /** Deploying a demo portal: its functions never email members (see CollectFunctionsOptions.demo). */
+  demo?: boolean;
   /** Optional first-byte chrome snapshot for ports without a typed seed module. */
   chromeSnapshot?: string | ProjectSeed;
   /** Continue past confirmation-required deploy warnings after explicit review. */
@@ -1266,6 +1277,7 @@ async function assembleDeployRelease(
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
   if (opts.extraFunction) collectOpts.extraFunction = opts.extraFunction;
+  if (opts.demo) collectOpts.demo = true;
 
   // Fetch the active release in parallel with the local function-source reads
   // when patch mode is requested. siteLimit:0 skips the (potentially large)
@@ -1668,6 +1680,7 @@ export async function patchDeploy(
   const collectOpts: CollectFunctionsOptions = {};
   if (opts.excludeFunctions) collectOpts.exclude = opts.excludeFunctions;
   if (opts.extraFunction) collectOpts.extraFunction = opts.extraFunction;
+  if (opts.demo) collectOpts.demo = true;
 
   const [astroSlice, functionsMap] = await Promise.all([
     writeAdapterAwareArtifacts({ distDir, clientDir, adapterActive, anonKey: opts.anonKey, releaseManifest }),

@@ -86,6 +86,8 @@ try {
     subdomain: config.subdomain,
     excludeFunctions: ["check-expirations"],
     extraFunction: config.resetDemoFile,
+    // Demo members are seeded with real-looking addresses: never email them.
+    demo: true,
     // Mirror the deploy-demo.ts pattern: explicit opt-in to continue past
     // confirmation-required platform warnings (e.g. DESTRUCTIVE_SITE_BULK_REMOVAL
     // when the JS chunk-hash cascade renames >10% of site paths after a

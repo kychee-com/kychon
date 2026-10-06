@@ -1,5 +1,5 @@
 // AI content generation — newsletter drafts + event recaps
-// prototype-schedule: "0 9 * * 1" (requires hobby tier — prototype allows only 1 scheduled fn)
+// schedule: none — an admin runs it, or the owner through a Run402 function run.
 import { adminDb, auth } from '@run402/functions';
 
 export default async (req) => {
