@@ -12,12 +12,12 @@
 
 ## 2. Revision log (Phase 2)
 
-- [ ] 2.1 Add `changesets` and `revisions` tables with indexes (`txid` unique; `revisions(table_name, row_key)`; `created_at`) to `schema.sql`
-- [ ] 2.2 Implement the `kychon_record_revision()` trigger function (dollar-quoted, `SECURITY DEFINER`, `SET search_path FROM CURRENT`, no dynamic SQL), skipping updates that change nothing
-- [ ] 2.3 Attach the trigger to every history-tracked table with its primary-key argument (`key` for `site_config`)
-- [ ] 2.4 Add `kychon_claim_changeset(...)` and `kychon_label_changeset(...)` functions
-- [ ] 2.5 Make sure the import guard records the initial import as one `system` changeset labelled `Initial import`
-- [ ] 2.6 Tests (integration DB): every operation on every tracked table records before/after; untracked tables record nothing; a single transaction yields a single changeset
+- [x] 2.1 Add `changesets` and `revisions` tables with indexes (`txid` unique; `revisions(table_name, row_key)`; `created_at`) to `schema.sql`
+- [x] 2.2 Implement the `kychon_record_revision()` trigger function (dollar-quoted, `SECURITY DEFINER`, `SET search_path FROM CURRENT`, no dynamic SQL), skipping updates that change nothing
+- [x] 2.3 Attach the trigger to every history-tracked table with its primary-key argument (`key` for `site_config`)
+- [x] 2.4 Add `kychon_claim_changeset(...)` and `kychon_label_changeset(...)` functions
+- [x] 2.5 Make sure the import guard records the initial import as one `system` changeset labelled `Initial import`
+- [x] 2.6 Tests (integration DB): every operation on every tracked table records before/after; untracked tables record nothing; a single transaction yields a single changeset
 
 ## 3. Attribution in the capability API (Phase 2)
 

@@ -901,3 +901,206 @@ AFTER INSERT OR UPDATE OR DELETE ON events
 FOR EACH ROW EXECUTE FUNCTION kychon_search_event_row_trigger();
 
 SELECT kychon_reindex_search();
+
+-- ============================================
+-- SECTION: Content history (openspec content-history)
+-- ============================================
+-- Every write to a content table is recorded as a revision (full row before
+-- and after), grouped into one changeset per database transaction. Callers
+-- that know who they are claim or label their transaction's changeset
+-- (kychon-api via kychon_claim_changeset, agents via kychon_label_changeset);
+-- anything else is recorded as `unattributed`, never dropped.
+-- Attribution keys on txid_current() because tenant SQL may not use
+-- set_config/GUCs. No dynamic SQL: one generic trigger reads to_jsonb(row).
+
+CREATE TABLE IF NOT EXISTS changesets (
+  id BIGSERIAL PRIMARY KEY,
+  txid BIGINT NOT NULL UNIQUE DEFAULT txid_current(),
+  actor_type TEXT NOT NULL DEFAULT 'unattributed'
+    CHECK (actor_type IN ('admin', 'agent', 'jwt', 'system', 'unattributed')),
+  actor_id TEXT,
+  label TEXT,
+  capability_execution_id BIGINT,
+  reverts_changeset_id BIGINT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_changesets_created ON changesets (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_changesets_execution ON changesets (capability_execution_id) WHERE capability_execution_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS revisions (
+  id BIGSERIAL PRIMARY KEY,
+  changeset_id BIGINT NOT NULL REFERENCES changesets(id) ON DELETE CASCADE,
+  table_name TEXT NOT NULL,
+  row_key JSONB NOT NULL,
+  op TEXT NOT NULL CHECK (op IN ('insert', 'update', 'delete')),
+  before JSONB,
+  after JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_revisions_changeset ON revisions (changeset_id, id);
+CREATE INDEX IF NOT EXISTS idx_revisions_row ON revisions (table_name, row_key, id DESC);
+CREATE INDEX IF NOT EXISTS idx_revisions_created ON revisions (created_at);
+
+-- The changeset for the current transaction, created on first use. A JWT
+-- caller writing through PostgREST is attributed from its claims; everything
+-- else starts `unattributed` until a caller claims or labels it.
+CREATE OR REPLACE FUNCTION kychon_current_changeset()
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
+AS $$
+DECLARE
+  claims JSONB;
+  cs_id BIGINT;
+BEGIN
+  SELECT id INTO cs_id FROM changesets WHERE txid = txid_current();
+  IF cs_id IS NOT NULL THEN
+    RETURN cs_id;
+  END IF;
+  BEGIN
+    claims := NULLIF(current_setting('request.jwt.claims', true), '')::jsonb;
+  EXCEPTION WHEN others THEN
+    claims := NULL;
+  END;
+  INSERT INTO changesets (txid, actor_type, actor_id)
+  VALUES (
+    txid_current(),
+    CASE WHEN claims ->> 'role' = 'authenticated' AND claims ->> 'sub' IS NOT NULL THEN 'jwt' ELSE 'unattributed' END,
+    CASE WHEN claims ->> 'role' = 'authenticated' THEN claims ->> 'sub' END
+  )
+  ON CONFLICT (txid) DO NOTHING;
+  SELECT id INTO cs_id FROM changesets WHERE txid = txid_current();
+  RETURN cs_id;
+END;
+$$;
+
+-- Row trigger: TG_ARGV[0] names the primary-key column.
+CREATE OR REPLACE FUNCTION kychon_record_revision()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
+AS $$
+DECLARE
+  old_row JSONB;
+  new_row JSONB;
+BEGIN
+  IF TG_OP <> 'INSERT' THEN
+    old_row := to_jsonb(OLD);
+  END IF;
+  IF TG_OP <> 'DELETE' THEN
+    new_row := to_jsonb(NEW);
+  END IF;
+  IF TG_OP = 'UPDATE' AND old_row = new_row THEN
+    RETURN NULL;
+  END IF;
+  INSERT INTO revisions (changeset_id, table_name, row_key, op, before, after)
+  VALUES (
+    kychon_current_changeset(),
+    TG_TABLE_NAME,
+    jsonb_build_object(TG_ARGV[0], COALESCE(new_row, old_row) -> TG_ARGV[0]),
+    lower(TG_OP),
+    old_row,
+    new_row
+  );
+  RETURN NULL;
+END;
+$$;
+
+-- kychon-api: attach actor/execution/label to the changeset of a write it
+-- made (identified by the txid its write RETURNed). Null when that
+-- transaction changed nothing tracked.
+CREATE OR REPLACE FUNCTION kychon_claim_changeset(
+  p_txid BIGINT,
+  p_actor_type TEXT,
+  p_actor_id TEXT,
+  p_label TEXT,
+  p_capability_execution_id BIGINT
+)
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
+AS $$
+DECLARE
+  cs_id BIGINT;
+BEGIN
+  UPDATE changesets
+     SET actor_type = p_actor_type,
+         actor_id = p_actor_id,
+         label = COALESCE(p_label, label),
+         capability_execution_id = COALESCE(p_capability_execution_id, capability_execution_id)
+   WHERE txid = p_txid
+  RETURNING id INTO cs_id;
+  RETURN cs_id;
+END;
+$$;
+
+-- Agents and SQL scripts: label the CURRENT transaction's changeset. Call it
+-- as the last statement of the same SQL request, e.g.
+--   SELECT kychon_label_changeset('agent', 'kychon-pro', 'Restyle hero');
+-- p_only_if_changed=true labels only when the transaction changed something.
+CREATE OR REPLACE FUNCTION kychon_label_changeset(
+  p_actor_type TEXT,
+  p_actor_id TEXT,
+  p_label TEXT,
+  p_only_if_changed BOOLEAN DEFAULT false
+)
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
+AS $$
+DECLARE
+  cs_id BIGINT;
+BEGIN
+  IF p_only_if_changed THEN
+    UPDATE changesets SET actor_type = p_actor_type, actor_id = p_actor_id, label = p_label
+     WHERE txid = txid_current()
+    RETURNING id INTO cs_id;
+    RETURN cs_id;
+  END IF;
+  INSERT INTO changesets (txid, actor_type, actor_id, label)
+  VALUES (txid_current(), p_actor_type, p_actor_id, p_label)
+  ON CONFLICT (txid) DO UPDATE
+    SET actor_type = EXCLUDED.actor_type, actor_id = EXCLUDED.actor_id, label = EXCLUDED.label
+  RETURNING id INTO cs_id;
+  RETURN cs_id;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_kychon_revision ON site_config;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON site_config FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('key');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON pages;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON pages FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON sections;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON sections FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON section_translations;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON section_translations FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON content_translations;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON content_translations FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON events;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON events FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON event_registration_options;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON event_registration_options FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON announcements;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON announcements FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON resources;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON resources FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON committees;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON committees FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON membership_tiers;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON membership_tiers FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON member_custom_fields;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON member_custom_fields FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON polls;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON polls FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON poll_options;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON poll_options FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+DROP TRIGGER IF EXISTS trg_kychon_revision ON forum_categories;
+CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON forum_categories FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
+
+-- Writes this migration made to tracked tables (schema backfills) are the
+-- engine's, not anonymous. The initial import relabels its own transaction.
+SELECT kychon_label_changeset('system', NULL, 'Engine migration', true);

@@ -169,6 +169,8 @@ export function wrapInitialImport(seedSql: string, opts: WrapInitialImportOption
     "    RETURN;",
     "  END IF;",
     ...statements.map((s) => `${s};`),
+    // One changeset for the whole import (same transaction), labelled for history.
+    "  PERFORM kychon_label_changeset('system', NULL, 'Initial import');",
     `  INSERT INTO kychon_install (import_source, import_checksum) VALUES (${sqlLiteral(opts.source)}, ${sqlLiteral(checksum)});`,
     "END",
     `${IMPORT_TAG};`,
