@@ -710,6 +710,13 @@ export interface BuildKychonReleaseSpecOptions {
  */
 export type KychonReleaseSpec = Omit<ReleaseSpec, "project_id">;
 
+/**
+ * Where Run402 sends a signed-out person during OAuth sign-in (AI connector
+ * clients such as ChatGPT): the portal's own branded `/join` page, which signs
+ * them in and returns to `returnTo`. Run402 carries it forward across releases.
+ */
+export const KYCHON_SIGN_IN_PATH = "/join";
+
 export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): KychonReleaseSpec {
   const spec: KychonReleaseSpec = {
     site: {
@@ -719,6 +726,7 @@ export function buildKychonReleaseSpec(opts: BuildKychonReleaseSpecOptions): Kyc
         mode: "explicit",
         replace: opts.publicPaths,
       },
+      sign_in_path: KYCHON_SIGN_IN_PATH,
     },
     subdomains: { set: [opts.subdomain] },
     routes: { replace: opts.routes ?? [] },
@@ -1440,9 +1448,12 @@ async function assembleDeployRelease(
     // Keep the slice's implicit `public_paths` unless the caller supplied
     // `publicPathOverrides`, in which case preserve the explicit map assembled
     // above so copied-site source aliases survive the adapter deploy.
-    spec.site = opts.publicPathOverrides !== undefined
-      ? { ...astroSlice.site, public_paths: { mode: "explicit", replace: publicPaths } }
-      : astroSlice.site;
+    spec.site = {
+      ...(opts.publicPathOverrides !== undefined
+        ? { ...astroSlice.site, public_paths: { mode: "explicit", replace: publicPaths } }
+        : astroSlice.site),
+      sign_in_path: KYCHON_SIGN_IN_PATH,
+    } as KychonReleaseSpec["site"];
   }
 
   const fnSummary = fnDiff
@@ -1847,6 +1858,8 @@ export async function patchDeploy(
       siteSpec = { replace: newFileSet, public_paths: { mode: "explicit", replace: publicPaths } };
     }
   }
+  // Keep OAuth sign-in on the portal's branded page (see KYCHON_SIGN_IN_PATH).
+  siteSpec = { ...siteSpec, sign_in_path: KYCHON_SIGN_IN_PATH } as KychonReleaseSpec["site"];
 
   const fnDiff = liveRelease
     ? diffFunctionsMap(finalFunctionsMap, new Map(liveRelease.functions.map(f => [f.name, f.code_hash])), opts.excludeFunctions ?? [])

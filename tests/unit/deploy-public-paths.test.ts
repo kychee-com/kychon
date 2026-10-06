@@ -210,3 +210,16 @@ describe('i18n post-apply readback', () => {
     ).toBe(false);
   });
 });
+
+describe('deploy sign-in page', () => {
+  it("sends OAuth sign-in (AI connectors) to the portal's own /join page", () => {
+    const spec = buildKychonReleaseSpec({
+      database: { migrations: [] },
+      fileSet: { 'index.html': '<html>home</html>' },
+      publicPaths: { '/': { asset: 'index.html', cache_class: 'html' } },
+      subdomain: 'eagles',
+      functionsMap: {},
+    });
+    expect(spec.site).toMatchObject({ sign_in_path: '/join' });
+  });
+});

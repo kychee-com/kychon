@@ -7,6 +7,9 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { connectorMcpUrl } from '@/lib/connector-url';
 import { t } from '@/lib/i18n';
 
+/** Run402's page listing the assistants connected to the signed-in person, with Disconnect. */
+export const CONNECTIONS_PATH = '/_run402/account/connections';
+
 /** site_config flag admins use to turn AI connectors off. Missing means on. */
 export const CONNECTOR_FLAG = 'feature_ai_connector';
 
@@ -71,6 +74,15 @@ export function AiConnectorCard({ audience, toggle }: AiConnectorCardProps) {
             <li>{t('connector.step_sign_in')}</li>
           </ol>
           <p className="text-sm text-muted-foreground">{t('connector.plans_note')}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{t('connector.connections_title')}</p>
+          <p className="text-sm text-muted-foreground">{t('connector.connections_body')}</p>
+          <Button asChild variant="outline" size="sm">
+            <a href={CONNECTIONS_PATH} data-ai-connector-connections>
+              {t('connector.connections_link')}
+            </a>
+          </Button>
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium">{t('connector.examples_title')}</p>

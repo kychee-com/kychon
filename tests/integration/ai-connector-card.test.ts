@@ -45,6 +45,9 @@ describe('AiConnectorCard', () => {
     const copy = host.querySelector('[data-ai-connector="member"] button') as HTMLButtonElement;
     await act(async () => copy.click());
     expect(writeText).toHaveBeenCalledWith(url);
+    expect(host.querySelector('[data-ai-connector-connections]')?.getAttribute('href')).toBe(
+      '/_run402/account/connections',
+    );
   });
 
   it('shows admin examples and the switch it is given', async () => {
