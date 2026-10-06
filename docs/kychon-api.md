@@ -49,6 +49,21 @@ Mutations return an `ActionPlan` during validation and an `ActionResult` during 
 - `portal.discover`
 - `portal.capabilities`
 - `portal.version`
+- `portal.describe`
+- `assistant.guide`
+
+## AI connector (MCP)
+
+Run402 serves every portal as an MCP server at `https://<portal>/_run402/mcp`, and `kychon-api` is its one tool (`export const tool` in `functions/kychon-api.js`). ChatGPT, Claude and other MCP clients connect there, sign in through the portal, and every call acts as that person with their permissions. The tool's arguments are the operation envelope, and a tool call (header `x-run402-trigger: mcp_tool`) gets these defaults: the current `apiVersion`, empty `input`, `phase` `query` for reads and `validate` for writes (so a write without a phase only previews), and a fresh `idempotencyKey` for an `execute`.
+
+- `assistant.guide` returns who the call acts as and the tasks this actor can do, grouped by area, with the safety rules.
+- `portal.describe` with `{ "operation": "<name>" }` returns that operation's input JSON Schema and an example. Operations the guide lists validate their input against the schema and fail with `validation.failed` and `detail.errors` field paths.
+- Admins turn connectors off with `site_config.feature_ai_connector = false`; connector calls then fail with `connector.disabled`.
+- `members.changeRole`, `members.linkUser`, `exports.*` and `jobs.*` are never available through a connector (`connector.operationUnavailable`); they stay in the portal UI.
+- An anonymous connector call to a member-only operation gets the platform's sign-in challenge (HTTP 401), so the client can offer to sign in.
+- `confirmation.required` errors carry `detail.plan`, a plain-language description of what the operation will do and whether it can be undone.
+
+The guide and schemas are authored in `src/lib/capability-api/connector.ts`; `npx tsx scripts/generate-connector-schemas.ts` copies them into the function.
 
 ## Errors
 

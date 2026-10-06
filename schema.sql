@@ -932,6 +932,10 @@ CREATE TABLE IF NOT EXISTS changesets (
   reverts_changeset_id BIGINT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- How a capability change arrived: 'ai_connector' for MCP tool calls (ChatGPT,
+-- Claude), with the client's name when the platform reports it. NULL otherwise.
+ALTER TABLE changesets ADD COLUMN IF NOT EXISTS channel TEXT;
+ALTER TABLE changesets ADD COLUMN IF NOT EXISTS channel_client TEXT;
 CREATE INDEX IF NOT EXISTS idx_changesets_created ON changesets (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_changesets_execution ON changesets (capability_execution_id) WHERE capability_execution_id IS NOT NULL;
 

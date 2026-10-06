@@ -20,6 +20,8 @@ const expectedOperationNames = [
   'portal.capabilities',
   'portal.health',
   'portal.version',
+  'portal.describe',
+  'assistant.guide',
   'auth.whoami',
   'auth.permissions',
   'auth.explainDenied',

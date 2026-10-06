@@ -1,6 +1,7 @@
 import { KYCHON_API_VERSION, SUPPORTED_API_VERSIONS } from './types.js';
 import { listOperations } from './operations.js';
 import type { JsonObject } from './types.js';
+import { CONNECTOR_PATH, connectorMcpUrl } from '../connector-url.js';
 
 export interface CapabilityDiscoveryOptions {
   portalUrl?: string;
@@ -11,6 +12,8 @@ export interface CapabilityDiscoveryOptions {
   minimumSdkVersion?: string;
   recommendedSdkVersion?: string;
   cliVersion?: string;
+  /** Whether admins left AI connectors on (site_config.feature_ai_connector). */
+  connectorEnabled?: boolean;
 }
 
 export const DEFAULT_RUN402_API_BASE_URL = 'https://api.run402.com';
@@ -85,7 +88,17 @@ export function buildWellKnownKychon(options: CapabilityDiscoveryOptions = {}): 
       cli: '/docs/kychon-cli.md',
       examples: '/docs/kychon-api-examples.md',
     },
-    ...(options.portalUrl ? { portalUrl: options.portalUrl } : {}),
+    ...(options.portalUrl
+      ? {
+          portalUrl: options.portalUrl,
+          // The AI connector: MCP clients (ChatGPT, Claude) connect here and sign in.
+          connector: {
+            mcpUrl: connectorMcpUrl(options.portalUrl),
+            enabled: options.connectorEnabled !== false,
+            startWith: 'assistant.guide',
+          },
+        }
+      : {}),
   };
 }
 
@@ -167,6 +180,10 @@ export function buildLlmsTxt(options: CapabilityDiscoveryOptions = {}): string {
     `- Capability manifest: ${href('/kychon-capabilities.json')}`,
     `- API endpoint: ${href(endpoint)}`,
     `- Current API version: ${KYCHON_API_VERSION}`,
+    '',
+    '## AI Assistants (MCP)',
+    `- MCP server: ${portalUrl ? connectorMcpUrl(portalUrl) : CONNECTOR_PATH} (sign in with a portal account; calls act as that person)`,
+    '- Start with assistant.guide, then portal.describe for an operation\'s input schema.',
     '',
     '## Preferred Developer Surface',
     '- Use the typed @kychon/sdk first.',

@@ -15,6 +15,10 @@ export interface Changeset {
   actor_id: string | null;
   label: string | null;
   reverts_changeset_id: string | null;
+  /** 'ai_connector' when the change came through an AI assistant (MCP); otherwise null. */
+  channel: 'ai_connector' | null;
+  /** The assistant's name (for example ChatGPT) when the platform reports it. */
+  channel_client: string | null;
   created_at: string;
   revision_count: number;
   targets: HistoryTarget[];
@@ -58,8 +62,14 @@ export function openHistory(detail: HistoryOpenDetail = {}): void {
   document.dispatchEvent(new CustomEvent<HistoryOpenDetail>(HISTORY_OPEN_EVENT, { detail }));
 }
 
-export async function listChangesets(beforeId?: string | null): Promise<{ changesets: Changeset[]; nextBeforeId: string | null }> {
-  const data = await queryOp('history.list', beforeId ? { before_id: Number(beforeId) } : {});
+export async function listChangesets(
+  beforeId?: string | null,
+  filter: { channel?: Changeset['channel'] } = {},
+): Promise<{ changesets: Changeset[]; nextBeforeId: string | null }> {
+  const data = await queryOp('history.list', {
+    ...(beforeId ? { before_id: Number(beforeId) } : {}),
+    ...(filter.channel ? { channel: filter.channel } : {}),
+  });
   return {
     changesets: (data?.changesets ?? []).map(normalizeIds),
     nextBeforeId: data?.nextBeforeId != null ? String(data.nextBeforeId) : null,

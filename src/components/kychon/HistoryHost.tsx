@@ -61,6 +61,18 @@ function ActorBadge({ actorType }: { actorType: Changeset['actor_type'] }) {
   return <Badge variant={actorType === 'unattributed' ? 'outline' : 'secondary'}>{t(`history.actor.${actorType}`)}</Badge>;
 }
 
+/** "via AI assistant" for a change made through an AI connector (ChatGPT, Claude). */
+function ChannelBadge({ changeset }: { changeset: Changeset }) {
+  if (changeset.channel !== 'ai_connector') return null;
+  return (
+    <Badge variant="outline" data-history-channel="ai_connector">
+      {changeset.channel_client
+        ? t('history.channel.ai_connector_named', { client: changeset.channel_client })
+        : t('history.channel.ai_connector')}
+    </Badge>
+  );
+}
+
 function FieldDiff({ before, after }: { before: Record<string, unknown> | null; after: Record<string, unknown> | null }) {
   const changes = diffRows(before, after);
   if (!changes.length) return <p className="text-sm text-muted-foreground">{t('history.no_field_changes')}</p>;
@@ -192,17 +204,21 @@ function SiteHistory({ onRevert, busy }: { onRevert: (id: string) => void; busy:
   const [nextBeforeId, setNextBeforeId] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [expanded, setExpanded] = useState<Record<string, Revision[] | 'loading'>>({});
+  const [aiOnly, setAiOnly] = useState(false);
 
-  const load = useCallback(async (beforeId?: string | null) => {
-    try {
-      const page = await listChangesets(beforeId);
-      setChangesets((prev) => (beforeId ? [...prev, ...page.changesets] : page.changesets));
-      setNextBeforeId(page.nextBeforeId);
-      setState('ready');
-    } catch {
-      setState('error');
-    }
-  }, []);
+  const load = useCallback(
+    async (beforeId?: string | null) => {
+      try {
+        const page = await listChangesets(beforeId, aiOnly ? { channel: 'ai_connector' } : {});
+        setChangesets((prev) => (beforeId ? [...prev, ...page.changesets] : page.changesets));
+        setNextBeforeId(page.nextBeforeId);
+        setState('ready');
+      } catch {
+        setState('error');
+      }
+    },
+    [aiOnly],
+  );
 
   useEffect(() => {
     void load();
@@ -218,18 +234,44 @@ function SiteHistory({ onRevert, busy }: { onRevert: (id: string) => void; busy:
     setExpanded((prev) => ({ ...prev, [id]: revisions }));
   }
 
+  const filter = (
+    <div className="flex justify-end">
+      <Button
+        size="sm"
+        variant={aiOnly ? 'secondary' : 'outline'}
+        aria-pressed={aiOnly}
+        data-history-filter="ai_connector"
+        onClick={() => {
+          setState('loading');
+          setAiOnly((value) => !value);
+        }}
+      >
+        {t('history.filter.ai_only')}
+      </Button>
+    </div>
+  );
+
   if (state === 'loading') return <p className="text-sm text-muted-foreground">{t('history.loading')}</p>;
   if (state === 'error') return <p className="text-sm text-destructive">{t('history.load_failed')}</p>;
-  if (!changesets.length) return <p className="text-sm text-muted-foreground">{t('history.empty')}</p>;
+  if (!changesets.length) {
+    return (
+      <div className="grid gap-3" data-history-site>
+        {filter}
+        <p className="text-sm text-muted-foreground">{t('history.empty')}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-3" data-history-site>
+      {filter}
       {changesets.map((changeset) => {
         const detail = expanded[changeset.id];
         return (
           <section key={changeset.id} className="grid gap-2 rounded-lg border p-3" data-history-changeset={changeset.id}>
             <div className="flex flex-wrap items-center gap-2">
               <ActorBadge actorType={changeset.actor_type} />
+              <ChannelBadge changeset={changeset} />
               <span className="font-medium">{changeset.label ?? `#${changeset.id}`}</span>
               <span className="text-sm text-muted-foreground">{formatTime(changeset.created_at)}</span>
               <span className="ml-auto flex gap-2">

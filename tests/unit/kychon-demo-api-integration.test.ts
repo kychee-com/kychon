@@ -126,7 +126,7 @@ describe('official demo portal API integration', () => {
       process.env.KYCHON_PUBLIC_URL = demo.portalUrl;
       const url = new URL('https://build-origin.invalid');
 
-      const wellKnown = await wellKnownGet({ url }).json();
+      const wellKnown = await (await wellKnownGet({ url })).json();
       const llms = await llmsGet({ url }).text();
 
       expect(wellKnown).toMatchObject({

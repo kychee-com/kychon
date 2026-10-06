@@ -10,7 +10,7 @@ import type {
 export const OPERATION_NAME_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*){1,2}$/;
 export const OBJECT_TYPE_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/;
 export const ERROR_CODE_PATTERN =
-  /^(request|api|auth|permission|validation|conflict|notFound|confirmation|rateLimit|cost|internal)\.[a-z][a-zA-Z0-9]*$/;
+  /^(request|api|auth|permission|validation|conflict|notFound|confirmation|connector|rateLimit|cost|internal)\.[a-z][a-zA-Z0-9]*$/;
 
 const QUERY_PHASES = ['query'] as const satisfies readonly OperationPhase[];
 const MUTATION_PHASES = ['validate', 'execute'] as const satisfies readonly OperationPhase[];
@@ -81,6 +81,8 @@ const readDefinitions: readonly ReadDefinition[] = [
   ['portal.capabilities', 'anonymous', 'Return the operation catalog and capability metadata for an API version.'],
   ['portal.health', 'anonymous', 'Return portal health and readiness metadata.'],
   ['portal.version', 'anonymous', 'Return engine, schema, API, SDK, and CLI version metadata.'],
+  ['portal.describe', 'anonymous', 'Describe one operation: its input schema, an example input, and its phases.'],
+  ['assistant.guide', 'anonymous', 'Orient an AI assistant: who it acts as and what this person can do in the portal.'],
   ['auth.whoami', 'anonymous', 'Return the server-derived actor context for the current request.'],
   ['auth.permissions', 'anonymous', 'Return operations and permissions available to the current actor.'],
   ['auth.explainDenied', 'anonymous', 'Explain why an operation would be denied for the current actor.'],

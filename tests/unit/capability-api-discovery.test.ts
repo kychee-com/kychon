@@ -84,3 +84,18 @@ describe('Capability API discovery documents', () => {
     expect(readFileSync(join(import.meta.dirname, '../../src/pages/llms.txt.ts'), 'utf8')).toContain('buildLlmsTxt');
   });
 });
+
+describe('discovery document AI connector', () => {
+  it('advertises the connector URL and its on state', () => {
+    expect(buildWellKnownKychon({ portalUrl: 'https://ocey.run402.com' }).connector).toEqual({
+      mcpUrl: 'https://ocey.run402.app/_run402/mcp',
+      enabled: true,
+      startWith: 'assistant.guide',
+    });
+  });
+
+  it('reports the connector as off when admins turned it off', () => {
+    const doc = buildWellKnownKychon({ portalUrl: 'https://eagles.kychon.com', connectorEnabled: false });
+    expect(doc.connector).toMatchObject({ mcpUrl: 'https://eagles.kychon.com/_run402/mcp', enabled: false });
+  });
+});

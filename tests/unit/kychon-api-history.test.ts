@@ -254,3 +254,54 @@ describe('action results report their changesets (for Undo)', () => {
     expect(await rows(db, `SELECT value FROM site_config WHERE key = 'site_name'`)).toEqual([{ value: 'Old' }]);
   });
 });
+
+describe('AI connector changes are attributed and undoable', () => {
+  async function connector(body: Record<string, unknown>) {
+    const res = await kychonApi(
+      new Request('https://portal.test/api/kychon', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-run402-trigger': 'mcp_tool' },
+        body: JSON.stringify(body),
+      }),
+    );
+    return { status: res.status, body: await res.json() };
+  }
+
+  it('marks the change as made through the connector, lists it, and reverts it through the tool', async () => {
+    state.user = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org' };
+    await db.exec(`INSERT INTO site_config (key, value, category) VALUES ('brand_text', '"Old Club"', 'branding')`);
+
+    const saved = await connector({
+      operation: 'config.branding.update',
+      phase: 'execute',
+      input: { key: 'brand_text', value: 'New Club', category: 'branding' },
+    });
+    expect(saved.status).toBe(200);
+    const [changesetId] = saved.body.data.history.changesetIds as string[];
+
+    const listed = await connector({ operation: 'history.list', input: { channel: 'ai_connector' } });
+    expect(listed.body.data.changesets).toEqual([
+      expect.objectContaining({ id: Number(changesetId), actor_type: 'admin', channel: 'ai_connector' }),
+    ]);
+
+    const undone = await connector({
+      operation: 'history.revert',
+      phase: 'execute',
+      input: { changeset_id: Number(changesetId) },
+    });
+    expect(undone.status).toBe(200);
+    expect(await rows(db, `SELECT value FROM site_config WHERE key = 'brand_text'`)).toEqual([{ value: 'Old Club' }]);
+    // The fixture insert above, then the connector's save and its revert.
+    expect(await rows(db, 'SELECT channel FROM changesets ORDER BY id')).toEqual([
+      { channel: null },
+      { channel: 'ai_connector' },
+      { channel: 'ai_connector' },
+    ]);
+  });
+
+  it('leaves browser changes without a channel', async () => {
+    state.user = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org' };
+    await execute('config.set', { key: 'site_name', value: 'Browser' }, 'browser-1');
+    expect(await rows(db, 'SELECT channel FROM changesets')).toEqual([{ channel: null }]);
+  });
+});
