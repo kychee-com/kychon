@@ -1,0 +1,194 @@
+{
+  "site_config": {
+    "site_name": "Harbor Point Boat Club",
+    "site_tagline": "A fictional club for Kychon test fixtures",
+    "brand_text": "Harbor Point Boat Club",
+    "brand_text_short": "HPBC",
+    "brand_icon_url": "",
+    "brand_wordmark_url": "",
+    "favicon_url": "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2210%22 fill=%22%230B2742%22/%3E%3Ctext x=%2232%22 y=%2244%22 font-family=%22Georgia,serif%22 font-size=%2230%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%23B5853A%22%3EH%3C/text%3E%3C/svg%3E",
+    "feature_events": true,
+    "feature_forum": true,
+    "feature_directory": true,
+    "feature_resources": true,
+    "feature_committees": true,
+    "theme": {
+      "primary": "#0B2742",
+      "primary_hover": "#08203A",
+      "bg": "#FBF7EE",
+      "surface": "#FFFFFF",
+      "text": "#1B1B1B",
+      "text_muted": "#5A6470",
+      "border": "#D7CFC0",
+      "accent": "#B5853A",
+      "font_heading": "Playfair Display",
+      "font_body": "Source Sans 3",
+      "radius": "0.5rem",
+      "max_width": "72rem"
+    }
+  },
+  "sections": [
+    {
+      "page_slug": "*",
+      "zone": "header",
+      "scope": "global",
+      "section_type": "brand_header",
+      "config": {
+        "href": "/"
+      },
+      "position": 1,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "header",
+      "scope": "global",
+      "section_type": "nav",
+      "config": {
+        "items": [
+          {
+            "label": "Home",
+            "href": "/",
+            "icon": "home",
+            "public": true
+          },
+          {
+            "label": "About",
+            "href": "/about",
+            "icon": "info",
+            "public": true
+          },
+          {
+            "label": "Membership",
+            "href": "/membership",
+            "icon": "user-plus",
+            "public": true
+          },
+          {
+            "label": "The Club",
+            "href": "/about",
+            "icon": "anchor",
+            "public": true,
+            "children": [
+              {
+                "label": "Marina",
+                "href": "/marina",
+                "public": true
+              },
+              {
+                "label": "Clubhouse",
+                "href": "/clubhouse",
+                "public": true
+              }
+            ]
+          },
+          {
+            "label": "Events",
+            "href": "/events",
+            "icon": "calendar",
+            "public": true
+          }
+        ]
+      },
+      "position": 2,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "header",
+      "scope": "global",
+      "section_type": "sign_in_bar",
+      "config": {
+        "show_lang_toggle": true,
+        "show_theme_toggle": true
+      },
+      "position": 3,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_address",
+      "config": {
+        "name": "Harbor Point Boat Club",
+        "address_lines": [
+          "1 Example Pier",
+          "Harbor Point, ST 00000"
+        ],
+        "phone": "(555) 010-0100",
+        "email": "office@example.org",
+        "hours": "Clubhouse hours posted weekly"
+      },
+      "position": 1,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_links",
+      "config": {
+        "columns": [
+          {
+            "heading": "The Club",
+            "items": [
+              {
+                "label": "About",
+                "href": "/about"
+              },
+              {
+                "label": "Membership",
+                "href": "/membership"
+              },
+              {
+                "label": "Marina",
+                "href": "/marina"
+              }
+            ]
+          },
+          {
+            "heading": "Connect",
+            "items": [
+              {
+                "label": "Events",
+                "href": "/events"
+              },
+              {
+                "label": "Contact",
+                "href": "mailto:office@example.org"
+              }
+            ]
+          }
+        ]
+      },
+      "position": 2,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_copyright",
+      "config": {
+        "year": "auto",
+        "org_name": "Harbor Point Boat Club",
+        "admin_contact_label": "Contact the GM",
+        "admin_contact_href": "mailto:gm@example.org"
+      },
+      "position": 3,
+      "visible": true
+    },
+    {
+      "page_slug": "*",
+      "zone": "footer",
+      "scope": "global",
+      "section_type": "footer_attribution",
+      "config": {
+        "text": "Powered by [Kychon](https://kychon.com) on [Run402](https://run402.com)"
+      },
+      "position": 4,
+      "visible": true
+    }
+  ]
+}

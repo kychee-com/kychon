@@ -5,14 +5,9 @@ import { pathToFileURL } from 'node:url';
 
 const ROOT = join(import.meta.dirname, '..');
 const SCAN_DIRS = ['src', 'scripts', 'tests', 'public', 'demo', 'functions'];
-const ROOT_SCAN_FILES = [
-  '_aage-port-deploy.ts',
-  '_aage-port.seed.sql',
-  '_bmwclubcanberra-port-deploy.ts',
-  '_bmwclubcanberra-port.seed.sql',
-  '_odbc-port-deploy.ts',
-  '_odbc-port.seed.sql',
-];
+// Port seed fixtures scanned as seed artifacts. Real copied-site ports live in the
+// private kychon-concierge repo, never here (this repo is public).
+const ROOT_SCAN_FILES = ['fixtures/seeds/sample-port.seed.sql'];
 export const GIT_SCAN_FILE_ARGS = ['ls-files', '-z', '--cached', '--others', '--exclude-standard'] as const;
 const SOURCE_EXTENSIONS = new Set(['.astro', '.css', '.html', '.js', '.jsx', '.mjs', '.sql', '.ts', '.tsx']);
 const ALLOWED_PRIMITIVE_IMPORT_PREFIXES = ['src/components/ui/', 'src/lib/ui/'];

@@ -9,7 +9,7 @@ import {
 
 describe('Wild Apricot search mapping', () => {
   const html = `
-    <form action="https://aage.com.au/Sys/Search" method="post" target="_blank">
+    <form action="https://club.example.org/Sys/Search" method="post" target="_blank">
       <input type="search" name="q" placeholder="Enter search string">
       <input type="hidden" name="types" value="7">
       <button type="submit">Find</button>

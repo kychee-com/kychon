@@ -105,7 +105,7 @@ describe('wrapInitialImport', () => {
 });
 
 describe('real seeds are valid initial imports', () => {
-  it.each(['_aage-port.seed.sql', '_bmwclubcanberra-port.seed.sql', '_odbc-port.seed.sql'])('%s', (file) => {
+  it.each(['fixtures/seeds/sample-port.seed.sql'])('%s', (file) => {
     const seed = readFileSync(join(ROOT, file), 'utf8');
     expect(() => prepareImportStatements(seed)).not.toThrow();
   });
@@ -117,15 +117,17 @@ describe('real seeds are valid initial imports', () => {
 
 describe('readMigrations', () => {
   it('appends the seed as a guarded import after schema.sql', () => {
-    const sql = readMigrations(ROOT, '_odbc-port.seed.sql');
+    const sql = readMigrations(ROOT, 'fixtures/seeds/sample-port.seed.sql');
     const schema = readFileSync(join(ROOT, 'schema.sql'), 'utf8');
     expect(sql.startsWith(schema)).toBe(true);
-    expect(sql).toContain("VALUES ('_odbc-port.seed.sql', '");
+    expect(sql).toContain("VALUES ('sample-port.seed.sql', '");
     expect(sql.match(/DO \$kychon_import\$/g)).toHaveLength(1);
   });
 
   it('re-import option clears the marker', () => {
-    expect(readMigrations(ROOT, '_odbc-port.seed.sql', { reimport: true })).toContain('DELETE FROM kychon_install;');
+    expect(readMigrations(ROOT, 'fixtures/seeds/sample-port.seed.sql', { reimport: true })).toContain(
+      'DELETE FROM kychon_install;',
+    );
   });
 });
 
@@ -165,9 +167,9 @@ describe('re-import confirmation', () => {
 
 describe('seed file resolution', () => {
   it('honours absolute seed paths (ports keep seeds outside the engine checkout)', () => {
-    const abs = join(ROOT, '_odbc-port.seed.sql');
+    const abs = join(ROOT, 'fixtures/seeds/sample-port.seed.sql');
     expect(resolveSeedPath(ROOT, abs)).toBe(abs);
-    expect(readMigrations(ROOT, abs)).toContain("VALUES ('_odbc-port.seed.sql', '");
+    expect(readMigrations(ROOT, abs)).toContain("VALUES ('sample-port.seed.sql', '");
   });
 
   it('refuses an explicitly named seed that does not exist instead of importing nothing', () => {

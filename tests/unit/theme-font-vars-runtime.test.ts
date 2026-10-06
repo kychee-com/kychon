@@ -26,7 +26,7 @@ describe('themeCssVars font families', () => {
 
   it('matches the build-time baked font vars for the same theme', () => {
     const seed = JSON.parse(
-      readFileSync(join(root, 'fixtures/chrome/odbc.chrome-snapshot.json'), 'utf-8'),
+      readFileSync(join(root, 'fixtures/chrome/sample-boat-club.chrome-snapshot.json'), 'utf-8'),
     ) as ProjectSeed;
     const baked = bakeChrome(seed, 'Home').themeFontVarsCss;
     const vars = themeCssVars(themeFromSeed(seed));

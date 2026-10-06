@@ -17,8 +17,7 @@ describe('ui architecture check', () => {
     expect(isScannedSourcePath('demo/site/seed.sql')).toBe(true);
     expect(isScannedSourcePath('functions/site-search.js')).toBe(true);
     expect(isScannedSourcePath('src/components/kychon/View.tsx')).toBe(true);
-    expect(isScannedSourcePath('_aage-port.seed.sql')).toBe(true);
-    expect(isScannedSourcePath('_aage-port-deploy.ts')).toBe(true);
+    expect(isScannedSourcePath('fixtures/seeds/sample-port.seed.sql')).toBe(true);
     expect(isScannedSourcePath('public/image.png')).toBe(false);
     expect(isScannedSourcePath('dist/page.html')).toBe(false);
   });
@@ -193,7 +192,7 @@ describe('ui architecture check', () => {
 
   it('keeps seed artifacts free of legacy embedded HTML primitives', () => {
     const violations = messages(
-      '_aage-port.seed.sql',
+      'fixtures/seeds/sample-port.seed.sql',
       `INSERT INTO pages (content) VALUES ('<style>.card{color:red}</style><form class="legacy"><iframe src="/map"></iframe><input name="q"><p style="color:red">Legacy</p></form>');`,
     );
 

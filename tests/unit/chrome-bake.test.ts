@@ -12,17 +12,17 @@ function readSnapshot(path: string): ProjectSeed {
 }
 
 describe('bakeChrome', () => {
-  it('renders ODBC project chrome for first-byte HTML', () => {
-    const snapshot = readSnapshot('fixtures/chrome/odbc.chrome-snapshot.json');
+  it('renders copied-site project chrome for first-byte HTML', () => {
+    const snapshot = readSnapshot('fixtures/chrome/sample-boat-club.chrome-snapshot.json');
 
     const chrome = bakeChrome(snapshot, 'Calendar');
 
-    expect(chrome.title).toBe('Calendar — Old Dominion Boat Club');
+    expect(chrome.title).toBe('Calendar — Harbor Point Boat Club');
     expect(chrome.faviconUrl).toContain('data:image/svg+xml');
-    expect(chrome.headerHtml).toContain('Old Dominion Boat Club');
+    expect(chrome.headerHtml).toContain('Harbor Point Boat Club');
     expect(chrome.headerHtml).toContain('The Club');
     expect(chrome.headerHtml).toContain('data-nav-menu');
-    expect(chrome.footerHtml).toContain('Old Dominion Boat Club');
+    expect(chrome.footerHtml).toContain('Harbor Point Boat Club');
     expect(chrome.footerHtml).toContain('Contact the GM');
     // The stylesheet URL (with the font families) lives on fontStylesheetUrl so
     // Portal can bake it onto a stable, runtime-repointable <link>; fontHead keeps
@@ -34,7 +34,7 @@ describe('bakeChrome', () => {
   });
 
   it('keeps representative page titles project-branded from the same snapshot', () => {
-    const snapshot = readSnapshot('fixtures/chrome/odbc.chrome-snapshot.json');
+    const snapshot = readSnapshot('fixtures/chrome/sample-boat-club.chrome-snapshot.json');
     const pageTitles = [
       'Home',
       'Page',
@@ -53,9 +53,9 @@ describe('bakeChrome', () => {
 
     for (const title of pageTitles) {
       const chrome = bakeChrome(snapshot, title);
-      expect(chrome.title).toContain('Old Dominion Boat Club');
-      expect(chrome.headerHtml).toContain('Old Dominion Boat Club');
-      expect(chrome.footerHtml).toContain('Old Dominion Boat Club');
+      expect(chrome.title).toContain('Harbor Point Boat Club');
+      expect(chrome.headerHtml).toContain('Harbor Point Boat Club');
+      expect(chrome.footerHtml).toContain('Harbor Point Boat Club');
       expect(chrome.headerHtml + chrome.footerHtml + chrome.title).not.toContain('Kychon Community');
     }
   });
@@ -111,8 +111,8 @@ describe('bakeChrome', () => {
     expect(chrome.headerHtml).not.toContain('>ig</a>');
   });
 
-  it('renders AAGE copied-site social chrome from structured social links', () => {
-    const snapshot = readSnapshot('fixtures/chrome/aage.chrome-snapshot.json');
+  it('renders copied-site social chrome from structured social links', () => {
+    const snapshot = readSnapshot('fixtures/chrome/sample-society.chrome-snapshot.json');
 
     const chrome = bakeChrome(snapshot, 'Home');
 
@@ -121,7 +121,6 @@ describe('bakeChrome', () => {
     }
     expect(chrome.headerHtml).toContain('aria-label="Facebook"');
     expect(chrome.headerHtml).toContain('aria-label="LinkedIn"');
-    expect(chrome.headerHtml).not.toContain('class="aage-social"');
     expect(chrome.headerHtml).not.toContain('>f</a>');
     expect(chrome.headerHtml).not.toContain('>in</a>');
     expect(chrome.headerHtml).not.toContain('>ig</a>');

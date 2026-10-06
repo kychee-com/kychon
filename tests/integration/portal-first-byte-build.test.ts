@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
-const SNAPSHOT = join(ROOT, 'fixtures/chrome/odbc.chrome-snapshot.json');
-const BRAND = 'Old Dominion Boat Club';
+const SNAPSHOT = join(ROOT, 'fixtures/chrome/sample-boat-club.chrome-snapshot.json');
+const BRAND = 'Harbor Point Boat Club';
 const FORBIDDEN_BRAND = 'Kychon Community';
 // The @run402/astro adapter relocates prerendered HTML from `dist/` to
 // `dist/run402/client/`. The adapter is unconditional in astro.config.mjs

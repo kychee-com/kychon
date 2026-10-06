@@ -27,7 +27,7 @@ A Kychon portal's content and settings are rows in its Postgres database, and ev
 
 - **Schema** (`schema.sql`): new tables `kychon_install`, `changesets`, and `revisions`; trigger functions on the content tables (`site_config`, `pages`, `sections`, `section_translations`, `content_translations`, `events`, `event_registration_options`, `announcements`, `resources`, `committees`, `membership_tiers`, `member_custom_fields`, `polls`, `poll_options`, `forum_categories`). Member PII and member-generated activity tables are excluded.
 - **Deploy pipeline** (`scripts/_lib.ts` `readMigrations` / `runDeploy`, `scripts/generate-seed-sql.ts`): the seed is wrapped in an install guard, and the migration still uses content-tracked ids.
-- **Ports**: copy-website seeds (`TRUNCATE`-style) and the reference ports (`_aage`, `_bmwclubcanberra`, `_odbc`) become safe to redeploy. copy-website later emits an import bundle.
+- **Ports**: copy-website seeds (`TRUNCATE`-style) and the reference ports (kept in the private kychon-concierge repo, `ports/<slug>/`) become safe to redeploy. copy-website later emits an import bundle.
 - **Admin UI** (`AdminEditor`, `AdminEditorControlsIsland`, admin pages): undo after save, a history panel, and a site-wide history page with revert. Built with shadcn components.
 - **Edge functions** (`kychon-api`, `upload-asset`, Pro agent entry points): changeset attribution, and immutable asset URLs on upload.
 - **Run402 dependency**: project snapshot create/list/restore through the SDK. This lands after the run402 SDK upgrade in progress in a separate thread.
