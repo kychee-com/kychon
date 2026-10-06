@@ -1,4 +1,4 @@
-// Initial import: a project's seed runs exactly once (openspec content-history,
+// Initial import: a project's seed runs exactly once (content-history,
 // capability `initial-import`).
 //
 // The seed ships inside the same content-tracked migration as `schema.sql`, so

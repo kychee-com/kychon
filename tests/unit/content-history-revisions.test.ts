@@ -1,5 +1,5 @@
 /**
- * Content history (openspec content-history, Phase 2): every write to a
+ * Content history (content-history, Phase 2): every write to a
  * tracked content table becomes a revision, grouped into one changeset per
  * transaction, with layered attribution. Runs against the real schema.sql.
  */

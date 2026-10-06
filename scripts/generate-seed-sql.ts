@@ -63,7 +63,7 @@ function emitSiteConfig(siteConfig: Record<string, unknown>): string {
     }
     if (key === 'logo_url') {
       throw new Error(
-        `site_config.logo_url is removed — use brand_icon_url (square mark), brand_wordmark_url (wide logo), or brand_text (string fallback). See openspec/changes/brand-identity-fields/.`,
+        `site_config.logo_url is removed — use brand_icon_url (square mark), brand_wordmark_url (wide logo), or brand_text (string fallback).`,
       );
     }
     if (key === 'brand_text') brandTextSeen = true;
@@ -80,7 +80,7 @@ function emitSiteConfig(siteConfig: Record<string, unknown>): string {
   }
   if (!brandTextSeen) {
     throw new Error(
-      `site_config.brand_text is required — every project seed must set the textual brand source-of-truth. See openspec/changes/brand-identity-fields/.`,
+      `site_config.brand_text is required — every project seed must set the textual brand source-of-truth.`,
     );
   }
   const blocks: string[] = [];

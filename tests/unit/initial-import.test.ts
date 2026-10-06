@@ -1,5 +1,5 @@
 /**
- * Initial import runs once (openspec content-history, `initial-import`).
+ * Initial import runs once (content-history, `initial-import`).
  *
  * The seed rides the same content-tracked migration as schema.sql, so any
  * schema edit re-ran it: port seeds TRUNCATEd live content and typed seeds

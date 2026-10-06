@@ -248,8 +248,7 @@ async function resolveDeployOutputSeed(
  * declared locale, the gateway falls back to `defaultLocale`.
  */
 export function buildI18nSpec(seed: ProjectSeed): I18nSpec {
-  // `spec.i18n.locales` is the fixed 50-entry LOCALE_POOL (see
-  // openspec/changes/admin-content-management/design.md Decision 9). The
+  // `spec.i18n.locales` is the fixed 50-entry LOCALE_POOL. The
   // per-portal active set lives in `site_config.languages_enabled` at
   // runtime, so admins can add/remove languages via the AdminBar without
   // redeploying.
@@ -662,7 +661,7 @@ export interface BuildKychonReleaseSpecOptions {
 /**
  * Project-scoped release spec. The `project_id` field is bound by `r.project(id)`
  * at apply time, so the assembled spec describes the release without
- * restating the target. See openspec/changes/upgrade-run402-sdk-v2 Decision 3.
+ * restating the target.
  */
 export type KychonReleaseSpec = Omit<ReleaseSpec, "project_id">;
 

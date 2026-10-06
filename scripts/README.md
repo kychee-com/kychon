@@ -175,6 +175,3 @@ SemVer policy:
 
 Service-key writes go through `/admin/v1/rest/*`, not the PostgREST-shaped `/rest/v1/*` (which rejects service_role with `"service_role is not permitted on /rest/v1/*"`). The pre-port `bootstrap-demo.sh` was hitting `/rest/v1/*` with service_key and `> /dev/null`'ing the response — silently 403'ing on every demo deploy without anyone noticing. The TS port hits `/admin/v1/rest/*` and asserts response.ok.
 
-## Migration record
-
-Tracked at `openspec/changes/deploy-sdk-migration/`.

@@ -1,5 +1,5 @@
 /**
- * Content history UI plumbing (openspec content-history, Phase 3): the
+ * Content history UI plumbing (content-history, Phase 3): the
  * recent-changeset store behind Undo, the before/after diff, revert outcome
  * mapping, and the History button on block toolbars.
  */

@@ -85,8 +85,7 @@ kychon/
 ├── functions/             # Serverless edge functions
 ├── demo/                  # Demo seed data (Eagles, Silver Pines, etc.)
 ├── tests/                 # Unit + integration tests
-├── docs/                  # Full spec + platform docs
-└── openspec/              # Change management artifacts
+└── docs/                  # Full spec + platform docs
 ```
 
 ## Development

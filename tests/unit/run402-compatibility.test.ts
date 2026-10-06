@@ -206,7 +206,6 @@ const currentRoots = [
   'deploy.js',
   'docs',
   'functions',
-  'openspec/specs',
   'scripts',
   'src',
 ];

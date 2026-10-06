@@ -194,7 +194,7 @@ describe('Kychon Capability API contract foundation', () => {
     expect(SUPPORTED_API_VERSIONS).toEqual([KYCHON_API_VERSION]);
   });
 
-  it('registers every V1 operation from the OpenSpec catalog exactly once', () => {
+  it('registers every V1 operation from the catalog exactly once', () => {
     const names = V1_OPERATION_CATALOG.map((operation) => operation.name);
     expect(sorted(names)).toEqual(sorted(expectedOperationNames));
     expect(new Set(names).size).toBe(names.length);

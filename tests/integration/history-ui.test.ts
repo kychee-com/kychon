@@ -1,5 +1,5 @@
 /**
- * Content history UI (openspec content-history, Phase 3) in a DOM: the
+ * Content history UI (content-history, Phase 3) in a DOM: the
  * HistoryHost dialog lists changesets and resolves a revert conflict with
  * "Revert anyway"; a save toast offers Undo for the save's changesets.
  */

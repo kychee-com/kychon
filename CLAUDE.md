@@ -12,7 +12,7 @@ Kychon is an AI-powered membership/community portal template built on the Run402
 
 The full spec lives in `docs/spec.md`.
 
-**Cross-repo boundary**: The marketing site at `kychon.com` lives in the sibling private repo `kychee-com/kychon-private`. Marketing-site source, deploy script, copy, and domain config changes go there, not here. See `openspec/specs/marketing-deploy/spec.md`.
+**Cross-repo boundary**: The marketing site at `kychon.com` lives in the sibling private repo `kychee-com/kychon-private`. Marketing-site source, deploy script, copy, and domain config changes go there, not here.
 
 ## Git workflow — worktrees, never branches
 
@@ -132,9 +132,9 @@ kychon/
 - **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. run402 packages are exact-pinned and kept on latest by `.github/workflows/run402-bump.yml` (every 6h, in lockstep with kychon-concierge): it pushes a bump to main only after the full CI check suite passes, then dispatches CI and the demo deploy. A failed bump opens an "Automatic run402 bump failed" issue — fix main rather than pinning back.
   - **Local-only**: this machine's `npm` config has a `before=` cutoff that filters out recently-published packages. Bumping the SDK to a release published after the cutoff requires `npm install --before=null @run402/sdk@<version>` (or temporarily `npm config delete before`). Not a Run402 issue — a personal sandbox knob.
 
-## OpenSpec Workflow
+## Specs
 
-Changes are managed via OpenSpec in `/openspec/`. Use `/opsx:propose` to propose new changes, `/opsx:apply` to implement tasks, `/opsx:explore` to think through ideas.
+Specs and change proposals for Kychon are maintained privately by Kychee, outside this repository (maintainers: OpenSpec store `kychon` in the private spec-store). Never add an `openspec/` directory here, and never link to or quote private specs from code, comments, docs, or commit messages in this public repo.
 
 ## Run402 Platform Notes
 
