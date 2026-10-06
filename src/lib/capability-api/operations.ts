@@ -143,6 +143,8 @@ const readDefinitions: readonly ReadDefinition[] = [
   ['history.revisions', 'admin', "List one content row's revisions, or one changeset's revisions with before and after."],
   ['history.revision', 'admin', 'Read one content revision with its before and after rows.'],
   ['bundle.export', 'admin', 'Export portal content as a kychon-bundle/v1 document, optionally with members.'],
+  ['restorePoints.list', 'admin', 'List restore points (whole-site snapshots), newest first, with label, reason and time.'],
+  ['restorePoints.restoreStatus', 'project_admin', 'Check a restore that is still running; records it in History once done.'],
 ] as const;
 
 const mutationDefinitions: readonly MutationDefinition[] = [
@@ -167,6 +169,14 @@ const mutationDefinitions: readonly MutationDefinition[] = [
   ['sections.delete', 'admin', 'Delete a page section.', 'required'],
   ['sections.translate', 'admin', 'Save the per-language config override for a page section.'],
   ['history.revert', 'admin', 'Revert one content changeset; fails if the content changed since, unless forced.', 'recommended'],
+  ['restorePoints.create', 'admin', 'Take a labelled restore point of the whole site.'],
+  ['restorePoints.delete', 'admin', 'Delete a restore point this site took.', 'required'],
+  [
+    'restorePoints.restore',
+    'project_admin',
+    'Restore the whole site to a restore point; owner only, confirmed by typing the site name.',
+    'required',
+  ],
   ['media.delete', 'admin', 'Delete a media library file; previews first when the file is still in use.', 'recommended'],
   ['media.importFromUrl', 'admin', 'Import a public image by URL into the media library.'],
   ['members.updateProfile', 'active_member', 'Update a member profile.'],

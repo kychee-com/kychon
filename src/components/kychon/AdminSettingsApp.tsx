@@ -30,6 +30,7 @@ import {
 } from '@/components/kychon/ui';
 import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
 import { AiConnectorCard, CONNECTOR_FLAG, connectorEnabled } from './AiConnectorCard';
+import { RestorePointsCard } from './RestorePointsCard';
 import { del, get, patch, post, queryOp } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { applyRobots, applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
@@ -1220,6 +1221,8 @@ export default function AdminSettingsApp() {
       />
 
       <ContentExportCard />
+
+      <RestorePointsCard />
 
       <Dialog open={editingTier !== null} onOpenChange={(open) => !open && setEditingTier(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">

@@ -9,6 +9,8 @@ import { KYCHON_API_VERSION } from '../../src/lib/capability-api/index.ts';
 import { pgliteAdminDb } from '../helpers/pglite-admin-db';
 import { freshKychonDb, rows } from '../helpers/pglite-db';
 
+const fakeSnapshots = await vi.hoisted(async () => (await import('../helpers/fake-snapshots')).createFakeSnapshots());
+
 const state = vi.hoisted(() => ({
   db: null as null | ReturnType<typeof import('../helpers/pglite-admin-db').pgliteAdminDb>,
   user: null as null | { id: string; email?: string },
@@ -20,6 +22,7 @@ vi.mock(
     adminDb: () => state.db,
     auth: { user: async () => state.user },
     events: { emit: async () => ({ deduplicated: false }) },
+    snapshots: fakeSnapshots.api,
   }),
   { virtual: true },
 );
@@ -28,6 +31,7 @@ const { default: kychonApi } = await import('../../functions/kychon-api.js');
 
 let db: PGlite;
 beforeEach(async () => {
+  fakeSnapshots.reset();
   db = await freshKychonDb();
   state.db = pgliteAdminDb(db);
   await db.exec(`

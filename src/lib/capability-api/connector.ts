@@ -144,6 +144,8 @@ export const CONNECTOR_GUIDE_AREAS: ConnectorGuideArea[] = [
     tasks: [
       { task: 'See recent changes', operation: 'history.list' },
       { task: 'Undo a change', operation: 'history.revert' },
+      { task: 'Take a restore point before a big change', operation: 'restorePoints.create' },
+      { task: 'List restore points', operation: 'restorePoints.list' },
     ],
   },
 ];
@@ -429,6 +431,17 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
     summary: 'Undo one change by its changeset id. If the content changed again since, it fails unless force is true.',
     input: object({ changeset_id: ID, changesetId: ID, force: { type: 'boolean' } }, oneOf('changeset_id', 'changesetId')),
     example: { changeset_id: 128 },
+  },
+  'restorePoints.list': {
+    summary:
+      'List restore points (snapshots of the whole site), newest first. Restoring one is done by the site owner in the portal, not here.',
+    input: object({ after: { type: 'string', description: 'nextCursor from the previous page.' } }),
+    example: {},
+  },
+  'restorePoints.create': {
+    summary: 'Take a restore point of the whole site before a big change, with a short label.',
+    input: object({ label: { type: 'string', minLength: 1, maxLength: 120 } }, { required: ['label'] }),
+    example: { label: 'Before spring redesign' },
   },
 };
 

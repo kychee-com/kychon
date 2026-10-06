@@ -1,18 +1,26 @@
 /**
  * Restore points: Run402 project snapshots taken before an operation that
- * rewrites portal content (re-import, engine upgrade). Owner-side only — they
- * need the wallet's `project.snapshots.manage` capability.
+ * rewrites portal content (re-import, engine upgrade), taken by the deploy
+ * tooling with the wallet's `project.snapshots.manage` capability.
  *
- * Snapshots carry no caller label yet, so the reason is logged next to the
- * snapshot id; the owner finds it with `run402 snapshots list`.
+ * Each one carries a label and `{ reason }` metadata. Run402 keeps both outside
+ * the portal database, so the snapshot list is the restore-point ledger: admin
+ * settings (kychon-api `restorePoints.list`) and `run402 snapshots list` show
+ * them, and restoring never loses one.
  */
 
-import type { ProjectSnapshotDto } from "@run402/sdk";
+import type { ProjectSnapshotCreateOptions, ProjectSnapshotDto } from "@run402/sdk";
 
 export type RestorePointReason = "before_reimport" | "before_engine_upgrade";
 
+/** Same labels kychon-api shows for these reasons. */
+export const RESTORE_POINT_LABELS: Record<RestorePointReason, string> = {
+  before_reimport: "Before re-import",
+  before_engine_upgrade: "Before engine upgrade",
+};
+
 export interface SnapshotsApi {
-  create(): Promise<ProjectSnapshotDto>;
+  create(opts?: ProjectSnapshotCreateOptions): Promise<ProjectSnapshotDto>;
   get(snapshotId: string): Promise<ProjectSnapshotDto>;
 }
 
@@ -23,6 +31,10 @@ export interface TakeRestorePointOptions {
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
   log?: (line: string) => void;
+  /** Replaces the reason's default label. */
+  label?: string;
+  /** Extra metadata (e.g. the engine version) stored next to the reason. */
+  metadata?: Record<string, string | number | boolean>;
 }
 
 /**
@@ -41,8 +53,9 @@ export async function takeRestorePoint(
   const log = opts.log ?? ((line: string) => console.log(line));
 
   const deadline = now() + timeoutMs;
-  let snapshot = await snapshots.create();
-  log(`[restore-point] ${reason}: snapshot ${snapshot.snapshot_id} (${snapshot.status})`);
+  const label = opts.label ?? RESTORE_POINT_LABELS[reason];
+  let snapshot = await snapshots.create({ label, metadata: { ...opts.metadata, reason, source: "deploy" } });
+  log(`[restore-point] ${reason}: snapshot ${snapshot.snapshot_id} "${label}" (${snapshot.status})`);
   while (snapshot.status === "running") {
     if (now() >= deadline) {
       throw new Error(`[restore-point] ${reason}: snapshot ${snapshot.snapshot_id} still running after ${Math.round(timeoutMs / 1000)}s`);

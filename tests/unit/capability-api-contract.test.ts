@@ -195,6 +195,11 @@ const expectedOperationNames = [
   'history.revision',
   'history.revert',
   'bundle.export',
+  'restorePoints.list',
+  'restorePoints.restoreStatus',
+  'restorePoints.create',
+  'restorePoints.delete',
+  'restorePoints.restore',
 ] as const;
 
 function sorted(values: readonly string[]): string[] {

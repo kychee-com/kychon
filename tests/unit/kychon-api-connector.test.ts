@@ -28,6 +28,7 @@ const mockAssets = vi.hoisted(() => ({
   put: vi.fn(async (key: string) => ({ cdn_immutable_url: `https://cdn.test/${key}`, width_px: 640, height_px: 480 })),
 }));
 
+const fakeSnapshots = await vi.hoisted(async () => (await import('../helpers/fake-snapshots')).createFakeSnapshots());
 const mockState = vi.hoisted(() => ({
   user: null as null | { id: string; email?: string },
   tables: {} as Record<string, JsonObject[]>,
@@ -116,6 +117,7 @@ vi.mock(
     events: { emit: vi.fn(async () => ({ deduplicated: false })) },
     functions: { runs: { create: vi.fn(async () => ({ run_id: 'fnrun_test' })) } },
     assets: { put: mockAssets.put },
+    snapshots: fakeSnapshots.api,
     auth: {
       user: vi.fn(async () => mockState.user),
       // The platform's AuthRequiredError: on a tool call it becomes the HTTP 401
@@ -261,6 +263,7 @@ async function json(res: Response) {
 
 beforeEach(() => {
   mockState.user = null;
+  fakeSnapshots.reset();
   mockState.counters = {};
   mockState.postgrestWriteRlsTables = new Set<string>();
   mockState.tables = {

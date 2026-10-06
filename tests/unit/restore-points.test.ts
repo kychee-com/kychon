@@ -43,6 +43,15 @@ describe('takeRestorePoint', () => {
     expect(api.get).not.toHaveBeenCalled();
   });
 
+  it('labels the snapshot and records the reason as metadata', async () => {
+    const api = fakeSnapshots(['ready']);
+    await takeRestorePoint(api, 'before_engine_upgrade', { ...quiet, metadata: { engine_version: '1.4.0' } });
+    expect(api.create).toHaveBeenCalledWith({
+      label: 'Before engine upgrade',
+      metadata: { engine_version: '1.4.0', reason: 'before_engine_upgrade', source: 'deploy' },
+    });
+  });
+
   it('waits while the snapshot is running', async () => {
     const api = fakeSnapshots(['running', 'running', 'ready']);
     const result = await takeRestorePoint(api, 'before_reimport', quiet);
