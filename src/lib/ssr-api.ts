@@ -18,6 +18,7 @@
 
 import { createKychonClient, KYCHON_CAPABILITY_FUNCTION_PATH } from '@kychon/sdk';
 import { parseAssetManifest } from './bake-asset-manifest';
+import type { Section } from './blocks';
 import type { AssetManifest } from './kychon-image';
 
 type KychonClient = ReturnType<typeof createKychonClient>;
@@ -191,6 +192,51 @@ export async function ssrEventGet<T = unknown>(params: SsrEventParams): Promise<
     console.warn('[ssr-api] events.get failed:', error instanceof Error ? error.message : error);
     return { status: 'error' };
   }
+}
+
+
+export interface SsrPageHeaderSectionsParams {
+  /** Page slug the route hydrates as (`currentPageSlugFromLocation`). */
+  slug: string;
+  /** Request host (`Astro.request.headers.get('host')`). */
+  host: string;
+}
+
+/**
+ * Server-side `sections.list` for a route's own page-scoped header sections
+ * (page_banner etc.), so `prerender = false` routes bake them into the served
+ * HTML like prerendered pages do from `build-sections` (kychon#219). The
+ * anonymous read applies `visibleSection`; we re-filter and sort by position
+ * because the gateway ignores order. Any failure resolves to `[]` and the
+ * runtime hydrate paints the banner as before.
+ */
+export async function ssrPageHeaderSections(params: SsrPageHeaderSectionsParams): Promise<Section[]> {
+  try {
+    const result = await client(params.host).request<{ rows?: Section[] }>('sections.list', 'query', {
+      page_slug: params.slug,
+      zone: 'header',
+      scope: 'page',
+    });
+    const rows = Array.isArray(result?.rows) ? result.rows : [];
+    return rows
+      .filter(
+        (s) => s.zone === 'header' && s.scope === 'page' && s.page_slug === params.slug && s.visible !== false,
+      )
+      .sort((a, b) => a.position - b.position);
+  } catch (error) {
+    console.warn('[ssr-api] sections.list failed:', error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+/**
+ * Public origin of an SSR request. Deployed portals are always https; the
+ * Lambda's internal request URL may not say so. Only local dev keeps its own
+ * scheme.
+ */
+export function ssrRequestOrigin(requestUrl: URL, host: string): string {
+  const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+  return `${isLocalHost ? requestUrl.protocol : 'https:'}//${host}`;
 }
 
 const ASSET_MANIFEST_TTL_MS = 5 * 60 * 1000;

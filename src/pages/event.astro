@@ -3,7 +3,7 @@ import EventDetailPageApp from '../components/kychon/EventDetailPageApp';
 import Portal from '../layouts/Portal.astro';
 import { pickAssetManifestEntries } from '../lib/bake-asset-manifest';
 import { eventAssetUrls, eventMetaDescription, eventOgImageUrl } from '../lib/event-meta';
-import { ssrAssetManifest, ssrEventGet } from '../lib/ssr-api';
+import { ssrAssetManifest, ssrEventGet, ssrRequestOrigin } from '../lib/ssr-api';
 import type { Event } from '../schemas/event';
 
 // /event?id=N is per-request: the event comes from the query string, which a
@@ -24,10 +24,7 @@ export const prerender = false;
 
 const url = new URL(Astro.request.url);
 const host = Astro.request.headers.get('host') ?? Astro.url.host;
-// Deployed portals are always https; the Lambda's internal request URL may
-// not say so. Only local dev keeps its own scheme.
-const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
-const origin = `${isLocalHost ? Astro.url.protocol : 'https:'}//${host}`;
+const origin = ssrRequestOrigin(Astro.url, host);
 
 const lookup = await ssrEventGet<Event>({ id: url.searchParams.get('id') ?? '', host });
 const event = lookup.status === 'found' ? lookup.event : null;
@@ -43,6 +40,7 @@ const image = event ? eventOgImageUrl(event, siteManifest, origin) : '';
 
 <Portal
   title={event?.title || 'Event'}
+  pageSlug="event"
   robots={lookup.status === 'missing' ? 'noindex' : undefined}
   description={description || undefined}
   image={image || undefined}

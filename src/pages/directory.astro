@@ -38,7 +38,7 @@ const initialMembers = directoryPublic && buildMembers.length > 0
   : undefined;
 const initialTiers = directoryPublic && buildTiers.length > 0 ? [...buildTiers] : undefined;
 ---
-<Portal title="Members">
+<Portal title="Members" pageSlug="directory">
   <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
     <DirectoryPageApp
       initialMembers={initialMembers}

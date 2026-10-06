@@ -315,6 +315,12 @@ export interface BakeChromeOptions {
    * the header is global-only.
    */
   pageSlug?: string;
+  /**
+   * Asset manifest to resolve baked image URLs against when the build-time
+   * manifest is unavailable — SSR routes pass the site's request-time manifest
+   * (`ssrAssetManifest`) so a page_banner's `/assets/<name>` resolves to its CDN URL.
+   */
+  manifest?: BlockRenderContext['manifest'];
 }
 
 export function bakeChrome(
@@ -323,6 +329,7 @@ export function bakeChrome(
   options: BakeChromeOptions = {},
 ): BakedChrome {
   const bakeCtx = makeBakeContext(seed);
+  if (!bakeCtx.manifest && options.manifest) bakeCtx.manifest = options.manifest;
   const header = options.pageSlug
     ? renderHeaderZone(seed, options.pageSlug, bakeCtx)
     : { html: renderGlobalZone(seed, 'header', bakeCtx), fullBleedHtml: '' };

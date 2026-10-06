@@ -9,7 +9,7 @@ const css = readFileSync(join(root, 'src/styles/public.css'), 'utf8');
 
 describe('search results page source', () => {
   it('defines the native route with robots metadata and URL state', () => {
-    expect(page).toContain('<Portal title="Search" robots="noindex,follow">');
+    expect(page).toContain('<Portal title="Search" robots="noindex,follow" pageSlug="search">');
     // SearchPageApp now carries `initialResponse` / `initialParams` props
     // from the per-request SSR pass; match the directive surface
     // independently rather than pinning to one exact form.

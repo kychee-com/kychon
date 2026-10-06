@@ -19,6 +19,9 @@ import { buildInlineManifestScript, getBakeAssetManifest, inlineAssetManifest } 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome } from '../lib/chrome-bake';
 import { mergeSeedSections } from '../lib/merge-sections';
+import { ensureBuildSectionsLoaded, getBuildSections } from '../lib/build-sections';
+import { ssrAssetManifest, ssrPageHeaderSections, ssrRequestOrigin } from '../lib/ssr-api';
+import type { AssetManifest } from '../lib/kychon-image';
 import type { Section } from '../lib/blocks';
 import { buildCspValueFromTemplate } from '../lib/csp';
 import { isDemoModeSeed } from '../lib/demo-mode';
@@ -51,6 +54,9 @@ interface Props {
   /**
    * DB-fetched page-scoped sections for `pageSlug` (`getBuildSections(slug)`),
    * merged into the seed so ported pages bake their DB-only header rows too.
+   * When omitted with a `pageSlug`, the layout loads them itself: from the
+   * build-time cache on prerendered routes, per request on SSR routes
+   * (kychon#219).
    */
   pageSections?: Section[];
   /**
@@ -80,8 +86,23 @@ const { title, robots, extraHead, pageSlug, pageSections, description, image } =
 // for every route — prerendered ones via the build-time bake, SSR ones
 // via the per-request bake.
 const { seed } = await resolveActiveProjectSeed();
-const chromeSeed = pageSlug ? mergeSeedSections(seed, pageSlug, pageSections ?? []) : seed;
-const chrome = bakeChrome(chromeSeed, title, { pageSlug });
+let headerSections = pageSections;
+let requestManifest: AssetManifest | null = null;
+if (pageSlug && !headerSections) {
+  if (Astro.isPrerendered) {
+    await ensureBuildSectionsLoaded(pageSlug);
+    headerSections = getBuildSections(pageSlug);
+  } else {
+    // SSR route: no build-time cache or manifest in the Lambda. Read the page's
+    // header rows per request, and the site manifest only when there is a
+    // banner whose `/assets/<name>` image needs resolving.
+    const host = Astro.request.headers.get('host') ?? Astro.url.host;
+    headerSections = await ssrPageHeaderSections({ slug: pageSlug, host });
+    if (headerSections.length > 0) requestManifest = await ssrAssetManifest(ssrRequestOrigin(Astro.url, host));
+  }
+}
+const chromeSeed = pageSlug ? mergeSeedSections(seed, pageSlug, headerSections ?? []) : seed;
+const chrome = bakeChrome(chromeSeed, title, { pageSlug, manifest: requestManifest });
 const renderDemoBanner = isDemoModeSeed(seed);
 
 const cspValue = buildCspValueFromTemplate(headersTemplate);

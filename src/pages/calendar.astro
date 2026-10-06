@@ -26,6 +26,6 @@ const host = Astro.request.headers.get('host') ?? 'localhost';
 const result = await ssrEventsList<EventsListResult>({ host, order: 'starts_at.asc' });
 const initialEvents = result?.rows ?? [];
 ---
-<Portal title="Calendar">
+<Portal title="Calendar" pageSlug="calendar">
   <CalendarPageApp initialEvents={initialEvents} renderedAt={new Date().toISOString()} client:load />
 </Portal>

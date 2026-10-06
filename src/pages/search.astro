@@ -36,7 +36,7 @@ const initialResponse = q
   : null;
 const initialParams = { q, type, page };
 ---
-<Portal title="Search" robots="noindex,follow">
+<Portal title="Search" robots="noindex,follow" pageSlug="search">
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
     <SearchPageApp
       initialResponse={initialResponse ?? undefined}
