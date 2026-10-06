@@ -1,7 +1,12 @@
 // schedule: "0 8 * * *"
-import { adminDb, email } from '@run402/functions';
+import { adminDb, auth, email } from '@run402/functions';
 
-export default async (_req) => {
+export default async (req) => {
+  // A run emails members and can spend the portal's AI key, so anonymous
+  // callers must not start one.
+  const denied = await authorizeRun(req, adminDb());
+  if (denied) return denied;
+
   const _now = new Date().toISOString();
   const results = { reminders_sent: 0, insights_generated: 0 };
 
@@ -27,7 +32,7 @@ export default async (_req) => {
           await email.send({
             to: member.email,
             subject: `Membership Renewal Reminder — ${days} days left`,
-            html: `<p>Hi ${member.display_name},</p><p>Your membership expires in <strong>${days} days</strong>. Please renew to keep your access to the community.</p>`,
+            html: `<p>Hi ${escapeHtml(member.display_name)},</p><p>Your membership expires in <strong>${days} days</strong>. Please renew to keep your access to the community.</p>`,
             from_name: 'Kychon Community',
           });
           results.reminders_sent++;
@@ -53,6 +58,63 @@ export default async (_req) => {
 
   return new Response(JSON.stringify({ status: 'ok', ...results }));
 };
+
+function escapeHtml(input) {
+  return String(input || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Only the platform (a schedule trigger, or the owner's `run402 functions runs
+// create`) or an admin may run this. The gateway sets x-run402-trigger on the
+// runs it starts and never forwards a caller's x-run402-* headers to a function.
+async function authorizeRun(req, admin) {
+  if (req.headers.get('x-run402-trigger')) return null;
+  const user = await auth.user();
+  if (!user?.id) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+  if (!(await isActiveAdmin(admin, user))) {
+    return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
+  }
+  return null;
+}
+
+// An active member with role admin (matched by user id, then email, as
+// kychon-api resolves actors) or a project admin.
+async function isActiveAdmin(admin, user) {
+  if (isProjectAdmin(user)) return true;
+  const member = await findMember(admin, user);
+  return member?.role === 'admin' && member?.status === 'active';
+}
+
+function isProjectAdmin(user) {
+  return (
+    user.is_admin === true ||
+    user.role === 'project_admin' ||
+    user.app_metadata?.role === 'project_admin' ||
+    user.app_metadata?.is_admin === true
+  );
+}
+
+async function findMember(admin, user) {
+  // run402-allow-user-filter: adminDb() bypasses RLS to map the actor to its member row
+  const byUserId = await admin.from('members').select('role,status').eq('user_id', user.id).limit(1);
+  let row = byUserId?.[0];
+  const address = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+  if (!row && address) {
+    const byEmail = await admin.from('members').select('role,status').eq('email', address).limit(1);
+    row = byEmail?.[0];
+  }
+  if (!row) return null;
+  return {
+    role: String(row.role || 'member').toLowerCase(),
+    status: String(row.status || 'pending').toLowerCase(),
+  };
+}
 
 async function generateInsights() {
   let count = 0;

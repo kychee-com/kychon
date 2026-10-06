@@ -13,17 +13,17 @@ function pickAssetUrl(ref, fallbackKey) {
 
 export default async (req) => {
   const user = await auth.user();
-  if (!user) {
+  if (!user?.id) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // Admin-only — mirror the role check in upload-asset.js. Without this
-  // check, any authenticated user could upload, letting arbitrary signed-in
-  // Run402 users write to the project's resources bucket.
-  // run402-allow-user-filter: adminDb() raw SQL bypasses RLS; user.id binding required
-  const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
-  const role = memberResult?.rows?.[0]?.role;
-  if (role !== 'admin') {
+  // Admin-only, as in upload-asset.js. Without this check, any authenticated
+  // user could upload, letting arbitrary signed-in Run402 users write to the
+  // project's resources bucket. A pending or suspended admin is refused too:
+  // require an active admin or a project admin.
+  const member = await findMember(adminDb(), user);
+  const activeAdmin = member?.role === 'admin' && member?.status === 'active';
+  if (!activeAdmin && !isProjectAdmin(user)) {
     return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
   }
 
@@ -68,10 +68,9 @@ export default async (req) => {
       });
     }
 
-    // Insert resource row. uploaded_by is bound to the authenticated admin —
-    // never honored from input.
-    const memberRow = await adminDb().sql('SELECT id FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
-    const uploadedBy = memberRow?.rows?.[0]?.id ?? null;
+    // Insert resource row. uploaded_by is bound to the authenticated admin's
+    // member row (none for a project admin without one) — never honored from input.
+    const uploadedBy = member?.id ?? null;
     const created = await adminDb()
       .from('resources')
       .insert({
@@ -106,3 +105,31 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 };
+
+function isProjectAdmin(user) {
+  return (
+    user.is_admin === true ||
+    user.role === 'project_admin' ||
+    user.app_metadata?.role === 'project_admin' ||
+    user.app_metadata?.is_admin === true
+  );
+}
+
+// The caller's member row, matched by user id, then email, as kychon-api
+// resolves actors.
+async function findMember(admin, user) {
+  // run402-allow-user-filter: adminDb() bypasses RLS to map the actor to its member row
+  const byUserId = await admin.from('members').select('id,role,status').eq('user_id', user.id).limit(1);
+  let row = byUserId?.[0];
+  const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+  if (!row && email) {
+    const byEmail = await admin.from('members').select('id,role,status').eq('email', email).limit(1);
+    row = byEmail?.[0];
+  }
+  if (!row) return null;
+  return {
+    id: row.id,
+    role: String(row.role || 'member').toLowerCase(),
+    status: String(row.status || 'pending').toLowerCase(),
+  };
+}

@@ -10,13 +10,18 @@
 // 3. functions/upload-asset.js builds a SQL query via string concatenation on
 //    `user.id`. Safe today because user.id is a UUID, but this is a
 //    defense-in-depth issue — should use parameterized SQL.
+// 4. Both functions accepted any member with role admin, so a pending or
+//    suspended admin could still upload and delete assets. They now require an
+//    active admin (matched by user id, then email) or a project admin.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JsonObject } from '../../src/lib/capability-api/index.ts';
 
+type MockUser = { id: string; email?: string; app_metadata?: Record<string, unknown> };
+
 const mockState = vi.hoisted(() => ({
-  user: null as null | { id: string; email?: string },
+  user: null as null | MockUser,
   members: [] as JsonObject[],
   resources: [] as JsonObject[],
   fetchCalls: [] as Array<{ url: string; method: string }>,
@@ -33,6 +38,7 @@ const mockState = vi.hoisted(() => ({
   uploadResponse: { ok: true, url: '/storage/test', status: 200 },
   deleteResponse: { ok: true, status: 200 },
   sqlCalls: [] as Array<{ query: string; params: unknown[] }>,
+  memberLookups: [] as Array<{ column: string; value: unknown }>,
 }));
 
 vi.mock(
@@ -44,21 +50,20 @@ vi.mock(
     adminDb: () => ({
       sql(query: string, params: unknown[] = []) {
         mockState.sqlCalls.push({ query, params });
-        const lc = query.replace(/\s+/g, ' ').trim().toLowerCase();
-        if (lc.startsWith('select role from members')) {
-          const want = String(params[0] ?? '');
-          const found = mockState.members.find((m) => String(m.user_id) === want);
-          return Promise.resolve(found ? { rows: [{ role: found.role }] } : { rows: [] });
-        }
-        if (lc.startsWith('select id from members')) {
-          const want = String(params[0] ?? '');
-          const found = mockState.members.find((m) => String(m.user_id) === want);
-          return Promise.resolve(found ? { rows: [{ id: found.id }] } : { rows: [] });
-        }
         return Promise.resolve({ rows: [] });
       },
       from(table: string) {
         return {
+          select() {
+            return {
+              eq(column: string, value: unknown) {
+                if (table === 'members') mockState.memberLookups.push({ column, value });
+                const rows = table === 'members' ? mockState.members : [];
+                const matched = rows.filter((row) => String(row[column]) === String(value));
+                return { limit: (count: number) => Promise.resolve(matched.slice(0, count)) };
+              },
+            };
+          },
           insert(row: JsonObject) {
             if (table === 'resources') {
               const created = { id: mockState.resources.length + 1, ...row };
@@ -145,7 +150,9 @@ beforeEach(() => {
   mockState.resources = [];
   mockState.fetchCalls = [];
   mockState.assetPutCalls = [];
+  mockState.assetRmCalls = [];
   mockState.sqlCalls = [];
+  mockState.memberLookups = [];
   mockState.uploadResponse = { ok: true, url: '/storage/test', status: 200 };
   mockState.deleteResponse = { ok: true, status: 200 };
   process.env.RUN402_SERVICE_KEY = 'service-key-test';
@@ -273,17 +280,87 @@ describe('bug #25 — upload-asset.js path traversal in delete', () => {
   });
 });
 
-describe('bug #25 — upload-asset.js parameterized SQL', () => {
-  it('uses parameterized $1 binding for user_id (not string interpolation)', async () => {
+describe('bug #25 — upload-asset.js never builds SQL from user.id', () => {
+  it('looks the caller up through the query builder, with the user id as a filter value', async () => {
     mockState.user = { id: 'admin-user' };
     mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
     const handler = (await import('../../functions/upload-asset.js')).default;
-    await handler(jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }));
+    const res = await handler(jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }));
 
-    const roleQuery = mockState.sqlCalls.find((c) => /role from members/i.test(c.query));
-    expect(roleQuery, 'expected a SELECT role FROM members SQL call').toBeDefined();
-    expect(roleQuery?.query).toMatch(/\$1/);
-    expect(roleQuery?.query).not.toMatch(/'admin-user'/);
-    expect(roleQuery?.params).toEqual(['admin-user']);
+    expect(res.status).toBe(200);
+    expect(mockState.memberLookups).toEqual([{ column: 'user_id', value: 'admin-user' }]);
+    expect(mockState.sqlCalls.filter((c) => c.query.includes('admin-user'))).toEqual([]);
+  });
+});
+
+describe('uploads require an active admin or a project admin', () => {
+  const upload = {
+    'upload-asset': () =>
+      jsonReq('upload-asset', { file: { name: 'logo.png', type: 'image/png', data: btoa('png') }, path: 'logo.png' }),
+    'upload-resource': () =>
+      jsonReq('upload-resource', {
+        file: { name: 'guide.pdf', type: 'application/pdf', data: btoa('pdf') },
+        metadata: { title: 'Guide' },
+      }),
+  };
+  const handlers = {
+    'upload-asset': () => import('../../functions/upload-asset.js'),
+    'upload-resource': () => import('../../functions/upload-resource.js'),
+  };
+  const MEMBERS: JsonObject[] = [
+    { id: 1, user_id: 'pending-admin', email: 'linus@example.com', role: 'admin', status: 'pending' },
+    { id: 2, user_id: 'suspended-admin', email: 'sus@example.com', role: 'Admin', status: 'suspended' },
+    { id: 3, user_id: null, email: 'email-admin@example.com', role: 'admin', status: 'active' },
+  ];
+
+  for (const name of ['upload-asset', 'upload-resource'] as const) {
+    it.each([
+      ['a pending admin', { id: 'pending-admin', email: 'linus@example.com' }],
+      ['a suspended admin', { id: 'suspended-admin', email: 'sus@example.com' }],
+    ])(`${name}: rejects %s with 403 and stores nothing`, async (_label, user) => {
+      mockState.user = user;
+      mockState.members = MEMBERS;
+      const res = await (await handlers[name]()).default(upload[name]());
+      expect(res.status).toBe(403);
+      expect(mockState.assetPutCalls).toHaveLength(0);
+      expect(mockState.resources).toHaveLength(0);
+    });
+
+    it.each([
+      ['an active admin matched by email', { id: 'unlinked-user', email: 'Email-Admin@example.com' }],
+      ['a project admin', { id: 'owner-user', email: 'owner@example.com', app_metadata: { role: 'project_admin' } }],
+    ])(`${name}: lets %s upload`, async (_label, user) => {
+      mockState.user = user;
+      mockState.members = MEMBERS;
+      const res = await (await handlers[name]()).default(upload[name]());
+      expect(res.status).toBe(200);
+      expect(mockState.assetPutCalls).toHaveLength(1);
+    });
+  }
+
+  it('upload-asset: rejects a delete from a pending admin', async () => {
+    mockState.user = { id: 'pending-admin', email: 'linus@example.com' };
+    mockState.members = MEMBERS;
+    const res = await (await handlers['upload-asset']()).default(
+      jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }),
+    );
+    expect(res.status).toBe(403);
+    expect(mockState.assetRmCalls).toHaveLength(0);
+  });
+
+  it('upload-resource credits an admin matched by email with their own member row', async () => {
+    mockState.user = { id: 'unlinked-user', email: 'Email-Admin@example.com' };
+    mockState.members = MEMBERS;
+    const res = await (await handlers['upload-resource']()).default(upload['upload-resource']());
+    expect(res.status).toBe(200);
+    expect(mockState.resources[0].uploaded_by).toBe(3);
+  });
+
+  it('upload-resource records no uploader for a project admin without a member row', async () => {
+    mockState.user = { id: 'owner-user', email: 'owner@example.com', app_metadata: { role: 'project_admin' } };
+    mockState.members = MEMBERS;
+    const res = await (await handlers['upload-resource']()).default(upload['upload-resource']());
+    expect(res.status).toBe(200);
+    expect(mockState.resources[0].uploaded_by).toBeNull();
   });
 });

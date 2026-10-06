@@ -476,6 +476,10 @@ DO $$ BEGIN
     CHECK (time_display_mode IN ('visitor', 'source'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- event-reminders claims an RSVP (sets reminder_sent_at) before emailing it,
+-- so each RSVP gets at most one reminder however often the function runs.
+DO $$ BEGIN ALTER TABLE event_rsvps ADD COLUMN reminder_sent_at TIMESTAMPTZ; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
 -- admin-roles: `members.status` drives the demo-account bootstrap (active vs
 -- pending) and the runtime member-state gate. `CREATE TABLE IF NOT EXISTS`
 -- above declares the column for fresh tenants, but skips when the table

@@ -145,10 +145,11 @@ describe('ai-content.js — bug #26 (undefined db)', () => {
     }) as unknown as typeof fetch;
 
     const aiContent = (await import('../../functions/ai-content.js')).default;
+    // The weekly newsletter is a platform-started (scheduled) run.
     const buildReq = () =>
       new Request('https://portal.test/functions/v1/ai-content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-run402-trigger': 'function_run' },
         body: JSON.stringify({}),
       });
 

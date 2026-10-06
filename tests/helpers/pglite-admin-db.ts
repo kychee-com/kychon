@@ -1,10 +1,13 @@
 // A PGlite-backed stand-in for @run402/functions' adminDb(): `sql(text, params)`
-// plus the small `.from(table)` builder kychon-api uses (select/eq/limit,
-// insert, update().eq, delete().eq). Lets functions run against the real
-// schema.sql, triggers included.
+// plus the small `.from(table)` builder Kychon's functions use (select with
+// eq/gt/gte/lt/order/limit, insert, update().eq, delete().eq). Lets functions
+// run against the real schema.sql, triggers included.
 import type { PGlite } from '@electric-sql/pglite';
 
 const ident = (name: string) => `"${name.replace(/"/g, '""')}"`;
+
+type Filter = [column: string, operator: '=' | '>' | '>=' | '<', value: unknown];
+type Order = [column: string, ascending: boolean];
 
 export function pgliteAdminDb(db: PGlite) {
   return {
@@ -14,11 +17,20 @@ export function pgliteAdminDb(db: PGlite) {
     from(table: string) {
       type Query = Promise<unknown[]> & {
         eq(column: string, value: unknown): Query;
+        gt(column: string, value: unknown): Query;
+        gte(column: string, value: unknown): Query;
+        lt(column: string, value: unknown): Query;
+        order(column: string, opts?: { ascending?: boolean }): Query;
         limit(n: number): Promise<unknown[]>;
       };
       // Like the PostgREST builder: awaitable at every step, each step narrowing
-      // the query (a real Promise with eq/limit attached, no custom thenable).
-      const query = (columns: string, filters: Array<[string, unknown]>, max: number | null = null): Query => {
+      // the query (a real Promise with the filters attached, no custom thenable).
+      const query = (
+        columns: string,
+        filters: Filter[],
+        max: number | null = null,
+        order: Order | null = null,
+      ): Query => {
         const cols =
           columns === '*'
             ? '*'
@@ -27,18 +39,25 @@ export function pgliteAdminDb(db: PGlite) {
                 .map((c) => ident(c.trim()))
                 .join(', ');
         const where = filters.length
-          ? ` WHERE ${filters.map(([c], i) => `${ident(c)} = $${i + 1}`).join(' AND ')}`
+          ? ` WHERE ${filters.map(([c, op], i) => `${ident(c)} ${op} $${i + 1}`).join(' AND ')}`
           : '';
-        const sql = `SELECT ${cols} FROM ${ident(table)}${where}${max != null ? ` LIMIT ${max}` : ''}`;
+        const orderBy = order ? ` ORDER BY ${ident(order[0])} ${order[1] ? 'ASC' : 'DESC'}` : '';
+        const sql = `SELECT ${cols} FROM ${ident(table)}${where}${orderBy}${max != null ? ` LIMIT ${max}` : ''}`;
         const promise = db
           .query(
             sql,
-            filters.map(([, v]) => v),
+            filters.map(([, , v]) => v),
           )
           .then((r) => r.rows) as Query;
         promise.catch(() => {}); // superseded steps may be dropped unawaited
-        promise.eq = (column, value) => query(columns, [...filters, [column, value]], max);
-        promise.limit = (n) => query(columns, filters, n);
+        const filtered = (column: string, operator: Filter[1], value: unknown) =>
+          query(columns, [...filters, [column, operator, value]], max, order);
+        promise.eq = (column, value) => filtered(column, '=', value);
+        promise.gt = (column, value) => filtered(column, '>', value);
+        promise.gte = (column, value) => filtered(column, '>=', value);
+        promise.lt = (column, value) => filtered(column, '<', value);
+        promise.order = (column, opts) => query(columns, filters, max, [column, opts?.ascending !== false]);
+        promise.limit = (n) => query(columns, filters, n, order);
         return promise;
       };
       const builder = {

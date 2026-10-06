@@ -38,16 +38,13 @@ const MEDIA_LIST_LIMIT = 40;
 
 export default async (req) => {
   const user = await auth.user();
-  if (!user) {
+  if (!user?.id) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // Check admin role using a parameterized query — concatenating user.id is
-  // safe because Run402 issues UUIDs, but a future auth path that produces a
-  // different `sub` shape could turn this into SQL injection.
-  // run402-allow-user-filter: adminDb() raw SQL bypasses RLS; user.id binding required
-  const memberResult = await adminDb().sql('SELECT role FROM members WHERE user_id = $1 LIMIT 1', [user.id]);
-  if (!memberResult.rows?.length || memberResult.rows[0].role !== 'admin') {
+  // A pending or suspended admin must not upload or delete assets: require an
+  // active admin or a project admin.
+  if (!(await isActiveAdmin(adminDb(), user))) {
     return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
   }
 
@@ -180,3 +177,36 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 };
+
+// An active member with role admin (matched by user id, then email, as
+// kychon-api resolves actors) or a project admin.
+async function isActiveAdmin(admin, user) {
+  if (isProjectAdmin(user)) return true;
+  const member = await findMember(admin, user);
+  return member?.role === 'admin' && member?.status === 'active';
+}
+
+function isProjectAdmin(user) {
+  return (
+    user.is_admin === true ||
+    user.role === 'project_admin' ||
+    user.app_metadata?.role === 'project_admin' ||
+    user.app_metadata?.is_admin === true
+  );
+}
+
+async function findMember(admin, user) {
+  // run402-allow-user-filter: adminDb() bypasses RLS to map the actor to its member row
+  const byUserId = await admin.from('members').select('role,status').eq('user_id', user.id).limit(1);
+  let row = byUserId?.[0];
+  const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+  if (!row && email) {
+    const byEmail = await admin.from('members').select('role,status').eq('email', email).limit(1);
+    row = byEmail?.[0];
+  }
+  if (!row) return null;
+  return {
+    role: String(row.role || 'member').toLowerCase(),
+    status: String(row.status || 'pending').toLowerCase(),
+  };
+}
