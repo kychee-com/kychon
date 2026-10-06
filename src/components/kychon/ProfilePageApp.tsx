@@ -1,6 +1,7 @@
 'use client';
 
 import { Camera, CircleUserRound, Loader2, Save } from 'lucide-react';
+import { AiConnectorCard, CONNECTOR_FLAG, connectorEnabled } from '@/components/kychon/AiConnectorCard';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -23,7 +24,7 @@ import {
 import { get, patch } from '@/lib/api';
 import { getSession, isAuthenticated, setSessionMember } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
-import { ready } from '@/lib/config';
+import { getConfig, ready } from '@/lib/config';
 import { uploadFileContentAddressed } from '@/lib/storage-upload';
 import { showToast } from '@/lib/toast-events';
 import type { Member, MemberCustomField } from '@/schemas/member';
@@ -72,6 +73,7 @@ export default function ProfilePageApp() {
   const [saved, setSaved] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState('');
+  const [connectorOn, setConnectorOn] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -94,6 +96,7 @@ export default function ProfilePageApp() {
       }
 
       setMember(currentMember);
+      setConnectorOn(currentMember.status === 'active' && connectorEnabled(getConfig(CONNECTOR_FLAG)));
       setAvatarUrl(currentMember.avatar_url || '');
       setForm({
         displayName: currentMember.display_name || '',
@@ -277,7 +280,7 @@ export default function ProfilePageApp() {
     );
   }
 
-  return (
+  const profileCard = (
     <Card>
       <CardHeader>
         <CardTitle>Your Profile</CardTitle>
@@ -341,5 +344,12 @@ export default function ProfilePageApp() {
         </Button>
       </CardContent>
     </Card>
+  );
+
+  return (
+    <div className="space-y-6">
+      {profileCard}
+      {connectorOn ? <AiConnectorCard audience="member" /> : null}
+    </div>
   );
 }

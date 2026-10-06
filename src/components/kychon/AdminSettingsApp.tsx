@@ -29,9 +29,11 @@ import {
   Textarea,
 } from '@/components/kychon/ui';
 import { AdminAccessGate, type AdminAccessState } from './AdminAccessGate';
+import { AiConnectorCard, CONNECTOR_FLAG, connectorEnabled } from './AiConnectorCard';
 import { del, get, patch, post, queryOp } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { applyTheme, clearCache, ready, refreshMemberRecord } from '@/lib/config';
+import { t } from '@/lib/i18n';
 import { showToast } from '@/lib/toast-events';
 
 type ConfigMap = Record<string, any>;
@@ -492,7 +494,7 @@ export default function AdminSettingsApp() {
   const featureEntries = useMemo(
     () =>
       Object.entries(config)
-        .filter(([key]) => key.startsWith('feature_') && !AI_FLAGS.includes(key))
+        .filter(([key]) => key.startsWith('feature_') && !AI_FLAGS.includes(key) && key !== CONNECTOR_FLAG)
         .sort(([a], [b]) => a.localeCompare(b)),
     [config],
   );
@@ -1193,6 +1195,17 @@ export default function AdminSettingsApp() {
           ) : null}
         </CardContent>
       </Card>
+
+      <AiConnectorCard
+        audience="admin"
+        toggle={
+          <CheckboxField
+            checked={connectorEnabled(config[CONNECTOR_FLAG])}
+            label={t('connector.toggle_label')}
+            onCheckedChange={(checked) => void toggleConfig(CONNECTOR_FLAG, checked, 'ai')}
+          />
+        }
+      />
 
       <ContentExportCard />
 
