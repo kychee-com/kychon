@@ -32,7 +32,7 @@ import {
 import { t } from '@/lib/i18n';
 
 /**
- * HistoryHost — admin content history (openspec content-history, Phase 3).
+ * HistoryHost — admin content history.
  * One top-level dialog any admin UI opens with `kychon:history-open`:
  * no detail = site-wide changesets; `{ table, key, title }` = one row's
  * revisions (a block, a page, a config key). Revert asks before overwriting

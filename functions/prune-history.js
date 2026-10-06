@@ -1,5 +1,5 @@
 // schedule: "23 3 * * *"
-// Content-history retention (openspec content-history D8): daily, delete
+// Content-history retention: daily, delete
 // revisions older than site_config.history_retention_days (default 365),
 // keeping the newest revision of every row, plus empty changesets.
 import { adminDb } from '@run402/functions';

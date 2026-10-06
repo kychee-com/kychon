@@ -103,7 +103,7 @@ export default async (_req) => {
   await adminDb().sql(\`INSERT INTO site_config (key, value, category) VALUES ('last_reset', '"\${now}"', 'features') ON CONFLICT (key) DO UPDATE SET value = '"\${now}"'\`);
 
   // 8. Clear content history: the reset is a re-import, and history should
-  //    show only edits made since it (openspec content-history, demo-reset).
+  //    show only edits made since it.
   //    Last, so the reset's own writes above are cleared too.
   try {
     await adminDb().sql('TRUNCATE revisions, changesets');

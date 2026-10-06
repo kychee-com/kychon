@@ -275,8 +275,7 @@ const SQL_WRITE_TABLES = new Set(['events', 'resources']);
 
 // Content-history tracked tables (schema.sql trg_kychon_revision). Writes to
 // these go through SQL that RETURNs txid_current(), so the changeset the
-// trigger opened can be claimed for the capability caller (openspec
-// content-history D3). Keep in sync with schema.sql.
+// trigger opened can be claimed for the capability caller. Keep in sync with schema.sql.
 const HISTORY_TABLES = new Set([
   'site_config',
   'pages',
@@ -1792,7 +1791,7 @@ async function callUploadAssetFn(body) {
   return json;
 }
 
-// --- Revert (openspec content-history D4) --------------------------------------
+// --- Content history: revert ------------------------------------------------------
 // Restores every row a changeset touched to its state before that changeset,
 // in ONE SQL statement (one data-modifying CTE per row) so it applies fully
 // or not at all. Rows are collapsed first: a row touched several times goes
@@ -1951,7 +1950,7 @@ async function revertChangeset(input, actor) {
   );
 }
 
-// --- Content history reads (openspec content-history) -------------------------
+// --- Content history: reads -------------------------------------------------------
 // Admin-only. history.list: changesets newest first with what they touched;
 // history.revisions: one row's revisions (a page, a block, a config key);
 // history.revision: one revision with its before/after rows.
@@ -2319,7 +2318,7 @@ async function deleteRow(table, id) {
   return existing;
 }
 
-// --- Content-history writes (openspec content-history D3) ---------------------
+// --- Content history: tracked writes ----------------------------------------------
 // One SQL statement per write, RETURNING txid_current() so the changeset the
 // row trigger opened can be claimed for the capability caller. Values travel
 // as one jsonb parameter and jsonb_populate_record converts each to its

@@ -907,7 +907,7 @@ FOR EACH ROW EXECUTE FUNCTION kychon_search_event_row_trigger();
 SELECT kychon_reindex_search();
 
 -- ============================================
--- SECTION: Content history (openspec content-history)
+-- SECTION: Content history
 -- ============================================
 -- Every write to a content table is recorded as a revision (full row before
 -- and after), grouped into one changeset per database transaction. Callers

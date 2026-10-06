@@ -1,4 +1,4 @@
-// Admin content history (openspec content-history): browse changesets and
+// Admin content history: browse changesets and
 // revisions, and revert. Thin wrappers over the history.* capability
 // operations; the UI lives in components/kychon/HistoryHost.tsx.
 

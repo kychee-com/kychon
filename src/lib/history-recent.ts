@@ -1,5 +1,5 @@
 // The content-history changesets the most recent admin action recorded
-// (openspec content-history, Undo). api.ts records them from each mutation's
+// (for Undo). api.ts records them from each mutation's
 // ActionResult.history; the save toast takes them to offer Undo. Kept
 // dependency-free so api.ts can import it without a cycle.
 
