@@ -25,11 +25,17 @@ import { resolvePathAlias } from './lib/path-aliases';
  * `path_aliases` is fetched once per Lambda lifetime and cached: the map only
  * changes on redeploy, which restarts the function. Fail-open — a config read
  * miss leaves aliases null and requests fall through to normal routing.
+ *
+ * Astro also runs middleware for every prerendered route at build time, where
+ * request headers don't exist (reading them logs a warning per route), so the
+ * build uses the URL's host instead.
  */
 let cachedAliases: Record<string, unknown> | null | undefined;
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const host = context.request.headers.get('host') ?? context.url.host;
+  const host = context.isPrerendered
+    ? context.url.host
+    : (context.request.headers.get('host') ?? context.url.host);
   if (cachedAliases === undefined) {
     cachedAliases = await ssrConfigValue<Record<string, unknown>>({ key: 'path_aliases', host });
   }
