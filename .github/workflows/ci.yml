@@ -20,17 +20,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Seed smoke check
-        run: npx tsx scripts/smoke-check-seeds.ts
-
-      - name: Tests
-        run: npm test
-
-      - name: Lint
-        run: npx biome check .
-
-      - name: Type Check (Astro)
-        run: npx astro check
-
-      - name: Type Check (scripts)
-        run: npx tsc --project tsconfig.scripts.json
+      # The exact gate the release wrapper runs before tagging (build:sdk,
+      # ui:architecture-check, seed smoke check, vitest, biome, astro check,
+      # tsc scripts). Never re-list the sub-checks here; add them to the
+      # `check` script in package.json so CI and releases cannot drift.
+      - name: Check (npm run check)
+        run: npm run check
