@@ -4,7 +4,6 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import { run402, createRun402Adapter } from '@run402/astro';
 import tailwindcss from '@tailwindcss/vite';
-import { deterministicServerManifest } from './src/integrations/deterministic-server-manifest.mjs';
 
 const rootDir = new URL('.', import.meta.url).pathname;
 const demoAssetDirs = {
@@ -252,7 +251,6 @@ export default defineConfig({
         ]
       : []),
     react(),
-    deterministicServerManifest(),
   ],
   vite: {
     // Bake build-time env vars into the SSR Lambda bundle. `astro build`

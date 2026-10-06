@@ -27,7 +27,6 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
 import { ROOT, buildAstro, collectFunctionsMap, readMigrations, writeAdapterAwareArtifacts } from "./_lib.ts";
-import { countManifestAssetLists } from "../src/integrations/deterministic-server-manifest.mjs";
 import { buildEngineReleaseManifest } from "./release-manifest.ts";
 
 /** Outputs allowed to differ between builds of one commit. */
@@ -50,6 +49,21 @@ function listFiles(dir: string): string[] {
     .filter((entry) => entry.isFile())
     .map((entry) => relative(dir, join(entry.parentPath, entry.name)).split("\\").join("/"))
     .sort();
+}
+
+// Whitespace-tolerant: Astro writes the list compact, esbuild reprints it.
+const SERIALIZED_ASSETS = /"assets":\s*\[((?:\s*"(?:[^"\\]|\\.)*"\s*,?)*)\s*\]/g;
+
+/** How many serialized-manifest `"assets"` lists `code` has, and how many are unsorted. */
+function countManifestAssetLists(code: string): { total: number; unsorted: number } {
+  let total = 0;
+  let unsorted = 0;
+  for (const [, inner] of code.matchAll(SERIALIZED_ASSETS)) {
+    const list = JSON.parse(`[${inner}]`) as string[];
+    total++;
+    if (list.some((value, i) => i > 0 && (list[i - 1] ?? "") > value)) unsorted++;
+  }
+  return { total, unsorted };
 }
 
 function json(value: unknown): string {
@@ -145,9 +159,11 @@ async function main(): Promise<void> {
     const ssrSource = String((JSON.parse(second.get("function:ssr") ?? "{}") as { source?: string }).source ?? "");
     const assetLists = countManifestAssetLists(ssrSource);
     if (assetLists.total === 0) {
-      problems.push('function:ssr: no serialized manifest "assets" list found (Astro changed its format? update kychon-deterministic-server-manifest)');
+      problems.push(
+        `function:ssr: no serialized manifest "assets" list found (Astro changed its format? check @run402/astro's sortManifestAssets)`,
+      );
     } else if (assetLists.unsorted > 0) {
-      problems.push("function:ssr: server manifest asset list is not sorted (kychon-deterministic-server-manifest did not run?)");
+      problems.push("function:ssr: server manifest asset list is not sorted (@run402/astro's astro:build:done sort did not run?)");
     }
     for (const [name, content] of second) {
       if (!PATH_LEAK_EXEMPT.has(name) && content.includes(ROOT)) problems.push(`${name}: contains the checkout path ${ROOT}`);
