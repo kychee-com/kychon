@@ -26,6 +26,7 @@ import {
 } from '@/components/kychon/ShapeDividerBlockView';
 import { constrainedContainerClass } from './ui/container.js';
 import { richTextContentClass } from './ui/rich-text.js';
+import { eventMatchesTags, eventsListTagFilter } from './event-tags.js';
 import { sanitizeRichHtmlServer } from './sanitize-html.js';
 import { renderStaticLinkButtonHtml } from './static-link-button.js';
 import {
@@ -2194,6 +2195,8 @@ const EVENTS_LIST: BlockType = {
     show_location: true,
     show_time: true,
     color_scheme: 'primary',
+    // Only events carrying any of these tags (events.tags); empty = every event.
+    tags: [],
   },
   render(section, ctx) {
     const cfg = section.config || {};
@@ -2254,15 +2257,17 @@ function selectBuildEvents(
   const rawFilter = String(cfg.filter || 'upcoming') as 'past' | 'this_week' | 'upcoming';
   const filter = rawFilter === 'past' || rawFilter === 'this_week' ? rawFilter : 'upcoming';
   const count = Math.max(1, Math.min(50, Math.floor(Number(cfg.count) || 4)));
+  const tagFilter = eventsListTagFilter(cfg);
+  const tagged = cache.filter((e) => eventMatchesTags(e.tags, tagFilter));
   const now = Date.now();
   const horizon = now + 7 * 86400 * 1000;
   let filtered: EventsListEventRow[];
   if (filter === 'past') {
-    filtered = cache
+    filtered = tagged
       .filter((e) => e.starts_at && Date.parse(e.starts_at) < now)
       .sort((a, b) => Date.parse(b.starts_at!) - Date.parse(a.starts_at!));
   } else if (filter === 'this_week') {
-    filtered = cache
+    filtered = tagged
       .filter((e) => {
         if (!e.starts_at) return false;
         const ts = Date.parse(e.starts_at);
@@ -2270,7 +2275,7 @@ function selectBuildEvents(
       })
       .sort((a, b) => Date.parse(a.starts_at!) - Date.parse(b.starts_at!));
   } else {
-    filtered = cache
+    filtered = tagged
       .filter((e) => e.starts_at && Date.parse(e.starts_at) >= now)
       .sort((a, b) => Date.parse(a.starts_at!) - Date.parse(b.starts_at!));
   }

@@ -28,7 +28,7 @@ function getAnonKey(): string {
   return window.__KYCHON_ANON_KEY || '';
 }
 
-type FilterOp = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'is';
+type FilterOp = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'is' | 'ov';
 
 interface QueryFilter {
   field: string;
@@ -208,7 +208,7 @@ function parseAndFilters(value: string): QueryFilter[] {
 }
 
 function parseFilter(field: string, value: string): QueryFilter | null {
-  for (const op of ['not.is', 'neq', 'gte', 'lte', 'gt', 'lt', 'eq', 'in', 'is'] as const) {
+  for (const op of ['not.is', 'neq', 'gte', 'lte', 'gt', 'lt', 'eq', 'in', 'is', 'ov'] as const) {
     const prefix = `${op}.`;
     if (!value.startsWith(prefix)) continue;
     const normalizedOp = op === 'not.is' ? 'neq' : op;
@@ -216,7 +216,8 @@ function parseFilter(field: string, value: string): QueryFilter | null {
     return {
       field,
       op: normalizedOp as FilterOp,
-      value: normalizedOp === 'in' ? parseInValues(raw) : parseFilterValue(raw),
+      value:
+        normalizedOp === 'in' ? parseInValues(raw) : normalizedOp === 'ov' ? parseArrayLiteral(raw) : parseFilterValue(raw),
     };
   }
   return null;
@@ -226,6 +227,16 @@ function parseInValues(raw: string): JsonValue[] {
   const inner = raw.startsWith('(') && raw.endsWith(')') ? raw.slice(1, -1) : raw;
   if (!inner) return [];
   return inner.split(',').map((part) => parseFilterValue(part.trim()));
+}
+
+// PostgREST array literal for `ov` (overlap): `{a,"b c"}`. Elements stay strings.
+function parseArrayLiteral(raw: string): JsonValue[] {
+  const inner = raw.startsWith('{') && raw.endsWith('}') ? raw.slice(1, -1) : raw;
+  if (!inner) return [];
+  return inner
+    .split(',')
+    .map((part) => part.trim().replace(/^"(.*)"$/, '$1').replace(/\\(.)/g, '$1'))
+    .filter(Boolean);
 }
 
 function parseFilterValue(raw: string): JsonValue {
@@ -261,6 +272,12 @@ function readInputFor(parsed: ParsedPath): JsonObject {
   if (parsed.order.length) input.order = parsed.order as unknown as JsonValue;
   if (parsed.limit != null) input.limit = parsed.limit;
   for (const filter of parsed.filters) {
+    if (filter.op === 'ov') {
+      // Overlap filters (`tags=ov.{a,b}`) go to the gateway as the array itself;
+      // events.list narrows on `tags`. filterRows applies it again client-side.
+      input[filter.field] = filter.value as JsonValue;
+      continue;
+    }
     if (filter.op !== 'eq') continue;
     input[filter.field] = filter.value as JsonValue;
     const camel = camelInputKey(filter.field);
@@ -322,6 +339,11 @@ function rowMatchesFilter(row: any, filter: QueryFilter): boolean {
   const actual = row?.[filter.field];
   if (filter.op === 'in') {
     return Array.isArray(filter.value) && filter.value.some((expected) => valuesEqual(actual, expected));
+  }
+  if (filter.op === 'ov') {
+    if (!Array.isArray(filter.value) || filter.value.length === 0) return true;
+    const expected = filter.value.map(String);
+    return Array.isArray(actual) && actual.some((item) => expected.includes(String(item)));
   }
   if (filter.op === 'is') return valuesEqual(actual, filter.value);
   if (filter.op === 'eq') return valuesEqual(actual, filter.value);

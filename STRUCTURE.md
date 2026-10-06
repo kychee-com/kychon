@@ -334,6 +334,7 @@ Responsive CSS-Grid of image-card links. Each card is a single `<a>` wrapping a 
 ### `events_list` (main; dynamic)
 Live list of events from the `events` table.
 - Config: `heading`, `count` (default `4`), `filter` (`'upcoming' | 'past' | 'this_week'`; `'featured'` reserved for future schema addition), `layout` (`'sidebar' | 'grid' | 'list'`), `show_image`, `show_location`, `show_time`, `color_scheme`.
+- `tags` (array of strings, default `[]`): list only events whose `events.tags` include any of them (case-insensitive), e.g. `["paddling"]` on an activity page. Applied in both the build-time bake (`selectBuildEvents`) and the runtime island. Admins set it in the block's settings dialog. See [CUSTOMIZING.md](CUSTOMIZING.md#event-tags).
 - Times render in the visitor's locale + timezone via `toLocaleString`.
 - Empty: `<p className="text-sm text-muted-foreground" data-events-list-empty>No upcoming events.</p>` replaces the skeleton.
 

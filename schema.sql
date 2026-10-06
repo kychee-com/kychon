@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS events (
   all_day BOOLEAN NOT NULL DEFAULT false,
   import_review_state TEXT,
   source_metadata JSONB DEFAULT '{}',
+  tags TEXT[] NOT NULL DEFAULT '{}',
   created_by INT REFERENCES members(id),
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -468,6 +469,39 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- `source_metadata.all_day` ports stashed before it existed) from rows an
 -- admin has since set; it then becomes NOT NULL DEFAULT false.
 DO $$ BEGIN ALTER TABLE events ADD COLUMN all_day BOOLEAN; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Event tags (kychon#187): free-form labels an `events_list` block filters on
+-- (`config.tags`), e.g. an activity page listing only its own events. Stored
+-- normalized (trimmed, whitespace collapsed, lowercase, de-duplicated, at most
+-- 64 chars) whoever writes them, so filters compare exactly. Mirrors
+-- src/lib/event-tags.ts. Uses no tables, so it needs no pinned search_path.
+DO $$ BEGIN ALTER TABLE events ADD COLUMN tags TEXT[] NOT NULL DEFAULT '{}'; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE OR REPLACE FUNCTION kychon_normalize_event_tags()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.tags := COALESCE((
+    SELECT array_agg(tag ORDER BY first_ord)
+    FROM (
+      SELECT tag, min(ord) AS first_ord
+      FROM (
+        SELECT btrim(left(lower(btrim(regexp_replace(raw, '\s+', ' ', 'g'))), 64)) AS tag, ord
+        FROM unnest(NEW.tags) WITH ORDINALITY AS u(raw, ord)
+      ) cleaned
+      WHERE tag IS NOT NULL AND tag <> ''
+      GROUP BY tag
+    ) deduped
+  ), '{}');
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_events_normalize_tags ON events;
+CREATE TRIGGER trg_events_normalize_tags
+BEFORE INSERT OR UPDATE OF tags ON events
+FOR EACH ROW EXECUTE FUNCTION kychon_normalize_event_tags();
 
 -- event-reminders claims an RSVP (sets reminder_sent_at) before emailing it,
 -- so each RSVP gets at most one reminder however often the function runs.

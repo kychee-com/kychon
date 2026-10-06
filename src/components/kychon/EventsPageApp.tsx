@@ -28,6 +28,7 @@ import { getEvents, post } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
 import { allDayStartIso } from '@/lib/event-display';
+import { normalizeEventTags } from '@/lib/event-tags';
 import { useEventDateTime } from '@/lib/use-event-date-time';
 import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
@@ -43,6 +44,7 @@ interface EventFormState {
   capacity: string;
   isMembersOnly: boolean;
   allDay: boolean;
+  tags: string;
 }
 
 const EMPTY_FORM: EventFormState = {
@@ -54,6 +56,7 @@ const EMPTY_FORM: EventFormState = {
   capacity: '0',
   isMembersOnly: false,
   allDay: false,
+  tags: '',
 };
 
 function normalizeDateTime(value: string): string | null {
@@ -162,6 +165,11 @@ function EventCard({ event, lookupAsset }: { event: Event; lookupAsset: LookupAs
               {event.capacity} spots
             </Badge>
           ) : null}
+          {normalizeEventTags(event.tags).map((tag) => (
+            <Badge data-event-tag={tag} key={tag} variant="outline">
+              {tag}
+            </Badge>
+          ))}
         </CardFooter>
       </a>
     </Card>
@@ -236,6 +244,19 @@ function CreateEventDialog({
           <div className="space-y-2">
             <Label htmlFor="event-location">Location</Label>
             <Input id="event-location" onChange={(event) => onFormChange({ ...form, location: event.target.value })} value={form.location} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="event-tags">Tags</Label>
+            <Input
+              aria-describedby="event-tags-hint"
+              id="event-tags"
+              onChange={(event) => onFormChange({ ...form, tags: event.target.value })}
+              placeholder="paddling, cycling"
+              value={form.tags}
+            />
+            <p className="text-xs text-muted-foreground" id="event-tags-hint">
+              Separate tags with commas. An events list block set to a tag shows only events with that tag.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
@@ -418,6 +439,7 @@ export default function EventsPageApp({ initialEvents, assetManifest }: EventsPa
         capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
         is_members_only: form.isMembersOnly,
         all_day: form.allDay,
+        tags: normalizeEventTags(form.tags),
       });
       setForm(EMPTY_FORM);
       setCreateOpen(false);

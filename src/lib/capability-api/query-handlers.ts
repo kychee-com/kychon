@@ -1,6 +1,7 @@
 import { getOperation } from './operations.js';
 import { checkOperationPermission } from './permissions.js';
 import { buildEventResultUrl, buildPageResultUrl, buildResourceResultUrl } from '../search.js';
+import { eventMatchesTags, normalizeEventTags } from '../event-tags.js';
 import type { CapabilityActor } from './actor.js';
 import type { JsonObject, JsonValue, ObjectRef, OperationName } from './types.js';
 
@@ -223,8 +224,14 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
   ] as const) {
     if (input[inputKey] != null && String(row[rowKey]) !== String(input[inputKey])) return false;
   }
+  // `tags` (array) or `tag` (one) keeps rows carrying any of them (events.tags).
+  if ('tags' in row) {
+    const tagFilter = normalizeEventTags(input.tags ?? input.tag);
+    if (!eventMatchesTags(row.tags, tagFilter)) return false;
+  }
   for (const [inputKey, value] of Object.entries(input)) {
     if (value == null || typeof value === 'object') continue;
+    if (inputKey === 'tags' || inputKey === 'tag') continue;
     const rowKey = inputKey in row ? inputKey : inputKey.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
     if (rowKey in row && String(row[rowKey]) !== String(value)) return false;
   }

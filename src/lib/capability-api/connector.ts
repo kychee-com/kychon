@@ -155,6 +155,11 @@ const ID: JsonObject = { type: ['integer', 'string'], description: 'Numeric id.'
 const DATE_TIME: JsonObject = { type: 'string', format: 'date-time' };
 const ALL_DAY_DESCRIPTION =
   'Date only, no time (a trip, a holiday). starts_at is local midnight of the first day in source_timezone (else the site event timezone, else UTC); ends_at is any time on the last day.';
+const EVENT_TAGS = {
+  type: 'array',
+  items: { type: 'string' },
+  description: 'Event tags, for example ["paddling"]. Stored lowercase; an events list block shows only events with its tags.',
+} satisfies JsonObject;
 const PAGING_NOTE = 'Returns { rows, count } in database order; there is no paging or date filter, so sort and filter the rows yourself.';
 
 function object(properties: JsonObject, extra: JsonObject = {}): JsonObject {
@@ -209,8 +214,12 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
   },
   'events.list': {
     summary: `List events the caller can see. ${PAGING_NOTE}`,
-    input: object({ is_members_only: { type: 'boolean' }, location: { type: 'string' } }),
-    example: {},
+    input: object({
+      is_members_only: { type: 'boolean' },
+      location: { type: 'string' },
+      tags: { ...EVENT_TAGS, description: 'Only events carrying any of these tags.' },
+    }),
+    example: { tags: ['paddling'] },
   },
   'events.get': { summary: 'Read one event.', input: object({ id: ID }, { required: ['id'] }), example: { id: 7 } },
   'rsvps.listMine': {
@@ -369,6 +378,7 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
         is_members_only: { type: 'boolean' },
         source_timezone: { type: 'string', description: 'IANA time zone, for example America/New_York.' },
         all_day: { type: 'boolean', description: ALL_DAY_DESCRIPTION },
+        tags: EVENT_TAGS,
       },
       { required: ['title', 'starts_at'] },
     ),
@@ -388,6 +398,7 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
         image_url: { type: 'string', description: 'Image URL or site path.' },
         is_members_only: { type: 'boolean' },
         all_day: { type: 'boolean', description: ALL_DAY_DESCRIPTION },
+        tags: { ...EVENT_TAGS, description: `${EVENT_TAGS.description} Replaces the event's tags.` },
       },
       { required: ['id'] },
     ),

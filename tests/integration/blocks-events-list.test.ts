@@ -184,3 +184,32 @@ describe('hydrateEventsList', () => {
     expect(wrapper.querySelector('.event-card')).toBeNull();
   });
 });
+
+describe('hydrateEventsList tag filter (kychon#187)', () => {
+  it('sends config.tags to events.list and shows only matching events', async () => {
+    const future = (days: number) => new Date(Date.now() + 86400000 * days).toISOString();
+    const fetchMock = vi.fn().mockResolvedValue(
+      capabilityResponse([
+        { id: 1, title: 'Morning paddle', starts_at: future(1), tags: ['paddling'] },
+        { id: 2, title: 'Gravel ride', starts_at: future(2), tags: ['cycling'] },
+        { id: 3, title: 'Night paddle', starts_at: future(3), tags: ['paddling', 'urban events'] },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = makeWrapper({ count: 7, filter: 'upcoming', layout: 'list', tags: ['Paddling', 'Urban Events'] });
+    const { hydrateEventsList } = await import('../../src/lib/block-hydrators');
+    await hydrateEventsList(
+      eventsListHost(wrapper),
+      { page_slug: 'paddling', zone: 'main', scope: 'page', section_type: 'events_list', config: {}, position: 1 },
+      { admin: false, locale: 'en', isFeatureEnabled: () => true },
+    );
+
+    await vi.waitFor(() => expect(wrapper.querySelectorAll('[data-event-card]').length).toBe(2));
+    const { body } = eventsCall(fetchMock, 7);
+    expect(body.input.tags).toEqual(['paddling', 'urban events']);
+    expect(wrapper.textContent).toContain('Morning paddle');
+    expect(wrapper.textContent).toContain('Night paddle');
+    expect(wrapper.textContent).not.toContain('Gravel ride');
+  });
+});

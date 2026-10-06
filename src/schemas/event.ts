@@ -16,6 +16,7 @@ export const EventSchema = z.object({
   all_day: z.boolean().nullable().optional(),
   import_review_state: z.string().nullable().optional(),
   source_metadata: z.unknown().nullable().optional(),
+  tags: z.array(z.string()).nullable().optional(),
   created_by: z.number().nullable(),
   created_at: z.string(),
 });

@@ -790,10 +790,21 @@ const CONNECTOR_SCHEMAS = {
         },
         "location": {
           "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only events carrying any of these tags."
         }
       }
     },
-    "example": {}
+    "example": {
+      "tags": [
+        "paddling"
+      ]
+    }
   },
   "events.get": {
     "summary": "Read one event.",
@@ -1599,6 +1610,13 @@ const CONNECTOR_SCHEMAS = {
         "all_day": {
           "type": "boolean",
           "description": "Date only, no time (a trip, a holiday). starts_at is local midnight of the first day in source_timezone (else the site event timezone, else UTC); ends_at is any time on the last day."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Event tags, for example [\"paddling\"]. Stored lowercase; an events list block shows only events with its tags."
         }
       },
       "required": [
@@ -1656,6 +1674,13 @@ const CONNECTOR_SCHEMAS = {
         "all_day": {
           "type": "boolean",
           "description": "Date only, no time (a trip, a holiday). starts_at is local midnight of the first day in source_timezone (else the site event timezone, else UTC); ends_at is any time on the last day."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Event tags, for example [\"paddling\"]. Stored lowercase; an events list block shows only events with its tags. Replaces the event's tags."
         }
       },
       "required": [
@@ -4923,7 +4948,8 @@ function rowForCreate(operation, input, actor) {
   // input. Letting input override them lets an active member spoof identity
   // on every generic create handler.
   if (operation.startsWith('polls.')) return { ...stripControlFields(input), created_by: memberId(actor) };
-  if (operation.startsWith('events.')) return { ...stripControlFields(input), created_by: memberId(actor) };
+  if (operation.startsWith('events.'))
+    return withNormalizedEventTags({ ...stripControlFields(input), created_by: memberId(actor) });
   if (operation.startsWith('activity.')) return { ...stripControlFields(input), member_id: memberId(actor) };
   if (operation.startsWith('reactions.')) return { ...stripControlFields(input), member_id: memberId(actor) };
   return stripControlFields(input);
@@ -4945,6 +4971,7 @@ function rowForUpdate(operation, input, actor) {
   if (operation === 'registrationOptions.ignore') return { review_state: 'ignored' };
   if (operation === 'events.reviewImport')
     return { import_review_state: input.reviewState || input.review_state || 'reviewed' };
+  if (operation === 'events.update') return withNormalizedEventTags(stripControlFields(input));
   if (operation.endsWith('.pin')) return { is_pinned: true };
   if (operation.endsWith('.unpin')) return { is_pinned: false };
   if (operation.endsWith('.lock')) return { locked: true };
@@ -5125,6 +5152,20 @@ async function claimChangeset(txid, context, label = context.label) {
   return id;
 }
 
+// TEXT[] columns written through SQL. Each goes over as a Postgres array literal
+// cast to text[], which reads the same however the SQL endpoint binds params.
+const SQL_TEXT_ARRAY_COLUMNS = { events: new Set(['tags']) };
+
+function sqlPlaceholder(table, column, index) {
+  return SQL_TEXT_ARRAY_COLUMNS[table]?.has(column) ? `$${index}::text[]` : `$${index}`;
+}
+
+function sqlParamValue(table, column, value) {
+  if (!SQL_TEXT_ARRAY_COLUMNS[table]?.has(column) || value == null) return value;
+  const items = Array.isArray(value) ? value : [value];
+  return `{${items.map((item) => `"${String(item).replace(/["\\]/g, '\\$&')}"`).join(',')}}`;
+}
+
 async function insertRowSql(table, row) {
   const entries = Object.entries(row);
   if (!entries.length) {
@@ -5132,8 +5173,8 @@ async function insertRowSql(table, row) {
     return normalizeDbRows(result)[0] || {};
   }
   const columns = entries.map(([key]) => quoteIdent(key)).join(', ');
-  const placeholders = entries.map((_, index) => `$${index + 1}`).join(', ');
-  const values = entries.map(([, value]) => value);
+  const placeholders = entries.map(([key], index) => sqlPlaceholder(table, key, index + 1)).join(', ');
+  const values = entries.map(([key, value]) => sqlParamValue(table, key, value));
   const result = await adminDb().sql(
     `INSERT INTO ${quoteIdent(table)} (${columns}) VALUES (${placeholders}) RETURNING *`,
     values,
@@ -5144,8 +5185,10 @@ async function insertRowSql(table, row) {
 async function updateRowSql(table, keyColumn, keyValue, patch) {
   const entries = Object.entries(patch);
   if (!entries.length) return selectOneRowSql(table, keyColumn, keyValue);
-  const assignments = entries.map(([key], index) => `${quoteIdent(key)} = $${index + 1}`).join(', ');
-  const values = [...entries.map(([, value]) => value), keyValue];
+  const assignments = entries
+    .map(([key], index) => `${quoteIdent(key)} = ${sqlPlaceholder(table, key, index + 1)}`)
+    .join(', ');
+  const values = [...entries.map(([key, value]) => sqlParamValue(table, key, value)), keyValue];
   const result = await adminDb().sql(
     `UPDATE ${quoteIdent(table)} SET ${assignments} WHERE ${quoteIdent(keyColumn)} = $${values.length} RETURNING *`,
     values,
@@ -5548,12 +5591,44 @@ function matchesInput(row, input) {
   ]) {
     if (input[inputKey] != null && String(row[rowKey]) !== String(input[inputKey])) return false;
   }
+  // `tags` (array) or `tag` (one) keeps rows carrying any of them (events.tags).
+  if ('tags' in row) {
+    const tagFilter = normalizeEventTags(input.tags ?? input.tag);
+    if (!eventMatchesTags(row.tags, tagFilter)) return false;
+  }
   for (const [inputKey, value] of Object.entries(input)) {
     if (value == null || typeof value === 'object') continue;
+    if (inputKey === 'tags' || inputKey === 'tag') continue;
     const rowKey = inputKey in row ? inputKey : inputKey.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
     if (rowKey in row && String(row[rowKey]) !== String(value)) return false;
   }
   return true;
+}
+
+// Event tags (kychon#187). Mirrors src/lib/event-tags.ts and the schema.sql
+// `kychon_normalize_event_tags` trigger: trimmed, whitespace collapsed,
+// lowercase, de-duplicated, at most 64 chars. Accepts an array or a
+// comma-separated string.
+function normalizeEventTags(value) {
+  const raw = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const out = [];
+  for (const item of raw) {
+    if (typeof item !== 'string' && typeof item !== 'number') continue;
+    const tag = String(item).replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 64).trim();
+    if (tag && !out.includes(tag)) out.push(tag);
+  }
+  return out;
+}
+
+function eventMatchesTags(eventTags, filterTags) {
+  if (filterTags.length === 0) return true;
+  return normalizeEventTags(eventTags).some((tag) => filterTags.includes(tag));
+}
+
+// Normalize `tags` on an events write when the caller sent it.
+function withNormalizedEventTags(row) {
+  if (!('tags' in row)) return row;
+  return { ...row, tags: normalizeEventTags(row.tags) };
 }
 
 function matchesAttached(row, input) {

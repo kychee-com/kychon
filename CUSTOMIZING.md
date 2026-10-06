@@ -354,6 +354,41 @@ INSERT INTO events (title, starts_at, ends_at, all_day, source_timezone)
 VALUES ('Ski trip', '2027-01-22 00:00 America/Toronto', '2027-01-29 00:00 America/Toronto', true, 'America/Toronto');
 ```
 
+### Event Tags
+
+`events.tags` (`TEXT[]`, default `'{}'`) holds free-form labels such as
+`paddling` or `urban events`. They are stored normalized (trimmed, inner
+whitespace collapsed, lowercase, de-duplicated, at most 64 characters) by a
+trigger, whoever writes them. An `events_list` block with `config.tags` lists
+only events carrying **any** of those tags, so each activity page can show its
+own upcoming events:
+
+```sql
+INSERT INTO events (title, starts_at, location, tags)
+VALUES ('Lake Clearwater paddle', '2026-11-08 09:00:00+11', 'Lake Clearwater', ARRAY['paddling']);
+
+INSERT INTO sections (page_slug, zone, scope, section_type, position, config)
+VALUES ('paddling', 'main', 'page', 'events_list', 3,
+  '{"heading":"Upcoming paddling trips","count":5,"filter":"upcoming","tags":["paddling"]}');
+```
+
+Admins edit an event's tags on its detail page (or when creating it) and a
+block's tag filter in the block's settings dialog. Through the capability API,
+`events.create` / `events.update` take `tags` as an array of strings, and
+`events.list` takes `tags` to return only events carrying any of them.
+
+**Ports.** Copy the source's per-event categories into `events.tags`, and the
+filter of each per-page event list into that page's `events_list.config.tags`.
+A Wild Apricot "Upcoming events" gadget is filtered by event tags, so seed
+each event's Wild Apricot tags and the gadget's selected tags. A port that
+already kept the source tags in `source_metadata` can copy them over once:
+
+```sql
+UPDATE events
+SET tags = ARRAY(SELECT jsonb_array_elements_text(source_metadata->'source_activity_tags'))
+WHERE tags = '{}' AND jsonb_typeof(source_metadata->'source_activity_tags') = 'array';
+```
+
 ### Structured Registration Options
 
 Ported Wild Apricot-style registration classes live in

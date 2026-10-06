@@ -1,6 +1,7 @@
 import { getOperation } from './operations.js';
 import { checkOperationPermission } from './permissions.js';
 import { sanitizeRichHtmlServer } from '../sanitize-html.js';
+import { normalizeEventTags } from '../event-tags.js';
 import {
   actionResult,
   auditReference,
@@ -813,12 +814,17 @@ async function upsertConfig(input: JsonObject, ctx: CapabilityMutationContext): 
 function rowForCreate(operation: string, input: JsonObject, ctx: CapabilityMutationContext): JsonObject {
   if (operation === 'members.updateProfile') return { ...input, id: undefined } as unknown as JsonObject;
   if (operation.startsWith('polls.')) return { ...input, created_by: memberId(ctx) };
-  if (operation.startsWith('events.')) return { ...input, created_by: memberId(ctx) };
+  if (operation.startsWith('events.')) return withNormalizedEventTags({ ...input, created_by: memberId(ctx) });
   return input;
+}
+
+function withNormalizedEventTags(row: JsonObject): JsonObject {
+  return 'tags' in row ? { ...row, tags: normalizeEventTags(row.tags) } : row;
 }
 
 function rowForUpdate(operation: string, input: JsonObject, ctx: CapabilityMutationContext): JsonObject {
   if (operation === 'members.updateProfile') return memberProfilePatch(input);
+  if (operation === 'events.update') return withNormalizedEventTags(stripControlFields(input));
   if (operation === 'members.approve') return { status: 'active' };
   if (operation === 'members.reject') return { status: 'rejected' };
   if (operation === 'members.suspend') return { status: 'suspended' };

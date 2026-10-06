@@ -13,6 +13,7 @@ import {
   Save,
   Settings2,
   ShieldAlert,
+  Tags,
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -61,6 +62,7 @@ import {
 } from '@/components/kychon/BlockListEditorIsland';
 import { PROVIDERS, type ParamSchemaEntry } from '@/lib/blocks/embed-providers';
 import { currentPageSlugFromLocation } from '@/lib/clean-routes';
+import { formatEventTags, normalizeEventTags } from '@/lib/event-tags';
 import { showToast } from '@/lib/toast-events';
 import { cn } from '@/lib/ui/cn';
 
@@ -772,7 +774,8 @@ function AdminEditorControls() {
   const [row, setRow] = useState<SectionRow | null>(null);
   const [heroDraft, setHeroDraft] = useState<HeroDraft | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<'span' | 'scope' | 'hero' | 'remove' | null>(null);
+  const [saving, setSaving] = useState<'span' | 'scope' | 'hero' | 'event-tags' | 'remove' | null>(null);
+  const [eventTagsDraft, setEventTagsDraft] = useState('');
   const [error, setError] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addZone, setAddZone] = useState<Zone>('main');
@@ -847,6 +850,7 @@ function AdminEditorControls() {
   const currentScope: 'page' | 'global' = row?.scope === 'global' ? 'global' : 'page';
   const nextScope: 'page' | 'global' = currentScope === 'global' ? 'page' : 'global';
   const canEditHero = row?.section_type === 'hero';
+  const canEditEventTags = row?.section_type === 'events_list';
   const canEditSource = row ? COPIED_THEME_EDITOR_TYPES.has(row.section_type as CopiedThemeEditorType) : false;
   const embedProvider = PROVIDERS[embedProviderId];
   const embedTrustedHost = useMemo(
@@ -883,6 +887,7 @@ function AdminEditorControls() {
       const nextRow = rows[0] as SectionRow;
       setRow(nextRow);
       setHeroDraft(nextRow.section_type === 'hero' ? heroDraftFromConfig(nextRow.config || {}) : null);
+      setEventTagsDraft(formatEventTags(nextRow.config?.tags));
     } catch (loadError) {
       console.error('Failed to load section row:', loadError);
       setError('Could not load block');
@@ -1090,6 +1095,28 @@ function AdminEditorControls() {
       console.error('Hero save failed:', saveError);
       setError('Hero save failed');
       showToast({ type: 'error', message: 'Hero save failed' });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function saveEventTags() {
+    if (!row || !sectionId) return;
+    setSaving('event-tags');
+    setError('');
+
+    const config = { ...(row.config || {}), tags: normalizeEventTags(eventTagsDraft) };
+    try {
+      await patch(`sections?id=eq.${sectionId}`, { config });
+      clearSectionCaches();
+      setRow({ ...row, config });
+      setEventTagsDraft(formatEventTags(config.tags));
+      showToast({ type: 'success', message: 'Event tags saved' });
+      emitSectionsChanged();
+    } catch (saveError) {
+      console.error('Event tags save failed:', saveError);
+      setError('Event tags save failed');
+      showToast({ type: 'error', message: 'Event tags save failed' });
     } finally {
       setSaving(null);
     }
@@ -1938,6 +1965,30 @@ function AdminEditorControls() {
                 <Button type="button" disabled={saving !== null} onClick={() => void saveHeroSettings()}>
                   {saving === 'hero' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
                   Save hero
+                </Button>
+              </div>
+            ) : null}
+
+            {canEditEventTags ? (
+              <div className="space-y-3 rounded-md border border-border p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Tags aria-hidden="true" className="h-4 w-4" />
+                  Event tags
+                </div>
+                <Field id="events-list-tags" label="Show only events tagged">
+                  <Input
+                    id="events-list-tags"
+                    placeholder="paddling, cycling"
+                    value={eventTagsDraft}
+                    onChange={(event) => setEventTagsDraft(event.currentTarget.value)}
+                  />
+                </Field>
+                <p className="text-xs text-muted-foreground">
+                  Separate tags with commas. Leave empty to list every event.
+                </p>
+                <Button type="button" disabled={saving !== null} onClick={() => void saveEventTags()}>
+                  {saving === 'event-tags' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
+                  Save tags
                 </Button>
               </div>
             ) : null}

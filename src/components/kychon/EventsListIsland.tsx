@@ -5,6 +5,7 @@ import { CalendarDays, MapPin } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/kychon/ui';
 import { get } from '@/lib/api';
+import { eventsListTagFilter } from '@/lib/event-tags';
 import { useEventDateTime } from '@/lib/use-event-date-time';
 import { type AssetManifest, type AssetRef, lookupAssetRef, useGlobalManifest } from '@/lib/kychon-image';
 import { Run402Image } from '@/lib/run402-image-react';
@@ -22,6 +23,8 @@ interface EventsListConfig {
   show_image?: boolean;
   show_location?: boolean;
   show_time?: boolean;
+  /** Only events carrying any of these tags (array or comma-separated). Empty = all events. */
+  tags?: string[] | string;
 }
 
 interface EventsListProps {
@@ -59,6 +62,7 @@ interface EventRow {
   image_url?: string | null;
   location?: string | null;
   starts_at?: string | null;
+  tags?: string[] | null;
   timezone?: string | null;
   title?: string | null;
 }
@@ -84,12 +88,21 @@ function eventsQuery(config: EventsListConfig): string {
   const count = normalizeCount(config.count);
   const filter = normalizeFilter(config.filter);
   const nowIso = new Date().toISOString();
-  if (filter === 'past') return `events?starts_at=lt.${nowIso}&order=starts_at.desc&limit=${count}`;
+  // `selectBuildEvents` in blocks.ts applies the same tag filter to the bake.
+  const tags = tagsQueryParam(eventsListTagFilter(config as Record<string, unknown>));
+  if (filter === 'past') return `events?starts_at=lt.${nowIso}${tags}&order=starts_at.desc&limit=${count}`;
   if (filter === 'this_week') {
     const inAWeek = new Date(Date.now() + EVENTS_LIST_FILTER_DAYS * 86400 * 1000).toISOString();
-    return `events?and=(starts_at.gte.${nowIso},starts_at.lt.${inAWeek})&order=starts_at.asc&limit=${count}`;
+    return `events?and=(starts_at.gte.${nowIso},starts_at.lt.${inAWeek})${tags}&order=starts_at.asc&limit=${count}`;
   }
-  return `events?starts_at=gte.${nowIso}&order=starts_at.asc&limit=${count}`;
+  return `events?starts_at=gte.${nowIso}${tags}&order=starts_at.asc&limit=${count}`;
+}
+
+// PostgREST overlap filter (`tags=ov.{"a","b c"}`): events carrying any of the tags.
+function tagsQueryParam(tags: string[]): string {
+  if (tags.length === 0) return '';
+  const literal = `{${tags.map((tag) => `"${tag.replace(/["\\]/g, '\\$&')}"`).join(',')}}`;
+  return `&tags=ov.${encodeURIComponent(literal)}`;
 }
 
 function safeImageSrc(value: unknown): string {

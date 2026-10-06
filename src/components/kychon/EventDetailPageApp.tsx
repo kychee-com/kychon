@@ -53,6 +53,7 @@ import {
 import { getSession, isAdmin, isAuthenticated } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
 import { formatEventDateTime, formatEventDateTimeStable } from '@/lib/event-display';
+import { formatEventTags, normalizeEventTags } from '@/lib/event-tags';
 import {
   eventTimezonePayload,
   registrationOptionPayload,
@@ -306,6 +307,39 @@ function TimezoneEditor({
   );
 }
 
+function TagsEditor({
+  value,
+  onChange,
+  onSave,
+  saving,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg tracking-normal">Event Tags</CardTitle>
+        <CardDescription>
+          Separate tags with commas. An events list block set to a tag shows only events with that tag.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Label htmlFor="event-tags">Tags</Label>
+        <Input id="event-tags" onChange={(event) => onChange(event.target.value)} placeholder="paddling, cycling" value={value} />
+      </CardContent>
+      <CardFooter>
+        <Button disabled={saving} onClick={onSave} size="sm" type="button">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+          Save tags
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 function RegistrationEditor({
   drafts,
   onAdd,
@@ -519,6 +553,8 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
   const [timezoneForm, setTimezoneForm] = useState<TimezoneForm>(() =>
     initialEvent ? timezoneFormFromEvent(initialEvent) : EMPTY_TIMEZONE_FORM,
   );
+  const [tagsDraft, setTagsDraft] = useState(() => (initialEvent ? formatEventTags(initialEvent.tags) : ''));
+  const [savingTags, setSavingTags] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(!initialEvent);
@@ -560,6 +596,7 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
       setAdmin(isAdmin());
       setEvent(loadedEvent);
       setTimezoneForm(timezoneFormFromEvent(loadedEvent));
+      setTagsDraft(formatEventTags(loadedEvent.tags));
 
       if (loadedEvent.is_members_only && !authenticated) {
         setAccessDenied(true);
@@ -652,6 +689,20 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
       showToast('Could not save timezone', 'error');
     } finally {
       setSavingTimezone(false);
+    }
+  }
+
+  async function saveTags() {
+    if (!event) return;
+    setSavingTags(true);
+    try {
+      await patch(`events?id=eq.${event.id}`, { tags: normalizeEventTags(tagsDraft) });
+      showToast('Tags saved', 'success');
+      await loadEvent();
+    } catch {
+      showToast('Could not save tags', 'error');
+    } finally {
+      setSavingTags(false);
     }
   }
 
@@ -819,6 +870,11 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
                 Members only
               </Badge>
             ) : null}
+            {normalizeEventTags(event.tags).map((tag) => (
+              <Badge data-event-tag={tag} key={tag} variant="outline">
+                {tag}
+              </Badge>
+            ))}
           </div>
           <CardTitle className="break-words text-3xl tracking-normal" data-editable={admin ? `events.${event.id}.title` : undefined}>
             {event.title}
@@ -866,6 +922,7 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
               Delete Event
             </Button>
           </div>
+          <TagsEditor onChange={setTagsDraft} onSave={() => void saveTags()} saving={savingTags} value={tagsDraft} />
           <TimezoneEditor form={timezoneForm} onChange={setTimezoneForm} onSave={() => void saveTimezone()} saving={savingTimezone} />
           <RegistrationEditor
             drafts={registrationDrafts}
