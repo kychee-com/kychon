@@ -444,25 +444,8 @@ CREATE TABLE IF NOT EXISTS section_translations (
 CREATE INDEX IF NOT EXISTS idx_section_translations_section_lang
   ON section_translations (section_id, language);
 
--- `site_config.languages_enabled` is the runtime-mutable JSONB array that
--- controls which locales the AdminBar surfaces and which trigger the
--- translation JOIN (see openspec/changes/admin-content-management/design.md
--- Decision 9 for the pool model). Backfills from the legacy
--- `site_config.languages` value when `languages_enabled` is absent, so
--- existing portals keep their configured set. `site_config.languages` stays
--- read-only; nothing else reads or writes it.
-INSERT INTO site_config (key, value, category)
-SELECT 'languages_enabled', value, 'i18n'
-FROM site_config
-WHERE key = 'languages'
-  AND NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
-
--- Portal hadn't set `languages` either (default single-locale): seed
--- `languages_enabled` to ["en"] so the admin bar's hide-when-one-language
--- rule has a value to inspect.
-INSERT INTO site_config (key, value, category)
-SELECT 'languages_enabled', '["en"]'::jsonb, 'i18n'
-WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
+-- `site_config.languages_enabled` defaults are written under "Config
+-- defaults" below.
 
 -- ported-event-registration + source-timezone-event-display: preserve richer
 -- imported event data without changing canonical timestamp storage.
@@ -954,14 +937,10 @@ CREATE INDEX IF NOT EXISTS idx_revisions_row ON revisions (table_name, row_key, 
 CREATE INDEX IF NOT EXISTS idx_revisions_created ON revisions (created_at);
 
 -- Retention: revisions older than history_retention_days (site_config,
--- default 365) are deleted, except the newest revision of each row, so every
--- row's current state stays explainable. Changesets left without revisions go
--- too (after a day, so a transaction still being labelled is not raced).
--- Category `history` is not a public config category.
-INSERT INTO site_config (key, value, category)
-SELECT 'history_retention_days', '365'::jsonb, 'history'
-WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'history_retention_days');
-
+-- default 365, written under "Config defaults") are deleted, except the newest
+-- revision of each row, so every row's current state stays explainable.
+-- Changesets left without revisions go too (after a day, so a transaction
+-- still being labelled is not raced).
 CREATE OR REPLACE FUNCTION kychon_prune_history(p_days INTEGER DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -1128,6 +1107,41 @@ BEGIN
   RETURN cs_id;
 END;
 $$;
+
+-- ============================================
+-- SECTION: Config defaults
+-- ============================================
+-- Content writes go here, after every `SET search_path FROM CURRENT` function
+-- above is redefined (kychon#223). A Run402 rehearsal branch or restored
+-- snapshot lives in a different schema slot, but its functions still carry
+-- the parent slot's pinned search_path until this migration re-creates them;
+-- a write before that fires a trigger that cannot see `revisions`. These
+-- inserts are not no-ops on later migrations: port seeds truncate site_config.
+-- They precede the revision triggers so a fresh project starts with no history.
+
+-- `site_config.languages_enabled` is the runtime-mutable JSONB array that
+-- controls which locales the AdminBar surfaces and which trigger the
+-- translation JOIN. Backfills from the legacy `site_config.languages` value
+-- when `languages_enabled` is absent, so existing portals keep their
+-- configured set. `site_config.languages` stays read-only; nothing else reads
+-- or writes it.
+INSERT INTO site_config (key, value, category)
+SELECT 'languages_enabled', value, 'i18n'
+FROM site_config
+WHERE key = 'languages'
+  AND NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
+
+-- Portal hadn't set `languages` either (default single-locale): seed
+-- `languages_enabled` to ["en"] so the admin bar's hide-when-one-language
+-- rule has a value to inspect.
+INSERT INTO site_config (key, value, category)
+SELECT 'languages_enabled', '["en"]'::jsonb, 'i18n'
+WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'languages_enabled');
+
+-- Category `history` is not a public config category.
+INSERT INTO site_config (key, value, category)
+SELECT 'history_retention_days', '365'::jsonb, 'history'
+WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'history_retention_days');
 
 DROP TRIGGER IF EXISTS trg_kychon_revision ON site_config;
 CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON site_config FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('key');
