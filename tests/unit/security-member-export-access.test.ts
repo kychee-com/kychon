@@ -171,11 +171,12 @@ const CALLERS_WITHOUT_EXPORT_ACCESS: Array<[string, MockUser | null]> = [
   ['an active non-admin member', { id: 'member-user', email: 'grace@example.com' }],
   ['a pending admin', { id: 'pending-admin-user', email: 'linus@example.com' }],
   ['a suspended admin', { id: 'suspended-admin-user', email: 'suspended@example.com' }],
+  // An unverified email (e.g. a password signup) never claims the member row registered to it.
+  ['an unverified email matching an unlinked admin', { id: 'unlinked-user', email: 'Email-Linked-Admin@example.com' }],
 ];
 
 const ADMIN_CALLERS: Array<[string, MockUser]> = [
   ['an active admin', { id: 'admin-user', email: 'ada@example.com' }],
-  ['an active admin matched by email', { id: 'unlinked-user', email: 'Email-Linked-Admin@example.com' }],
   ['a project admin', { id: 'owner-user', email: 'owner@example.com', app_metadata: { role: 'project_admin' } }],
 ];
 

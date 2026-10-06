@@ -72,7 +72,7 @@ describe('Capability API actor resolution', () => {
   it('looks up members by user_id before using controlled email fallback', async () => {
     const actor = await resolveCapabilityActor(
       makeRequest(),
-      makeDeps({ id: 'legacy-user', email: 'legacy@example.com' }, [
+      makeDeps({ id: 'legacy-user', email: 'legacy@example.com', emailVerified: true }, [
         { id: 7, user_id: null, email: 'legacy@example.com', role: 'member', status: 'active' },
       ]),
     );
@@ -80,6 +80,24 @@ describe('Capability API actor resolution', () => {
     expect(actor.state).toBe('active_member');
     expect(actor.member?.lookup).toBe('email');
     expect(actor.member?.id).toBe('7');
+  });
+
+  it.each([
+    ['an unverified email', { id: 'new-user', email: 'admin@example.com', emailVerified: false }, null],
+    ['an email with no verification flag', { id: 'new-user', email: 'admin@example.com' }, null],
+    [
+      'a verified email whose row is linked to another user',
+      { id: 'new-user', email: 'admin@example.com', emailVerified: true },
+      'owner-user',
+    ],
+  ])('does not fall back to the member row for %s', async (_label, user, linkedUserId) => {
+    const actor = await resolveCapabilityActor(
+      makeRequest(),
+      makeDeps(user, [{ id: 9, user_id: linkedUserId, email: 'admin@example.com', role: 'admin', status: 'active' }]),
+    );
+
+    expect(actor.state).toBe('authenticated_non_member');
+    expect(actor.member).toBeNull();
   });
 
   it('resolves pending, active member, moderator, and admin states from active member rows', async () => {

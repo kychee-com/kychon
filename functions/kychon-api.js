@@ -2353,7 +2353,8 @@ async function handleBundleExport(correlationId, input, actor, req) {
     tables[table] = normalizeDbRows(await db.sql(`SELECT * FROM ${table} ORDER BY ${key}`));
   }
   if (includeMembers) {
-    // A login belongs to one project; imported members re-link by email when they sign in.
+    // A login belongs to one project; imported members re-link when they sign in
+    // with a verified email (see linkMemberByVerifiedEmail).
     tables.members = normalizeDbRows(await db.sql('SELECT * FROM members ORDER BY id')).map((row) => ({
       ...row,
       user_id: null,
@@ -3512,17 +3513,29 @@ async function findMember(user) {
     .eq('user_id', user.id)
     .limit(1);
   if (byUserId?.[0]) return normalizeMember(byUserId[0], 'user_id');
+  return linkMemberByVerifiedEmail(db, user);
+}
 
+// Email linking claims an unlinked members row (an imported or invited member,
+// user_id NULL) for the signed-in user. Only an address Run402 has verified
+// may claim one: a password signup's email is unverified, so trusting it would
+// let anyone take over the row registered to that address. The link is
+// persisted in the same statement that checks user_id IS NULL, so a row that
+// is already linked is never re-pointed.
+async function linkMemberByVerifiedEmail(db, user) {
+  if (user.emailVerified !== true) return null;
   const email = normalizeEmail(user.email);
-  if (email) {
-    const byEmail = await db
-      .from('members')
-      .select('id,user_id,email,display_name,role,status,avatar_url')
-      .eq('email', email)
-      .limit(1);
-    if (byEmail?.[0]) return normalizeMember(byEmail[0], 'email');
-  }
-  return null;
+  if (!email) return null;
+  const linked = normalizeDbRows(
+    await db.sql(
+      `UPDATE members SET user_id = $1
+        WHERE id = (SELECT id FROM members WHERE lower(email) = $2 AND user_id IS NULL ORDER BY id LIMIT 1)
+          AND user_id IS NULL
+        RETURNING id, user_id, email, display_name, role, status, avatar_url`,
+      [user.id, email],
+    ),
+  );
+  return linked[0] ? normalizeMember(linked[0], 'email') : null;
 }
 
 function normalizeMember(row, lookup) {

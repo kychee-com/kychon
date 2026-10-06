@@ -3,6 +3,7 @@ import type { ActorState, ObjectRef } from './types.js';
 export interface Run402UserLike {
   id?: string | null;
   email?: string | null;
+  emailVerified?: boolean | null;
   role?: string | null;
   is_admin?: boolean | null;
   app_metadata?: Record<string, unknown> | null;
@@ -148,11 +149,14 @@ async function findMemberForUser(
     if (byUserId) return normalizeMember(byUserId, 'user_id');
   }
 
-  const email = normalizeEmail(user.email);
+  // Email fallback only for a Run402-verified address, and only onto a row no
+  // user has claimed yet: an unverified (password-signup) email must not
+  // inherit the member row registered to that address.
+  const email = user.emailVerified === true ? normalizeEmail(user.email) : '';
   if (email) {
     const rows = await admin.from('members').select(MEMBER_SELECT).eq('email', email).limit(1);
     const byEmail = rows[0];
-    if (byEmail) return normalizeMember(byEmail, 'email');
+    if (byEmail && !byEmail.user_id) return normalizeMember(byEmail, 'email');
   }
 
   return null;

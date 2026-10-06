@@ -101,7 +101,7 @@ describe('site_config cache build awareness', () => {
     expect(JSON.parse(store.wl_cache_site_config).data).toEqual(freshConfig);
   });
 
-  it('attaches an admin member by session email when the auth user id changed', async () => {
+  it('never re-links an admin member row to the session user from the client', async () => {
     const store = installLocalStorage();
     store.wl_session = JSON.stringify({
       access_token: 'token',
@@ -167,15 +167,13 @@ describe('site_config cache build awareness', () => {
     await init();
 
     expect(getSession()?.user?.member).toMatchObject({ id: 2, role: 'admin', email: 'major.tal@gmail.com' });
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/kychon'),
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('"operation":"members.linkUser"'),
-        }),
-      );
-    });
+    // Linking is server-side only: the client never re-points an admin row.
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/kychon'),
+      expect.objectContaining({
+        body: expect.stringContaining('"operation":"members.linkUser"'),
+      }),
+    );
   });
 
   it('does not attempt admin-only member linking for regular members', async () => {

@@ -3,7 +3,7 @@
 // per-block hydrators (src/lib/block-hydrators.ts); this module never
 // touches #nav-links / #nav-user.
 
-import { get, patch } from './api.js';
+import { get } from './api.js';
 import { clearActor, loadActor, memberViewFromActor, setSessionMember } from './auth.js';
 import { canonicalRouteKey } from './clean-routes.js';
 import { findDirectElementChild } from './dom-structure.js';
@@ -492,21 +492,9 @@ async function findMemberForActor(actor: any): Promise<any | null> {
     }
   }
 
-  const userId = actor.user?.id;
-  if (member && userId && member.user_id !== userId && member.role === 'admin') {
-    try {
-      await patchMemberUserId(member.id, userId);
-      member = { ...member, user_id: userId };
-    } catch {
-      // Keep the existing session usable; linking can be retried on a later load.
-    }
-  }
+  // Never re-link the member row from the client: the server links an unlinked
+  // row to a verified email itself, and a linked row is never re-pointed.
   return member;
-}
-
-async function patchMemberUserId(memberId: unknown, userId: string): Promise<void> {
-  if (!memberId || !userId) return;
-  await patch(`members?id=eq.${memberId}`, { user_id: userId });
 }
 
 export async function refreshMemberRecord(): Promise<void> {
