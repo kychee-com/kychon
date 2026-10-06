@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getRole } from '@/lib/auth';
 
-import { MediaPicker, type MediaAssetRef } from './MediaPickerIsland';
+import { MediaPicker, type MediaAssetRef, mediaAssetUrl } from './MediaPickerIsland';
 
 /**
  * MediaPickerHost — top-level mount of the MediaPicker dialog so any admin UI
@@ -64,7 +64,10 @@ export default function MediaPickerHost() {
     (ref: MediaAssetRef) => {
       document.dispatchEvent(
         new CustomEvent(SELECT_EVENT, {
-          detail: { ref, url: ref.cdn_url, target },
+          // Store the content-addressed (immutable) URL: content history keeps
+          // old revisions pointing at exactly the image they showed, and the
+          // mutable alias would change if the same filename is re-uploaded.
+          detail: { ref, url: mediaAssetUrl(ref), target },
         }),
       );
     },

@@ -392,3 +392,8 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
     </Dialog>
   );
 }
+
+/** The URL content should store for a picked asset: immutable first (same order as upload-asset). */
+export function mediaAssetUrl(ref: MediaAssetRef): string {
+  return ref.cdn_immutable_url || ref.immutable_url || ref.cdn_url;
+}

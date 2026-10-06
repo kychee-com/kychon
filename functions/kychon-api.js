@@ -92,6 +92,7 @@ const MUTATION_OPERATIONS = [
   'sections.setColumnSpan',
   'sections.delete',
   'sections.translate',
+  'history.revert',
   'media.delete',
   'members.updateProfile',
   'members.approve',
@@ -940,6 +941,7 @@ async function executeMutation(name, input, actor) {
   // admin-content-management: media library wrappers + section_translations
   if (name === 'media.delete') return deleteMediaAsset(input, actor);
   if (name === 'sections.translate') return upsertSectionTranslation(input, actor);
+  if (name === 'history.revert') return revertChangeset(input, actor);
   return genericMutation(name, input, actor);
 }
 
@@ -1782,6 +1784,172 @@ async function callUploadAssetFn(body) {
     });
   }
   return json;
+}
+
+// --- Revert (openspec content-history D4) --------------------------------------
+// Restores every row a changeset touched to its state before that changeset,
+// in ONE SQL statement (one data-modifying CTE per row) so it applies fully
+// or not at all. Rows are collapsed first: a row touched several times goes
+// back to its `before` from the first revision. Unless `force`, any row
+// changed since the changeset is a conflict and nothing is written; a guard
+// in the statement aborts it if a concurrent edit slips in between the check
+// and the write. The revert is itself a changeset ("Revert #<id>").
+
+function historyKeyColumn(table) {
+  return table === 'site_config' ? 'key' : 'id';
+}
+
+async function tableColumns(table) {
+  const result = await adminDb().sql(
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = current_schema() AND table_name = $1 AND is_generated = 'NEVER'`,
+    [table],
+  );
+  return new Set(normalizeDbRows(result).map((row) => row.column_name));
+}
+
+function rowContains(current, expected) {
+  return Object.entries(expected).every(([key, value]) => JSON.stringify(current?.[key]) === JSON.stringify(value));
+}
+
+async function revertChangeset(input, actor) {
+  const changesetId = Number(input.changeset_id ?? input.changesetId);
+  if (!Number.isInteger(changesetId) || changesetId <= 0) {
+    throw capabilityError('validation.failed', 'history.revert requires a numeric changeset_id.');
+  }
+  const force = input.force === true;
+  const revisions = normalizeDbRows(
+    await adminDb().sql(
+      'SELECT id, table_name, row_key, op, before, after FROM revisions WHERE changeset_id = $1 ORDER BY id',
+      [changesetId],
+    ),
+  );
+  if (!revisions.length)
+    throw capabilityError('notFound.object', 'No revisions in that changeset.', { changeset_id: changesetId });
+
+  // Collapse to one target per row: restore `before` of the first revision,
+  // expecting the row to still look like `after` of the last one.
+  const rows = new Map();
+  for (const revision of revisions) {
+    if (!HISTORY_TABLES.has(revision.table_name)) continue; // never write untracked tables
+    const id = `${revision.table_name}:${JSON.stringify(revision.row_key)}`;
+    const entry = rows.get(id);
+    if (entry) entry.expected = revision.after;
+    else
+      rows.set(id, {
+        table: revision.table_name,
+        rowKey: revision.row_key,
+        target: revision.before,
+        expected: revision.after,
+      });
+  }
+
+  const columnsByTable = new Map();
+  const conflicts = [];
+  for (const row of rows.values()) {
+    const keyColumn = historyKeyColumn(row.table);
+    row.keyColumn = keyColumn;
+    row.keyValue = row.rowKey[keyColumn];
+    if (!columnsByTable.has(row.table)) columnsByTable.set(row.table, await tableColumns(row.table));
+    const current =
+      normalizeDbRows(
+        await adminDb().sql(
+          `SELECT to_jsonb(t) AS row FROM ${quoteIdent(row.table)} t WHERE ${quoteIdent(keyColumn)} = $1`,
+          [row.keyValue],
+        ),
+      )[0]?.row ?? null;
+    row.exists = current != null;
+    const unchanged = row.expected == null ? current == null : current != null && rowContains(current, row.expected);
+    if (!unchanged) conflicts.push({ table: row.table, key: row.rowKey });
+  }
+  if (conflicts.length && !force) {
+    throw capabilityError(
+      'conflict.state',
+      'Some rows changed after this change; revert refused. Pass force to overwrite.',
+      {
+        changeset_id: changesetId,
+        conflicts,
+      },
+    );
+  }
+
+  const params = [];
+  const param = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+  const steps = [];
+  for (const row of rows.values()) {
+    // Inserted and deleted within the same changeset: nothing to restore.
+    if (row.target == null && row.expected == null) continue;
+    const table = quoteIdent(row.table);
+    const key = quoteIdent(row.keyColumn);
+    // Optimistic guard: only touch the row if it still matches what we checked.
+    const guard = force
+      ? ''
+      : row.expected == null
+        ? ''
+        : ` AND to_jsonb(t) @> ${param(JSON.stringify(row.expected))}::jsonb`;
+    if (row.target == null) {
+      steps.push(`DELETE FROM ${table} t WHERE ${key} = ${param(row.keyValue)}${guard} RETURNING 1`);
+      continue;
+    }
+    const allowed = columnsByTable.get(row.table);
+    const columns = Object.keys(row.target)
+      .filter((column) => allowed.has(column))
+      .map(quoteIdent)
+      .join(', ');
+    const source = `jsonb_populate_record(NULL::${table}, ${param(JSON.stringify(row.target))}::jsonb)`;
+    if (row.exists) {
+      steps.push(
+        `UPDATE ${table} t SET (${columns}) = (SELECT ${columns} FROM ${source}) WHERE ${key} = ${param(row.keyValue)}${guard} RETURNING 1`,
+      );
+    } else {
+      steps.push(
+        `INSERT INTO ${table} (${columns}) SELECT ${columns} FROM ${source} WHERE NOT EXISTS (SELECT 1 FROM ${table} WHERE ${key} = ${param(row.keyValue)}) RETURNING 1`,
+      );
+    }
+  }
+  if (!steps.length) {
+    return actionResult({ reverted_changeset_id: changesetId, rows: 0, forced: false, conflicts }, [], null);
+  }
+  const ctes = steps.map((step, index) => `s${index} AS (${step})`).join(',\n');
+  const applied = steps.map((_, index) => `(SELECT count(*) FROM s${index})`).join(' + ');
+  // Division by zero aborts the whole statement (all CTE writes roll back) if
+  // any guarded row was skipped because it changed concurrently.
+  let result;
+  try {
+    result = await adminDb().sql(
+      `WITH ${ctes}
+       SELECT txid_current()::text AS kychon_txid, 1 / (CASE WHEN ${applied} = ${steps.length} THEN 1 ELSE 0 END) AS ok`,
+      params,
+    );
+  } catch (error) {
+    if (/division by zero/i.test(String(error?.message ?? error))) {
+      throw capabilityError('conflict.state', 'A row changed while reverting; nothing was written. Try again.', {
+        changeset_id: changesetId,
+      });
+    }
+    throw error;
+  }
+  const txid = normalizeDbRows(result)[0]?.kychon_txid;
+  const label = `Revert #${changesetId}`;
+  if (txid) {
+    const who = historyActor(actor);
+    await adminDb().sql('SELECT kychon_claim_changeset($1::bigint, $2, $3, $4, $5::bigint) AS id', [
+      txid,
+      who.type,
+      who.id,
+      label,
+      HISTORY_CONTEXT.getStore()?.executionId ?? null,
+    ]);
+    await adminDb().sql('UPDATE changesets SET reverts_changeset_id = $1 WHERE txid = $2::bigint', [changesetId, txid]);
+  }
+  return actionResult(
+    { reverted_changeset_id: changesetId, rows: rows.size, forced: force && conflicts.length > 0, conflicts },
+    [...rows.values()].map((row) => changedObject(row.table, String(row.keyValue))),
+    null,
+  );
 }
 
 // --- Content history reads (openspec content-history) -------------------------

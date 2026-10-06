@@ -151,6 +151,28 @@ export interface WrapInitialImportOptions {
    * first. Destructive — callers must have confirmed the target subdomain.
    */
   reimport?: boolean;
+  /** `/assets/<basename>` -> SHA-256 for the import's asset references (see importAssetShas). */
+  assets?: Record<string, string>;
+}
+
+/**
+ * Map each `/assets/<basename>` the seed references to the SHA-256 the asset
+ * manifest resolves it to, so the install record pins which image each name
+ * meant at import time. Names missing from the manifest are left out.
+ */
+export function importAssetShas(
+  seedSql: string,
+  manifestAssets: Record<string, { sha256?: string; contentSha256?: string } | undefined> | null | undefined,
+): Record<string, string> {
+  if (!manifestAssets) return {};
+  const names = new Set([...seedSql.matchAll(/\/assets\/([A-Za-z0-9._-]+)/g)].map((m) => m[1]));
+  const out: Record<string, string> = {};
+  for (const name of [...names].sort()) {
+    const ref = manifestAssets[name];
+    const sha = ref?.sha256 ?? ref?.contentSha256;
+    if (sha) out[name] = sha;
+  }
+  return out;
 }
 
 /** Wrap seed SQL so it runs once per project. Returns "" for an empty seed. */
@@ -171,7 +193,7 @@ export function wrapInitialImport(seedSql: string, opts: WrapInitialImportOption
     ...statements.map((s) => `${s};`),
     // One changeset for the whole import (same transaction), labelled for history.
     "  PERFORM kychon_label_changeset('system', NULL, 'Initial import');",
-    `  INSERT INTO kychon_install (import_source, import_checksum) VALUES (${sqlLiteral(opts.source)}, ${sqlLiteral(checksum)});`,
+    `  INSERT INTO kychon_install (import_source, import_checksum, import_assets) VALUES (${sqlLiteral(opts.source)}, ${sqlLiteral(checksum)}, ${opts.assets && Object.keys(opts.assets).length ? `${sqlLiteral(JSON.stringify(opts.assets))}::jsonb` : "NULL"});`,
     "END",
     `${IMPORT_TAG};`,
   );

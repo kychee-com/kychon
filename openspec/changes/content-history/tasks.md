@@ -29,17 +29,17 @@
 
 ## 4. Revert (Phase 2)
 
-- [ ] 4.1 Build a static allowlist of tracked tables with their key and column lists, shared by revert and export
-- [ ] 4.2 Implement the `history.revert({ changeset_id, force })` capability: conflict detection, inverse application in reverse order, one transaction, recorded as a revert changeset
-- [ ] 4.3 Tests: clean revert of insert, update, and delete; a conflict refuses without changes; a forced revert works and can itself be reverted; revert never writes untracked tables
+- [x] 4.1 Build a static allowlist of tracked tables with their key and column lists, shared by revert and export (implemented as `HISTORY_TABLES` + key column; columns are read live from `information_schema` so revisions from older schemas still revert)
+- [x] 4.2 Implement the `history.revert({ changeset_id, force })` capability: conflict detection, inverse application in reverse order, one transaction, recorded as a revert changeset
+- [x] 4.3 Tests: clean revert of insert, update, and delete; a conflict refuses without changes; a forced revert works and can itself be reverted; revert never writes untracked tables
 
 ## 5. Retention and assets (Phase 2)
 
-- [ ] 5.1 Add the `history_retention_days` site_config key (default 365)
-- [ ] 5.2 Add a `prune-history` scheduled function (daily) that keeps the newest revision per row and deletes empty changesets
-- [ ] 5.3 Make `upload-asset` return, and the admin editor store, immutable asset URLs
-- [ ] 5.4 Record the resolved SHA-256 of `/assets/<basename>` references in the install record at import time
-- [ ] 5.5 Tests: pruning keeps the latest revision per row; uploads store the immutable URL
+- [x] 5.1 Add the `history_retention_days` site_config key (default 365)
+- [x] 5.2 Add a `prune-history` scheduled function (daily) that keeps the newest revision per row and deletes empty changesets
+- [x] 5.3 Make `upload-asset` return, and the admin editor store, immutable asset URLs
+- [x] 5.4 Record the resolved SHA-256 of `/assets/<basename>` references in the install record at import time
+- [x] 5.5 Tests: pruning keeps the latest revision per row; uploads store the immutable URL
 
 ## 6. History UI (Phase 3)
 

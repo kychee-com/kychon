@@ -14,6 +14,7 @@ import { generateSeedSql } from '../../scripts/generate-seed-sql';
 import {
   assertReimportConfirmed,
   InitialImportError,
+  importAssetShas,
   prepareImportStatements,
   resolveSeedPath,
   splitSqlStatements,
@@ -89,7 +90,7 @@ describe('wrapInitialImport', () => {
     );
     expect(sql).toContain("INSERT INTO pages (slug, title) VALUES ('about', 'About');");
     expect(sql).toMatch(
-      /INSERT INTO kychon_install \(import_source, import_checksum\) VALUES \('seed\.sql', '[0-9a-f]{64}'\);\nEND\n\$kychon_import\$;$/,
+      /INSERT INTO kychon_install \(import_source, import_checksum, import_assets\) VALUES \('seed\.sql', '[0-9a-f]{64}', NULL\);\nEND\n\$kychon_import\$;$/,
     );
     expect(sql).not.toContain('DELETE FROM kychon_install');
   });
@@ -179,5 +180,27 @@ describe('seed file resolution', () => {
 
   it('allows the default seed.sql to be absent', () => {
     expect(resolveSeedPath('/nonexistent-root')).toBeNull();
+  });
+});
+
+describe('import asset SHAs', () => {
+  const manifest = {
+    'Logo.jpg': { sha256: 'a'.repeat(64) },
+    'Home.jpg': { contentSha256: 'b'.repeat(64) },
+    'Unused.jpg': { sha256: 'c'.repeat(64) },
+  };
+
+  it('maps each /assets/<basename> the seed references to its manifest SHA-256', () => {
+    const seed = readFileSync(join(ROOT, 'fixtures/seeds/sample-port.seed.sql'), 'utf8');
+    expect(importAssetShas(seed, manifest)).toEqual({ 'Home.jpg': 'b'.repeat(64), 'Logo.jpg': 'a'.repeat(64) });
+    expect(importAssetShas(seed, null)).toEqual({});
+  });
+
+  it('stores the map in the install record', () => {
+    const sql = wrapInitialImport("INSERT INTO pages (slug, title) VALUES ('a', 'A');", {
+      source: 'seed.sql',
+      assets: { 'Logo.jpg': 'a'.repeat(64) },
+    });
+    expect(sql).toContain(`'{"Logo.jpg":"${'a'.repeat(64)}"}'::jsonb`);
   });
 });

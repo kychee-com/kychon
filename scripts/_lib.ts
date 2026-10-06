@@ -41,6 +41,7 @@ import { resolveActiveProjectSeed } from "../src/seeds/index.ts";
 import {
   applyWithPostImportRebuild,
   assertReimportConfirmed,
+  importAssetShas,
   type ReleasePhase,
   readInstallMarker,
   resolveSeedPath,
@@ -471,7 +472,11 @@ export async function resolveDeployTarget(r: Run402Instance): Promise<ResolvedDe
  * changes never touch an installed project's content. `reimport` clears the
  * marker first — destructive, callers must confirm the subdomain.
  */
-export function readMigrations(root: string, seedFile?: string, opts: { reimport?: boolean } = {}): string {
+export function readMigrations(
+  root: string,
+  seedFile?: string,
+  opts: { reimport?: boolean; assetManifest?: Parameters<typeof importAssetShas>[1] } = {},
+): string {
   const schemaPath = join(root, "schema.sql");
   const seedPath = resolveSeedPath(root, seedFile);
   const schema = readFileSync(schemaPath, "utf-8");
@@ -479,8 +484,25 @@ export function readMigrations(root: string, seedFile?: string, opts: { reimport
   const initialImport = wrapInitialImport(seed, {
     source: basename(seedPath ?? "seed.sql"),
     reimport: opts.reimport === true,
+    assets: importAssetShas(seed, opts.assetManifest),
   });
   return `${schema}\n\n${initialImport}`;
+}
+
+/**
+ * The asset manifest the build just published (`<clientDir>/_assets-manifest.json`:
+ * the integration's for demos, the staged one for ports), as `basename -> ref`.
+ * Null when the build has none. Feeds the initial import's asset SHA record.
+ */
+export function readBuiltAssetManifest(clientDir: string): Record<string, { sha256?: string; contentSha256?: string }> | null {
+  const path = join(clientDir, "_assets-manifest.json");
+  if (!existsSync(path)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf-8")) as { assets?: unknown };
+    return parsed.assets && typeof parsed.assets === "object" ? (parsed.assets as Record<string, { sha256?: string }>) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Lowercase hex SHA-256 of a string. Used to derive stable migration ids. */
@@ -1176,7 +1198,10 @@ async function assembleDeployRelease(
         .filter((entry): entry is MaterializedCustomPageFile => entry !== null)
     : materializeCustomPageStaticFiles(distDir, deploySeed);
 
-  const sql = readMigrations(ROOT, opts.seedFile, { reimport: opts.reimport !== undefined });
+  const sql = readMigrations(ROOT, opts.seedFile, {
+    reimport: opts.reimport !== undefined,
+    assetManifest: readBuiltAssetManifest(clientDir),
+  });
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
   const releaseManifestOptions: Parameters<typeof buildEngineReleaseManifest>[0] = {
     migrationId,
@@ -1610,7 +1635,7 @@ export async function patchDeploy(
         .filter((entry): entry is MaterializedCustomPageFile => entry !== null)
     : materializeCustomPageStaticFiles(distDir, deploySeed);
 
-  const sql = readMigrations(ROOT, opts.seedFile);
+  const sql = readMigrations(ROOT, opts.seedFile, { assetManifest: readBuiltAssetManifest(clientDir) });
   const migrationId = `kychon_${sha256Hex(sql).slice(0, 16)}`;
   const releaseManifestOptions: Parameters<typeof buildEngineReleaseManifest>[0] = {
     migrationId,

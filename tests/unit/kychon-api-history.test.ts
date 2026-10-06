@@ -101,6 +101,7 @@ async function query(operation: string, input: Record<string, unknown>) {
       body: JSON.stringify({ apiVersion: KYCHON_API_VERSION, operation, phase: 'query', input }),
     }),
   );
+  // biome-ignore lint/suspicious/noExplicitAny: tests read arbitrary capability payloads
   return { status: res.status, body: (await res.json()) as Record<string, any> };
 }
 
@@ -145,5 +146,94 @@ describe('history queries', () => {
     state.user = ADMIN;
     const res = await query('history.revisions', { table: 'members', key: 1 });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('history.revert', () => {
+  const ADMIN = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org' };
+  let n = 0;
+  const revert = (changesetId: number, extra: Record<string, unknown> = {}) =>
+    execute('history.revert', { changeset_id: changesetId, ...extra }, `revert-${++n}`);
+  const latestChangeset = async () =>
+    (await rows<{ id: number }>(db, 'SELECT id FROM changesets ORDER BY id DESC LIMIT 1'))[0].id;
+
+  beforeEach(() => {
+    state.user = ADMIN;
+  });
+
+  it('reverts an insert (the row is removed)', async () => {
+    await execute('announcements.publish', { title: 'Oops', body: '<p>x</p>' }, `pub-${++n}`);
+    const res = await revert(await latestChangeset());
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(await rows(db, 'SELECT id FROM announcements')).toEqual([]);
+  });
+
+  it('reverts an update (the old value comes back) and records a labelled revert changeset', async () => {
+    await db.exec(`INSERT INTO site_config (key, value, category) VALUES ('site_name', '"Old"', 'branding')`);
+    await execute('config.set', { key: 'site_name', value: 'New' }, `cfg-${++n}`);
+    const changeset = await latestChangeset();
+    expect((await revert(changeset)).status).toBe(200);
+    expect(await rows(db, `SELECT value FROM site_config WHERE key = 'site_name'`)).toEqual([{ value: 'Old' }]);
+    expect(
+      await rows(db, 'SELECT actor_type, label, reverts_changeset_id FROM changesets ORDER BY id DESC LIMIT 1'),
+    ).toEqual([{ actor_type: 'admin', label: `Revert #${changeset}`, reverts_changeset_id: changeset }]);
+  });
+
+  it('reverts a delete (the row returns with its id and content)', async () => {
+    const [{ id }] = await rows<{ id: number }>(
+      db,
+      `INSERT INTO sections (page_slug, section_type, config, position) VALUES ('index', 'cta', '{"heading":"Join"}', 3) RETURNING id`,
+    );
+    const del = await execute('sections.delete', { id }, `del-${++n}`);
+    expect(del.status, JSON.stringify(del.body)).toBe(200);
+    expect((await revert(await latestChangeset())).status).toBe(200);
+    expect(await rows(db, 'SELECT id, config FROM sections WHERE id = $1', [id])).toEqual([
+      { id, config: { heading: 'Join' } },
+    ]);
+  });
+
+  it('refuses a conflicting revert and changes nothing; force overwrites and is itself revertible', async () => {
+    const [{ id }] = await rows<{ id: number }>(
+      db,
+      `INSERT INTO sections (page_slug, section_type, config, position) VALUES ('index', 'hero', '{"heading":"A"}', 1) RETURNING id`,
+    );
+    await execute('sections.updateConfig', { id, config: { heading: 'B' } }, `u-${++n}`);
+    const first = await latestChangeset();
+    await execute('sections.updateConfig', { id, config: { heading: 'C' } }, `u-${++n}`);
+
+    const refused = await revert(first);
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.detail.conflicts).toEqual([{ table: 'sections', key: { id } }]);
+    expect(await rows(db, 'SELECT config FROM sections WHERE id = $1', [id])).toEqual([{ config: { heading: 'C' } }]);
+
+    expect((await revert(first, { force: true })).status).toBe(200);
+    expect(await rows(db, 'SELECT config FROM sections WHERE id = $1', [id])).toEqual([{ config: { heading: 'A' } }]);
+
+    expect((await revert(await latestChangeset())).status).toBe(200);
+    expect(await rows(db, 'SELECT config FROM sections WHERE id = $1', [id])).toEqual([{ config: { heading: 'C' } }]);
+  });
+
+  it('never writes untracked tables, even if a revision names one', async () => {
+    const [{ id: cs }] = await rows<{ id: number }>(
+      db,
+      `INSERT INTO changesets (actor_type) VALUES ('unattributed') RETURNING id`,
+    );
+    await db.query(
+      `INSERT INTO revisions (changeset_id, table_name, row_key, op, before, after) VALUES ($1, 'members', '{"id": 1}', 'update', '{"id":1,"role":"admin"}', '{"id":1,"role":"member"}')`,
+      [cs],
+    );
+    const before = await rows(db, 'SELECT id, role FROM members ORDER BY id');
+    const res = await revert(cs);
+    expect(res.status).toBe(200);
+    expect(await rows(db, 'SELECT id, role FROM members ORDER BY id')).toEqual(before);
+  });
+
+  it('is admin-only', async () => {
+    const [{ id: cs }] = await rows<{ id: number }>(
+      db,
+      `INSERT INTO changesets (actor_type) VALUES ('unattributed') RETURNING id`,
+    );
+    state.user = { id: '22222222-2222-4222-8222-222222222222', email: 'member@example.org' };
+    expect((await revert(cs)).status).toBe(403);
   });
 });

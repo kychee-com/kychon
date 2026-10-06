@@ -166,3 +166,68 @@ describe('initial import and migrations', () => {
     ]);
   });
 });
+
+describe('retention (kychon_prune_history)', () => {
+  async function backdate(days: number) {
+    await db.exec(`UPDATE revisions SET created_at = now() - interval '${days} days'`);
+    await db.exec(`UPDATE changesets SET created_at = now() - interval '${days} days'`);
+  }
+
+  it('defaults history_retention_days to 365 under a non-public category', async () => {
+    expect(await rows(db, `SELECT value, category FROM site_config WHERE key = 'history_retention_days'`)).toEqual([
+      { value: 365, category: 'history' },
+    ]);
+  });
+
+  it('deletes old revisions but always keeps the newest revision of each row, then empty changesets', async () => {
+    await db.exec(`INSERT INTO pages (slug, title) VALUES ('about', 'v1')`);
+    await db.exec(`UPDATE pages SET title = 'v2' WHERE slug = 'about'`);
+    await db.exec(`INSERT INTO pages (slug, title) VALUES ('join', 'only')`);
+    await backdate(400);
+    await db.exec(`UPDATE pages SET title = 'v3' WHERE slug = 'about'`); // recent
+
+    const [{ summary }] = await rows<{ summary: Record<string, number> }>(
+      db,
+      'SELECT kychon_prune_history() AS summary',
+    );
+    expect(summary).toMatchObject({ retention_days: 365 });
+
+    const left = await rows<{ title: string | null }>(
+      db,
+      `SELECT r.after ->> 'title' AS title FROM revisions r WHERE r.table_name = 'pages' ORDER BY r.id`,
+    );
+    // about: v1/v2 pruned (old, superseded), v3 kept; join: its only revision kept although old.
+    expect(left.map((r) => r.title)).toEqual(['only', 'v3']);
+    const orphans = await rows(
+      db,
+      'SELECT c.id FROM changesets c WHERE NOT EXISTS (SELECT 1 FROM revisions r WHERE r.changeset_id = c.id)',
+    );
+    expect(orphans).toEqual([]);
+  });
+
+  it('honours a custom retention period', async () => {
+    await db.exec(`UPDATE site_config SET value = '30' WHERE key = 'history_retention_days'`);
+    await db.exec(`INSERT INTO pages (slug, title) VALUES ('about', 'v1')`);
+    await db.exec(`UPDATE pages SET title = 'v2' WHERE slug = 'about'`);
+    await backdate(45);
+    await db.exec(`UPDATE pages SET title = 'v3' WHERE slug = 'about'`);
+    const [{ summary }] = await rows<{ summary: Record<string, number> }>(
+      db,
+      'SELECT kychon_prune_history() AS summary',
+    );
+    expect(summary.retention_days).toBe(30);
+    expect(summary.revisions).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('install record', () => {
+  it('pins the SHA-256 of each imported /assets reference', async () => {
+    const seed = `INSERT INTO sections (page_slug, section_type, config, position) VALUES ('index', 'hero', '{"bg_image":"/assets/Home.jpg"}', 1);`;
+    await db.exec(
+      `BEGIN; ${wrapInitialImport(seed, { source: 'seed.sql', assets: { 'Home.jpg': 'd'.repeat(64) } })} COMMIT;`,
+    );
+    expect(await rows(db, 'SELECT import_source, import_assets FROM kychon_install')).toEqual([
+      { import_source: 'seed.sql', import_assets: { 'Home.jpg': 'd'.repeat(64) } },
+    ]);
+  });
+});

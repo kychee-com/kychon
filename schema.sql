@@ -44,8 +44,12 @@ CREATE TABLE IF NOT EXISTS kychon_install (
   installed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   import_source TEXT NOT NULL,
   import_checksum TEXT,
-  engine_version TEXT
+  engine_version TEXT,
+  -- '/assets/<basename>' references in the import -> the SHA-256 each resolved
+  -- to, so a later re-upload under the same name is detectable.
+  import_assets JSONB
 );
+DO $$ BEGIN ALTER TABLE kychon_install ADD COLUMN import_assets JSONB; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Projects that were live before the marker existed are adopted as installed
 -- so their content is never re-imported. Keyed on pages/sections because
@@ -940,6 +944,53 @@ CREATE TABLE IF NOT EXISTS revisions (
 CREATE INDEX IF NOT EXISTS idx_revisions_changeset ON revisions (changeset_id, id);
 CREATE INDEX IF NOT EXISTS idx_revisions_row ON revisions (table_name, row_key, id DESC);
 CREATE INDEX IF NOT EXISTS idx_revisions_created ON revisions (created_at);
+
+-- Retention: revisions older than history_retention_days (site_config,
+-- default 365) are deleted, except the newest revision of each row, so every
+-- row's current state stays explainable. Changesets left without revisions go
+-- too (after a day, so a transaction still being labelled is not raced).
+-- Category `history` is not a public config category.
+INSERT INTO site_config (key, value, category)
+SELECT 'history_retention_days', '365'::jsonb, 'history'
+WHERE NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'history_retention_days');
+
+CREATE OR REPLACE FUNCTION kychon_prune_history(p_days INTEGER DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path FROM CURRENT
+AS $$
+DECLARE
+  days INTEGER;
+  pruned_revisions INTEGER;
+  pruned_changesets INTEGER;
+BEGIN
+  days := COALESCE(
+    p_days,
+    (SELECT CASE WHEN jsonb_typeof(value) = 'number' THEN (value #>> '{}')::numeric::integer END
+       FROM site_config WHERE key = 'history_retention_days'),
+    365
+  );
+  days := GREATEST(days, 1);
+
+  DELETE FROM revisions r
+   WHERE r.created_at < now() - make_interval(days => days)
+     AND EXISTS (
+       SELECT 1 FROM revisions newer
+        WHERE newer.table_name = r.table_name
+          AND newer.row_key = r.row_key
+          AND newer.id > r.id
+     );
+  GET DIAGNOSTICS pruned_revisions = ROW_COUNT;
+
+  DELETE FROM changesets c
+   WHERE c.created_at < now() - interval '1 day'
+     AND NOT EXISTS (SELECT 1 FROM revisions r WHERE r.changeset_id = c.id);
+  GET DIAGNOSTICS pruned_changesets = ROW_COUNT;
+
+  RETURN jsonb_build_object('retention_days', days, 'revisions', pruned_revisions, 'changesets', pruned_changesets);
+END;
+$$;
 
 -- The changeset for the current transaction, created on first use. A JWT
 -- caller writing through PostgREST is attributed from its claims; everything
