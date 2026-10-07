@@ -78,6 +78,11 @@ function sameName(typed: string, expected: string): boolean {
   return norm(typed) !== '' && norm(typed) === norm(expected);
 }
 
+/** Snapshots taken on purpose: by an admin, by Kychon (reason metadata), or before a restore. */
+function isRestorePoint(point: RestorePoint): boolean {
+  return point.kind === "manual" || point.kind === "pre_restore";
+}
+
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 export function RestorePointsCard() {
@@ -97,6 +102,7 @@ export function RestorePointsCard() {
   const [restored, setRestored] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<RestorePoint | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [showAutomatic, setShowAutomatic] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -118,6 +124,10 @@ export function RestorePointsCard() {
 
   // A snapshot is "running" for a few seconds after it is taken.
   const anyRunning = points.some((point) => point.status === 'running');
+  // The platform also snapshots before every migration (each deploy); those
+  // stay folded away unless asked for.
+  const automaticCount = points.filter((point) => !isRestorePoint(point)).length;
+  const shown = showAutomatic ? points : points.filter(isRestorePoint);
   useEffect(() => {
     if (!anyRunning) return;
     const timer = window.setTimeout(() => void load(), RESTORE_POLL_MS);
@@ -233,7 +243,7 @@ export function RestorePointsCard() {
         </form>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading restore points</p>
-        ) : points.length === 0 ? (
+        ) : shown.length === 0 ? (
           <p className="text-sm text-muted-foreground">No restore points yet.</p>
         ) : (
           <Table>
@@ -245,7 +255,7 @@ export function RestorePointsCard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {points.map((point) => (
+              {shown.map((point) => (
                 <TableRow key={point.id} data-restore-point={point.id}>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-2 font-medium">
@@ -294,6 +304,13 @@ export function RestorePointsCard() {
             </TableBody>
           </Table>
         )}
+        {!loading && automaticCount > 0 ? (
+          <Button type="button" size="sm" variant="ghost" onClick={() => setShowAutomatic(!showAutomatic)}>
+            {showAutomatic
+              ? 'Hide automatic snapshots'
+              : `Show ${automaticCount} automatic snapshot${automaticCount === 1 ? '' : 's'} (taken before each update)`}
+          </Button>
+        ) : null}
       </CardContent>
 
       <Dialog open={restoring !== null} onOpenChange={(open) => !open && !restoreBusy && setRestoring(null)}>

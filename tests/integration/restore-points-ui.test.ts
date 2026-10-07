@@ -42,6 +42,17 @@ const POINTS = [
     restoreOf: null,
     deletable: true,
   },
+  {
+    id: 'snap_0',
+    label: 'Automatic snapshot',
+    reason: 'pre_migration',
+    kind: 'pre_migration',
+    status: 'ready',
+    createdAt: '2026-10-06T09:00:00Z',
+    createdBy: null,
+    restoreOf: null,
+    deletable: false,
+  },
 ];
 
 let root: Root | null = null;
@@ -103,6 +114,16 @@ describe('RestorePointsCard', () => {
     // Admins (not owners) get no Restore button; only manual points are deletable.
     expect([...host.querySelectorAll('button')].some((b) => b.textContent?.includes('Restore'))).toBe(false);
     expect(host.querySelectorAll('[aria-label^="Delete restore point"]')).toHaveLength(1);
+  });
+
+  it('folds automatic pre-migration snapshots away until asked', async () => {
+    api.queryOp.mockResolvedValue(listing(false));
+    await render();
+    expect(host.querySelector('[data-restore-point="snap_0"]')).toBeNull();
+    await act(async () => button('Show 1 automatic snapshot', host).click());
+    expect(host.textContent).toContain('Before a database migration');
+    await act(async () => button('Hide automatic snapshots', host).click());
+    expect(host.querySelector('[data-restore-point="snap_0"]')).toBeNull();
   });
 
   it('takes a labelled restore point and reloads the list', async () => {
