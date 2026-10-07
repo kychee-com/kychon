@@ -22,6 +22,7 @@ import { uploadFileContentAddressed } from '@/lib/storage-upload';
 
 export interface MediaAssetRef {
   key: string;
+  url?: string | null;
   cdn_url: string;
   cdn_immutable_url?: string;
   immutable_url?: string;
@@ -50,11 +51,21 @@ export interface MediaAssetRef {
     [key: string]: unknown;
   } | null;
   variants?: {
-    thumb?: { cdn_url: string; width_px?: number; height_px?: number; format?: string };
-    medium?: { cdn_url: string; width_px?: number; height_px?: number; format?: string };
-    large?: { cdn_url: string; width_px?: number; height_px?: number; format?: string };
-    display_jpeg?: { cdn_url: string; width_px?: number; height_px?: number; format?: string };
+    thumb?: MediaAssetVariant;
+    medium?: MediaAssetVariant;
+    large?: MediaAssetVariant;
+    display_jpeg?: MediaAssetVariant;
   };
+}
+
+interface MediaAssetVariant {
+  cdn_url: string;
+  url?: string | null;
+  immutable_url?: string | null;
+  cdn_immutable_url?: string | null;
+  width_px?: number;
+  height_px?: number;
+  format?: string;
 }
 
 interface MediaPickerProps {
@@ -165,7 +176,7 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
     try {
       const probe = await execOp('media.delete', {
         path: selected.key.replace(/^assets\//, ''),
-        cdn_url: selected.cdn_url,
+        urls: mediaAssetUrls(selected),
         confirmed: confirmDelete !== null,
       });
       if (probe?.status === 'pending_confirmation' && probe?.inUse) {
@@ -391,6 +402,15 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Every URL content may hold for an asset, for media.delete's in-use check. */
+export function mediaAssetUrls(ref: MediaAssetRef): string[] {
+  const urls = [ref.cdn_immutable_url, ref.immutable_url, ref.cdn_url, ref.url];
+  for (const variant of Object.values(ref.variants ?? {})) {
+    urls.push(variant?.cdn_immutable_url, variant?.immutable_url, variant?.cdn_url, variant?.url);
+  }
+  return [...new Set(urls.filter((url): url is string => typeof url === 'string' && url.length > 0))];
 }
 
 /** The URL content should store for a picked asset: immutable first (same order as upload-asset). */

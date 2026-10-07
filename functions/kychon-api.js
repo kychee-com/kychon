@@ -4200,43 +4200,22 @@ async function deletePageWithCascade(input, _actor) {
   );
 }
 
-// -- Media library: thin wrappers over upload-asset.js's storage delegation --
-//
-// `media.list` is a read-side handler (see handleMediaList below). `media.delete`
-// is a mutation that also runs an in-use check against sections.config /
-// site_config.value text. Both delegate the actual storage operations to
-// upload-asset.js via an internal HTTP hop.
+// -- Media library -------------------------------------------------------------
+// Admin uploads live under `assets/<path>` (functions/upload-asset.js writes
+// them). The handlers check the admin role, then call the platform's asset API
+// with the project service key.
 
-const UPLOAD_ASSET_FN = 'upload-asset';
+const MEDIA_STORAGE_PREFIX = 'assets/';
+// Picker grid page: 40 thumbnails (4 columns x 10 rows).
+const MEDIA_LIST_LIMIT = 40;
+// `media.delete` runs a service-key delete, so `path` must stay inside the
+// prefix: safe ASCII only, no traversal, leading slash or empty segment.
+const SAFE_MEDIA_PATH = /^[A-Za-z0-9_.\-/]+$/;
 
-async function callUploadAssetFn(body) {
-  // The upload-asset function lives in the same project and is gated by the
-  // same admin role check (today via SELECT-role; future via declarative
-  // gate). Calling it via the gateway preserves the auth surface — we don't
-  // bypass admin checks by short-circuiting to assets.put here.
-  const url = `https://api.run402.com/functions/v1/${UPLOAD_ASSET_FN}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${process.env.RUN402_SERVICE_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {
-    json = { error: 'invalid_json_response', raw: text };
-  }
-  if (!res.ok) {
-    throw capabilityError('internal.error', json?.error || `upload-asset ${body.action || 'invoke'} failed`, {
-      detail: json?.detail || null,
-      status: res.status,
-    });
-  }
-  return json;
+function isSafeMediaPath(value) {
+  if (typeof value !== 'string' || !value || !SAFE_MEDIA_PATH.test(value)) return false;
+  if (value.startsWith('/') || value.includes('//')) return false;
+  return !value.split('/').some((segment) => segment === '..' || segment === '.');
 }
 
 // --- Content history: revert ------------------------------------------------------
@@ -5119,18 +5098,21 @@ async function handleMediaList(correlationId, input, actor) {
     });
   }
   try {
-    const result = await callUploadAssetFn({
-      action: 'list',
-      cursor: typeof input?.cursor === 'string' ? input.cursor : undefined,
-      filter: isPlainObject(input?.filter) ? input.filter : undefined,
+    const cursor = typeof input?.cursor === 'string' && input.cursor ? input.cursor : undefined;
+    const page = await assets.list({
+      prefix: MEDIA_STORAGE_PREFIX,
+      sort: 'createdAt:desc',
+      limit: MEDIA_LIST_LIMIT,
+      ...(cursor ? { cursor } : {}),
+      ...(isPlainObject(input?.filter) ? { filter: input.filter } : {}),
     });
     return successResponse(correlationId, {
-      assets: Array.isArray(result?.assets) ? result.assets : [],
-      nextCursor: result?.nextCursor ?? null,
+      assets: Array.isArray(page?.blobs) ? page.blobs : [],
+      nextCursor: page?.next_cursor ?? null,
     });
   } catch (err) {
     return errorResponse(correlationId, 500, {
-      code: err?.capabilityCode || 'internal.error',
+      code: 'internal.error',
       message: err?.message || 'media.list failed',
       detail: err?.detail || null,
       retryable: true,
@@ -5143,19 +5125,20 @@ async function deleteMediaAsset(input, _actor) {
   if (!path) {
     throw capabilityError('validation.failed', 'media.delete requires path.', { path });
   }
-  // In-use check: scan sections.config + site_config.value for the asset's
-  // cdn_url substring. This is a Kychon-side warning, NOT a hard block —
-  // platform-side variant revocation + immutable retention handles the
-  // storage-side cleanup regardless.
-  const cdnUrl = typeof input.cdn_url === 'string' ? input.cdn_url : null;
+  if (!isSafeMediaPath(path)) {
+    throw capabilityError('validation.failed', 'media.delete path must be a relative asset path.', { path });
+  }
+  // In-use check: does any content row mention one of the asset's URLs
+  // (mutable, immutable or a variant)? A warning, not a block: the platform
+  // revokes the URLs and keeps immutable retention regardless.
+  const urls = [
+    ...(Array.isArray(input.urls) ? input.urls : []),
+    ...(typeof input.cdn_url === 'string' ? [input.cdn_url] : []),
+  ].filter((url) => typeof url === 'string' && url.length > 0);
   let inUse = false;
-  if (cdnUrl) {
+  if (urls.length) {
     try {
-      const probe = await adminDb().sql(
-        "SELECT 1 FROM sections WHERE config::text LIKE '%' || $1 || '%' LIMIT 1 UNION ALL SELECT 1 FROM site_config WHERE value::text LIKE '%' || $1 || '%' LIMIT 1",
-        [cdnUrl],
-      );
-      inUse = (probe.rows?.length || 0) > 0;
+      inUse = await contentMentionsAny([...new Set(urls)]);
     } catch (err) {
       console.warn('[media.delete] in-use probe failed; defaulting to inUse=false', err);
     }
@@ -5165,8 +5148,29 @@ async function deleteMediaAsset(input, _actor) {
   if (inUse && input.confirmed !== true) {
     return actionResult({ status: 'pending_confirmation', inUse: true, path }, [], null);
   }
-  const result = await callUploadAssetFn({ action: 'delete', path });
-  return actionResult({ ...result, inUse }, [changedObject('asset', path)], null);
+  const key = `${MEDIA_STORAGE_PREFIX}${path}`;
+  try {
+    await assets.delete(key);
+  } catch (err) {
+    // Already gone is fine: the picker's delete stays idempotent.
+    if (!/404|not.?found/i.test(String(err?.message || err))) throw err;
+  }
+  return actionResult({ status: 'deleted', path, inUse }, [changedObject('asset', path)], null);
+}
+
+/** True when any history-tracked content row contains one of `urls` verbatim. */
+async function contentMentionsAny(urls) {
+  const db = adminDb();
+  for (const table of HISTORY_TABLES) {
+    const result = await db.sql(
+      `SELECT EXISTS (SELECT 1 FROM ${table} t WHERE EXISTS (
+         SELECT 1 FROM unnest($1::text[]) AS u(url) WHERE strpos(row_to_json(t)::text, u.url) > 0
+       )) AS hit`,
+      [urls],
+    );
+    if (normalizeDbRows(result)[0]?.hit === true) return true;
+  }
+  return false;
 }
 
 // -- media from an AI connector -----------------------------------------------

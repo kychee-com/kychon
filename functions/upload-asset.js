@@ -1,4 +1,4 @@
-// schedule: none (triggered by admin for asset upload/delete/list)
+// schedule: none (triggered by an admin uploading to the media library)
 // The Run402 platform manages all media metadata (filename, uploader,
 // dimensions, blurhash, variants, exif policy) via `internal.blobs.metadata`
 // + intrinsic image columns; Kychon keeps no shadow `media_assets` table.
@@ -14,8 +14,8 @@ import { adminDb, assets, auth } from '@run402/functions';
 const WORDMARK_ASPECT_THRESHOLD = 1.5;
 
 // Asset paths are passed by the admin UI; the storage call runs with the
-// project service key, so an unvalidated `body.path` is a privileged delete
-// primitive across the entire storage API. Constrain the shape strictly:
+// project service key, so an unvalidated `body.path` is a privileged write
+// anywhere in the storage API. Constrain the shape strictly:
 // safe ASCII characters only, no traversal, no leading slash, no double
 // slashes, no NUL.
 const SAFE_ASSET_PATH = /^[A-Za-z0-9_.\-/]+$/;
@@ -29,12 +29,8 @@ function isSafeAssetPath(value) {
 }
 
 // Storage prefix for admin uploads. Every uploaded asset lives under
-// `assets/<path>`; the picker's media.list lists with this prefix.
+// `assets/<path>`; kychon-api's media.list / media.delete use the same prefix.
 const STORAGE_PREFIX = 'assets/';
-
-// Pagination cap for the picker grid. 40 thumbnails per page balances
-// network cost with the picker UX (4-col grid × 10 rows visible).
-const MEDIA_LIST_LIMIT = 40;
 
 export default async (req) => {
   const user = await auth.user();
@@ -50,59 +46,6 @@ export default async (req) => {
 
   try {
     const body = await req.json();
-
-    // -- List action --------------------------------------------------------
-    // Thin wrapper over `assets.ls`. Returns the BlobLsResult reshaped
-    // as `{ assets, nextCursor }` for the MediaPicker's expected shape.
-    // Optional filter passthrough lets future "filter by uploader" / "show
-    // only photos" views work without API churn.
-    if (body.action === 'list') {
-      const cursor = typeof body.cursor === 'string' && body.cursor.length > 0 ? body.cursor : undefined;
-      const filter = body.filter && typeof body.filter === 'object' ? body.filter : undefined;
-      try {
-        const lsResult = await assets.ls({
-          prefix: STORAGE_PREFIX,
-          sort: 'createdAt:desc',
-          limit: MEDIA_LIST_LIMIT,
-          cursor,
-          filter,
-        });
-        return new Response(
-          JSON.stringify({
-            assets: lsResult.blobs ?? [],
-            nextCursor: lsResult.next_cursor ?? null,
-          }),
-        );
-      } catch (err) {
-        return new Response(JSON.stringify({ error: 'List failed', detail: String(err?.message || err) }), {
-          status: 500,
-        });
-      }
-    }
-
-    // -- Delete action ------------------------------------------------------
-    // Platform handles variant revocation, immutable-URL retention, and CDN
-    // invalidation. NO local DB delete — there's no shadow table.
-    if (body.action === 'delete' && body.path) {
-      if (!isSafeAssetPath(body.path)) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid path', detail: 'Asset path must be a relative ASCII segment chain.' }),
-          { status: 400 },
-        );
-      }
-      const storageKey = `${STORAGE_PREFIX}${body.path}`;
-      try {
-        await assets.rm(storageKey);
-      } catch (err) {
-        // 404 (already-deleted / never-existed) is benign — return 'deleted'
-        // so the UI is idempotent. Other errors propagate as 500.
-        const msg = String(err?.message || err);
-        if (!/404|not.?found/i.test(msg)) {
-          return new Response(JSON.stringify({ error: 'Delete failed', detail: msg }), { status: 500 });
-        }
-      }
-      return new Response(JSON.stringify({ status: 'deleted', path: body.path }));
-    }
 
     // -- Upload action ------------------------------------------------------
     const { file, path } = body;

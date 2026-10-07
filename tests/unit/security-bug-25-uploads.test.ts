@@ -32,11 +32,7 @@ const mockState = vi.hoisted(() => ({
     metadata?: Record<string, unknown>;
     exifPolicy?: string;
   }>,
-  assetRmCalls: [] as string[],
-  assetLsCalls: [] as Array<Record<string, unknown>>,
-  assetLsResponse: { blobs: [] as unknown[], next_cursor: null as string | null },
   uploadResponse: { ok: true, url: '/storage/test', status: 200 },
-  deleteResponse: { ok: true, status: 200 },
   sqlCalls: [] as Array<{ query: string; params: unknown[] }>,
   memberLookups: [] as Array<{ column: string; value: unknown }>,
 }));
@@ -128,17 +124,6 @@ vi.mock(
           contentSha256: 'mockedsha',
         });
       },
-      rm(key: string) {
-        mockState.assetRmCalls.push(key);
-        if (mockState.deleteResponse.status >= 400 && mockState.deleteResponse.status !== 404) {
-          return Promise.reject(new Error(`mock rm failed: ${mockState.deleteResponse.status}`));
-        }
-        return Promise.resolve();
-      },
-      ls(opts: Record<string, unknown>) {
-        mockState.assetLsCalls.push(opts);
-        return Promise.resolve(mockState.assetLsResponse);
-      },
     },
   }),
   { virtual: true },
@@ -150,21 +135,14 @@ beforeEach(() => {
   mockState.resources = [];
   mockState.fetchCalls = [];
   mockState.assetPutCalls = [];
-  mockState.assetRmCalls = [];
   mockState.sqlCalls = [];
   mockState.memberLookups = [];
   mockState.uploadResponse = { ok: true, url: '/storage/test', status: 200 };
-  mockState.deleteResponse = { ok: true, status: 200 };
   process.env.RUN402_SERVICE_KEY = 'service-key-test';
 
   globalThis.fetch = vi.fn(async (url: string, init?: { method?: string }) => {
     const method = init?.method || 'GET';
     mockState.fetchCalls.push({ url: String(url), method });
-    if (method === 'DELETE') {
-      return new Response(JSON.stringify({ deleted: true }), {
-        status: mockState.deleteResponse.status,
-      });
-    }
     return new Response(JSON.stringify({ url: mockState.uploadResponse.url }), {
       status: mockState.uploadResponse.status,
     });
@@ -236,47 +214,31 @@ describe('bug #25 — upload-resource.js role check + uploaded_by spoof', () => 
   });
 });
 
-describe('bug #25 — upload-asset.js path traversal in delete', () => {
-  it('rejects body.path containing ".." path traversal', async () => {
+describe('bug #25 — upload-asset.js path traversal in upload', () => {
+  const ADMIN = { id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' };
+  const uploadTo = (path: string) =>
+    jsonReq('upload-asset', { file: { name: 'logo.png', type: 'image/png', data: btoa('png') }, path });
+
+  it.each([
+    ['".." path traversal', '../resources/secret.pdf'],
+    ['a leading slash (escapes the prefix)', '/etc/secret'],
+    ['a double slash', 'foo//bar'],
+  ])('rejects a path with %s', async (_label, path) => {
     mockState.user = { id: 'admin-user' };
-    mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
+    mockState.members = [ADMIN];
     const handler = (await import('../../functions/upload-asset.js')).default;
-    const res = await handler(jsonReq('upload-asset', { action: 'delete', path: '../resources/secret.pdf' }));
+    const res = await handler(uploadTo(path));
     expect(res.status).toBe(400);
-    // Crucially — no DELETE request should have been issued upstream.
-    expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
+    expect(mockState.assetPutCalls).toHaveLength(0);
   });
 
-  it('rejects body.path with leading slash (escapes bucket prefix)', async () => {
+  it('uploads a clean path under the assets/ prefix', async () => {
     mockState.user = { id: 'admin-user' };
-    mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
+    mockState.members = [ADMIN];
     const handler = (await import('../../functions/upload-asset.js')).default;
-    const res = await handler(jsonReq('upload-asset', { action: 'delete', path: '/etc/secret' }));
-    expect(res.status).toBe(400);
-    expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
-  });
-
-  it('rejects body.path with double slash', async () => {
-    mockState.user = { id: 'admin-user' };
-    mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
-    const handler = (await import('../../functions/upload-asset.js')).default;
-    const res = await handler(jsonReq('upload-asset', { action: 'delete', path: 'foo//bar' }));
-    expect(res.status).toBe(400);
-    expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
-  });
-
-  it('accepts a clean asset path and delegates to assets.rm (#28; v1.50 refactor)', async () => {
-    mockState.user = { id: 'admin-user' };
-    mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
-    const handler = (await import('../../functions/upload-asset.js')).default;
-    const res = await handler(jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }));
+    const res = await handler(uploadTo('logo.png'));
     expect(res.status).toBe(200);
-    // The admin-content-management refactor switched the delete path from a
-    // raw fetch() against /storage/v1/blob/<key> to assets.rm(<key>). The
-    // platform handles variant revocation + CDN invalidation; we just call
-    // through with the prefixed key.
-    expect(mockState.assetRmCalls).toContain('assets/logo.png');
-    expect(mockState.fetchCalls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
+    expect(mockState.assetPutCalls.map((c) => c.key)).toEqual(['assets/logo.png']);
   });
 });
 
@@ -285,7 +247,9 @@ describe('bug #25 — upload-asset.js never builds SQL from user.id', () => {
     mockState.user = { id: 'admin-user' };
     mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
     const handler = (await import('../../functions/upload-asset.js')).default;
-    const res = await handler(jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }));
+    const res = await handler(
+      jsonReq('upload-asset', { file: { name: 'logo.png', type: 'image/png', data: btoa('png') }, path: 'logo.png' }),
+    );
 
     expect(res.status).toBe(200);
     expect(mockState.memberLookups).toEqual([{ column: 'user_id', value: 'admin-user' }]);
@@ -338,14 +302,12 @@ describe('uploads require an active admin or a project admin', () => {
     });
   }
 
-  it('upload-asset: rejects a delete from a pending admin', async () => {
+  it('upload-asset: rejects an upload from a pending admin', async () => {
     mockState.user = { id: 'pending-admin', email: 'linus@example.com' };
     mockState.members = MEMBERS;
-    const res = await (await handlers['upload-asset']()).default(
-      jsonReq('upload-asset', { action: 'delete', path: 'logo.png' }),
-    );
+    const res = await (await handlers['upload-asset']()).default(upload['upload-asset']());
     expect(res.status).toBe(403);
-    expect(mockState.assetRmCalls).toHaveLength(0);
+    expect(mockState.assetPutCalls).toHaveLength(0);
   });
 
   it('upload-resource credits an admin matched by email with their own member row', async () => {
