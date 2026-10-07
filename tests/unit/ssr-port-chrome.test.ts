@@ -9,6 +9,7 @@ import { bakeChrome } from '../../src/lib/chrome-bake';
 import { applyBranding, stripBrandSuffix } from '../../src/lib/config';
 import { resolveActiveProjectSeed } from '../../src/seeds/index';
 import { seed as neutralSeed } from '../../src/seeds/neutral';
+import { headFixture } from '../helpers/dom-fixture.js';
 
 const SNAPSHOT = join(process.cwd(), 'fixtures/chrome/sample-boat-club.chrome-snapshot.json');
 const ORIGINAL_ENV = { ...process.env };
@@ -17,7 +18,7 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  document.head.innerHTML = '';
+  headFixture('');
 });
 
 describe('request-time chrome for ports', () => {
@@ -52,7 +53,7 @@ describe('request-time chrome for ports', () => {
 
 describe('applyBranding', () => {
   it('replaces a stale baked brand instead of appending the live one', () => {
-    document.head.innerHTML = '<title data-brand="Member Portal">Calendar — Member Portal</title>';
+    headFixture('<title data-brand="Member Portal">Calendar — Member Portal</title>');
 
     applyBranding({ site_name: 'Outdoor Club' });
 
@@ -60,7 +61,7 @@ describe('applyBranding', () => {
   });
 
   it('brands an unbranded baked title once', () => {
-    document.head.innerHTML = '<title>Calendar</title>';
+    headFixture('<title>Calendar</title>');
 
     applyBranding({ site_name: 'Outdoor Club' });
     applyBranding({ site_name: 'Outdoor Club' });

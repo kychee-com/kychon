@@ -66,6 +66,10 @@ function parseSnapshot(path: string): ProjectSeed {
   return parseSnapshotJson(readFileSync(path, 'utf-8'), path);
 }
 
+// Substituted by Vite's `define` in astro.config.mjs ('' when the build has no
+// snapshot); undeclared outside Vite.
+declare const __KYCHON_CHROME_SNAPSHOT_JSON__: string | undefined;
+
 /**
  * The chrome snapshot's JSON as baked into the bundle by Vite's `define`
  * (`astro.config.mjs`). The SSR Lambda has neither the build's
