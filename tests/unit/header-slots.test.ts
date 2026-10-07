@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { is, selectAll, selectOne } from 'css-select';
+import type { Document, Element } from 'domhandler';
+import { parseDocument } from 'htmlparser2';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -124,5 +127,126 @@ describe('header slot CSS', () => {
     );
     expect(mobile).toContain('white-space: nowrap');
     expect(mobile).toMatch(/\[data-header-mobile="row"\] ~ \[data-header-mobile="row"\] \{\s*justify-self: end;/);
+  });
+});
+
+// Applies the header-slot rules to real header markup. css-select stands in
+// for the browser because happy-dom mis-evaluates relative `:has()`. The baked
+// markup (blocks are direct children of the container) and the hydrated markup
+// (blocks inside the `display: contents` [data-react-html-children] wrapper)
+// must place the same way: d25ec40 matched only the baked shape, so live pages
+// ignored every slot.
+describe('header slot CSS on baked and hydrated markup', () => {
+  const css = readFileSync('src/styles/public.css', 'utf8');
+  const section = css.slice(css.indexOf('/* Header slots (kychon#192)')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const mobileStart = section.indexOf('@media (max-width: 900px)');
+  const rules = [...section.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    selector: m[1].trim(),
+    mobile: (m.index ?? 0) > mobileStart,
+    decls: Object.fromEntries(
+      m[2]
+        .split(';')
+        .map((decl) => decl.split(':').map((part) => part.trim()))
+        .filter(([prop, value]) => prop && value)
+        .map(([prop, ...value]) => [prop, value.join(':')]),
+    ),
+  }));
+
+  function header(hydrated: boolean, sections: Section[]): Document {
+    const html = sections.map((section) => renderBlock(section, ctx)).join('');
+    const body = hydrated ? `<div data-react-html-children class="contents">${html}</div>` : html;
+    return parseDocument(`<nav data-nav-shell><div data-layout-container>${body}</div></nav>`);
+  }
+
+  function find(doc: Document, selector: string): Element {
+    const el = selectOne(selector, doc);
+    if (!el) throw new Error(`missing ${selector}`);
+    return el;
+  }
+
+  // Declarations from every matching slot rule, in source order.
+  function placed(el: Element, mobile: boolean): Record<string, string> {
+    return Object.assign(
+      {},
+      ...rules.filter((rule) => rule.mobile === mobile && is(el, rule.selector)).map((rule) => rule.decls),
+    );
+  }
+
+  // OCEY's header (kychon#192): JOIN, RENEW and sign-in on row 1, search beside the nav.
+  const ocey = [
+    headerSection('brand_header'),
+    headerSection('nav'),
+    headerSection('safety_cta', { label: 'JOIN', header_slot: 'top_right', header_mobile: 'row' }),
+    headerSection('safety_cta', { label: 'RENEW MEMBERSHIP', header_slot: 'top_right', header_mobile: 'row' }),
+    headerSection('site_search', { header_slot: 'bottom_right' }),
+    headerSection('sign_in_bar', { header_slot: 'top_right' }),
+  ];
+
+  it('parses the slot rules', () => {
+    expect(rules.length).toBeGreaterThan(10);
+    expect(rules.some((rule) => rule.mobile)).toBe(true);
+  });
+
+  describe.each([
+    ['baked', false],
+    ['hydrated', true],
+  ])('%s markup', (_shape, hydrated) => {
+    const doc = header(hydrated, ocey);
+    const container = find(doc, '[data-layout-container]');
+    const [join, renew] = selectAll('[data-safety-cta]', doc);
+    const search = find(doc, '[data-header-slot="bottom_right"]');
+    const signIn = find(doc, '#nav-user');
+    const navLinks = find(doc, '[data-nav-links]');
+
+    it('desktop: CTAs and sign-in on row 1, search on row 2 right of the nav', () => {
+      expect(placed(container, false)).toMatchObject({
+        '--nav-slot-top-span': '3',
+        '--nav-slot-row-span': '4',
+        'grid-template-columns': 'auto minmax(0, 1fr)',
+      });
+      for (const el of [join, renew, signIn]) {
+        expect(placed(el, false)).toMatchObject({ 'grid-row': '1', 'grid-column': 'auto', 'white-space': 'nowrap' });
+      }
+      expect(placed(search, false)).toMatchObject({
+        'grid-row': '2',
+        'grid-column': '3 / span var(--nav-slot-top-span)',
+        'justify-self': 'end',
+      });
+      expect(placed(navLinks, false)).toMatchObject({ 'grid-column': '2' });
+    });
+
+    it('mobile: CTAs share their own row below the nav, first start and second end', () => {
+      expect(placed(join, true)).toMatchObject({
+        'grid-row': '3',
+        'grid-column': '1 / -1',
+        'justify-self': 'start',
+        'white-space': 'nowrap',
+      });
+      expect(placed(renew, true)).toMatchObject({ 'grid-row': '3', 'justify-self': 'end' });
+      expect(placed(search, true)).toEqual({});
+      expect(placed(signIn, true)).toEqual({});
+    });
+
+    it('without bottom_right the nav row runs under the top-right slots', () => {
+      const noSearch = header(
+        hydrated,
+        ocey.filter((section) => section.section_type !== 'site_search'),
+      );
+      expect(placed(find(noSearch, '[data-nav-links]'), false)).toMatchObject({
+        'grid-column': '2 / span var(--nav-slot-row-span)',
+      });
+    });
+
+    it('leaves a header with no slots on the default grid', () => {
+      const plain = header(hydrated, [
+        headerSection('brand_header'),
+        headerSection('nav'),
+        headerSection('safety_cta'),
+      ]);
+      for (const el of selectAll('*', plain)) {
+        expect(placed(el, false)).toEqual({});
+        expect(placed(el, true)).toEqual({});
+      }
+    });
   });
 });
