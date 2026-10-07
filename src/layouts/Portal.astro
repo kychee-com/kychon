@@ -86,7 +86,7 @@ const { title, robots, extraHead, pageSlug, pageSections, description, image } =
 // `page-render.ts:hydratePage`; this layout owns the very first paint
 // for every route — prerendered ones via the build-time bake, SSR ones
 // via the per-request bake.
-const { seed } = await resolveActiveProjectSeed();
+const { seed, source: seedSource } = await resolveActiveProjectSeed();
 let headerSections = pageSections;
 let requestManifest: AssetManifest | null = null;
 if (pageSlug && !headerSections) {
@@ -103,7 +103,11 @@ if (pageSlug && !headerSections) {
   }
 }
 const chromeSeed = pageSlug ? mergeSeedSections(seed, pageSlug, headerSections ?? []) : seed;
-const chrome = bakeChrome(chromeSeed, title, { pageSlug, manifest: requestManifest });
+const chrome = bakeChrome(chromeSeed, title, {
+  pageSlug,
+  manifest: requestManifest,
+  brandTitle: seedSource.kind !== 'neutral-fallback',
+});
 const renderDemoBanner = isDemoModeSeed(seed);
 // site_config.seo_noindex wins over the page's own `robots` (kychon#189).
 // The meta is always baked (`all` when nothing restricts the page) so
@@ -151,7 +155,7 @@ const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAsse
   <meta http-equiv="Content-Security-Policy" content={cspValue}>
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta id={ROBOTS_META_ID} name="robots" content={robotsContent} data-page-robots={robots ?? ''}>
-  <title>{chrome.title}</title>
+  <title data-brand={chrome.titleBrand || undefined}>{chrome.title}</title>
   {description && <meta name="description" content={description}>}
   {(description || image) && <meta property="og:title" content={chrome.title}>}
   {description && <meta property="og:description" content={description}>}

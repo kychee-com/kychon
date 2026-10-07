@@ -155,6 +155,14 @@ export function isNavItemActive(
   return (ACTIVE_ROUTE_ALIASES[currentRoute.path] || []).includes(targetRoute.path);
 }
 
+/** `title` without trailing ` — <siteName>` suffixes. */
+export function stripBrandSuffix(title: string, siteName: string): string {
+  const suffix = ` — ${String(siteName || '').trim()}`;
+  let stripped = String(title || '').trim();
+  while (suffix.length > 3 && stripped.endsWith(suffix)) stripped = stripped.slice(0, -suffix.length).trimEnd();
+  return stripped;
+}
+
 export function getBrandedTitle(title: string, siteName: string): string {
   const cleanSiteName = String(siteName || '').trim();
   if (!cleanSiteName) return String(title || '').trim();
@@ -460,7 +468,11 @@ function isSvgFaviconUrl(url: string): boolean {
 
 export function applyBranding(config: Record<string, any>): void {
   const name = config.brand_text || config.site_name || 'Kychon';
-  document.title = getBrandedTitle(document.title, name);
+  // The baked title may carry a brand the live config has since replaced;
+  // drop it rather than append the live one after it (kychon#228).
+  const bakedBrand = findDirectElementChild(document.head, (child) => child instanceof HTMLTitleElement)?.dataset.brand;
+  const title = bakedBrand && bakedBrand !== name ? stripBrandSuffix(document.title, bakedBrand) : document.title;
+  document.title = getBrandedTitle(title, name);
 
   const favicon = faviconLinkElement();
   if (!favicon) return;

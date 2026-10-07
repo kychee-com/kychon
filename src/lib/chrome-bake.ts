@@ -37,6 +37,12 @@ export interface BakedChrome {
   isSvgFavicon: boolean;
   title: string;
   /**
+   * Site name the baked `title` ends with (`''` when unbranded). Portal.astro
+   * stamps it on `<title data-brand>` so config.ts:applyBranding can swap a
+   * stale baked brand for the live one instead of appending to it.
+   */
+  titleBrand: string;
+  /**
    * Origin (e.g. `https://pr-256e20.run402.com`) of the image CDN serving
    * the manifest's variants. Null when there's no manifest. Portal.astro
    * emits a `<link rel="preconnect">` so TCP+TLS to the CDN happens in
@@ -324,6 +330,11 @@ export interface BakeChromeOptions {
    * (`ssrAssetManifest`) so a page_banner's `/assets/<name>` resolves to its CDN URL.
    */
   manifest?: BlockRenderContext['manifest'];
+  /**
+   * `false` leaves the site name out of the title — for the neutral fallback,
+   * whose placeholder brand must never reach a tab title (kychon#228).
+   */
+  brandTitle?: boolean;
 }
 
 export function bakeChrome(
@@ -349,6 +360,7 @@ export function bakeChrome(
   const themeFontVarLines: string[] = [];
   if (headingVar) themeFontVarLines.push(`--font-heading: ${headingVar};`);
   if (bodyVar) themeFontVarLines.push(`--font-body: ${bodyVar};`);
+  const titleBrand = options.brandTitle === false ? '' : (bakeCtx.siteName || bakeCtx.brandText || '').trim();
   return {
     headerHtml: header.html,
     headerFullBleedHtml: header.fullBleedHtml,
@@ -365,7 +377,8 @@ export function bakeChrome(
     customCss: stringFromSeed(seed, 'custom_css'),
     faviconUrl,
     isSvgFavicon: isSvgFaviconUrl(faviconSource),
-    title: getBrandedTitle(pageTitle, bakeCtx.siteName || bakeCtx.brandText || ''),
+    title: getBrandedTitle(pageTitle, titleBrand),
+    titleBrand,
     cdnOrigin: cdnOriginFromManifest(bakeCtx.manifest),
     themeFontVarsCss: themeFontVarLines.join(' '),
     colorScheme: colorSchemeFromTheme(theme),

@@ -101,6 +101,14 @@ function safeAssetPath(assetDir, url = '') {
   return filePath;
 }
 
+// The external chrome snapshot's JSON (empty when none is set), read the same
+// way `src/seeds/index.ts` resolves `KYCHON_CHROME_SNAPSHOT` at build time.
+function readChromeSnapshotJson() {
+  const raw = process.env.KYCHON_CHROME_SNAPSHOT?.trim();
+  if (!raw) return '';
+  return readFileSync(resolve(process.cwd(), raw), 'utf8');
+}
+
 // Provide `virtual:run402-assetmap` as a null-manifest stub when the
 // `@run402/astro` integration isn't active (no KYCHON_PROJECT / RUN402_PROJECT_ID).
 // The integration registers this virtual module itself; chrome-bake.ts's
@@ -270,6 +278,14 @@ export default defineConfig({
       // `src/lib/ssr-api.ts` can hand it to the SDK at request time.
       // Same value the browser uses — role:anon JWT, safe to embed.
       'import.meta.env.KYCHON_ANON_KEY': JSON.stringify(process.env.KYCHON_ANON_KEY ?? ''),
+      // A port's chrome snapshot (the file `KYCHON_CHROME_SNAPSHOT` names,
+      // with the deploy's live site_config already applied). The SSR Lambda
+      // has neither the env var nor the file, so request-time routes read
+      // this copy and bake the same chrome as prerendered pages (kychon#228).
+      // A bare identifier, not `import.meta.env.*`: Vite inlines the whole
+      // env object into every chunk that reads it, which would copy the
+      // snapshot once per chunk.
+      __KYCHON_CHROME_SNAPSHOT_JSON__: JSON.stringify(readChromeSnapshotJson()),
     },
     server: {
       watch: {

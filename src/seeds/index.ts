@@ -1,5 +1,7 @@
 // Project seed selector. Resolves first-byte chrome in this order:
-//   1. KYCHON_CHROME_SNAPSHOT JSON (for ports without typed engine seeds)
+//   1. KYCHON_CHROME_SNAPSHOT JSON (for ports without typed engine seeds) —
+//      read from the path at build time, from the copy `astro.config.mjs`
+//      bakes into the bundle at request time inside the SSR Lambda
 //   2. KYCHON_PROJECT typed seed
 //   3. Neutral fallback for unknown hosted-port project names
 //
@@ -50,8 +52,7 @@ function assertRecord(value: unknown, message: string): asserts value is Record<
   }
 }
 
-function parseSnapshot(path: string): ProjectSeed {
-  const raw = readFileSync(path, 'utf-8');
+function parseSnapshotJson(raw: string, path: string): ProjectSeed {
   const parsed: unknown = JSON.parse(raw);
   assertRecord(parsed, `Chrome snapshot ${path} must be a JSON object`);
   assertRecord(parsed.site_config, `Chrome snapshot ${path} must include a site_config object`);
@@ -59,6 +60,23 @@ function parseSnapshot(path: string): ProjectSeed {
     throw new Error(`Chrome snapshot ${path} must include a sections array`);
   }
   return parsed as unknown as ProjectSeed;
+}
+
+function parseSnapshot(path: string): ProjectSeed {
+  return parseSnapshotJson(readFileSync(path, 'utf-8'), path);
+}
+
+/**
+ * The chrome snapshot's JSON as baked into the bundle by Vite's `define`
+ * (`astro.config.mjs`). The SSR Lambda has neither the build's
+ * `KYCHON_CHROME_SNAPSHOT` env var nor the file it points at, so without this
+ * a port's request-time routes (`/event`, `/calendar`, `/search`) would bake
+ * the neutral fallback instead of the chrome its prerendered pages carry
+ * (kychon#228). Empty outside a Vite build with a snapshot.
+ */
+function bakedSnapshotJson(): string {
+  // `typeof` keeps an un-substituted identifier (tsx, vitest) from throwing.
+  return typeof __KYCHON_CHROME_SNAPSHOT_JSON__ === 'string' ? __KYCHON_CHROME_SNAPSHOT_JSON__.trim() : '';
 }
 
 function requestedProjectName(): string | null {
@@ -111,6 +129,14 @@ export async function resolveActiveProjectSeed(): Promise<ActiveProjectSeed> {
     return {
       seed: parseSnapshot(snapshotPath),
       source: { kind: 'external-snapshot', path: snapshotPath },
+    };
+  }
+  const bakedSnapshot = bakedSnapshotJson();
+  if (bakedSnapshot) {
+    const path = 'KYCHON_CHROME_SNAPSHOT (baked at build)';
+    return {
+      seed: parseSnapshotJson(bakedSnapshot, path),
+      source: { kind: 'external-snapshot', path },
     };
   }
 

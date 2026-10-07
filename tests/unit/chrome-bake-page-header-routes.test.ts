@@ -101,7 +101,7 @@ describe('built-in route page-header bake (kychon#219)', () => {
     expect(portal).toMatch(/Astro\.isPrerendered/);
     expect(portal).toMatch(/getBuildSections\(pageSlug\)/);
     expect(portal).toMatch(/ssrPageHeaderSections\(\{ slug: pageSlug/);
-    expect(portal).toMatch(/bakeChrome\(chromeSeed, title, \{ pageSlug, manifest: requestManifest \}\)/);
+    expect(portal).toMatch(/bakeChrome\(chromeSeed, title, \{\s*pageSlug,\s*manifest: requestManifest,/);
   });
 });
 
