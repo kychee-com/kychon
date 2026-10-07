@@ -44,7 +44,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/sortablejs": "^1.15.9",
-    "@vitest/coverage-v8": "^3.1.1",
+    "@vitest/coverage-v8": "^5.0.3",
     "astro": "^7.0.0",
     "css-select": "^5.2.2",
     "fast-check": "^4.1.1",
@@ -54,7 +54,7 @@
     "tailwindcss": "4.2.4",
     "tsx": "4.21.0",
     "typescript": "^5.7.3",
-    "vitest": "^3.1.1"
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "@astrojs/react": "6.0.0",
