@@ -64,11 +64,11 @@ export default async (req) => {
   const displayName = authUser.display_name || (memberEmail ? memberEmail.split('@')[0] : 'Member');
   const avatarUrl = authUser.avatar_url || null;
 
-  // Check if this is the first user (becomes admin)
+  // The first user owns the portal: an admin who also controls owners and restores.
   const countResult = await adminDb().sql('SELECT count(*)::int as count FROM members');
   const isFirst = countResult.rows.length === 0 || countResult.rows[0].count === 0;
 
-  const role = isFirst ? 'admin' : 'member';
+  const role = isFirst ? 'owner' : 'member';
   const memberStatus = isFirst ? 'active' : 'pending';
 
   // Get default tier

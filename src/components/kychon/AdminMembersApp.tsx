@@ -405,6 +405,7 @@ export default function AdminMembersApp() {
                             <SelectItem value="member">Member</SelectItem>
                             <SelectItem value="moderator">Moderator</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="owner">Owner</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

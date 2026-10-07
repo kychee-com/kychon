@@ -147,9 +147,15 @@ export function isProjectAdminSession(): boolean {
   return actorCache?.state === 'project_admin';
 }
 
+// An owner is an admin everywhere roles are compared; isOwner() tells them apart.
 export function getRole(): string | null {
   if (actorCache?.state === 'project_admin') return 'admin';
-  return getSession()?.user?.member?.role || null;
+  const role = getSession()?.user?.member?.role || null;
+  return role === 'owner' ? 'admin' : role;
+}
+
+export function isOwner(): boolean {
+  return actorCache?.state === 'project_admin' || getSession()?.user?.member?.role === 'owner';
 }
 
 export function isAdmin(): boolean {

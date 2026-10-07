@@ -16,7 +16,7 @@ if (!user) {
 // run402-allow-user-filter: adminDb() bypasses RLS for the admin role lookup
 const rows = await adminDb().from('members').select('role,status').eq('user_id', user.id).limit(1);
 const member = rows?.[0];
-if (member?.role !== 'admin' || member?.status !== 'active') {
+if ((member?.role !== 'admin' && member?.role !== 'owner') || member?.status !== 'active') {
   return new Response('Admin access required', { status: 403 });
 }
 ---

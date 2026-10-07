@@ -16,13 +16,21 @@ const fakeSnapshots = await vi.hoisted(async () => (await import('../helpers/fak
 const state = vi.hoisted(() => ({
   db: null as null | ReturnType<typeof import('../helpers/pglite-admin-db').pgliteAdminDb>,
   user: null as null | { id: string; email?: string; app_metadata?: Record<string, unknown> },
+  // Whether the caller signed in within auth.requireFresh's window.
+  fresh: true,
 }));
 
 vi.mock(
   '@run402/functions',
   () => ({
     adminDb: () => state.db,
-    auth: { user: async () => state.user },
+    auth: {
+      user: async () => state.user,
+      requireFresh: async () => {
+        if (!state.fresh)
+          throw Object.assign(new Error('fresh sign-in required'), { code: 'R402_AUTH_FRESHNESS_REQUIRED' });
+      },
+    },
     events: { emit: async () => ({ deduplicated: false }) },
     snapshots: fakeSnapshots.api,
   }),
@@ -31,9 +39,10 @@ vi.mock(
 
 const { default: kychonApi } = await import('../../functions/kychon-api.js');
 
-const OWNER = {
-  id: '33333333-3333-4333-8333-333333333333',
-  email: 'owner@example.org',
+const OWNER = { id: '33333333-3333-4333-8333-333333333333', email: 'owner@example.org' };
+const PROJECT_ADMIN = {
+  id: '44444444-4444-4444-8444-444444444444',
+  email: 'operator@example.org',
   app_metadata: { role: 'project_admin' },
 };
 const ADMIN = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org' };
@@ -43,11 +52,13 @@ let db: PGlite;
 let sectionId: number;
 beforeEach(async () => {
   fakeSnapshots.reset();
+  state.fresh = true;
   db = await freshKychonDb();
   state.db = pgliteAdminDb(db);
   await db.exec(`
     INSERT INTO members (user_id, email, display_name, role, status) VALUES
       ('11111111-1111-4111-8111-111111111111', 'admin@example.org', 'Ada Admin', 'admin', 'active'),
+      ('33333333-3333-4333-8333-333333333333', 'owner@example.org', 'Olive Owner', 'owner', 'active'),
       ('22222222-2222-4222-8222-222222222222', 'member@example.org', 'Member', 'member', 'active');
     INSERT INTO site_config (key, value, category) VALUES ('brand_text', '"Riverside Eagles"', 'branding');
   `);
@@ -217,6 +228,25 @@ describe('restorePoints.restore (owner only, confirmed by the site name)', () =>
     expect(await heading()).toBe('Spring!');
   });
 
+  it('lets the Run402 project admin restore too', async () => {
+    const id = await pointThenEdit();
+    state.user = PROJECT_ADMIN;
+    const res = await execute('restorePoints.restore', { snapshot_id: id, confirm_site_name: 'Riverside Eagles' });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(await heading()).toBe('Welcome');
+  });
+
+  it('needs a recent sign-in', async () => {
+    const id = await pointThenEdit();
+    state.user = OWNER;
+    state.fresh = false;
+    const res = await execute('restorePoints.restore', { snapshot_id: id, confirm_site_name: 'Riverside Eagles' });
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('auth.reauthenticationRequired');
+    expect(fakeSnapshots.api.restorePlan).not.toHaveBeenCalled();
+    expect(await heading()).toBe('Spring!');
+  });
+
   it('refuses a non-owner admin', async () => {
     const id = await pointThenEdit();
     state.user = ADMIN;
@@ -352,5 +382,51 @@ describe('before_agent_run: a restore point before an AI assistant changes the s
     fakeSnapshots.store.unsupported = true;
     expect((await connector('sections.updateConfig', { id: sectionId, config: { heading: 'Core' } })).status).toBe(200);
     expect(await heading()).toBe('Core');
+  });
+});
+
+describe('owners: only an owner grants or removes one, and the last one stays', () => {
+  async function memberId(email: string) {
+    const [row] = await rows<{ id: number }>(db, `SELECT id FROM members WHERE email = '${email}'`);
+    return row.id;
+  }
+  const role = async (email: string) =>
+    (await rows<{ role: string }>(db, `SELECT role FROM members WHERE email = '${email}'`))[0].role;
+
+  it('refuses an admin granting, removing or suspending an owner', async () => {
+    state.user = ADMIN;
+    const member = await memberId('member@example.org');
+    const owner = await memberId('owner@example.org');
+    expect((await execute('members.changeRole', { id: member, role: 'owner' })).status).toBe(403);
+    expect((await execute('members.changeRole', { id: owner, role: 'member' })).status).toBe(403);
+    expect((await execute('members.suspend', { id: owner })).status).toBe(403);
+    expect(await role('member@example.org')).toBe('member');
+    expect(await role('owner@example.org')).toBe('owner');
+  });
+
+  it('lets an owner make another owner, then step down', async () => {
+    state.user = OWNER;
+    const admin = await memberId('admin@example.org');
+    const owner = await memberId('owner@example.org');
+    expect((await execute('members.changeRole', { id: admin, role: 'owner' })).status).toBe(200);
+    expect((await execute('members.changeRole', { id: owner, role: 'admin' })).status).toBe(200);
+    expect(await role('admin@example.org')).toBe('owner');
+    expect(await role('owner@example.org')).toBe('admin');
+  });
+
+  it('refuses removing the last owner', async () => {
+    state.user = OWNER;
+    const owner = await memberId('owner@example.org');
+    const res = await execute('members.changeRole', { id: owner, role: 'admin' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.message).toMatch(/last owner/);
+    expect(await role('owner@example.org')).toBe('owner');
+  });
+
+  it('treats an owner as an admin everywhere else', async () => {
+    state.user = OWNER;
+    expect((await query('history.list')).status).toBe(200);
+    const listed = await query('restorePoints.list');
+    expect(listed.body.data.canRestore).toBe(true);
   });
 });

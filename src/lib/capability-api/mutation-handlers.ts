@@ -284,11 +284,12 @@ function memberPatchRemovesActiveAdmin(member: JsonObject, patch: JsonObject): b
   if (!isActiveAdminMember(member)) return false;
   const nextRole = patch.role != null ? String(patch.role).toLowerCase() : String(member.role).toLowerCase();
   const nextStatus = patch.status != null ? String(patch.status).toLowerCase() : String(member.status).toLowerCase();
-  return nextRole !== 'admin' || nextStatus !== 'active';
+  return (nextRole !== 'admin' && nextRole !== 'owner') || nextStatus !== 'active';
 }
 
 function isActiveAdminMember(member: JsonObject): boolean {
-  return String(member.role).toLowerCase() === 'admin' && String(member.status).toLowerCase() === 'active';
+  const role = String(member.role).toLowerCase();
+  return (role === 'admin' || role === 'owner') && String(member.status).toLowerCase() === 'active';
 }
 
 async function publishAnnouncement(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {

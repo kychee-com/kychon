@@ -22,7 +22,7 @@ export default async (req) => {
   // project's resources bucket. A pending or suspended admin is refused too:
   // require an active admin or a project admin.
   const member = await findMember(adminDb(), user);
-  const activeAdmin = member?.role === 'admin' && member?.status === 'active';
+  const activeAdmin = (member?.role === 'admin' || member?.role === 'owner') && member?.status === 'active';
   if (!activeAdmin && !isProjectAdmin(user)) {
     return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403 });
   }

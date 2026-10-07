@@ -107,7 +107,7 @@ export default async (req) => {
 async function isActiveAdmin(admin, user) {
   if (isProjectAdmin(user)) return true;
   const member = await findMember(admin, user);
-  return member?.role === 'admin' && member?.status === 'active';
+  return (member?.role === 'admin' || member?.role === 'owner') && member?.status === 'active';
 }
 
 function isProjectAdmin(user) {

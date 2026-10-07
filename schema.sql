@@ -1227,6 +1227,15 @@ CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON poll_opti
 DROP TRIGGER IF EXISTS trg_kychon_revision ON forum_categories;
 CREATE TRIGGER trg_kychon_revision AFTER INSERT OR UPDATE OR DELETE ON forum_categories FOR EACH ROW EXECUTE FUNCTION kychon_record_revision('id');
 
+-- Every portal has an owner: an admin who also controls owners and may restore
+-- the whole site. New portals get one from on-signup (the first member); this
+-- promotes the earliest active admin of an existing portal that has none, and
+-- is a no-op once any owner exists. Demos are skipped: their admin login is public.
+UPDATE members SET role = 'owner'
+ WHERE id = (SELECT id FROM members WHERE role = 'admin' AND status = 'active' ORDER BY id LIMIT 1)
+   AND NOT EXISTS (SELECT 1 FROM members WHERE role = 'owner')
+   AND NOT EXISTS (SELECT 1 FROM site_config WHERE key = 'demo_mode' AND value = 'true'::jsonb);
+
 -- Writes this migration made to tracked tables (schema backfills) are the
 -- engine's, not anonymous. The initial import relabels its own transaction.
 SELECT kychon_label_changeset('system', NULL, 'Engine migration', true);

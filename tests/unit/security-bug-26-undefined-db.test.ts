@@ -105,7 +105,7 @@ describe('on-signup.js — bug #26 (undefined db)', () => {
     expect(state.tables.members[0]).toMatchObject({
       user_id: 'auth-user-1',
       email: 'new@example.com',
-      role: 'admin', // first member becomes admin
+      role: 'owner', // first member owns the portal
       status: 'active',
     });
     expect(state.tables.activity_log).toHaveLength(1);

@@ -3131,7 +3131,9 @@ async function executeMutation(name, input, actor) {
   return genericMutation(name, input, actor);
 }
 
-const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin']);
+// 'owner' is an admin who also controls owners and may restore the whole site.
+const VALID_MEMBER_ROLES = new Set(['member', 'moderator', 'admin', 'owner']);
+const ADMIN_ROLES = new Set(['admin', 'owner']);
 
 // Required-field validation for create operations, shared by the validate
 // phase and the execute handlers so the two agree. Without it, `validate`
@@ -3201,13 +3203,24 @@ async function validateMutationSemantics(operation, input, actor) {
     } else if (operation === 'members.changeRole') {
       const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
       if (!VALID_MEMBER_ROLES.has(role)) {
-        throw capabilityError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
-          role: String(input.role ?? ''),
-        });
+        throw capabilityError(
+          'validation.failed',
+          'members.changeRole requires role in member|moderator|admin|owner.',
+          {
+            role: String(input.role ?? ''),
+          },
+        );
       }
-      await ensureActiveAdminRemains(operation, requiredId(input, operation), { role });
+      await ensureActiveAdminRemains(operation, requiredId(input, operation), { role }, undefined, undefined, actor);
     } else if (operation === 'members.suspend' || operation === 'members.reject') {
-      await ensureActiveAdminRemains(operation, requiredId(input, operation), rowForUpdate(operation, input, actor));
+      await ensureActiveAdminRemains(
+        operation,
+        requiredId(input, operation),
+        rowForUpdate(operation, input, actor),
+        undefined,
+        undefined,
+        actor,
+      );
     } else if (operation === 'translations.translateText') {
       await resolveTranslateTextRequest(input, actor);
     }
@@ -3226,13 +3239,13 @@ function warningFromCapabilityError(error) {
   };
 }
 
-async function changeMemberRole(input, _actor) {
+async function changeMemberRole(input, actor) {
   // Reject anything that isn't a known role: a bare `input.role || 'member'`
   // fall-through would silently demote on typos and let `'admin'`,
   // `'moderator'`, or arbitrary strings reach the DB unfiltered.
   const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
   if (!VALID_MEMBER_ROLES.has(role)) {
-    throw capabilityError('validation.failed', 'members.changeRole requires role in member|moderator|admin.', {
+    throw capabilityError('validation.failed', 'members.changeRole requires role in member|moderator|admin|owner.', {
       role: String(input.role ?? ''),
     });
   }
@@ -3248,7 +3261,7 @@ async function changeMemberRole(input, _actor) {
 
   // Last-admin guard: role changes, suspension, and rejection all remove
   // admin availability when the target is the only active admin.
-  await ensureActiveAdminRemains('members.changeRole', targetId, { role }, members, target);
+  await ensureActiveAdminRemains('members.changeRole', targetId, { role }, members, target, actor);
 
   const row = await updateRow('members', targetId, { role });
   const object = changedObject('member', row?.id ?? targetId);
@@ -3259,7 +3272,7 @@ async function changeMemberRole(input, _actor) {
   );
 }
 
-async function ensureActiveAdminRemains(operation, targetId, patch, members, target) {
+async function ensureActiveAdminRemains(operation, targetId, patch, members, target, actor = null) {
   if (!guardsLastActiveAdmin(operation)) return target ?? null;
   const rows = members ?? (await selectRows('members'));
   const row = target ?? rows.find((member) => String(member.id) === String(targetId));
@@ -3268,6 +3281,7 @@ async function ensureActiveAdminRemains(operation, targetId, patch, members, tar
       object: { type: 'member', id: String(targetId) },
     });
   }
+  ensureOwnerRules(operation, targetId, patch, rows, row, actor);
   if (!memberPatchRemovesActiveAdmin(row, patch)) return row;
 
   const hasOtherActiveAdmin = rows.some(
@@ -3289,11 +3303,44 @@ function memberPatchRemovesActiveAdmin(member, patch) {
   if (!isActiveAdminMember(member)) return false;
   const nextRole = patch.role != null ? String(patch.role).toLowerCase() : String(member.role).toLowerCase();
   const nextStatus = patch.status != null ? String(patch.status).toLowerCase() : String(member.status).toLowerCase();
-  return nextRole !== 'admin' || nextStatus !== 'active';
+  return !ADMIN_ROLES.has(nextRole) || nextStatus !== 'active';
 }
 
 function isActiveAdminMember(member) {
-  return String(member.role).toLowerCase() === 'admin' && String(member.status).toLowerCase() === 'active';
+  return ADMIN_ROLES.has(String(member.role).toLowerCase()) && String(member.status).toLowerCase() === 'active';
+}
+
+function isActiveOwnerMember(member) {
+  return String(member.role).toLowerCase() === 'owner' && String(member.status).toLowerCase() === 'active';
+}
+
+// Owners are the club's top admins: only an owner (or the Run402 project admin)
+// grants, removes, suspends or rejects one, and the last active owner stays.
+function ensureOwnerRules(operation, targetId, patch, rows, target, actor) {
+  const touchesOwner =
+    String(target.role).toLowerCase() === 'owner' ||
+    (patch.role != null && String(patch.role).toLowerCase() === 'owner');
+  if (!touchesOwner) return;
+  if (actor && !isOwnerActor(actor)) {
+    throw capabilityError('permission.denied', 'Only an owner can grant, remove, suspend or reject an owner.', {
+      operation,
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+  if (!isActiveOwnerMember(target)) return;
+  const nextRole = patch.role != null ? String(patch.role).toLowerCase() : String(target.role).toLowerCase();
+  const nextStatus = patch.status != null ? String(patch.status).toLowerCase() : String(target.status).toLowerCase();
+  if (nextRole === 'owner' && nextStatus === 'active') return;
+  const hasOtherOwner = rows.some((member) => String(member.id) !== String(targetId) && isActiveOwnerMember(member));
+  if (!hasOtherOwner) {
+    throw capabilityError('conflict.state', 'Cannot remove the last owner. Make another member an owner first.', {
+      object: { type: 'member', id: String(targetId) },
+    });
+  }
+}
+
+function isOwnerActor(actor) {
+  return actor?.state === 'project_admin' || actor?.authority?.owner === true;
 }
 
 async function genericMutation(operation, input, actor) {
@@ -3311,7 +3358,7 @@ async function genericMutation(operation, input, actor) {
   } else {
     const targetId = idForUpdate(operation, input, actor);
     const patch = rowForUpdate(operation, input, actor);
-    await ensureActiveAdminRemains(operation, targetId, patch);
+    await ensureActiveAdminRemains(operation, targetId, patch, undefined, undefined, actor);
     row = await updateRow(spec.table, targetId, patch);
     if (!row) {
       throw capabilityError('notFound.object', `${objectTypeLabel(spec.objectType)} not found.`, {
@@ -4584,6 +4631,33 @@ function sameSiteName(typed, expected) {
   return norm(typed) !== '' && norm(typed) === norm(expected);
 }
 
+function requireRestoreOwner(actor, name) {
+  if (!isOwnerActor(actor)) {
+    throw capabilityError('permission.denied', 'Only a site owner can restore a restore point.', {
+      operation: name,
+      actor: actor.state,
+    });
+  }
+}
+
+// Restoring is destructive, so a long-lived (or stolen) session is not enough:
+// any sign-in method counts, as long as it was recent. Most club admins have
+// no passkey, so one is not required.
+const RESTORE_FRESH_SIGN_IN = '5m';
+
+async function requireRecentSignIn() {
+  try {
+    await auth.requireFresh({ maxAge: RESTORE_FRESH_SIGN_IN });
+  } catch (error) {
+    if (error?.code !== 'R402_AUTH_FRESHNESS_REQUIRED') throw error;
+    throw capabilityError(
+      'auth.reauthenticationRequired',
+      'For safety, restoring needs a sign-in from the last 5 minutes. Sign out, sign in again, and retry.',
+      { maxAge: RESTORE_FRESH_SIGN_IN },
+    );
+  }
+}
+
 function restorePointCreator(actor) {
   return actor.member?.displayName || actor.user?.email || 'Admin';
 }
@@ -4612,11 +4686,12 @@ async function handleRestorePointsQuery(correlationId, name, input, actor) {
         restorePoints: list.map((snapshot) => restorePointView(snapshot, byId)),
         nextCursor: page?.has_more ? (page.next_cursor ?? null) : null,
         siteName: await restoreConfirmationName(),
-        canRestore: actor.state === 'project_admin',
+        canRestore: isOwnerActor(actor),
       });
     }
     // restorePoints.restoreStatus: poll a restore that outlasted its call, and
     // record it once it is done.
+    requireRestoreOwner(actor, name);
     const snapshotId = snapshotIdInput(input, name);
     const restoreId = input.restore_id ?? input.restoreId;
     if (typeof restoreId !== 'string' || !restoreId) {
@@ -4673,7 +4748,10 @@ async function executeRestorePointMutation(name, input, actor) {
     return actionResult({ deleted: snapshotId }, [changedObject('restorePoint', snapshotId)], null);
   }
 
-  // restorePoints.restore
+  // restorePoints.restore: an owner, signed in within the last few minutes,
+  // who typed the site name.
+  requireRestoreOwner(actor, name);
+  await requireRecentSignIn();
   const siteName = await restoreConfirmationName();
   if (!sameSiteName(input.confirm_site_name ?? input.confirmSiteName, siteName)) {
     throw capabilityError('validation.failed', `Type the site name "${siteName}" to confirm the restore.`, {
@@ -5952,6 +6030,7 @@ function mutationStatus(code) {
   if (code === 'rateLimit.exceeded') return 429;
   if (code === 'api.notImplemented') return 501;
   if (code === 'internal.restorePoint') return 502;
+  if (code === 'auth.reauthenticationRequired') return 401;
   return 501;
 }
 
@@ -5966,6 +6045,7 @@ function mutationErrorCode(code) {
       'rateLimit.exceeded',
       'api.notImplemented',
       'internal.restorePoint',
+      'auth.reauthenticationRequired',
     ].includes(code)
   )
     return code;
@@ -6225,7 +6305,8 @@ async function resolveActor(_req) {
     member,
     authority: {
       projectAdmin,
-      activeMemberAdmin: member?.status === 'active' && member.role === 'admin',
+      activeMemberAdmin: member?.status === 'active' && ADMIN_ROLES.has(member.role),
+      owner: member?.status === 'active' && member.role === 'owner',
     },
   };
 }
@@ -6285,7 +6366,7 @@ function actorState(member, projectAdmin) {
   if (!member) return 'authenticated_non_member';
   if (member.status === 'pending') return 'pending_member';
   if (member.status !== 'active') return 'authenticated_non_member';
-  if (member.role === 'admin') return 'admin';
+  if (ADMIN_ROLES.has(member.role)) return 'admin';
   if (member.role === 'moderator') return 'moderator';
   return 'active_member';
 }
@@ -6330,8 +6411,6 @@ function operationEntry(name, phases) {
 }
 
 function minimumActorState(name) {
-  // Restoring rewinds the whole site, so it is the owner's call.
-  if (name === 'restorePoints.restore' || name === 'restorePoints.restoreStatus') return 'project_admin';
   if (
     name.startsWith('portal.') ||
     name.startsWith('assistant.') ||

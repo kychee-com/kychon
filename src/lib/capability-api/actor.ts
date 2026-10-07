@@ -81,7 +81,7 @@ export async function resolveCapabilityActor(
     member,
     authority: {
       projectAdmin,
-      activeMemberAdmin: member?.status === 'active' && member.role === 'admin',
+      activeMemberAdmin: member?.status === 'active' && (member.role === 'admin' || member.role === 'owner'),
     },
   };
 }
@@ -121,7 +121,7 @@ function deriveActorState({
   if (!member) return 'authenticated_non_member';
   if (member.status === 'pending') return 'pending_member';
   if (member.status !== 'active') return 'authenticated_non_member';
-  if (member.role === 'admin') return 'admin';
+  if (member.role === 'admin' || member.role === 'owner') return 'admin';
   if (member.role === 'moderator') return 'moderator';
   return 'active_member';
 }

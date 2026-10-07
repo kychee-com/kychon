@@ -144,7 +144,7 @@ const readDefinitions: readonly ReadDefinition[] = [
   ['history.revision', 'admin', 'Read one content revision with its before and after rows.'],
   ['bundle.export', 'admin', 'Export portal content as a kychon-bundle/v1 document, optionally with members.'],
   ['restorePoints.list', 'admin', 'List restore points (whole-site snapshots), newest first, with label, reason and time.'],
-  ['restorePoints.restoreStatus', 'project_admin', 'Check a restore that is still running; records it in History once done.'],
+  ['restorePoints.restoreStatus', 'admin', 'Check a restore that is still running; records it in History once done.'],
 ] as const;
 
 const mutationDefinitions: readonly MutationDefinition[] = [
@@ -173,7 +173,7 @@ const mutationDefinitions: readonly MutationDefinition[] = [
   ['restorePoints.delete', 'admin', 'Delete a restore point this site took.', 'required'],
   [
     'restorePoints.restore',
-    'project_admin',
+    'admin',
     'Restore the whole site to a restore point; owner only, confirmed by typing the site name.',
     'required',
   ],
