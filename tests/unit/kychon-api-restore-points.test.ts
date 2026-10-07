@@ -210,6 +210,25 @@ describe('restorePoints.restore (owner only, confirmed by the site name)', () =>
     });
   });
 
+  it('undoes a restore through its pre_restore point, with readable labels', async () => {
+    const id = await pointThenEdit();
+    state.user = OWNER;
+    const first = await execute('restorePoints.restore', { snapshot_id: id, confirm_site_name: 'Riverside Eagles' });
+    const pre = first.body.data.result.restore.preRestoreSnapshotId as string;
+    fakeSnapshots.store.onRestore = null;
+    const undo = await execute('restorePoints.restore', { snapshot_id: pre, confirm_site_name: 'Riverside Eagles' });
+    expect(undo.status, JSON.stringify(undo.body)).toBe(200);
+    expect((await rows(db, 'SELECT label FROM changesets ORDER BY id DESC LIMIT 1'))[0]).toEqual({
+      label: 'Undid a restore',
+    });
+    const labels = (await query('restorePoints.list')).body.data.restorePoints.map((p: { label: string }) => p.label);
+    expect(labels).toEqual([
+      'Before undoing a restore',
+      'Before restoring "Before spring redesign"',
+      'Before spring redesign',
+    ]);
+  });
+
   it('restores data only when the captured release is gone', async () => {
     const id = await pointThenEdit();
     state.user = OWNER;

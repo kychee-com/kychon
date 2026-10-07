@@ -4511,13 +4511,21 @@ function restorePointReason(snapshot) {
   return snapshot.kind === 'pre_restore' ? 'before_restore' : String(snapshot.kind || 'manual');
 }
 
+// A restore's own `pre_restore` snapshot has no label: name it after what was
+// restored, or as the undo of a restore when that was itself a `pre_restore`.
+function beforeRestoreLabel(restoredFrom) {
+  if (!restoredFrom) return 'Before a restore';
+  if (restoredFrom.kind === 'pre_restore') return 'Before undoing a restore';
+  return `Before restoring "${restoredFrom.label || RESTORE_POINT_LABELS[restorePointReason(restoredFrom)] || 'a restore point'}"`;
+}
+
 function restorePointView(snapshot, byId = new Map()) {
   const reason = restorePointReason(snapshot);
   const restoredFrom = snapshot.restore_of?.snapshot_id ? byId.get(snapshot.restore_of.snapshot_id) : null;
   const label =
     snapshot.label ||
     (reason === 'before_restore'
-      ? `Before restoring "${restoredFrom?.label || restoredFrom?.snapshot_id || 'a restore point'}"`
+      ? beforeRestoreLabel(restoredFrom)
       : RESTORE_POINT_LABELS[reason] || 'Automatic snapshot');
   const createdBy = snapshot.metadata?.created_by;
   return {
@@ -4780,7 +4788,7 @@ async function recordRestore(status, actor, target = null) {
   const current = (await readSiteConfig()).get('last_restore');
   if (isPlainObject(current) && current.restore_id === status.restore_id) return;
   const point = target ?? (await withSnapshots(() => snapshots.get(status.snapshot_id)));
-  const label = `Restored to "${restorePointView(point).label}"`;
+  const label = point.kind === 'pre_restore' ? 'Undid a restore' : `Restored to "${restorePointView(point).label}"`;
   const marker = {
     snapshot_id: status.snapshot_id,
     restore_id: status.restore_id,
