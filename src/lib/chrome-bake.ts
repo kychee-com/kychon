@@ -92,6 +92,21 @@ export function stringFromSeed(seed: ProjectSeed, key: string): string {
   return String(value);
 }
 
+const BRAND_ASSET_KEYS = ['brand_icon_url', 'brand_wordmark_url', 'favicon_url'] as const;
+
+/**
+ * True when the chrome names an `/assets/<name>` path (logo, wordmark, favicon,
+ * or a global header/footer block's config). A port's `/assets/` paths are not
+ * served, so an SSR route must resolve them against the request-time manifest
+ * (`ssrAssetManifest`) or it bakes a 404ing logo and favicon.
+ */
+export function chromeNeedsAssetManifest(seed: ProjectSeed): boolean {
+  if (BRAND_ASSET_KEYS.some((key) => stringFromSeed(seed, key).startsWith('/assets/'))) return true;
+  return (seed.sections ?? []).some(
+    (s) => s.scope === 'global' && s.visible !== false && JSON.stringify(s.config ?? {}).includes('/assets/'),
+  );
+}
+
 export function featureFromSeed(seed: ProjectSeed, flag: string): boolean {
   const value = seedValue(seed, flag);
   if (value === undefined) return true;
