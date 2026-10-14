@@ -55,6 +55,7 @@ import {
   type EngineReleaseManifest,
 } from "./release-manifest.ts";
 import { type RestorePointReason, takeRestorePoint } from "./restore-points.ts";
+import { gateSsrProbe } from "./ssr-probe.ts";
 import type { PublicStaticPathSpec } from "../src/lib/clean-routes.ts";
 import { connectorUrlDrift } from "../src/lib/connector-url.ts";
 import { assertStagedAssetManifestServable } from "../src/lib/staged-asset-manifest.ts";
@@ -929,6 +930,18 @@ async function fetchReleaseErrorsPage(
   return (await res.json()) as { verdict?: Record<string, unknown>; errors?: Array<Record<string, unknown>> };
 }
 
+/** Whether the release ships the @run402/astro SSR function (`class: 'ssr'`). */
+export function shipsSsrFunction(functionsMap: Record<string, FunctionSpec>): boolean {
+  return Object.values(functionsMap).some((fn) => (fn as { class?: unknown }).class === "ssr");
+}
+
+/** The public URL the activated release serves (`urls.site`, else the subdomain URL). */
+export function releaseSiteUrl(urls: unknown): string | undefined {
+  const u = (urls ?? {}) as Record<string, unknown>;
+  const url = typeof u.site === "string" ? u.site : typeof u.subdomain === "string" ? u.subdomain : undefined;
+  return url && /^https?:\/\//.test(url) ? url : undefined;
+}
+
 export interface WatchReleaseErrorsOptions {
   projectId: string;
   /** Project anon (or service) key — sent as the `apikey` header. Public in env.js anyway. */
@@ -1670,6 +1683,9 @@ async function reportAppliedRelease(
     );
   }
 
+  // Cold SSR probe first, while every container is still cold (kychon#226).
+  await gateSsrProbe({ siteUrl: releaseSiteUrl(result.urls), hasSsr: shipsSsrFunction(finalFunctionsMap) });
+
   // Post-deploy error gate (run402 release-error-rollup). Runs AFTER apply
   // succeeds and the release id is known; enforces the exit-code contract
   // (new fingerprints → exit 1, outage → exit 2, clean → continue).
@@ -1949,6 +1965,8 @@ export async function patchDeploy(
       (gatewayFns.names.length > 0 ? ` (${gatewayFns.names.join(", ")})` : ""),
     );
   }
+
+  await gateSsrProbe({ siteUrl: releaseSiteUrl(result.urls), hasSsr: shipsSsrFunction(finalFunctionsMap) });
 
   // Post-deploy error gate (run402 release-error-rollup) — SHARED with
   // runDeploy so the CI demo path (deploy-ci.ts → patchDeploy) is gated too.

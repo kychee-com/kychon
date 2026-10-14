@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { ssrConfigValue } from './lib/ssr-api';
+import { ssrConfigLookup } from './lib/ssr-api';
 import { resolvePathAlias } from './lib/path-aliases';
 
 /**
@@ -23,21 +23,30 @@ import { resolvePathAlias } from './lib/path-aliases';
  * seeded alias key (and for self-redirects), so normal routing is untouched.
  *
  * `path_aliases` is fetched once per Lambda lifetime and cached: the map only
- * changes on redeploy, which restarts the function. Fail-open — a config read
- * miss leaves aliases null and requests fall through to normal routing.
+ * changes on redeploy, which restarts the function. Fail-open — a failed read
+ * leaves aliases null and requests fall through to normal routing. A failure
+ * is not cached: right after a deploy the API can be slow for a minute, and
+ * caching that miss disabled aliases for the container's whole life
+ * (kychon#226). The read is retried after ALIAS_RETRY_MS.
  *
  * Astro also runs middleware for every prerendered route at build time, where
  * request headers don't exist (reading them logs a warning per route), so the
  * build uses the URL's host instead.
  */
 let cachedAliases: Record<string, unknown> | null | undefined;
+let aliasRetryAt = 0;
+
+/** Wait after a failed `path_aliases` read before trying again. */
+export const ALIAS_RETRY_MS = 30_000;
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const host = context.isPrerendered
     ? context.url.host
     : (context.request.headers.get('host') ?? context.url.host);
-  if (cachedAliases === undefined) {
-    cachedAliases = await ssrConfigValue<Record<string, unknown>>({ key: 'path_aliases', host });
+  if (cachedAliases === undefined && Date.now() >= aliasRetryAt) {
+    const result = await ssrConfigLookup<Record<string, unknown>>({ key: 'path_aliases', host });
+    if (result.status === 'ok') cachedAliases = result.value;
+    else aliasRetryAt = Date.now() + ALIAS_RETRY_MS;
   }
   const target = resolvePathAlias(cachedAliases ?? null, context.url.pathname);
   if (target) {

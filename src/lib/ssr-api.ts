@@ -143,17 +143,29 @@ export interface SsrConfigParams {
  * aliases.
  */
 export async function ssrConfigValue<T = unknown>(params: SsrConfigParams): Promise<T | null> {
+  const result = await ssrConfigLookup<T>(params);
+  return result.status === 'ok' ? result.value : null;
+}
+
+/**
+ * `ssrConfigValue` that tells a failed read (`error`: timeout, gateway error)
+ * apart from an absent key (`ok` with `null`), for callers that cache the
+ * answer and must not cache a failure.
+ */
+export async function ssrConfigLookup<T = unknown>(
+  params: SsrConfigParams,
+): Promise<{ status: 'ok'; value: T | null } | { status: 'error' }> {
   try {
     const row = await client(params.host).request<{ key: string; value: T } | null>(
       'config.get',
       'query',
       { key: params.key },
     );
-    if (row && typeof row === 'object' && 'value' in row) return row.value;
-    return null;
+    if (row && typeof row === 'object' && 'value' in row) return { status: 'ok', value: row.value };
+    return { status: 'ok', value: null };
   } catch (error) {
     console.warn('[ssr-api] config.get failed:', error instanceof Error ? error.message : error);
-    return null;
+    return { status: 'error' };
   }
 }
 
