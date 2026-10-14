@@ -12,7 +12,7 @@ async function loadMiddleware(): Promise<Handler> {
   return (await import('../../src/middleware')).onRequest as unknown as Handler;
 }
 
-function makeContext(url: string, { isPrerendered }: { isPrerendered: boolean }) {
+function makeContext(url: string, { isPrerendered, routePattern }: { isPrerendered: boolean; routePattern?: string }) {
   const headers = new Headers({ host: 'eagles.kychon.com' });
   const headersGet = vi.spyOn(headers, 'get');
   const redirect = vi.fn(
@@ -20,6 +20,7 @@ function makeContext(url: string, { isPrerendered }: { isPrerendered: boolean })
   );
   const context = {
     isPrerendered,
+    routePattern,
     url: new URL(url),
     request: { headers },
     redirect,
@@ -94,6 +95,43 @@ describe('middleware', () => {
     await onRequest(afterBackoff.context, next);
     expect(ssrConfigLookup).toHaveBeenCalledTimes(2);
     expect(afterBackoff.redirect).toHaveBeenCalledWith('/classifieds', 301);
+  });
+
+  it('skips the alias read for a request that matched a concrete route (cold /calendar)', async () => {
+    ssrConfigLookup.mockResolvedValue({ status: 'ok', value: { '/calendar': '/elsewhere' } });
+    const onRequest = await loadMiddleware();
+    const next = vi.fn(async () => new Response('ok'));
+
+    for (const routePattern of ['/calendar', '/search', '/event', '/.well-known/kychon.json']) {
+      const { context, redirect } = makeContext(`http://internal${routePattern}`, {
+        isPrerendered: false,
+        routePattern,
+      });
+      await onRequest(context, next);
+      expect(redirect).not.toHaveBeenCalled();
+    }
+    expect(ssrConfigLookup).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledTimes(4);
+  });
+
+  it('still resolves aliases on catch-all, dynamic and error routes', async () => {
+    const { mayBeAliasSource } = await import('../../src/middleware');
+    for (const pattern of ['/[...alias]', '/[customPage]', '/404', '/500', undefined]) {
+      expect(mayBeAliasSource(pattern), String(pattern)).toBe(true);
+    }
+    expect(mayBeAliasSource('/calendar')).toBe(false);
+
+    ssrConfigLookup.mockResolvedValue({ status: 'ok', value: { '/Classified-Ads': '/classifieds' } });
+    const onRequest = await loadMiddleware();
+    const { context, redirect } = makeContext('http://internal/Classified-Ads', {
+      isPrerendered: false,
+      routePattern: '/[...alias]',
+    });
+    await onRequest(
+      context,
+      vi.fn(async () => new Response('ok')),
+    );
+    expect(redirect).toHaveBeenCalledWith('/classifieds', 301);
   });
 });
 
