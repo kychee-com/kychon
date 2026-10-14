@@ -287,6 +287,13 @@ export default defineConfig({
       // snapshot once per chunk.
       __KYCHON_CHROME_SNAPSHOT_JSON__: JSON.stringify(readChromeSnapshotJson()),
     },
+    // Bundle lucide-react's ESM build into the SSR chunks so only the icons in
+    // use ship. Left external, the SSR function bundler (esbuild, platform
+    // node) resolves its CommonJS entry: every icon, ~0.9 MB parsed on each
+    // cold start of the ssr function.
+    ssr: {
+      noExternal: ['lucide-react'],
+    },
     server: {
       watch: {
         ignored: ['**/packages/sdk/dist/**', '**/node_modules/@kychon/sdk/dist/**'],
