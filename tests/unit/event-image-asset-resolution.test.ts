@@ -83,9 +83,21 @@ describe('/events page cards (EventsPageApp)', () => {
     expect(html).toContain(CDN);
     expect(html).not.toContain('"/assets/foo.jpg"');
   });
+
+  it('an event without an image renders no media box (kychon#179)', () => {
+    const html = renderToString(createElement(EventsPageApp, { initialEvents: [{ ...event, image_url: null }] }));
+    expect(html).toContain('Spring Gala');
+    expect(html).not.toContain('aspect-[16/7]');
+  });
 });
 
 describe('/event detail (EventDetailPageApp)', () => {
+  it('an event without an image renders no hero box (kychon#179)', () => {
+    const html = renderToString(createElement(EventDetailPageApp, { initialEvent: { ...event, image_url: null } }));
+    expect(html).toContain('Spring Gala');
+    expect(html).not.toContain('aspect-[16/7]');
+  });
+
   it('server render carries the event itself and resolves its hero and description images', () => {
     const detailed: Event = {
       ...event,

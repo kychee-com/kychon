@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
-  ImageIcon,
   Loader2,
   Lock,
   MapPin,
@@ -822,13 +821,8 @@ export default function EventDetailPageApp({ initialEvent, assetManifest }: Even
 
       <Card className="overflow-hidden">
         {(() => {
-          if (!event.image_url) {
-            return (
-              <div className="flex aspect-[16/7] items-center justify-center bg-muted text-muted-foreground">
-                <ImageIcon className="h-10 w-10" />
-              </div>
-            );
-          }
+          // No image → no hero box (kychon#179); the card starts at the title.
+          if (!event.image_url) return null;
           // Manifest hit → `<Run402Image>` (variant ladder + v1.54 placeholder;
           // `priority` because the event hero is above-the-fold on event detail
           // pages and drives LCP). Miss → plain `<img>` for admin-uploaded

@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, ImageIcon, Loader2, Lock, MapPin, Plus, Users } from 'lucide-react';
+import { CalendarDays, Loader2, Lock, MapPin, Plus, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -80,13 +80,9 @@ function normalizeAllDayDate(value: string): string | null {
 type LookupAsset = (url: string | null | undefined) => AssetRef | null;
 
 function EventImage({ event, lookupAsset }: { event: Event; lookupAsset: LookupAsset }) {
-  if (!event.image_url) {
-    return (
-      <div className="flex aspect-[16/7] items-center justify-center bg-muted text-muted-foreground">
-        <ImageIcon className="h-8 w-8" />
-      </div>
-    );
-  }
+  // No image → no media area: a gray icon box reads as a broken image, and
+  // imported calendars are mostly imageless (kychon#179).
+  if (!event.image_url) return null;
 
   // Manifest hit → `<Run402Image>` (variant ladder + v1.54 pre-decoded
   // placeholder); miss → plain `<img>` against the original URL (admin
