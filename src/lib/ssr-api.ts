@@ -252,8 +252,10 @@ export function ssrRequestOrigin(requestUrl: URL, host: string): string {
 }
 
 const ASSET_MANIFEST_TTL_MS = 5 * 60 * 1000;
+/** A failed read is retried this soon instead of after the full TTL. */
+const ASSET_MANIFEST_FAILURE_TTL_MS = 30 * 1000;
 const ASSET_MANIFEST_TIMEOUT_MS = 2000;
-const assetManifestCache = new Map<string, { at: number; manifest: Promise<AssetManifest | null> }>();
+const assetManifestCache = new Map<string, { at: number; ttl: number; manifest: Promise<AssetManifest | null> }>();
 
 /**
  * The site's uploaded-asset manifest, read from its own
@@ -265,14 +267,32 @@ const assetManifestCache = new Map<string, { at: number; manifest: Promise<Asset
  */
 export function ssrAssetManifest(origin: string, now: number = Date.now()): Promise<AssetManifest | null> {
   const cached = assetManifestCache.get(origin);
-  if (cached && now - cached.at < ASSET_MANIFEST_TTL_MS) return cached.manifest;
-  const manifest = fetch(`${origin}/_assets-manifest.json`, { signal: AbortSignal.timeout(ASSET_MANIFEST_TIMEOUT_MS) })
-    .then(async (res) => (res.ok ? parseAssetManifest(await res.text()) : null))
-    .catch((error: unknown) => {
-      console.warn('[ssr-api] asset manifest fetch failed:', error instanceof Error ? error.message : error);
-      return null;
-    });
-  assetManifestCache.set(origin, { at: now, manifest });
+  if (cached && now - cached.at < cached.ttl) return cached.manifest;
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // A plain (ref'd) timer settles this even when the fetch stalls. The unref'd
+  // timer behind AbortSignal.timeout does not keep the Lambda's event loop
+  // alive, so a stalled read ended the invocation with Runtime.NodeJsExit, and
+  // the cached pending promise failed every SSR route on the container until
+  // the TTL ran out.
+  const manifest = new Promise<AssetManifest | null>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`[ssr-api] asset manifest fetch timed out after ${ASSET_MANIFEST_TIMEOUT_MS}ms`);
+      controller.abort();
+      resolve(null);
+    }, ASSET_MANIFEST_TIMEOUT_MS);
+    fetch(`${origin}/_assets-manifest.json`, { signal: controller.signal })
+      .then(async (res) => (res.ok ? parseAssetManifest(await res.text()) : null))
+      .then(resolve, (error: unknown) => {
+        console.warn('[ssr-api] asset manifest fetch failed:', error instanceof Error ? error.message : error);
+        resolve(null);
+      });
+  }).finally(() => clearTimeout(timer));
+  const entry = { at: now, ttl: ASSET_MANIFEST_TTL_MS, manifest };
+  assetManifestCache.set(origin, entry);
+  void manifest.then((value) => {
+    if (!value) entry.ttl = ASSET_MANIFEST_FAILURE_TTL_MS;
+  });
   return manifest;
 }
 

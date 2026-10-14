@@ -82,4 +82,34 @@ describe('ssrAssetManifest', () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNRESET'));
     await expect(ssrAssetManifest('https://b.kychon.com')).resolves.toBeNull();
   });
+
+  it('settles a stalled fetch on its own timer and aborts it', async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+        signal = init?.signal ?? undefined;
+        return new Promise<Response>(() => {});
+      });
+      const pending = ssrAssetManifest('https://stalled.kychon.com');
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(pending).resolves.toBeNull();
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failed read after 30s instead of caching it for the full TTL', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('nope', { status: 503 }))
+      .mockResolvedValueOnce(new Response(manifestJson));
+    await expect(ssrAssetManifest('https://c.kychon.com', 1_000)).resolves.toBeNull();
+    await expect(ssrAssetManifest('https://c.kychon.com', 20_000)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const manifest = await ssrAssetManifest('https://c.kychon.com', 31_001);
+    expect(manifest?.assets['gala.jpg']).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
