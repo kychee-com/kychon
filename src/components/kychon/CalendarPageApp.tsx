@@ -17,6 +17,7 @@ import { get, getEvents } from '@/lib/api';
 import { getSession } from '@/lib/auth';
 import { ready, siteConfig, translateItems } from '@/lib/config';
 import { eventDayKey, eventDayKeyStable } from '@/lib/event-display';
+import { eventMetaDescription } from '@/lib/event-meta';
 import { useEventDateTime, useHydrated } from '@/lib/use-event-date-time';
 import type { Event } from '@/schemas/event';
 
@@ -174,6 +175,8 @@ function EventPill({ event }: { event: Event }) {
 
 function AgendaEvent({ event }: { event: Event }) {
   const dateTime = useEventDateTime(event, { dateStyle: 'agenda' });
+  // Descriptions are rich text; the excerpt is their plain text, not markup.
+  const summary = eventMetaDescription(event);
   return (
     <Card>
       <a className="block text-foreground no-underline" href={`/event?id=${event.id}`}>
@@ -182,7 +185,7 @@ function AgendaEvent({ event }: { event: Event }) {
             <div className="min-w-0 space-y-2">
               <CardDescription>{dateTime.dateLabel}</CardDescription>
               <CardTitle className="break-words text-lg tracking-normal">{event.title}</CardTitle>
-              {event.description ? <p className="line-clamp-2 break-words text-sm text-muted-foreground">{event.description}</p> : null}
+              {summary ? <p className="line-clamp-2 break-words text-sm text-muted-foreground">{summary}</p> : null}
             </div>
             {event.is_members_only ? (
               <Badge variant="secondary">

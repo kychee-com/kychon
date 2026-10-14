@@ -30,6 +30,16 @@ describe('eventMetaDescription', () => {
     expect(text.endsWith('word…')).toBe(true);
   });
 
+  it('flattens ported Wild Apricot markup (empty tables, breaks) to readable text', () => {
+    expect(
+      eventMetaDescription({
+        description:
+          '<table> <tbody> <tr> <td></td> </tr> </tbody> </table> <p><strong>The monthly meeting of the Evening Writers Group</strong></p>',
+      }),
+    ).toBe('The monthly meeting of the Evening Writers Group');
+    expect(eventMetaDescription({ description: '<br> <p>Greetings!</p>' })).toBe('Greetings!');
+  });
+
   it('leaves unknown entities untouched', () => {
     expect(eventMetaDescription({ description: 'a &bogus; b' })).toBe('a &bogus; b');
   });

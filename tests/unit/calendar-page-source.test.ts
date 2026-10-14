@@ -33,4 +33,11 @@ describe('calendar page source', () => {
     expect(app).not.toContain('document.createElement');
     expect(app).not.toContain('block-events-calendar');
   });
+
+  it('shows agenda excerpts as plain text, never the raw description markup', async () => {
+    const app = await readFile(CALENDAR_APP, 'utf8');
+
+    expect(app).toContain('eventMetaDescription(event)');
+    expect(app).not.toContain('{event.description}');
+  });
 });
