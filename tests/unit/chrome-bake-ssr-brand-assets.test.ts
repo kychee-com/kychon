@@ -70,10 +70,10 @@ describe('SSR brand assets', () => {
     expect(chrome.headerHtml).not.toContain('"/assets/logo.jpg"');
   });
 
-  it('Portal fetches the site manifest on SSR routes whose chrome needs it', () => {
+  it('Portal fetches the site manifest on SSR routes whose chrome needs it and has no bundled manifest', () => {
     const portal = readFileSync(join(root, 'src/layouts/Portal.astro'), 'utf-8');
     expect(portal).toMatch(
-      /if \(!Astro\.isPrerendered && !requestManifest && chromeNeedsAssetManifest\(chromeSeed\)\) \{[\s\S]*?requestManifest = await ssrAssetManifest\(ssrRequestOrigin\(Astro\.url, host\)\);/,
+      /!Astro\.isPrerendered &&\s*!requestManifest &&\s*chromeNeedsAssetManifest\(chromeSeed\) &&\s*!getBakeAssetManifest\(\)\s*\) \{[\s\S]*?requestManifest = await ssrAssetManifest\(ssrRequestOrigin\(Astro\.url, host\)\);/,
     );
   });
 });

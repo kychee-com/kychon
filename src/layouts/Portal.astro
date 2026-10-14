@@ -103,9 +103,15 @@ if (pageSlug && !headerSections) {
   }
 }
 const chromeSeed = pageSlug ? mergeSeedSections(seed, pageSlug, headerSections ?? []) : seed;
-// SSR route whose chrome names `/assets/<name>` (a port's logo / favicon): resolve
-// it through the site manifest too, or first paint requests the unserved path.
-if (!Astro.isPrerendered && !requestManifest && chromeNeedsAssetManifest(chromeSeed)) {
+// SSR route whose chrome names `/assets/<name>` (a port's logo / favicon) and has
+// no bundled build-time manifest (demos do): resolve it through the site manifest,
+// or first paint requests the unserved path.
+if (
+  !Astro.isPrerendered &&
+  !requestManifest &&
+  chromeNeedsAssetManifest(chromeSeed) &&
+  !getBakeAssetManifest()
+) {
   const host = Astro.request.headers.get('host') ?? Astro.url.host;
   requestManifest = await ssrAssetManifest(ssrRequestOrigin(Astro.url, host));
 }
