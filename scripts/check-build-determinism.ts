@@ -52,7 +52,8 @@ function listFiles(dir: string): string[] {
 }
 
 // Whitespace-tolerant: Astro writes the list compact, esbuild reprints it.
-const SERIALIZED_ASSETS = /"assets":\s*\[((?:\s*"(?:[^"\\]|\\.)*"\s*,?)*)\s*\]/g;
+// @run402/astro >= 2.6.0 minifies the bundle, which unquotes the key (`assets:[…]`).
+const SERIALIZED_ASSETS = /(?:"assets"|\bassets):\s*\[((?:\s*"(?:[^"\\]|\\.)*"\s*,?)*)\s*\]/g;
 
 /** How many serialized-manifest `"assets"` lists `code` has, and how many are unsorted. */
 function countManifestAssetLists(code: string): { total: number; unsorted: number } {

@@ -60,7 +60,7 @@ async function main(): Promise<void> {
 
     // Sign with the local allowance wallet — proves the project owner authorised
     // this binding. The signed delegation is verified by Run402 server-side.
-    const signed_delegation = signCiDelegation(delegationValues);
+    const signed_delegation = await signCiDelegation(delegationValues);
 
     const binding = await r.ci.createBinding({
       project_id: projectId,
