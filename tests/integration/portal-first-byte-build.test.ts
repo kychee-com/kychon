@@ -97,7 +97,7 @@ const ALL_SSR_PATHS = [
 // has to catch a route that waits on something, far below the 60s limit.
 const COLD_SSR_BUDGET_MS = 10_000;
 // Static files the gateway serves itself, without invoking the ssr function.
-const STATIC_SAME_HOST_PATHS = ['/_assets-manifest.json'];
+const STATIC_SAME_HOST_PATHS = ['/assets-manifest.client.json', '/_assets-manifest.json'];
 
 interface ColdSsrResult {
   status: number | 'hung';

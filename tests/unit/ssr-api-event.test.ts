@@ -66,7 +66,7 @@ describe('ssrAssetManifest', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(manifestJson));
     const manifest = await ssrAssetManifest('https://club.kychon.com', 1_000);
     expect(manifest?.assets['gala.jpg']).toMatchObject({ cdn_url: 'https://cdn.example.com/gala.jpg' });
-    expect(fetchMock).toHaveBeenCalledWith('https://club.kychon.com/_assets-manifest.json', expect.any(Object));
+    expect(fetchMock).toHaveBeenCalledWith('https://club.kychon.com/assets-manifest.client.json', expect.any(Object));
 
     await ssrAssetManifest('https://club.kychon.com', 2_000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -75,8 +75,23 @@ describe('ssrAssetManifest', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('falls back to the raw manifest when a release predates the client one', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('nope', { status: 404 }))
+      .mockResolvedValueOnce(new Response(manifestJson));
+    const manifest = await ssrAssetManifest('https://old.kychon.com');
+    expect(manifest?.assets['gala.jpg']).toBeTruthy();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://old.kychon.com/assets-manifest.client.json',
+      'https://old.kychon.com/_assets-manifest.json',
+    ]);
+  });
+
   it('resolves to null on a missing manifest or a network failure', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('nope', { status: 404 }));
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('nope', { status: 404 }))
+      .mockResolvedValueOnce(new Response('nope', { status: 404 }));
     await expect(ssrAssetManifest('https://a.kychon.com')).resolves.toBeNull();
 
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNRESET'));

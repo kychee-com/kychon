@@ -19,7 +19,7 @@
 import { createKychonClient, KYCHON_CAPABILITY_FUNCTION_PATH } from '@kychon/sdk';
 import { parseAssetManifest } from './bake-asset-manifest';
 import type { Section } from './blocks';
-import type { AssetManifest } from './kychon-image';
+import { type AssetManifest, CLIENT_ASSET_MANIFEST_URL } from './kychon-image';
 
 type KychonClient = ReturnType<typeof createKychonClient>;
 
@@ -259,7 +259,10 @@ const assetManifestCache = new Map<string, { at: number; ttl: number; manifest: 
 
 /**
  * The site's uploaded-asset manifest, read from its own
- * `/_assets-manifest.json` at request time. The build-time accessors
+ * `CLIENT_ASSET_MANIFEST_URL` at request time (the raw `/_assets-manifest.json`
+ * when a release predates it). The raw file is 9.2 MB on a port with ~1,600
+ * images and never arrived inside the timeout, so every cold SSR request
+ * waited 2 s and still baked `/assets/` logo paths (kychon#238). The build-time accessors
  * (`getBakeAssetManifest`) return null inside the SSR Lambda, and a port's
  * `/assets/<name>` paths are not served, so without this an SSR route bakes
  * unresolvable image URLs. Cached per origin across warm invocations; any
@@ -281,7 +284,9 @@ export function ssrAssetManifest(origin: string, now: number = Date.now()): Prom
       controller.abort();
       resolve(null);
     }, ASSET_MANIFEST_TIMEOUT_MS);
-    fetch(`${origin}/_assets-manifest.json`, { signal: controller.signal })
+    const read = (path: string) => fetch(`${origin}${path}`, { signal: controller.signal });
+    read(CLIENT_ASSET_MANIFEST_URL)
+      .then((res) => (res.status === 404 ? read('/_assets-manifest.json') : res))
       .then(async (res) => (res.ok ? parseAssetManifest(await res.text()) : null))
       .then(resolve, (error: unknown) => {
         console.warn('[ssr-api] asset manifest fetch failed:', error instanceof Error ? error.message : error);
