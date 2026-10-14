@@ -182,6 +182,10 @@ describe('kychon-api events tags', () => {
     expect(await titles({ tag: 'cycling' })).toEqual(['Ride']);
     expect(await titles({ tags: ['urban'] })).toEqual(['River trip']);
     expect(await titles({})).toEqual(['Ride', 'River trip', 'Social']);
+    expect(await titles({ starts_after: '2030-05-02T00:00:00Z' })).toEqual(['Ride', 'Social']);
+    expect(await titles({ starts_after: '2030-05-02T09:00:00Z', tag: 'cycling' })).toEqual(['Ride']);
+    const badCutoff = await call('events.list', 'query', { starts_after: 'not a date' });
+    expect(badCutoff.body.error?.code).toBe('validation.failed');
   });
 });
 

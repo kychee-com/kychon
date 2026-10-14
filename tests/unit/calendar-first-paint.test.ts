@@ -42,8 +42,9 @@ describe('SSR pages start their chrome reads before their own', () => {
     expect(prefetch).toBeLessThan(source.indexOf(`await ${ownRead}`));
   });
 
-  it('calendar embeds only first-paint events', () => {
+  it('calendar asks the API for first-paint events only, and embeds only those', () => {
     const source = readFileSync(join(pages, 'calendar.astro'), 'utf8');
+    expect(source).toContain('startsAfter: calendarFirstPaintCutoff(renderedAt)');
     expect(source).toContain('calendarFirstPaintEvents(');
   });
 

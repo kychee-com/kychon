@@ -796,10 +796,15 @@ const CONNECTOR_SCHEMAS = {
     }
   },
   "events.list": {
-    "summary": "List events the caller can see. Returns { rows, count } in database order; there is no paging or date filter, so sort and filter the rows yourself.",
+    "summary": "List events the caller can see. Returns { rows, count } in database order; there is no paging, so sort the rows yourself. starts_after keeps only events starting at or after a time (upcoming events: pass now).",
     "input": {
       "type": "object",
       "properties": {
+        "starts_after": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 time; only events starting at or after it."
+        },
         "is_members_only": {
           "type": "boolean"
         },
@@ -6101,6 +6106,12 @@ function matchesInput(row, input) {
   if ('tags' in row) {
     const tagFilter = normalizeEventTags(input.tags ?? input.tag);
     if (!eventMatchesTags(row.tags, tagFilter)) return false;
+  }
+  // `starts_after` (ISO 8601) keeps events starting at or after that time
+  // (events.list). Input validation rejects an unparseable value first.
+  if (typeof input.starts_after === 'string' && 'starts_at' in row) {
+    const cutoff = Date.parse(input.starts_after);
+    if (!Number.isNaN(cutoff) && !(Date.parse(String(row.starts_at)) >= cutoff)) return false;
   }
   for (const [inputKey, value] of Object.entries(input)) {
     if (value == null || typeof value === 'object') continue;

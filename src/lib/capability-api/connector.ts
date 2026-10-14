@@ -215,8 +215,14 @@ export const CONNECTOR_SCHEMAS: Record<string, ConnectorOperationSchema> = {
     example: { page_slug: 'index', zone: 'main' },
   },
   'events.list': {
-    summary: `List events the caller can see. ${PAGING_NOTE}`,
+    summary:
+      'List events the caller can see. Returns { rows, count } in database order; there is no paging, so sort the rows yourself. starts_after keeps only events starting at or after a time (upcoming events: pass now).',
     input: object({
+      starts_after: {
+        type: 'string',
+        format: 'date-time',
+        description: 'ISO 8601 time; only events starting at or after it.',
+      },
       is_members_only: { type: 'boolean' },
       location: { type: 'string' },
       tags: { ...EVENT_TAGS, description: 'Only events carrying any of these tags.' },

@@ -3,7 +3,7 @@ import CalendarPageApp from '../components/kychon/CalendarPageApp';
 import Portal from '../layouts/Portal.astro';
 import { ssrEventsList } from '../lib/ssr-api';
 import { prefetchSsrChrome } from '../lib/ssr-chrome-prefetch';
-import { calendarFirstPaintEvents } from '../lib/calendar-first-paint';
+import { calendarFirstPaintCutoff, calendarFirstPaintEvents } from '../lib/calendar-first-paint';
 import type { Event } from '../schemas/event';
 
 // /calendar is per-request — the visitor's current month is implicitly
@@ -27,11 +27,16 @@ interface EventsListResult {
 // The chrome's reads run alongside events.list instead of after it.
 prefetchSsrChrome(Astro, 'calendar');
 const host = Astro.request.headers.get('host') ?? 'localhost';
-const result = await ssrEventsList<EventsListResult>({ host, order: 'starts_at.asc' });
 const renderedAt = new Date();
 // First paint shows only events that have not started (the default filter);
 // the island loads the full list right after hydration. Embedding all of a
-// port's events (349 for NSGS) made the page 738 KB.
+// port's events (349 for NSGS) made the page 738 KB, and asking the API for
+// all of them made events.list the slowest read on a cold render.
+const result = await ssrEventsList<EventsListResult>({
+  host,
+  order: 'starts_at.asc',
+  startsAfter: calendarFirstPaintCutoff(renderedAt).toISOString(),
+});
 const initialEvents = calendarFirstPaintEvents(result?.rows ?? [], renderedAt);
 ---
 <Portal title="Calendar" pageSlug="calendar">

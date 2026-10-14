@@ -266,6 +266,24 @@ describe('Capability API query handlers', () => {
     expect(memberListPrivate.rows as JsonObject[]).toHaveLength(1);
   });
 
+  it('filters events.list by starts_after (upcoming events for /calendar)', async () => {
+    const db = new MemoryQueryDb({
+      events: [
+        { id: 1, title: 'Archive', starts_at: '2011-05-12T00:00:00Z', is_members_only: false },
+        { id: 2, title: 'Today', starts_at: '2026-10-14T19:00:00Z', is_members_only: false },
+        { id: 3, title: 'November', starts_at: '2026-11-14T19:00:00Z', is_members_only: false },
+      ],
+    });
+    const titles = async (input: JsonObject) =>
+      (
+        ((await runCapabilityQuery('events.list', input, { actor: anonymousActor, db })) as JsonObject)
+          .rows as JsonObject[]
+      ).map((row) => row.title);
+    expect(await titles({ starts_after: '2026-10-14T00:00:00Z' })).toEqual(['Today', 'November']);
+    expect(await titles({ starts_after: '2026-10-14T19:00:00Z' })).toEqual(['Today', 'November']);
+    expect(await titles({ starts_after: 'soon' })).toEqual(['Archive', 'Today', 'November']);
+  });
+
   it('implements events, registration options, RSVPs, announcements, and resources', async () => {
     const anonEvents = (await runCapabilityQuery(
       'events.list',

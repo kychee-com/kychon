@@ -229,6 +229,12 @@ function matchesInput(row: JsonObject, input: JsonObject): boolean {
     const tagFilter = normalizeEventTags(input.tags ?? input.tag);
     if (!eventMatchesTags(row.tags, tagFilter)) return false;
   }
+  // `starts_after` (ISO 8601) keeps events starting at or after that time
+  // (events.list). Input validation rejects an unparseable value first.
+  if (typeof input.starts_after === 'string' && 'starts_at' in row) {
+    const cutoff = Date.parse(input.starts_after);
+    if (!Number.isNaN(cutoff) && !(Date.parse(String(row.starts_at)) >= cutoff)) return false;
+  }
   for (const [inputKey, value] of Object.entries(input)) {
     if (value == null || typeof value === 'object') continue;
     if (inputKey === 'tags' || inputKey === 'tag') continue;

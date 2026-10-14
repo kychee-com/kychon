@@ -102,6 +102,8 @@ export interface SsrEventsListParams {
   /** Optional row cap. The capability defaults are usually high enough for
    *  community-portal scale; this exists for safety on bigger tenants. */
   limit?: number;
+  /** ISO 8601 time; only events starting at or after it (`starts_after`). */
+  startsAfter?: string;
 }
 
 /**
@@ -122,6 +124,7 @@ export async function ssrEventsList<T = unknown>(params: SsrEventsListParams): P
       : [{ field: 'starts_at', direction: 'asc' }];
     const input: Record<string, JsonValue> = { order };
     if (params.limit != null) input.limit = params.limit;
+    if (params.startsAfter) input.starts_after = params.startsAfter;
     // The capability returns `{ rows: Event[], count }`; type-erased
     // here so consumers can constrain to their schema.
     return await client(params.host).request<T>('events.list', 'query', input);

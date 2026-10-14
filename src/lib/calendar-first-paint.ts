@@ -8,9 +8,14 @@ import type { Event } from '../schemas/event';
  */
 export const CALENDAR_FIRST_PAINT_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
 
+/** The earliest start `/calendar` needs for first paint. */
+export function calendarFirstPaintCutoff(now: Date): Date {
+  return new Date(now.getTime() - CALENDAR_FIRST_PAINT_MARGIN_MS);
+}
+
 /** The events `/calendar` embeds for first paint; the island loads the rest. */
 export function calendarFirstPaintEvents(events: Event[], now: Date): Event[] {
-  const cutoff = now.getTime() - CALENDAR_FIRST_PAINT_MARGIN_MS;
+  const cutoff = calendarFirstPaintCutoff(now).getTime();
   return events.filter((event) => {
     const startsAt = Date.parse(event.starts_at);
     return Number.isNaN(startsAt) || startsAt >= cutoff;
