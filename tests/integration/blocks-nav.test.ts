@@ -275,6 +275,30 @@ describe('nav block — source presentation config', () => {
     expect(html).toContain('data-mobile-closed-layout="hidden"');
   });
 
+  it('an explicit active link color and background still reach the nav as scoped variables', () => {
+    const section = makeSection([{ label: 'Calendar', href: '/calendar' }], {
+      presentation: {
+        surface_bg: '#596b2f',
+        link_color: '#fffaf0',
+        link_active_color: '#ffffff',
+        link_active_bg: '#435225',
+      },
+    });
+    const html = BLOCK_TYPES.nav.render(section, { ...baseCtx, currentPath: '/calendar' });
+    expect(html).toContain('--nav-link-active-color:#ffffff;');
+    expect(html).toContain('--nav-link-active-bg:#435225;');
+  });
+
+  it('without an explicit active color the nav emits no active variables (public.css falls back to the resting color)', () => {
+    const section = makeSection([{ label: 'Calendar', href: '/calendar' }], {
+      presentation: { surface_bg: '#596b2f', link_color: '#fffaf0' },
+    });
+    const html = BLOCK_TYPES.nav.render(section, { ...baseCtx, currentPath: '/calendar' });
+    expect(html).toContain('--nav-link-color:#fffaf0;');
+    expect(html).not.toContain('--nav-link-active-color');
+    expect(html).not.toContain('--nav-link-active-bg');
+  });
+
   it('toggles source mobile mode at custom breakpoint', async () => {
     const section = makeSection([{ label: 'About', children: [{ label: 'Team', href: '/team' }] }], {
       behavior: { mobile_breakpoint: 2000 },
