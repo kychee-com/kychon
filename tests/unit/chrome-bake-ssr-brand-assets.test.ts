@@ -5,9 +5,11 @@
 // paint requests the bare path (404) until hydration swaps the logo in.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bakeChrome, chromeNeedsAssetManifest } from '../../src/lib/chrome-bake';
-import type { AssetManifest } from '../../src/lib/kychon-image';
+import { type AssetManifest, CLIENT_ASSET_MANIFEST_URL } from '../../src/lib/kychon-image';
+import { mergeSeedSections } from '../../src/lib/merge-sections';
+import { resetSsrAssetManifestCache, ssrAssetManifest, ssrRequestOrigin } from '../../src/lib/ssr-api';
 import type { ProjectSeed, SeedSection } from '../../src/seeds/types';
 
 const root = join(import.meta.dirname, '../..');
@@ -31,7 +33,10 @@ function portSeed(siteConfig: Record<string, unknown>, sections: SeedSection[] =
 const manifest = {
   version: 1,
   generated_at: '2026-10-14T00:00:00Z',
-  assets: { 'logo.jpg': { cdn_url: 'https://cdn.example.com/logo.jpg' } },
+  assets: {
+    'logo.jpg': { cdn_url: 'https://cdn.example.com/logo.jpg' },
+    'word.png': { cdn_url: 'https://cdn.example.com/word.png' },
+  },
 } as unknown as AssetManifest;
 
 describe('chromeNeedsAssetManifest', () => {
@@ -75,5 +80,49 @@ describe('SSR brand assets', () => {
     expect(portal).toMatch(
       /!Astro\.isPrerendered &&\s*!requestManifest &&\s*chromeNeedsAssetManifest\(chromeSeed\) &&\s*!getBakeAssetManifest\(\)\s*\) \{[\s\S]*?requestManifest = await ssrAssetManifest\(ssrRequestOrigin\(Astro\.url, host\)\);/,
     );
+  });
+});
+
+// The request-time path end to end for a route like /calendar with no
+// page-scoped header rows (kychon#237): the chrome alone must trigger the
+// static manifest read, and the bake must resolve the logo, wordmark and favicon.
+describe('SSR chrome with /assets/ brand paths and no page header rows', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetSsrAssetManifestCache();
+  });
+
+  async function bakeLikeSsr(siteConfig: Record<string, unknown>) {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.endsWith(CLIENT_ASSET_MANIFEST_URL)
+        ? new Response(JSON.stringify(manifest), { status: 200 })
+        : new Response('not found', { status: 404 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const chromeSeed = mergeSeedSections(portSeed(siteConfig), 'calendar', []);
+    expect(chromeNeedsAssetManifest(chromeSeed)).toBe(true);
+    const host = 'club.example.com';
+    const requestManifest = await ssrAssetManifest(ssrRequestOrigin(new URL(`http://${host}/calendar`), host));
+    return {
+      fetchMock,
+      chrome: bakeChrome(chromeSeed, 'Calendar', { pageSlug: 'calendar', manifest: requestManifest }),
+    };
+  }
+
+  it('resolves the brand icon and favicon from the static manifest file, never an SSR route', async () => {
+    const { fetchMock, chrome } = await bakeLikeSsr({
+      brand_icon_url: '/assets/logo.jpg',
+      favicon_url: '/assets/logo.jpg',
+    });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([`https://club.example.com${CLIENT_ASSET_MANIFEST_URL}`]);
+    expect(chrome.faviconUrl).toBe('https://cdn.example.com/logo.jpg');
+    expect(chrome.headerHtml).toContain('https://cdn.example.com/logo.jpg');
+    expect(chrome.headerHtml).not.toContain('"/assets/logo.jpg"');
+  });
+
+  it('resolves a wordmark-only brand', async () => {
+    const { chrome } = await bakeLikeSsr({ brand_wordmark_url: '/assets/word.png' });
+    expect(chrome.headerHtml).toContain('https://cdn.example.com/word.png');
+    expect(chrome.headerHtml).not.toContain('"/assets/word.png"');
   });
 });
