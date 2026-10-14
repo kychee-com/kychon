@@ -50,3 +50,46 @@ export function resolvePathAlias(aliases: unknown, pathname: string): string | n
   }
   return null;
 }
+
+/**
+ * The portal's sign-in page: Run402's `site.sign_in_path` and the target of
+ * every signed-out redirect (`/join?returnTo=…`).
+ */
+export const SIGN_IN_PATH = '/join';
+
+/**
+ * Engine routes that only work for a signed-in person. They redirect a
+ * signed-out visitor to the sign-in page and expect to be the `returnTo`, so a
+ * seeded source alias must never shadow them.
+ */
+const SIGNED_IN_ROUTES: ReadonlySet<string> = new Set([
+  '/admin',
+  '/admin-members',
+  '/admin-settings',
+  '/profile',
+  '/media-upload',
+]);
+
+/**
+ * Resolve an incoming request against `path_aliases` without letting a copied
+ * site's source paths take over the engine's sign-in flow (kychon#144).
+ *
+ * Wild Apricot sites have their own `/join` page, so ports seed
+ * `/join` → `/join-us` and the bare source URL keeps showing the club's
+ * copied membership page. But `/join` is also Kychon's sign-in page: the
+ * signed-out redirects (`/join?returnTo=/admin`) and Run402's OAuth hand-off
+ * (`returnTo` appended to `site.sign_in_path`) must reach the form, or nobody
+ * can sign in to the portal at all. So the sign-in path follows its alias only
+ * when the request has no query string; any query (`returnTo`, the hosted
+ * form's error round-trips) gets the sign-in form. The signed-in-only routes
+ * are never aliased.
+ */
+export function resolveRequestAlias(
+  aliases: unknown,
+  url: { pathname: string; search: string },
+): string | null {
+  const path = normalizeAliasPath(url.pathname);
+  if (SIGNED_IN_ROUTES.has(path)) return null;
+  if (path === SIGN_IN_PATH && url.search !== '') return null;
+  return resolvePathAlias(aliases, url.pathname);
+}

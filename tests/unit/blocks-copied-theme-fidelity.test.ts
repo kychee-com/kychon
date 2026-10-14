@@ -263,9 +263,15 @@ describe('member_login block (#91)', () => {
     expect(html).toContain('Member email');
     expect(html).toContain('Passphrase');
     expect(html).toContain('data-member-login-cta');
-    expect(html).toContain('href="/join"');
+    // returnTo keeps the link on the sign-in form when a port aliases its source /join (kychon#144).
+    expect(html).toContain('href="/join?returnTo=%2F"');
     expect(html).not.toContain('type="password"');
     expect(html).not.toContain('<input');
+  });
+
+  it('keeps a custom sign-in href unchanged', () => {
+    const html = renderBlock(section('member_login', { sign_in_href: '/members-login' }), ctx);
+    expect(html).toContain('href="/members-login"');
   });
 
   it('marks bot protection pending without rendering a faked widget', () => {

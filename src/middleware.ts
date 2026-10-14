@@ -1,6 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { ssrConfigLookup } from './lib/ssr-api';
-import { resolvePathAlias } from './lib/path-aliases';
+import { resolveRequestAlias } from './lib/path-aliases';
 
 /**
  * Copied-site path-alias resolver.
@@ -21,6 +21,8 @@ import { resolvePathAlias } from './lib/path-aliases';
  * this function; only SSR requests (unmatched paths, `prerender=false` routes)
  * reach here, and `resolvePathAlias` returns null for anything that isn't a
  * seeded alias key (and for self-redirects), so normal routing is untouched.
+ * `resolveRequestAlias` also keeps aliases off the sign-in flow: `/join` with
+ * a query and the signed-in-only routes always reach the engine (kychon#144).
  *
  * `path_aliases` is fetched once per Lambda lifetime and cached: the map only
  * changes on redeploy, which restarts the function. Fail-open — a failed read
@@ -48,7 +50,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (result.status === 'ok') cachedAliases = result.value;
     else aliasRetryAt = Date.now() + ALIAS_RETRY_MS;
   }
-  const target = resolvePathAlias(cachedAliases ?? null, context.url.pathname);
+  const target = resolveRequestAlias(cachedAliases ?? null, context.url);
   if (target) {
     return context.redirect(target, 301);
   }

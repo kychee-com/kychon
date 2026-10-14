@@ -49,6 +49,7 @@ import {
 } from './admin-action-controls.js';
 import { normalizeSiteSearchConfig } from './site-search-config.js';
 import { sectionShellFor } from './dom-structure.js';
+import { SIGN_IN_PATH } from './path-aliases.js';
 
 /** column-span-rows: legal fractions of a 6-col zone grid. */
 export type ColumnSpan = '1' | '1/2' | '1/3' | '2/3';
@@ -1977,7 +1978,10 @@ const MEMBER_LOGIN: BlockType = {
     const usernameLabel = text('username_label', 'Email');
     const passwordLabel = text('password_label', 'Password');
     const submitLabel = text('submit_label', 'Sign in');
-    const signInHref = cleanHref(cfg.sign_in_href, '/join');
+    // A bare sign-in link carries returnTo: on a port whose source `/join` page is
+    // aliased, only a request with a query reaches the sign-in form (kychon#144).
+    const linkHref = cleanHref(cfg.sign_in_href, SIGN_IN_PATH);
+    const signInHref = linkHref === SIGN_IN_PATH ? `${SIGN_IN_PATH}?returnTo=%2F` : linkHref;
     const iconUrl = typeof cfg.icon_url === 'string' ? cfg.icon_url.trim() : '';
     const botProtection = cfg.enable_bot_protection === true;
 

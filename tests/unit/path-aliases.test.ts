@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeAliasPath, resolvePathAlias } from '../../src/lib/path-aliases';
+import { normalizeAliasPath, resolvePathAlias, resolveRequestAlias } from '../../src/lib/path-aliases';
 
 describe('resolvePathAlias', () => {
   const aliases = {
@@ -60,5 +60,39 @@ describe('normalizeAliasPath', () => {
     expect(normalizeAliasPath('')).toBe('/');
     expect(normalizeAliasPath('/a/b/')).toBe('/a/b');
     expect(normalizeAliasPath('/a///')).toBe('/a');
+  });
+});
+
+describe('resolveRequestAlias (kychon#144)', () => {
+  const aliases = {
+    '/join': '/join-us',
+    '/admin': '/club-admin',
+    '/profile': '/my-profile',
+    '/Classified-Ads': '/classifieds',
+  };
+  const req = (pathAndQuery: string) => new URL(`https://club.example${pathAndQuery}`);
+
+  it('follows the alias for a bare visit to the source /join page', () => {
+    expect(resolveRequestAlias(aliases, req('/join'))).toBe('/join-us');
+    expect(resolveRequestAlias(aliases, req('/join/'))).toBe('/join-us');
+  });
+
+  it('keeps /join with a query on the sign-in form: auth redirects and the OAuth hand-off', () => {
+    expect(resolveRequestAlias(aliases, req('/join?returnTo=%2Fadmin'))).toBeNull();
+    expect(resolveRequestAlias(aliases, req('/join?return_to=%2F'))).toBeNull();
+    expect(resolveRequestAlias(aliases, req('/join?error=invalid_credentials'))).toBeNull();
+  });
+
+  it('never aliases the signed-in-only routes', () => {
+    expect(resolveRequestAlias(aliases, req('/admin'))).toBeNull();
+    expect(resolveRequestAlias(aliases, req('/profile'))).toBeNull();
+    expect(resolveRequestAlias({ '/admin-settings': '/x', '/media-upload': '/y' }, req('/admin-settings'))).toBeNull();
+    expect(resolveRequestAlias({ '/admin-settings': '/x', '/media-upload': '/y' }, req('/media-upload'))).toBeNull();
+  });
+
+  it('resolves every other alias as before, query or not', () => {
+    expect(resolveRequestAlias(aliases, req('/Classified-Ads'))).toBe('/classifieds');
+    expect(resolveRequestAlias(aliases, req('/Classified-Ads?CalendarViewType=1'))).toBe('/classifieds');
+    expect(resolveRequestAlias(aliases, req('/no-such-path'))).toBeNull();
   });
 });

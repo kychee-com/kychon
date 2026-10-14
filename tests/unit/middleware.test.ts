@@ -96,3 +96,44 @@ describe('middleware', () => {
     expect(afterBackoff.redirect).toHaveBeenCalledWith('/classifieds', 301);
   });
 });
+
+describe('middleware sign-in flow on ports (kychon#144)', () => {
+  beforeEach(() => {
+    ssrConfigLookup.mockReset();
+    ssrConfigLookup.mockResolvedValue({ status: 'ok', value: { '/join': '/join-us', '/admin': '/club-admin' } });
+  });
+
+  it('sends a signed-out redirect to the sign-in form, not the aliased source page', async () => {
+    const onRequest = await loadMiddleware();
+    const { context, redirect } = makeContext('http://internal/join?returnTo=%2Fadmin', { isPrerendered: false });
+    const next = vi.fn(async () => new Response('sign-in form'));
+
+    const response = await onRequest(context, next);
+
+    expect(redirect).not.toHaveBeenCalled();
+    expect(await response.text()).toBe('sign-in form');
+  });
+
+  it('still redirects a bare /join to the copied membership page', async () => {
+    const onRequest = await loadMiddleware();
+    const { context, redirect } = makeContext('http://internal/join', { isPrerendered: false });
+
+    await onRequest(
+      context,
+      vi.fn(async () => new Response('ok')),
+    );
+
+    expect(redirect).toHaveBeenCalledWith('/join-us', 301);
+  });
+
+  it('never aliases /admin', async () => {
+    const onRequest = await loadMiddleware();
+    const { context, redirect } = makeContext('http://internal/admin', { isPrerendered: false });
+    const next = vi.fn(async () => new Response('admin'));
+
+    await onRequest(context, next);
+
+    expect(redirect).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledOnce();
+  });
+});
