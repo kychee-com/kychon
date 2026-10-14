@@ -132,7 +132,7 @@ describe('rewriteAssetUrlsInHtml', () => {
 
   it('gives authored <img src> the 1920w variant, not the multi-MB original', () => {
     expect(rewriteAssetUrlsInHtml('<p><img src="/assets/slide1.jpg" alt=""></p>', manifest)).toBe(
-      `<p><img src="${ORIGIN}/slide1-v1-large.webp" alt=""></p>`,
+      `<p><img src="${ORIGIN}/slide1-v1-large.webp" alt="" width="1920" height="1267"></p>`,
     );
   });
 
@@ -140,7 +140,9 @@ describe('rewriteAssetUrlsInHtml', () => {
     expect(rewriteAssetUrlsInHtml('<a href="/assets/slide1.jpg">full size</a>', manifest)).toBe(
       `<a href="${ORIGIN}/slide1.jpg">full size</a>`,
     );
-    expect(rewriteAssetUrlsInHtml("<img src='/assets/logo.png'>", manifest)).toBe(`<img src='${ORIGIN}/logo.jpg'>`);
+    expect(rewriteAssetUrlsInHtml("<img src='/assets/logo.png'>", manifest)).toBe(
+      `<img src='${ORIGIN}/logo.jpg' width="3862" height="2574">`,
+    );
   });
 });
 

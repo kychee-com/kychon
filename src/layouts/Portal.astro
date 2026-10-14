@@ -14,7 +14,12 @@ import MediaPickerHost from '../components/MediaPickerHost.astro';
 import HistoryHost from '../components/HistoryHost.astro';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 
-import { buildInlineManifestScript, getBakeAssetManifest, inlineAssetManifest } from '../lib/bake-asset-manifest';
+import {
+  buildInlineManifestScript,
+  getBakeAssetManifest,
+  inlineAssetManifest,
+  PAGE_MANIFEST_PLACEHOLDER,
+} from '../lib/bake-asset-manifest';
 
 import { resolveActiveProjectSeed } from '../seeds';
 import { bakeChrome, chromeNeedsAssetManifest } from '../lib/chrome-bake';
@@ -157,10 +162,15 @@ const cspValue = buildCspValueFromTemplate(headersTemplate);
 // `getBakeAssetManifest` also covers ports, whose manifest is staged at
 // `public/_assets-manifest.json` rather than produced by the integration.
 // Inlined in slim form (inlineAssetManifest drops the ~5.7 KB/asset of fields the
-// browser never reads); manifests still above MAX_INLINE_MANIFEST_BYTES after
-// that are fetched at runtime instead.
+// browser never reads). A manifest still above MAX_INLINE_MANIFEST_BYTES after
+// that (a port with ~1,600 images: 1.3 MB) gets a placeholder instead, which
+// the middleware fills at build time with just the entries this page references
+// (`fillPageAssetManifest`). Without it a cold visit downloaded the whole
+// manifest before any re-rendered `/assets/` image could resolve (kychon#238).
 const bakeManifest = getBakeAssetManifest();
-const inlineManifestScript = buildInlineManifestScript(bakeManifest ? inlineAssetManifest(bakeManifest) : null);
+const inlineManifestScript =
+  buildInlineManifestScript(bakeManifest ? inlineAssetManifest(bakeManifest) : null) ||
+  (bakeManifest ? PAGE_MANIFEST_PLACEHOLDER : '');
 ---
 <!DOCTYPE html>
 <html lang="en">

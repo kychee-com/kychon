@@ -45,6 +45,7 @@ export async function hydrateAnnouncementsFeed(
     pollsEnabled: ctx.isFeatureEnabled?.('feature_polls') !== false,
     headingEditablePath: ctx.admin && section.id != null ? `sections.${section.id}.config.heading` : undefined,
     initialAnnouncements: initialAnnouncements as undefined,
+    manifest: ctx.manifest,
   });
   el.dataset.hydrated = 'true';
 }

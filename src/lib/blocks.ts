@@ -1038,6 +1038,7 @@ const ANNOUNCEMENTS_FEED: BlockType = {
       const ssrHtml = renderAnnouncementsFeedStaticHtml({
         announcements: ssrAnnouncements,
         config: cfg,
+        manifest: ctx.manifest,
       });
       const inner = constrainedContainerHtml(
         ` data-block-hydrate="announcements_feed" data-config="${jsonAttr(cfg)}" data-announcements-payload="${jsonAttr(ssrAnnouncements)}"`,

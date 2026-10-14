@@ -99,9 +99,11 @@ describe('resolveAssetUrl', () => {
 describe('rewriteAssetUrlsInHtml', () => {
   it('rewrites /assets src and href attributes, either quote style', () => {
     expect(rewriteAssetUrlsInHtml('<img src="/assets/Our_Advertisers_Pic.jpg" alt="ads">', manifest)).toBe(
-      `<img src="${ADS}" alt="ads">`,
+      `<img src="${ADS}" alt="ads" width="600" height="400">`,
     );
-    expect(rewriteAssetUrlsInHtml("<img src='/assets/Logo_SDJC_.jpg'>", manifest)).toBe(`<img src='${LOGO}'>`);
+    expect(rewriteAssetUrlsInHtml("<img src='/assets/Logo_SDJC_.jpg'>", manifest)).toBe(
+      `<img src='${LOGO}' width="600" height="400">`,
+    );
     expect(rewriteAssetUrlsInHtml('<a href="/assets/Logo_SDJC_.jpg">logo</a>', manifest)).toBe(
       `<a href="${LOGO}">logo</a>`,
     );
@@ -136,6 +138,22 @@ describe('block emitters resolve /assets/<basename>', () => {
     const html = renderBlock(section('custom', { html: '<img src="/assets/Our_Advertisers_Pic.jpg" alt="ads">' }), ctx);
     expect(html).toContain(`src="${ADS}"`);
     expect(html).not.toContain('/assets/Our_Advertisers_Pic.jpg');
+  });
+
+  it('announcement body <img> in the baked feed (kychon#238)', () => {
+    const announcement = {
+      id: 5,
+      title: 'Sponsors',
+      body: '<p><img src="/assets/Our_Advertisers_Pic.jpg" alt="ads"></p>',
+      is_pinned: false,
+      created_at: '2026-10-01T00:00:00Z',
+    };
+    const html = renderBlock(section('announcements_feed', { heading: 'News' }), {
+      ...ctx,
+      buildAnnouncements: [announcement] as unknown as NonNullable<BlockRenderContext['buildAnnouncements']>,
+    });
+    expect(html).toContain(`src="${ADS}"`);
+    expect(html).not.toContain('src="/assets/');
   });
 
   it('background hero image (uppercase .JPG basename)', () => {

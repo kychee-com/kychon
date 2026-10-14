@@ -78,7 +78,7 @@ const ASSET_MANIFEST_CACHE_KEY = 'wl_cache_assets_manifest';
  * BEFORE the manifest arrived can re-render against the now-populated
  * `<picture>` ladder instead of staying on the plain-`<img>` fallback.
  */
-const MANIFEST_CHANGED_EVENT = 'kychon:manifest-changed';
+export const MANIFEST_CHANGED_EVENT = 'kychon:manifest-changed';
 
 function readManifestSeed(): AssetManifest | null {
   try {
@@ -174,6 +174,65 @@ export function useGlobalManifest(): AssetManifest | null {
   return React.useSyncExternalStore(onManifestChanged, getGlobalManifest, () => null);
 }
 
+/**
+ * The manifest the browser fetches when nothing was inlined: the site manifest
+ * slimmed to the fields `kychon-image.ts` reads (`clientAssetManifest`),
+ * written by `src/pages/assets-manifest.client.json.ts`. The raw
+ * `/_assets-manifest.json` carries hashes, EXIF and an inline PNG per entry
+ * (~4.8 KB each); this file is ~0.8 KB per entry.
+ */
+export const CLIENT_ASSET_MANIFEST_URL = '/assets-manifest.client.json';
+
+/**
+ * Fields of a page's inlined manifest subset (`pageAssetManifest`): `partial`
+ * marks it as covering only the assets the built page referenced, and
+ * `absent` lists `/assets/` names the page referenced that the site manifest
+ * does not have, so looking them up is not a reason to fetch it.
+ */
+export interface PartialManifestFields {
+  partial?: boolean;
+  absent?: string[];
+}
+
+export function isPartialManifest(manifest: AssetManifest | null | undefined): boolean {
+  return Boolean(manifest && (manifest as AssetManifest & PartialManifestFields).partial === true);
+}
+
+let partialMissHandler: (() => void) | null = null;
+
+/**
+ * Called (asynchronously, at most once per scheduling turn) when a lookup
+ * misses in a partial manifest: the page rendered an `/assets/` reference the
+ * build did not see (content edited after the deploy, members-only content).
+ * `page-render.ts` registers a handler that fetches the full client manifest.
+ */
+export function onPartialManifestMiss(handler: (() => void) | null): void {
+  partialMissHandler = handler;
+}
+
+let missReportPending = false;
+
+function reportPartialMiss(manifest: AssetManifest, key: string): void {
+  if (!partialMissHandler || missReportPending || typeof window === 'undefined') return;
+  if ((manifest as AssetManifest & PartialManifestFields).absent?.includes(key)) return;
+  missReportPending = true;
+  // Lookups run during React render; never call out synchronously from there.
+  setTimeout(() => {
+    missReportPending = false;
+    partialMissHandler?.();
+  }, 0);
+}
+
+/**
+ * True when HTML still carries an `/assets/<name>` image source: the path is
+ * not served on ports, so rendering it shows a broken image. Islands use this
+ * to keep already-resolved (baked) content on screen until the manifest that
+ * resolves the refreshed content is available.
+ */
+export function hasUnresolvedAssetImages(html: string | null | undefined): boolean {
+  return Boolean(html && /\s(?:src|srcset)\s*=\s*["']\s*\/assets\//i.test(html));
+}
+
 /** v1.49 native widths — used to pick a sensible single-URL when CSS can't host a `<picture>`. */
 const PREFERRED_FIT_VARIANT: Array<keyof NonNullable<AssetRef['variants']>> = ['medium', 'large', 'thumb'];
 
@@ -210,7 +269,9 @@ export function lookupAssetRef(
   manifest: AssetManifest | null | undefined,
 ): AssetRef | null {
   if (!manifest || !url) return null;
-  const ref = resolveVariants(manifest, stripAssetsPrefix(url));
+  const key = stripAssetsPrefix(url);
+  const ref = resolveVariants(manifest, key);
+  if (!ref && key !== url && isPartialManifest(manifest)) reportPartialMiss(manifest, key);
   return ref ? normalizeManifestAssetRef(ref) : null;
 }
 
@@ -336,22 +397,42 @@ export function resolveAssetUrl(
  * otherwise emits the literal `/assets/...` path (not served — it 403/404s).
  * Misses and non-`/assets` URLs are left untouched; single- and double-quoted
  * attributes are both handled. Run on already-sanitized HTML.
+ *
+ * A resolved `<img>` the author gave neither `width` nor `height` also gets
+ * the served file's dimensions, so the browser reserves its box before the
+ * bytes arrive (the same CLS fix `kychonChromeImgAttrs` gives chrome images).
+ * No blurhash background: authored images are often transparent logos (a
+ * sponsors page), whose blurhash renders as a dark square under the logo.
  */
 export function rewriteAssetUrlsInHtml(
   html: string,
   manifest: AssetManifest | null | undefined,
 ): string {
   if (!manifest || !html || !html.includes('/assets/')) return html;
-  return html.replace(
+  return html.replace(/<img\b[^>]*>/gi, (tag) => rewriteAssetImgTag(tag, manifest)).replace(
     /(\s(src|href)\s*=\s*)(["'])(\/assets\/[^"'\s>]+)\3/gi,
     (whole, pre: string, attr: string, quote: string, url: string) => {
       // `src` gets a sized variant (authored HTML has no srcset); `href`
       // (download / full-size links) keeps the natural-size original.
       const ref = attr.toLowerCase() === 'src' ? lookupAssetRef(url, manifest) : null;
-      const resolved = ref ? pickHtmlImageSrc(ref) || url : resolveAssetUrl(url, manifest);
+      const resolved = ref ? pickHtmlImage(ref).src || url : resolveAssetUrl(url, manifest);
       return resolved && resolved !== url ? `${pre}${quote}${escAttr(resolved)}${quote}` : whole;
     },
   );
+}
+
+function rewriteAssetImgTag(tag: string, manifest: AssetManifest): string {
+  const src = /(\ssrc\s*=\s*)(["'])(\/assets\/[^"'\s>]+)\2/i.exec(tag);
+  if (!src) return tag;
+  const ref = lookupAssetRef(src[3], manifest);
+  const image = ref ? pickHtmlImage(ref) : null;
+  if (!image?.src) return tag;
+  const [whole, pre, quote] = src;
+  const out = `${tag.slice(0, src.index)}${pre}${quote}${escAttr(image.src)}${quote}${tag.slice(src.index + whole.length)}`;
+  // The served file's own dimensions: its natural rendered size is unchanged.
+  const { width: w, height: h } = image;
+  if (/\s(?:width|height)\s*=/i.test(tag) || !Number.isFinite(w) || !Number.isFinite(h)) return out;
+  return out.replace(/\s*\/?>$/, (end) => `${formatDimAttrs(w, h)}${end}`);
 }
 
 /**
@@ -362,11 +443,13 @@ export function rewriteAssetUrlsInHtml(
  * still routes through `display_jpeg`; refs without a ladder (sub-320px
  * sources) fall back to the original.
  */
-function pickHtmlImageSrc(ref: AssetRef): string {
-  if (ref.variants?.display_jpeg?.cdn_url) return ref.variants.display_jpeg.cdn_url;
-  const large = ref.variants?.large as AssetVariant | undefined;
-  const medium = ref.variants?.medium as AssetVariant | undefined;
-  return large?.cdn_url || medium?.cdn_url || pickFallbackSrc(ref);
+function pickHtmlImage(ref: AssetRef): { src: string; width?: number; height?: number } {
+  const variants = ref.variants;
+  const variant = [variants?.display_jpeg, variants?.large, variants?.medium].find(
+    (candidate): candidate is AssetVariant => Boolean(candidate?.cdn_url),
+  );
+  if (variant) return { src: variant.cdn_url, width: variant.width_px, height: variant.height_px };
+  return { src: pickFallbackSrc(ref), width: ref.width_px, height: ref.height_px };
 }
 
 function hasVariantLadder(ref: AssetRef): boolean {

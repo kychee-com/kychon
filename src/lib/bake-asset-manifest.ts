@@ -1,7 +1,13 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getBuildTimeManifest } from '@run402/astro/build-manifest';
-import { lookupAssetRef, normalizeManifestAssetRef, type AssetManifest } from './kychon-image.js';
+import {
+  lookupAssetRef,
+  MANIFEST_CHANGED_EVENT,
+  normalizeManifestAssetRef,
+  type AssetManifest,
+  type PartialManifestFields,
+} from './kychon-image.js';
 import { parseAssetManifest, STAGED_ASSET_MANIFEST_PATH } from './staged-asset-manifest.js';
 
 export {
@@ -13,13 +19,14 @@ export {
 
 // Per-entry fields nothing in the browser reads: hashes, integrity, cache
 // metadata, EXIF, and camelCase/immutable duplicates of URLs we keep in
-// snake_case. `blurhash_data_url` (~1.2 KB each) is dropped too; the client
-// decodes the short `blurhash` string instead.
+// snake_case (`url` too: normalization copies it into `cdn_url`).
+// `blurhash_data_url` (~1.2 KB each) is dropped too; the client decodes the
+// short `blurhash` string instead.
 const INLINE_DROP_FIELDS = new Set([
-  'sha256', 'contentSha256', 'sri', 'etag', 'contentDigest', 'cdn', 'cacheKind',
+  'sha256', 'contentSha256', 'sri', 'etag', 'contentDigest', 'content_digest', 'cdn', 'cacheKind',
   'size', 'size_bytes', 'visibility', 'metadata', 'image_info', 'image_exif', 'image_exif_policy',
-  'cdnUrl', 'cdnMutableUrl', 'immutableUrl', 'thumbUrl', 'displayUrl', 'display_immutable_url',
-  'blurhash_data_url',
+  'url', 'cdnUrl', 'cdnMutableUrl', 'immutableUrl', 'immutable_url', 'cdn_immutable_url',
+  'thumbUrl', 'displayUrl', 'display_immutable_url', 'blurhash_data_url',
 ]);
 const INLINE_DROP_VARIANT_FIELDS = new Set(['sha256', 'immutable_url', 'cdn_immutable_url', 'url']);
 
@@ -155,4 +162,96 @@ export function buildInlineManifestScript(
   // The flag tells page-render.ts this manifest came from the build (fresh),
   // not from a previous visit's localStorage seed.
   return `window.__KYCHON_ASSET_MANIFEST = ${json}; window.__KYCHON_ASSET_MANIFEST_INLINED = true;`;
+}
+
+/**
+ * Body Portal.astro gives an inline `<script>` when the site manifest is too
+ * large to inline whole. At build time the middleware swaps it for the page's
+ * own manifest subset (`fillPageAssetManifest`); left unfilled (SSR routes) it
+ * is an inert comment and the runtime fetches the client manifest instead.
+ */
+export const PAGE_MANIFEST_PLACEHOLDER = '/*kychon:page-asset-manifest*/';
+
+// `/assets/<name>` as raw content carries it (island props, data-* payloads,
+// unresolved links). `&` ends a name: in attributes it starts `&quot;`.
+const RAW_ASSET_REF = /\/assets\/([^"'\s<>()\\&?#,]+)/g;
+// Absolute URLs as baked `src`/`srcset`/style values carry them.
+const ABSOLUTE_URL = /https?:\/\/[^"'\s<>()\\&,]+/g;
+
+const assetUrlIndexes = new WeakMap<AssetManifest, Map<string, string>>();
+
+/** Every absolute URL an entry (or one of its variants) carries → its manifest key. */
+function assetUrlIndex(manifest: AssetManifest): Map<string, string> {
+  let index = assetUrlIndexes.get(manifest);
+  if (index) return index;
+  index = new Map();
+  const add = (fields: Record<string, unknown>, key: string): void => {
+    for (const value of Object.values(fields)) {
+      if (typeof value === 'string' && /^https?:\/\//.test(value) && !index!.has(value)) index!.set(value, key);
+    }
+  };
+  for (const [key, ref] of Object.entries(manifest.assets)) {
+    add(ref as unknown as Record<string, unknown>, key);
+    for (const variant of Object.values((ref.variants ?? {}) as Record<string, unknown>)) {
+      if (variant && typeof variant === 'object') add(variant as Record<string, unknown>, key);
+    }
+  }
+  assetUrlIndexes.set(manifest, index);
+  return index;
+}
+
+/**
+ * The client manifest subset for one built page: every entry the page's HTML
+ * references, either still as `/assets/<name>` (island props carry the raw
+ * content the client re-renders) or already resolved to one of the entry's
+ * CDN URLs (baked chrome, sections and page bodies, which the runtime
+ * re-renders from the raw rows). Marked `partial`; names the page referenced
+ * that the site manifest lacks go in `absent`, so the client does not fetch
+ * the full manifest looking for them.
+ *
+ * A port with ~1,600 images has a 9 MB site manifest (1.3 MB slimmed); a page
+ * references a few dozen entries at ~0.8 KB each.
+ */
+export function pageAssetManifest(manifest: AssetManifest, html: string): AssetManifest & PartialManifestFields {
+  const assets: AssetManifest['assets'] = {};
+  const absent = new Set<string>();
+  for (const [, name] of html.matchAll(RAW_ASSET_REF)) {
+    const ref = manifest.assets[name];
+    if (ref) assets[name] = ref;
+    else absent.add(name);
+  }
+  const index = assetUrlIndex(manifest);
+  for (const [url] of html.matchAll(ABSOLUTE_URL)) {
+    const key = index.get(url);
+    if (key) assets[key] = manifest.assets[key];
+  }
+  const sorted = Object.fromEntries(Object.keys(assets).sort().map((key) => [key, assets[key]]));
+  return {
+    ...inlineAssetManifest({ ...manifest, assets: sorted }),
+    partial: true,
+    ...(absent.size ? { absent: [...absent].sort() } : {}),
+  };
+}
+
+/**
+ * Inline script that installs a page's manifest subset. After a view
+ * transition the previous page's manifest is already on `window`: the subset
+ * merges into it (staying partial only if both were), and the change event
+ * re-renders islands that kept their manifest across the swap.
+ */
+export function buildPageManifestScript(subset: AssetManifest & PartialManifestFields): string {
+  const json = JSON.stringify(subset).replace(/</g, '\\u003c');
+  return (
+    `(function(m){var w=window,g=w.__KYCHON_ASSET_MANIFEST;` +
+    `if(g&&g.version===1&&g.assets){m.assets=Object.assign({},g.assets,m.assets);if(g.partial!==true){delete m.partial;delete m.absent;}}` +
+    `w.__KYCHON_ASSET_MANIFEST=m;w.__KYCHON_ASSET_MANIFEST_INLINED=true;` +
+    `try{w.dispatchEvent(new CustomEvent(${JSON.stringify(MANIFEST_CHANGED_EVENT)}))}catch(e){}})(${json});`
+  );
+}
+
+/** Replace the page's `PAGE_MANIFEST_PLACEHOLDER` with its manifest subset. */
+export function fillPageAssetManifest(html: string, manifest: AssetManifest | null): string {
+  if (!manifest || !html.includes(PAGE_MANIFEST_PLACEHOLDER)) return html;
+  const script = buildPageManifestScript(pageAssetManifest(manifest, html));
+  return html.replace(PAGE_MANIFEST_PLACEHOLDER, () => script);
 }

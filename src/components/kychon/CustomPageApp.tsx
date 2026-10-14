@@ -5,7 +5,7 @@ import { get } from '@/lib/api';
 import { isAdmin, isAuthenticated } from '@/lib/auth';
 import { resolveCustomPageSlugFromLocation } from '@/lib/clean-routes';
 import { ready, translateItems } from '@/lib/config';
-import { rewriteAssetUrlsInHtml, useGlobalManifest } from '@/lib/kychon-image';
+import { hasUnresolvedAssetImages, rewriteAssetUrlsInHtml, useGlobalManifest } from '@/lib/kychon-image';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { richTextContentClass } from '@/lib/ui/rich-text';
 import type { Page } from '@/schemas/content';
@@ -104,13 +104,20 @@ export default function CustomPageApp({ initialPage = null }: CustomPageAppProps
     };
   }, [loadPage]);
 
-  // The manifest as state: on a cold visit it lands after the page content,
-  // and the content must re-resolve its `/assets/<name>` images then.
+  // The manifest as state: when it lands after the page content (SSR routes,
+  // or an inlined page subset that misses), the content re-resolves its
+  // `/assets/<name>` images then.
   const manifest = useGlobalManifest();
-  const contentHtml = useMemo(
-    () => rewriteAssetUrlsInHtml(sanitizeRichHtml(page?.content), manifest),
-    [page?.content, manifest],
-  );
+  const contentHtml = useMemo(() => {
+    const html = rewriteAssetUrlsInHtml(sanitizeRichHtml(page?.content), manifest);
+    // Never trade the baked body (resolved at build) for the refreshed one
+    // while it still has unserved `/assets/` images: each would 404 and show
+    // a broken-image icon until the manifest arrives (kychon#238).
+    if (initialPage && page !== initialPage && hasUnresolvedAssetImages(html)) {
+      return rewriteAssetUrlsInHtml(sanitizeRichHtml(initialPage.content), manifest);
+    }
+    return html;
+  }, [page, initialPage, manifest]);
 
   if (loading) return <PageSkeleton />;
 

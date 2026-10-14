@@ -1,9 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ssrConfigLookup = vi.fn();
+const bakeManifest = vi.hoisted(() => ({
+  version: 1,
+  assets: {
+    'Logo.jpg': { cdn_url: 'https://pr-test.run402.com/_blob/astro/Logo.jpg' },
+    'Gallery_1.jpg': { cdn_url: 'https://pr-test.run402.com/_blob/astro/Gallery_1.jpg' },
+  },
+}));
 
 vi.mock('astro:middleware', () => ({ defineMiddleware: (fn: unknown) => fn }));
 vi.mock('../../src/lib/ssr-api', () => ({ ssrConfigLookup }));
+vi.mock('../../src/lib/bake-asset-manifest', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/bake-asset-manifest')>()),
+  getBakeAssetManifest: () => bakeManifest,
+}));
 
 type Handler = (context: unknown, next: () => Promise<Response>) => Promise<Response>;
 
@@ -60,6 +71,39 @@ describe('middleware', () => {
     expect(ssrConfigLookup).toHaveBeenCalledWith({ key: 'path_aliases', host: 'eagles.kychon.com' });
     expect(redirect).toHaveBeenCalledWith('/classifieds', 301);
     expect(next).not.toHaveBeenCalled();
+  });
+
+  describe('page asset manifest (kychon#238)', () => {
+    const page = (placeholder: string) =>
+      `<html><head><script>${placeholder}</script></head><body><img src="https://pr-test.run402.com/_blob/astro/Logo.jpg"></body></html>`;
+    const html = (body: string) => new Response(body, { headers: { 'content-type': 'text/html' } });
+
+    it('fills a built page with just the entries it references', async () => {
+      ssrConfigLookup.mockResolvedValue({ status: 'ok', value: null });
+      const onRequest = await loadMiddleware();
+      const { PAGE_MANIFEST_PLACEHOLDER } = await import('../../src/lib/bake-asset-manifest');
+      // A concrete route: the alias read is skipped, the fill is not.
+      const { context } = makeContext('http://localhost:4321/events', { isPrerendered: true, routePattern: '/events' });
+
+      const response = await onRequest(context, async () => html(page(PAGE_MANIFEST_PLACEHOLDER)));
+      const body = await response.text();
+
+      expect(response.headers.get('content-type')).toBe('text/html');
+      expect(body).not.toContain(PAGE_MANIFEST_PLACEHOLDER);
+      expect(body).toContain('"Logo.jpg"');
+      expect(body).not.toContain('Gallery_1.jpg');
+    });
+
+    it('leaves SSR responses alone', async () => {
+      ssrConfigLookup.mockResolvedValue({ status: 'ok', value: null });
+      const onRequest = await loadMiddleware();
+      const { PAGE_MANIFEST_PLACEHOLDER } = await import('../../src/lib/bake-asset-manifest');
+      const { context } = makeContext('http://internal/calendar', { isPrerendered: false });
+
+      const response = await onRequest(context, async () => html(page(PAGE_MANIFEST_PLACEHOLDER)));
+
+      expect(await response.text()).toContain(PAGE_MANIFEST_PLACEHOLDER);
+    });
   });
 
   it('caches a successful read for the life of the container', async () => {

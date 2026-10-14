@@ -31,7 +31,15 @@ import {
   findDirectElementChild,
   nearestElementWithAttribute,
 } from './dom-structure';
-import { type AssetManifest, getGlobalManifest, isManifestInlinedByBuild, setGlobalManifest } from './kychon-image';
+import {
+  type AssetManifest,
+  CLIENT_ASSET_MANIFEST_URL,
+  getGlobalManifest,
+  isManifestInlinedByBuild,
+  isPartialManifest,
+  onPartialManifestMiss,
+  setGlobalManifest,
+} from './kychon-image';
 import { canKeepBakedMainZone, computeMainZoneSignature } from './main-zone-signature';
 
 const CACHE_PREFIX = 'wl_cache_sections_';
@@ -100,6 +108,56 @@ function writeManifestToLocalStorage(manifest: AssetManifest): void {
   }
 }
 
+/**
+ * The site's client manifest from the network (`CLIENT_ASSET_MANIFEST_URL`,
+ * the slim build output), falling back to the raw `/_assets-manifest.json`
+ * when a deploy predates it. Null on any failure.
+ */
+async function fetchSiteManifest(): Promise<AssetManifest | null> {
+  try {
+    // `cache: 'no-cache'` revalidates with the server (If-Modified-Since /
+    // If-None-Match) so a deploy that ships a new manifest invalidates the
+    // browser's HTTP cache on the next load. `force-cache` would happily
+    // return stale bytes — e.g. a manifest missing newer fields like
+    // `blurhash_data_url` / `asset_schema` — even after a gateway
+    // redeploy. The localStorage seed (above) still handles synchronous
+    // first-paint without a network roundtrip; the no-cache here only
+    // governs the background revalidate.
+    let res = await fetch(CLIENT_ASSET_MANIFEST_URL, { cache: 'no-cache' });
+    if (!res.ok) res = await fetch(ASSET_MANIFEST_URL, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as unknown;
+    if (!data || typeof data !== 'object' || (data as { version?: unknown }).version !== 1) return null;
+    return data as AssetManifest;
+  } catch {
+    return null;
+  }
+}
+
+let fullManifestPromise: Promise<void> | null = null;
+
+/**
+ * A page's inlined manifest is partial (only the entries the build saw it
+ * reference). When a lookup misses there, fetch the site's client manifest
+ * once and re-render the zones with it; islands re-render on the change event.
+ */
+function upgradePartialManifest(): Promise<void> {
+  if (fullManifestPromise) return fullManifestPromise;
+  fullManifestPromise = (async () => {
+    const manifest = await fetchSiteManifest();
+    if (!manifest) return;
+    cachedManifest = manifest;
+    writeManifestToLocalStorage(manifest);
+    setGlobalManifest(manifest);
+    if (lastRendered) await renderSections(lastRendered, getRenderContext());
+  })();
+  return fullManifestPromise;
+}
+
+onPartialManifestMiss(() => {
+  if (isPartialManifest(getGlobalManifest())) void upgradePartialManifest();
+});
+
 function fetchManifest(): Promise<AssetManifest | null> {
   if (manifestPromise) return manifestPromise;
   // Skip the network when Portal.astro's inline `<script>` already
@@ -115,34 +173,22 @@ function fetchManifest(): Promise<AssetManifest | null> {
   // from the localStorage seed (a previous visit's manifest), and trusting
   // that would never revalidate — a port whose manifest is above the inline
   // cap would serve a stale asset list forever after a deploy adds images.
+  //
+  // A page subset (`partial`, ports above the inline cap) is trusted the same
+  // way but never stored as the seed: it covers one page, not the site.
   const inline = isManifestInlinedByBuild() ? getGlobalManifest() : null;
   if (inline) {
     manifestPromise = Promise.resolve(inline);
-    writeManifestToLocalStorage(inline);
+    if (!isPartialManifest(inline)) writeManifestToLocalStorage(inline);
     return manifestPromise;
   }
   manifestPromise = (async () => {
-    try {
-      // `cache: 'no-cache'` revalidates with the server (If-Modified-Since /
-      // If-None-Match) so a deploy that ships a new manifest invalidates the
-      // browser's HTTP cache on the next load. `force-cache` would happily
-      // return stale bytes — e.g. a manifest missing newer fields like
-      // `blurhash_data_url` / `asset_schema` — even after a gateway
-      // redeploy. The localStorage seed (above) still handles synchronous
-      // first-paint without a network roundtrip; the no-cache here only
-      // governs the background revalidate.
-      const res = await fetch(ASSET_MANIFEST_URL, { cache: 'no-cache' });
-      if (!res.ok) return null;
-      const data = (await res.json()) as unknown;
-      if (!data || typeof data !== 'object' || (data as { version?: unknown }).version !== 1) return null;
-      const manifest = data as AssetManifest;
-      cachedManifest = manifest;
-      writeManifestToLocalStorage(manifest);
-      setGlobalManifest(manifest);
-      return manifest;
-    } catch {
-      return null;
-    }
+    const manifest = await fetchSiteManifest();
+    if (!manifest) return null;
+    cachedManifest = manifest;
+    writeManifestToLocalStorage(manifest);
+    setGlobalManifest(manifest);
+    return manifest;
   })();
   return manifestPromise;
 }
@@ -199,11 +245,11 @@ function getRenderContext(): BlockRenderContext {
     brandTextShort: siteConfig.brand_text_short ? String(siteConfig.brand_text_short) : undefined,
     brandIconUrl: siteConfig.brand_icon_url ? String(siteConfig.brand_icon_url) : undefined,
     brandWordmarkUrl: siteConfig.brand_wordmark_url ? String(siteConfig.brand_wordmark_url) : undefined,
-    // Populated by `fetchManifest()` once on first hydrate; null until then
-    // (image emitters fall through to plain `<img>` for the very first render
-    // pass). After the fetch resolves, every subsequent renderBlock call sees
-    // the manifest and emits `<picture>` with v1.49 variants.
-    manifest: cachedManifest,
+    // Inlined by the build, or populated by `fetchManifest()` on first
+    // hydrate; null until then (image emitters fall through to plain `<img>`
+    // for the very first render pass). Read live from `window`: after a view
+    // transition the new page's inline script merges its entries in there.
+    manifest: getGlobalManifest() ?? cachedManifest,
   };
 }
 
@@ -393,8 +439,9 @@ function warmHeroImageCache(sections: Section[]): void {
   // Cache the URL the hero actually paints (manifest-resolved CDN URL), not
   // the configured `/assets/<basename>` path, which is not served. With no
   // manifest yet, skip `/assets/` paths rather than warm a guaranteed miss.
-  const url = heroImageRenderUrl(hero, cachedManifest);
-  if (!url || (!cachedManifest && url.startsWith('/assets/'))) return;
+  const manifest = getGlobalManifest() ?? cachedManifest;
+  const url = heroImageRenderUrl(hero, manifest);
+  if (!url || (!manifest && url.startsWith('/assets/'))) return;
   cacheHeroImage(url);
 }
 
@@ -528,14 +575,7 @@ export async function hydratePage(slug: string): Promise<void> {
 
   // Cached pass — instant if we have data.
   const cached = readCache(slug);
-  if (cached) {
-    renderZoneInto('header', cached, ctx);
-    renderZoneInto('footer', cached, ctx);
-    renderZoneInto('main', cached, ctx);
-    warmHeroImageCache(cached);
-    await hydrateDynamic(cached, ctx);
-    rebindAdminEditing();
-  }
+  if (cached) await renderSections(cached, ctx);
 
   if (cached && cacheIsFresh(slug)) {
     // Background revalidate without blocking
@@ -575,25 +615,23 @@ async function fetchAndUpdate(
   const refreshedCtx = getRenderContext();
 
   writeCache(slug, fresh);
-  if (cached && JSON.stringify(cached) === JSON.stringify(fresh)) {
-    // No section diff — re-render anyway because the manifest may have
-    // landed since the cached pass painted `<img>` instead of `<picture>`.
-    // Skipping this here means first-hydrate users without variants until
-    // they navigate away and back.
-    renderZoneInto('header', fresh, refreshedCtx);
-    renderZoneInto('footer', fresh, refreshedCtx);
-    renderZoneInto('main', fresh, refreshedCtx);
-    warmHeroImageCache(fresh);
-    await hydrateDynamic(fresh, refreshedCtx);
-    rebindAdminEditing();
-    return;
-  }
+  // Re-render even with no section diff: the manifest may have landed since
+  // the cached pass painted `<img>` instead of `<picture>`. Skipping this
+  // here means first-hydrate users without variants until they navigate away
+  // and back.
+  await renderSections(fresh, refreshedCtx);
+}
 
-  renderZoneInto('header', fresh, refreshedCtx);
-  renderZoneInto('footer', fresh, refreshedCtx);
-  renderZoneInto('main', fresh, refreshedCtx);
-  warmHeroImageCache(fresh);
-  await hydrateDynamic(fresh, refreshedCtx);
+/** Sections the zones were last rendered from, re-rendered when a fuller manifest lands. */
+let lastRendered: Section[] | null = null;
+
+async function renderSections(sections: Section[], ctx: BlockRenderContext): Promise<void> {
+  lastRendered = sections;
+  renderZoneInto('header', sections, ctx);
+  renderZoneInto('footer', sections, ctx);
+  renderZoneInto('main', sections, ctx);
+  warmHeroImageCache(sections);
+  await hydrateDynamic(sections, ctx);
   rebindAdminEditing();
 }
 

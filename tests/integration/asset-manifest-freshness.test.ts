@@ -66,7 +66,7 @@ describe('asset manifest load', () => {
     const fetchMock = stubFetch(fresh);
     const { loadAssetManifest } = await import('../../src/lib/page-render');
     const manifest = await loadAssetManifest();
-    expect(fetchMock).toHaveBeenCalledWith('/_assets-manifest.json', { cache: 'no-cache' });
+    expect(fetchMock).toHaveBeenCalledWith('/assets-manifest.client.json', { cache: 'no-cache' });
     expect(manifest?.assets['Gallery_1.JPG']).toBeDefined();
     expect((w.__KYCHON_ASSET_MANIFEST as typeof fresh).assets['Gallery_1.JPG']).toBeDefined();
     expect(JSON.parse(store[KEY]).assets['Gallery_1.JPG']).toBeDefined();
@@ -80,6 +80,49 @@ describe('asset manifest load', () => {
     const { loadAssetManifest } = await import('../../src/lib/page-render');
     expect(await loadAssetManifest()).toBe(fresh);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('trusts an inlined page subset without storing it as the site seed (kychon#238)', async () => {
+    const store: Record<string, string> = {};
+    installLocalStorage(store);
+    const page = { version: 1, assets: { 'Logo.jpg': ref('Logo.jpg') }, partial: true };
+    w.__KYCHON_ASSET_MANIFEST = page;
+    w.__KYCHON_ASSET_MANIFEST_INLINED = true;
+    const fetchMock = stubFetch(fresh);
+    const { loadAssetManifest } = await import('../../src/lib/page-render');
+    expect(await loadAssetManifest()).toBe(page);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store[KEY]).toBeUndefined();
+  });
+
+  it('fetches the site manifest once when the page subset misses (kychon#238)', async () => {
+    const store: Record<string, string> = {};
+    installLocalStorage(store);
+    w.__KYCHON_ASSET_MANIFEST = { version: 1, assets: { 'Logo.jpg': ref('Logo.jpg') }, partial: true };
+    w.__KYCHON_ASSET_MANIFEST_INLINED = true;
+    const fetchMock = stubFetch(fresh);
+    await import('../../src/lib/page-render');
+    const { getGlobalManifest, lookupAssetRef } = await import('../../src/lib/kychon-image');
+    expect(lookupAssetRef('/assets/Gallery_1.JPG', getGlobalManifest())).toBeNull();
+    lookupAssetRef('/assets/Gallery_2.JPG', getGlobalManifest());
+    await vi.waitFor(() => expect(getGlobalManifest()?.assets['Gallery_1.JPG']).toBeDefined());
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith('/assets-manifest.client.json', { cache: 'no-cache' });
+    expect(JSON.parse(store[KEY]).assets['Gallery_1.JPG']).toBeDefined();
+  });
+
+  it('falls back to the raw manifest when the client manifest is missing', async () => {
+    installLocalStorage({});
+    const fetchMock = vi.fn(async (url: string) =>
+      url === '/_assets-manifest.json' ? new Response(JSON.stringify(fresh)) : new Response('', { status: 404 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { loadAssetManifest } = await import('../../src/lib/page-render');
+    expect((await loadAssetManifest())?.assets['Gallery_1.JPG']).toBeDefined();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/assets-manifest.client.json',
+      '/_assets-manifest.json',
+    ]);
   });
 
   it('drops the stale seed when the fresh manifest does not fit in localStorage', async () => {

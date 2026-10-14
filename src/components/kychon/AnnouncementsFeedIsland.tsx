@@ -25,7 +25,7 @@ import { del, getAnnouncements, getPollOptions, getPolls, getPollVotes, patch, p
 import { getSession } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
 import { translateItems } from '@/lib/config';
-import { rewriteAssetUrlsInHtml, useGlobalManifest } from '@/lib/kychon-image';
+import { type AssetManifest, rewriteAssetUrlsInHtml, useGlobalManifest } from '@/lib/kychon-image';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { showToast } from '@/lib/toast-events';
 import type { Announcement } from '@/schemas/content';
@@ -52,6 +52,11 @@ interface AnnouncementsFeedProps {
    * skeleton flash on every page load.
    */
   initialAnnouncements?: Announcement[];
+  /**
+   * Resolves `/assets/<name>` images in bodies where no window manifest
+   * exists (the build-time render); the window manifest wins when present.
+   */
+  manifest?: AssetManifest | null;
 }
 
 interface AnnouncementCardData {
@@ -340,16 +345,18 @@ function AnnouncementCard({
   onDelete,
   onTogglePin,
   onVote,
+  manifest: fallbackManifest,
 }: {
   data: AnnouncementCardData;
   admin: boolean;
+  manifest?: AssetManifest | null;
   votingKey: string;
   onDelete: (announcement: Announcement) => void;
   onTogglePin: (announcement: Announcement) => void;
   onVote: (poll: Poll, option: PollOption) => void;
 }) {
   const { announcement, poll } = data;
-  const manifest = useGlobalManifest();
+  const manifest = useGlobalManifest() ?? fallbackManifest ?? null;
 
   return (
     <Card data-announcement-card={announcement.id}>
@@ -399,7 +406,14 @@ function initialAnnouncementState(initial: Announcement[] | undefined): LoadStat
   };
 }
 
-function AnnouncementsFeedIsland({ config, role, pollsEnabled = true, headingEditablePath, initialAnnouncements }: AnnouncementsFeedProps) {
+function AnnouncementsFeedIsland({
+  config,
+  role,
+  pollsEnabled = true,
+  headingEditablePath,
+  initialAnnouncements,
+  manifest,
+}: AnnouncementsFeedProps) {
   const [state, setState] = React.useState<LoadState>(() => initialAnnouncementState(initialAnnouncements));
   const [posting, setPosting] = React.useState(false);
   const [votingKey, setVotingKey] = React.useState('');
@@ -593,6 +607,7 @@ function AnnouncementsFeedIsland({ config, role, pollsEnabled = true, headingEdi
               admin={admin}
               data={data}
               key={data.announcement.id}
+              manifest={manifest}
               onDelete={deleteAnnouncement}
               onTogglePin={togglePin}
               onVote={submitVote}
@@ -626,12 +641,14 @@ export function renderAnnouncementsFeedStaticHtml(props: {
   announcements: Announcement[];
   config: AnnouncementsFeedConfig;
   headingEditablePath?: string;
+  manifest?: AssetManifest | null;
 }): string {
   return renderToStaticMarkup(
     <AnnouncementsFeedIsland
       config={props.config}
       headingEditablePath={props.headingEditablePath}
       initialAnnouncements={props.announcements}
+      manifest={props.manifest}
     />,
   );
 }

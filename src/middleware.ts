@@ -1,4 +1,6 @@
+import type { APIContext, MiddlewareNext } from 'astro';
 import { defineMiddleware } from 'astro:middleware';
+import { fillPageAssetManifest, getBakeAssetManifest, PAGE_MANIFEST_PLACEHOLDER } from './lib/bake-asset-manifest';
 import { ssrConfigLookup } from './lib/ssr-api';
 import { resolveRequestAlias } from './lib/path-aliases';
 
@@ -54,6 +56,11 @@ export function mayBeAliasSource(routePattern: string | undefined): boolean {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  const response = await resolveAliasOrNext(context, next);
+  return context.isPrerendered ? withPageAssetManifest(response) : response;
+});
+
+async function resolveAliasOrNext(context: APIContext, next: MiddlewareNext): Promise<Response> {
   if (!mayBeAliasSource(context.routePattern)) return next();
   const host = context.isPrerendered
     ? context.url.host
@@ -68,4 +75,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(target, 301);
   }
   return next();
-});
+}
+
+/**
+ * Fill a built page's asset-manifest placeholder (Portal.astro) with the
+ * manifest entries that page references. Only the build has the whole page
+ * and the manifest at hand; SSR responses keep the inert placeholder.
+ */
+async function withPageAssetManifest(response: Response): Promise<Response> {
+  if (!response.headers.get('content-type')?.includes('text/html')) return response;
+  const html = await response.text();
+  const filled = html.includes(PAGE_MANIFEST_PLACEHOLDER) ? fillPageAssetManifest(html, getBakeAssetManifest()) : html;
+  return new Response(filled, { status: response.status, statusText: response.statusText, headers: response.headers });
+}
