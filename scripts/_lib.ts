@@ -615,6 +615,12 @@ export interface RunDeployOptions {
   chromeSnapshot?: string | ProjectSeed;
   /** Continue past confirmation-required deploy warnings after explicit review. */
   allowWarnings?: boolean;
+  /**
+   * Continue past only these confirmation-required warning codes (e.g. a
+   * reviewed DESTRUCTIVE_SUBDOMAIN_REMOVAL for an already-released temporary
+   * subdomain, run402#626). Any other blocking warning still stops the deploy.
+   */
+  allowWarningCodes?: readonly string[];
   /** When true, prints the assembled spec summary and returns without calling the API. Alias for deployMode="check". */
   dryRun?: boolean;
   /** Local/gateway deploy mode. Omit for the normal apply path. */
@@ -1085,13 +1091,18 @@ export async function runDeploy(
         }
       },
     };
-    if (opts.requiredPlan && opts.allowWarnings) {
+    if (opts.requiredPlan && (opts.allowWarnings || opts.allowWarningCodes?.length)) {
       throw new Error("Warning approvals are not used with --require-plan; the reviewed plan already binds the warning set.");
     }
     if (opts.allowWarnings) {
       applyOptions.allowWarnings = true;
       console.warn(
         "\nContinuing past confirmation-required deploy warnings because allowWarnings is enabled.",
+      );
+    } else if (opts.allowWarningCodes?.length) {
+      applyOptions.allowWarningCodes = [...opts.allowWarningCodes];
+      console.warn(
+        `\nContinuing past confirmation-required deploy warnings with codes ${opts.allowWarningCodes.join(", ")} only.`,
       );
     }
     if (opts.requiredPlan && phase === "initial") {
