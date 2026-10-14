@@ -467,7 +467,9 @@ function isSvgFaviconUrl(url: string): boolean {
 }
 
 export function applyBranding(config: Record<string, any>): void {
-  const name = config.brand_text || config.site_name || 'Kychon';
+  // Same precedence as the build-time bake (chrome-bake.ts titleBrand), so
+  // hydration never swaps a baked "Home — <site name>" for the short brand.
+  const name = config.site_name || config.brand_text || 'Kychon';
   // The baked title may carry a brand the live config has since replaced;
   // drop it rather than append the live one after it (kychon#228).
   const bakedBrand = findDirectElementChild(document.head, (child) => child instanceof HTMLTitleElement)?.dataset.brand;

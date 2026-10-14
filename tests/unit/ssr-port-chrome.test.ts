@@ -69,6 +69,16 @@ describe('applyBranding', () => {
     expect(document.title).toBe('Calendar — Outdoor Club');
   });
 
+  it('keeps the baked site name when brand_text is a short form', () => {
+    headFixture(
+      '<title data-brand="North Suburban Genealogical Society">Home — North Suburban Genealogical Society</title>',
+    );
+
+    applyBranding({ site_name: 'North Suburban Genealogical Society', brand_text: 'NSGS' });
+
+    expect(document.title).toBe('Home — North Suburban Genealogical Society');
+  });
+
   it('strips only whole brand suffixes', () => {
     expect(stripBrandSuffix('A — B — B', 'B')).toBe('A');
     expect(stripBrandSuffix('A — B', '')).toBe('A — B');
