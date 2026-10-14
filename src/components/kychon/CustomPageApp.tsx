@@ -5,7 +5,7 @@ import { get } from '@/lib/api';
 import { isAdmin, isAuthenticated } from '@/lib/auth';
 import { resolveCustomPageSlugFromLocation } from '@/lib/clean-routes';
 import { ready, translateItems } from '@/lib/config';
-import { getGlobalManifest, rewriteAssetUrlsInHtml } from '@/lib/kychon-image';
+import { rewriteAssetUrlsInHtml, useGlobalManifest } from '@/lib/kychon-image';
 import { sanitizeRichHtml } from '@/lib/sanitize-html';
 import { richTextContentClass } from '@/lib/ui/rich-text';
 import type { Page } from '@/schemas/content';
@@ -104,9 +104,12 @@ export default function CustomPageApp({ initialPage = null }: CustomPageAppProps
     };
   }, [loadPage]);
 
+  // The manifest as state: on a cold visit it lands after the page content,
+  // and the content must re-resolve its `/assets/<name>` images then.
+  const manifest = useGlobalManifest();
   const contentHtml = useMemo(
-    () => rewriteAssetUrlsInHtml(sanitizeRichHtml(page?.content), getGlobalManifest()),
-    [page?.content],
+    () => rewriteAssetUrlsInHtml(sanitizeRichHtml(page?.content), manifest),
+    [page?.content, manifest],
   );
 
   if (loading) return <PageSkeleton />;
