@@ -8,7 +8,7 @@ const resolveActiveProjectSeed = vi.fn();
 vi.mock('../../src/lib/ssr-api', () => ({
   ssrPageHeaderSections,
   ssrAssetManifest,
-  ssrRequestOrigin: (url: URL, host: string) => `https://${host}`,
+  ssrRequestOrigin: (_url: URL, host: string) => `https://${host}`,
 }));
 vi.mock('../../src/lib/bake-asset-manifest', () => ({ getBakeAssetManifest }));
 vi.mock('../../src/seeds', () => ({ resolveActiveProjectSeed }));
