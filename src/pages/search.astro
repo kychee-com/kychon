@@ -2,6 +2,7 @@
 import SearchPageApp from '../components/kychon/SearchPageApp';
 import Portal from '../layouts/Portal.astro';
 import { ssrSearchQuery } from '../lib/ssr-api';
+import { prefetchSsrChrome } from '../lib/ssr-chrome-prefetch';
 import type { SearchResponse, SearchType } from '../lib/search';
 
 // /search is per-request — query string is intrinsically dynamic and
@@ -25,6 +26,7 @@ function normalizeType(value: string | null): SearchType {
   return FILTERS.includes(value as SearchType) ? (value as SearchType) : 'all';
 }
 
+prefetchSsrChrome(Astro, 'search');
 const url = new URL(Astro.request.url);
 const q = (url.searchParams.get('q') ?? '').trim();
 const type = normalizeType(url.searchParams.get('type'));

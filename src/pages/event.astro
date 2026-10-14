@@ -4,6 +4,7 @@ import Portal from '../layouts/Portal.astro';
 import { pickAssetManifestEntries } from '../lib/bake-asset-manifest';
 import { eventAssetUrls, eventMetaDescription, eventOgImageUrl } from '../lib/event-meta';
 import { ssrAssetManifest, ssrEventGet, ssrRequestOrigin } from '../lib/ssr-api';
+import { prefetchSsrChrome } from '../lib/ssr-chrome-prefetch';
 import type { Event } from '../schemas/event';
 
 // /event?id=N is per-request: the event comes from the query string, which a
@@ -22,17 +23,20 @@ import type { Event } from '../schemas/event';
 // retries.
 export const prerender = false;
 
+prefetchSsrChrome(Astro, 'event');
 const url = new URL(Astro.request.url);
 const host = Astro.request.headers.get('host') ?? Astro.url.host;
 const origin = ssrRequestOrigin(Astro.url, host);
 
+// The site manifest (cached per origin) loads alongside the event read.
+const siteManifestRead = ssrAssetManifest(origin);
 const lookup = await ssrEventGet<Event>({ id: url.searchParams.get('id') ?? '', host });
 const event = lookup.status === 'found' ? lookup.event : null;
 if (lookup.status === 'missing') Astro.response.status = 404;
 
 // Hero and description images resolve against these entries first, so
 // `/assets/<name>` (not served on ports) never reaches the HTML unresolved.
-const siteManifest = event ? await ssrAssetManifest(origin) : null;
+const siteManifest = event ? await siteManifestRead : null;
 const assetManifest = event ? pickAssetManifestEntries(siteManifest, eventAssetUrls(event)) : null;
 const description = event ? eventMetaDescription(event) : '';
 const image = event ? eventOgImageUrl(event, siteManifest, origin) : '';
