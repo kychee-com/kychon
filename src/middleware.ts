@@ -3,6 +3,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { fillPageAssetManifest, getBakeAssetManifest, PAGE_MANIFEST_PLACEHOLDER } from './lib/bake-asset-manifest';
 import { ssrConfigLookup } from './lib/ssr-api';
 import { resolveRequestAlias } from './lib/path-aliases';
+import { ssrTimingHeader, startSsrTiming } from './lib/ssr-timing';
 
 /**
  * Copied-site path-alias resolver.
@@ -56,8 +57,15 @@ export function mayBeAliasSource(routePattern: string | undefined): boolean {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  if (context.isPrerendered) return withPageAssetManifest(await resolveAliasOrNext(context, next));
+  const mark = startSsrTiming();
   const response = await resolveAliasOrNext(context, next);
-  return context.isPrerendered ? withPageAssetManifest(response) : response;
+  try {
+    response.headers.set('Server-Timing', ssrTimingHeader(mark));
+  } catch {
+    // Immutable headers (a redirect Response): the timing is optional.
+  }
+  return response;
 });
 
 async function resolveAliasOrNext(context: APIContext, next: MiddlewareNext): Promise<Response> {

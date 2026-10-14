@@ -218,4 +218,23 @@ describe('middleware sign-in flow on ports (kychon#144)', () => {
     expect(redirect).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledOnce();
   });
+
+  it('adds Server-Timing to SSR responses, not to prerendered builds', async () => {
+    ssrConfigLookup.mockResolvedValue({ status: 'ok', value: null });
+    const onRequest = await loadMiddleware();
+
+    const ssr = makeContext('http://internal/calendar', { isPrerendered: false, routePattern: '/calendar' });
+    const ssrResponse = await onRequest(
+      ssr.context,
+      vi.fn(async () => new Response('ok')),
+    );
+    expect(ssrResponse.headers.get('server-timing')).toMatch(/app;dur=\d+/);
+
+    const built = makeContext('http://localhost:4321/events', { isPrerendered: true });
+    const builtResponse = await onRequest(
+      built.context,
+      vi.fn(async () => new Response('ok')),
+    );
+    expect(builtResponse.headers.get('server-timing')).toBeNull();
+  });
 });

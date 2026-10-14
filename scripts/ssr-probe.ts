@@ -22,6 +22,8 @@ export interface SsrProbeResult {
   status: number | null;
   ms: number;
   error?: string;
+  /** The response's Server-Timing header (src/lib/ssr-timing.ts), when sent. */
+  serverTiming?: string;
 }
 
 /** Pure verdict for one probe: ok, or why it failed. */
@@ -34,7 +36,8 @@ export function classifySsrProbe(result: SsrProbeResult, budgetMs = SSR_PROBE_BU
 export function renderSsrProbeLine(result: SsrProbeResult, budgetMs = SSR_PROBE_BUDGET_MS): string {
   const verdict = classifySsrProbe(result, budgetMs);
   const status = result.status ?? result.error ?? 'no response';
-  return `  ${verdict === 'ok' ? 'ok  ' : 'FAIL'} ${result.path} -> ${status} in ${(result.ms / 1000).toFixed(1)}s${verdict === 'slow' ? ` (budget ${budgetMs / 1000}s)` : ''}`;
+  const timing = result.serverTiming ? ` [${result.serverTiming}]` : '';
+  return `  ${verdict === 'ok' ? 'ok  ' : 'FAIL'} ${result.path} -> ${status} in ${(result.ms / 1000).toFixed(1)}s${verdict === 'slow' ? ` (budget ${budgetMs / 1000}s)` : ''}${timing}`;
 }
 
 export async function probeSsrRoutes(
@@ -53,7 +56,8 @@ export async function probeSsrRoutes(
         signal: AbortSignal.timeout(SSR_PROBE_ABORT_MS),
       });
       await res.arrayBuffer().catch(() => undefined);
-      results.push({ path, status: res.status, ms: Date.now() - started });
+      const serverTiming = res.headers.get('server-timing') ?? undefined;
+      results.push({ path, status: res.status, ms: Date.now() - started, ...(serverTiming ? { serverTiming } : {}) });
     } catch (error) {
       results.push({
         path,

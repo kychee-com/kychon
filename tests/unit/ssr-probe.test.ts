@@ -78,3 +78,15 @@ describe('shipsSsrFunction', () => {
     expect(shipsSsrFunction(plain)).toBe(false);
   });
 });
+
+describe('probe output', () => {
+  it('prints the Server-Timing breakdown when the route sends one', async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response('ok', { status: 200, headers: { 'server-timing': 'boot;dur=900, app;dur=1200, cold' } }),
+    );
+    const results = await probeSsrRoutes('https://club.run402.com', fetchImpl as unknown as typeof fetch, [
+      '/calendar',
+    ]);
+    expect(results.map((r) => renderSsrProbeLine(r)).join('\n')).toContain('[boot;dur=900, app;dur=1200, cold]');
+  });
+});

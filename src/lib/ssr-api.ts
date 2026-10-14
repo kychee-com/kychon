@@ -20,6 +20,7 @@ import { createKychonClient, KYCHON_CAPABILITY_FUNCTION_PATH } from '@kychon/sdk
 import { parseAssetManifest } from './bake-asset-manifest';
 import type { Section } from './blocks';
 import { type AssetManifest, CLIENT_ASSET_MANIFEST_URL } from './kychon-image';
+import { markUpstreamStart } from './ssr-timing';
 
 type KychonClient = ReturnType<typeof createKychonClient>;
 
@@ -41,6 +42,7 @@ const API_ENDPOINT = `${API_BASE_URL}${KYCHON_CAPABILITY_FUNCTION_PATH}`;
 export const SSR_API_TIMEOUT_MS = 5000;
 
 function boundedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  markUpstreamStart();
   return fetch(input, { ...init, signal: AbortSignal.timeout(SSR_API_TIMEOUT_MS) });
 }
 
@@ -284,6 +286,7 @@ export function ssrAssetManifest(origin: string, now: number = Date.now()): Prom
       controller.abort();
       resolve(null);
     }, ASSET_MANIFEST_TIMEOUT_MS);
+    markUpstreamStart();
     const read = (path: string) => fetch(`${origin}${path}`, { signal: controller.signal });
     read(CLIENT_ASSET_MANIFEST_URL)
       .then((res) => (res.status === 404 ? read('/_assets-manifest.json') : res))
