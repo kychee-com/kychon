@@ -44,6 +44,21 @@ const astroTransitionsStub = {
   },
 };
 
+// `astro:middleware` is another Astro-only virtual module. Tests replace it with
+// vi.mock, but Vite still resolves the specifier during import analysis before
+// the mock applies, so it needs a resolvable stand-in.
+const astroMiddlewareStub = {
+  name: 'kychon-astro-middleware-stub',
+  resolveId(source) {
+    if (source === 'astro:middleware') return '\0astro:middleware';
+    return null;
+  },
+  load(id) {
+    if (id === '\0astro:middleware') return 'export function defineMiddleware(fn) { return fn; }\n';
+    return null;
+  },
+};
+
 // `@run402/astro@0.2.4` ships `.js.map` sourcemaps that reference the original
 // `.ts` sources, but the published tarball doesn't include the `src/` directory.
 // When Vite loads `build-manifest.js` (inlined below) it reads the map and
@@ -85,16 +100,16 @@ const serverDeps = { inline: [/@run402\/astro\/dist\/build-manifest/] };
 
 // Match Astro's React integration (automatic JSX runtime), so islands that use
 // JSX without importing React (EventsPageApp, ...) render under Vitest.
-const reactJsx = { jsx: 'automatic' };
+// Vite 8 transforms with oxc; esbuild options no longer apply.
+const reactJsx = { jsx: { runtime: 'automatic' } };
 
 export default defineConfig({
   resolve: {
     alias,
   },
-  plugins: [virtualAssetMapStub, astroTransitionsStub],
+  plugins: [virtualAssetMapStub, astroTransitionsStub, astroMiddlewareStub],
   test: {
     server: { deps: serverDeps },
-    include: ['tests/**/*.test.{js,ts}'],
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/schemas/**'],
@@ -108,8 +123,8 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias },
-        plugins: [virtualAssetMapStub, astroTransitionsStub, stripRun402SourcemapTrailer],
-        esbuild: reactJsx,
+        plugins: [virtualAssetMapStub, astroTransitionsStub, astroMiddlewareStub, stripRun402SourcemapTrailer],
+        oxc: reactJsx,
         test: {
           name: 'unit',
           include: ['tests/unit/**/*.test.{js,ts}'],
@@ -118,8 +133,8 @@ export default defineConfig({
       },
       {
         resolve: { alias },
-        plugins: [virtualAssetMapStub, astroTransitionsStub, stripRun402SourcemapTrailer],
-        esbuild: reactJsx,
+        plugins: [virtualAssetMapStub, astroTransitionsStub, astroMiddlewareStub, stripRun402SourcemapTrailer],
+        oxc: reactJsx,
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.{js,ts}'],

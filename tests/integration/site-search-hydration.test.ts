@@ -33,7 +33,7 @@ function mount() {
 
 describe('site_search hydration', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
     window.__KYCHON_API = 'https://api.test';
