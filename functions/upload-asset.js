@@ -2,12 +2,11 @@
 // The Run402 platform manages all media metadata (filename, uploader,
 // dimensions, blurhash, variants, exif policy) via `internal.blobs.metadata`
 // + intrinsic image columns; Kychon keeps no shadow `media_assets` table.
-// See `openspec/changes/admin-content-management/design.md` Decision 3.
 import { adminDb, assets, auth } from '@run402/functions';
 
-// Aspect-ratio heuristic for the brand_icon_url upload target. Per
-// brand-identity-fields/design.md §3, when an icon upload's intrinsic width
-// exceeds 1.5× its height we tag the response with `warning: 'looks_like_wordmark'`
+// Aspect-ratio heuristic for the brand_icon_url upload target. When an icon
+// upload's intrinsic width exceeds 1.5× its height we tag the response with
+// `warning: 'looks_like_wordmark'`
 // so the admin UI can offer a one-click reroute to brand_wordmark_url. Reads
 // from the AssetRef the platform returns (the gateway populates `width_px` /
 // `height_px` server-side; no client-side image decode needed).

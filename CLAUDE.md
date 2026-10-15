@@ -12,23 +12,16 @@ Kychon is an AI-powered membership/community portal template built on the Run402
 
 The full spec lives in `docs/spec.md`.
 
-**Cross-repo boundary**: The marketing site at `kychon.com` lives in the sibling private repo `kychee-com/kychon-private`. Marketing-site source, deploy script, copy, and domain config changes go there, not here.
+**Cross-repo boundary**: The marketing site at `kychon.com` and the hosted control plane are private to Kychee and do not live in this repository. Marketing-site source, its deploy script, copy, and domain config changes go there, not here.
 
-## Git workflow — worktrees, never branches
+## Where this code is edited
 
-Multiple agent sessions work these repos in parallel. Isolation is by **git
-worktree**, not by branching or stashing.
+This repository is a published mirror: its `main` is generated from the `public/kychon/` directory of Kychee's private platform monorepo and only ever fast-forwards. Maintainers and agents edit the code there, never in a clone of this repository.
 
-- **ALWAYS worktree.** Do work inside a dedicated worktree (`git worktree add`).
-  Never edit, branch-switch, or otherwise disturb a shared checkout — another
-  session may be using it, and switching branches under them destroys their work.
-- **NEVER create branches.** No feature-branch or PR ceremony on your own
-  initiative. A worktree's auto-created backing branch is plumbing, not workflow.
-- **NEVER `git stash`.** It is invisible to everyone else and easy to lose.
-- **Small changes commit directly to `main`, no ceremony.** From a worktree,
-  push with `git push origin HEAD:main` (expect to rebase).
-- If you find yourself on a branch in a primary checkout, you are already in the
-  wrong place — make a worktree and clean up after yourself.
+- **Working inside the monorepo** (where this directory is `public/kychon/`): follow the monorepo's root `AGENTS.md`. Make a worktree of the monorepo, never a worktree inside this directory; never `git stash`; never create local branches.
+- **Contributing from outside:** open a pull request here as usual. A maintainer merges it on GitHub and pulls it back into the monorepo, and the next mirror run carries it forward.
+- **Commit messages are public.** A change to this directory becomes this repository's history with its message unchanged, so keep messages free of private details.
+- **Demo images are Git LFS objects** (`demo/*/assets/*.{png,jpg}`, see `.gitattributes`). A new or changed image must also reach this repository's LFS store: `git lfs push` it here alongside the mirror push.
 
 ## Architecture
 
@@ -133,12 +126,12 @@ kychon/
 - **Astro build step** - `astro build` outputs static HTML/JS/CSS to `dist/`, deployed to Run402
 - **View transitions** - `<ClientRouter />` provides SPA-like navigation without full page reloads
 - **Type safety** - Zod schemas validate API responses; typed wrappers in `src/lib/api.ts`
-- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. run402 packages are exact-pinned and kept on latest by `.github/workflows/run402-bump.yml` (every 6h, in lockstep with kychon-concierge): it pushes a bump to main only after the full CI check suite passes, then dispatches CI and the demo deploy. A failed bump opens an "Automatic run402 bump failed" issue — fix main rather than pinning back.
+- **Run402 tooling uses `@run402/sdk`** - new Node code targeting Run402 imports from `@run402/sdk/node` (typed errors, structured methods). No new `execSync('run402 …')` call sites. run402 packages are exact-pinned; updates arrive as tested dependency pull requests in the monorepo. When a bump breaks the build, fix main rather than pinning back.
   - **Local-only**: this machine's `npm` config has a `before=` cutoff that filters out recently-published packages. Bumping the SDK to a release published after the cutoff requires `npm install --before=null @run402/sdk@<version>` (or temporarily `npm config delete before`). Not a Run402 issue — a personal sandbox knob.
 
 ## Specs
 
-Specs and change proposals for Kychon are maintained privately by Kychee, outside this repository (maintainers: OpenSpec store `kychon` in the private spec-store). Never add an `openspec/` directory here, and never link to or quote private specs from code, comments, docs, or commit messages in this public repo.
+Specs and change proposals for Kychon are maintained privately by Kychee, outside this repository. Never add a spec directory here, and never link to or quote private specs from code, comments, docs, or commit messages in this public repo.
 
 ## Run402 Platform Notes
 

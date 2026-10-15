@@ -10,8 +10,8 @@
  *   npx tsx --env-file=.env scripts/deploy-all.ts silver-pines      # one
  *   npx tsx --env-file=.env scripts/deploy-all.ts barrio            # one
  *
- * The marketing site (kychon.com) lives in the private operator repo
- * `kychee-com/kychon-private`; deploy that separately.
+ * The marketing site (kychon.com) is private to Kychee and deploys
+ * separately from this script.
  */
 
 import { run402 } from "@run402/sdk/node";
@@ -56,9 +56,9 @@ async function main(): Promise<void> {
   }
   console.log(`\n  Target: ${arg ?? "all"}\n`);
   console.log(
-    "  Marketing site (kychon.com) lives in kychee-com/kychon-private;",
+    "  Marketing site (kychon.com) is private to Kychee;",
   );
-  console.log("  deploy it separately from that repo.");
+  console.log("  it deploys separately.");
   console.log("============================================\n");
 
   const r = run402();

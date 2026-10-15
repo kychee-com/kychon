@@ -433,7 +433,7 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 -- admin-content-management (block-translation): per-locale partial config overrides
 -- for sections rows. JSONB stores only the translatable fields; the renderer
 -- deep-merges over sections.config when ctx.locale != ctx.defaultLocale AND
--- locale is in site_config.languages_enabled (see specs/i18n/spec.md).
+-- locale is in site_config.languages_enabled.
 CREATE TABLE IF NOT EXISTS section_translations (
   id SERIAL PRIMARY KEY,
   section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,

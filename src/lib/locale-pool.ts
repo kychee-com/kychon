@@ -5,9 +5,7 @@
  * and not runtime-mutable, so Kychon declares a fixed 50-entry pool at
  * deploy time and controls runtime visibility via
  * `site_config.languages_enabled` (a JSONB row in the project DB). The
- * gateway accepts any of the 50; the app decides what to expose. See
- * `openspec/changes/admin-content-management/design.md` Decision 9 for the
- * full reasoning.
+ * gateway accepts any of the 50; the app decides what to expose.
  *
  * Both the deploy script (`scripts/_lib.ts`) and the admin UI
  * (`AddLanguageIsland`, `AdminBarIsland`) import this module so the pool and
