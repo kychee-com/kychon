@@ -45,7 +45,7 @@
     "@types/react-dom": "19.2.3",
     "@types/sortablejs": "^1.15.9",
     "@vitest/coverage-v8": "^3.1.1",
-    "astro": "^7.0.0",
+    "astro": "^7.3.8",
     "css-select": "^5.2.2",
     "fast-check": "^4.1.1",
     "happy-dom": "^20.9.0",
