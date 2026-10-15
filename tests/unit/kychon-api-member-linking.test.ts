@@ -66,17 +66,17 @@ async function userIdFor(email: string) {
 }
 
 describe('kychon-api actor → member mapping', () => {
-  it.each([
-    'admin@example.org',
-    'imported-admin@example.org',
-  ])('does not map an unverified email to the member row for %s', async (email) => {
-    const actor = await whoami({ id: NEWCOMER, email, emailVerified: false });
+  it.each(['admin@example.org', 'imported-admin@example.org'])(
+    'does not map an unverified email to the member row for %s',
+    async (email) => {
+      const actor = await whoami({ id: NEWCOMER, email, emailVerified: false });
 
-    expect(actor.state).toBe('authenticated_non_member');
-    expect(actor.member).toBeNull();
-    expect(actor.authority.activeMemberAdmin).toBe(false);
-    expect(await userIdFor(email)).toBe(email === 'admin@example.org' ? OWNER : null);
-  });
+      expect(actor.state).toBe('authenticated_non_member');
+      expect(actor.member).toBeNull();
+      expect(actor.authority.activeMemberAdmin).toBe(false);
+      expect(await userIdFor(email)).toBe(email === 'admin@example.org' ? OWNER : null);
+    },
+  );
 
   it('does not map a verified email onto a row already linked to another user', async () => {
     const actor = await whoami({ id: NEWCOMER, email: 'ADMIN@example.org', emailVerified: true });

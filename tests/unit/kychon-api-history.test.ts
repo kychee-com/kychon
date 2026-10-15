@@ -136,15 +136,14 @@ describe('history queries', () => {
     expect(one.body.data.revision.after.config).toEqual({ heading: 'New' });
   });
 
-  it.each([
-    'history.list',
-    'history.revisions',
-    'history.revision',
-  ])('refuses %s for a non-admin member', async (operation) => {
-    state.user = MEMBER;
-    const res = await query(operation, { table: 'sections', key: 1, id: 1 });
-    expect(res.status).toBe(403);
-  });
+  it.each(['history.list', 'history.revisions', 'history.revision'])(
+    'refuses %s for a non-admin member',
+    async (operation) => {
+      state.user = MEMBER;
+      const res = await query(operation, { table: 'sections', key: 1, id: 1 });
+      expect(res.status).toBe(403);
+    },
+  );
 
   it('rejects untracked tables', async () => {
     state.user = ADMIN;

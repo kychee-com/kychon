@@ -52,29 +52,30 @@ async function revisions(table?: string) {
 }
 
 describe('revision log', () => {
-  it.each(
-    TRACKED,
-  )('records insert, update and delete on %s with full before/after rows', async (table, insert, key) => {
-    const [inserted] = await rows<Record<string, unknown>>(db, `${insert} RETURNING *`);
-    const id = inserted[key];
-    const where = `${key} = ${typeof id === 'string' ? `'${id}'` : id}`;
-    // A column every tracked table has a value we can flip without constraints.
-    await db.exec(`UPDATE ${table} SET ${key} = ${key} WHERE ${where}`); // no-op: must not record
-    const touch =
-      table === 'site_config'
-        ? `UPDATE site_config SET value = '"Hello"' WHERE ${where}`
-        : `UPDATE ${table} SET ${['pages', 'events', 'announcements', 'resources'].includes(table) ? "title = title || '!'" : table === 'sections' ? 'position = position + 1' : table === 'polls' ? "question = question || '?'" : table === 'member_custom_fields' ? "field_label = field_label || '!'" : "name = name || '!'"} WHERE ${where}`;
-    await db.exec(touch);
-    await db.exec(`DELETE FROM ${table} WHERE ${where}`);
+  it.each(TRACKED)(
+    'records insert, update and delete on %s with full before/after rows',
+    async (table, insert, key) => {
+      const [inserted] = await rows<Record<string, unknown>>(db, `${insert} RETURNING *`);
+      const id = inserted[key];
+      const where = `${key} = ${typeof id === 'string' ? `'${id}'` : id}`;
+      // A column every tracked table has a value we can flip without constraints.
+      await db.exec(`UPDATE ${table} SET ${key} = ${key} WHERE ${where}`); // no-op: must not record
+      const touch =
+        table === 'site_config'
+          ? `UPDATE site_config SET value = '"Hello"' WHERE ${where}`
+          : `UPDATE ${table} SET ${['pages', 'events', 'announcements', 'resources'].includes(table) ? "title = title || '!'" : table === 'sections' ? 'position = position + 1' : table === 'polls' ? "question = question || '?'" : table === 'member_custom_fields' ? "field_label = field_label || '!'" : "name = name || '!'"} WHERE ${where}`;
+      await db.exec(touch);
+      await db.exec(`DELETE FROM ${table} WHERE ${where}`);
 
-    const revs = await revisions(table);
-    expect(revs.map((r) => r.op)).toEqual(['insert', 'update', 'delete']);
-    expect(revs[0].before).toBeNull();
-    expect(revs[0].after).toMatchObject({ [key]: id });
-    expect(revs[1].before).not.toEqual(revs[1].after);
-    expect(revs[2].after).toBeNull();
-    expect(revs.every((r) => r.row_key[key] === id)).toBe(true);
-  });
+      const revs = await revisions(table);
+      expect(revs.map((r) => r.op)).toEqual(['insert', 'update', 'delete']);
+      expect(revs[0].before).toBeNull();
+      expect(revs[0].after).toMatchObject({ [key]: id });
+      expect(revs[1].before).not.toEqual(revs[1].after);
+      expect(revs[2].after).toBeNull();
+      expect(revs.every((r) => r.row_key[key] === id)).toBe(true);
+    },
+  );
 
   it('does not record untracked tables (member data, member activity)', async () => {
     await db.exec(`INSERT INTO members (email, display_name) VALUES ('a@b.c', 'A')`);
