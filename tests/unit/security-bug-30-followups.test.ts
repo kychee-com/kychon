@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -10,6 +11,7 @@ import {
   sanitizeRichHtmlServer,
   validateCapabilityMutation,
 } from '../../src/lib/capability-api/index.ts';
+import { HOSTILE_RICH_HTML, richHtmlSoup, richHtmlTags, richHtmlViolations } from '../helpers/rich-html-safety.ts';
 
 class MemoryMutationDb implements CapabilityMutationDb {
   counters: Record<string, number> = {};
@@ -113,6 +115,19 @@ describe('bug #30 — server rich-HTML sanitizer closes known regex bypasses', (
     expect(sanitizeRichHtmlServer(input)).not.toMatch(forbidden);
   });
 
+  it.each(HOSTILE_RICH_HTML.map((input) => [input]))('leaves nothing executable in %j', (input) => {
+    expect(richHtmlViolations(sanitizeRichHtmlServer(input))).toEqual([]);
+  });
+
+  it('never returns markup a browser would parse into anything outside the allowlist', () => {
+    fc.assert(
+      fc.property(fc.oneof(richHtmlSoup, richHtmlTags), (input) => {
+        expect(richHtmlViolations(sanitizeRichHtmlServer(input))).toEqual([]);
+      }),
+      { numRuns: 500 },
+    );
+  });
+
   it('still preserves safe Tiptap-compatible markup', () => {
     expect(sanitizeRichHtmlServer('<p>Hello <strong>world</strong> <a href="https://example.com">link</a></p>')).toBe(
       '<p>Hello <strong>world</strong> <a href="https://example.com">link</a></p>',
@@ -155,6 +170,47 @@ describe('bug #30 — validate phase runs the same semantic checks as execute', 
       executeCapabilityMutation('pollVotes.cast', { pollId: 1, optionId: 20 }, { actor: memberActor, db }),
     ).rejects.toMatchObject({ code: 'validation.failed' });
     expect(db.tables.poll_votes).toHaveLength(0);
+  });
+
+  it.each([
+    ['rsvps.setStatus', { id: 100, status: 'maybe' }, 'permission.denied'],
+    ['rsvps.cancel', { id: 100 }, 'permission.denied'],
+    ['rsvps.setStatus', { eventId: 999, status: 'going' }, 'notFound.object'],
+    ['rsvps.cancel', { eventId: 999 }, 'notFound.object'],
+    ['rsvps.setStatus', { id: 999, status: 'going' }, 'notFound.object'],
+    ['rsvps.setStatus', { eventId: 11, status: 'going' }, 'conflict.state'],
+  ] as const)('rejects %s %j during validate as execute does', async (operation, input, code) => {
+    const db = new MemoryMutationDb({
+      events: [
+        { id: 10, title: 'Open', capacity: null },
+        { id: 11, title: 'Full', capacity: 1 },
+      ],
+      event_rsvps: [
+        { id: 100, event_id: 10, member_id: 3, status: 'going' },
+        { id: 101, event_id: 11, member_id: 3, status: 'going' },
+      ],
+    });
+
+    expectRejectedPlan(await validateCapabilityMutation(operation, { ...input }, { actor: memberActor, db }), code);
+    await expect(executeCapabilityMutation(operation, { ...input }, { actor: memberActor, db })).rejects.toMatchObject({
+      code,
+    });
+    expect(db.tables.event_rsvps.map((row) => row.status)).toEqual(['going', 'going']);
+  });
+
+  it('accepts and applies the member own RSVP', async () => {
+    const db = new MemoryMutationDb({ events: [{ id: 10, title: 'Open', capacity: null }], event_rsvps: [] });
+
+    const plan = await validateCapabilityMutation(
+      'rsvps.setStatus',
+      { eventId: 10, status: 'going' },
+      { actor: memberActor, db },
+    );
+    expect(plan.accepted).toBe(true);
+    await executeCapabilityMutation('rsvps.setStatus', { eventId: 10, status: 'going' }, { actor: memberActor, db });
+    expect(db.tables.event_rsvps).toMatchObject([{ event_id: 10, member_id: '2', status: 'going' }]);
+    await executeCapabilityMutation('rsvps.cancel', { eventId: 10 }, { actor: memberActor, db });
+    expect(db.tables.event_rsvps[0]?.status).toBe('cancelled');
   });
 
   it('rejects replies to locked topics during validate', async () => {

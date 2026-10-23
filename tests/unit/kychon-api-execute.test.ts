@@ -1,7 +1,16 @@
+import fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import kychonApi from '../../functions/kychon-api.js';
 import { type JsonObject, KYCHON_API_VERSION } from '../../src/lib/capability-api/index.ts';
+import { sanitizeRichHtml } from '../../src/lib/sanitize-html.ts';
+import {
+  BENIGN_RICH_HTML,
+  HOSTILE_RICH_HTML,
+  richHtmlSoup,
+  richHtmlTags,
+  richHtmlViolations,
+} from '../helpers/rich-html-safety.ts';
 
 type MockDbChain = Promise<JsonObject[]> & {
   eq(column: string, value: unknown): MockDbChain;
@@ -555,5 +564,168 @@ describe('deployable kychon-api execute mutations', () => {
 
     expect(executed.status).toBe(200);
     expect(mockState.tables.members[0]).toMatchObject({ role: 'admin', status: 'suspended' });
+  });
+});
+
+describe('deployable kychon-api validates RSVPs the way execute applies them', () => {
+  function seedMemberWithEvents() {
+    mockState.user = { id: 'member-user', email: 'member@example.com' };
+    mockState.tables.members = [
+      {
+        id: 2,
+        user_id: 'member-user',
+        email: 'member@example.com',
+        display_name: 'M',
+        role: 'member',
+        status: 'active',
+      },
+      { id: 3, user_id: 'other-user', email: 'other@example.com', display_name: 'O', role: 'member', status: 'active' },
+    ];
+    mockState.tables.events = [
+      { id: 10, title: 'Open', starts_at: '2026-06-01T10:00:00Z', capacity: null },
+      { id: 11, title: 'Full', starts_at: '2026-06-02T10:00:00Z', capacity: 1 },
+    ];
+    mockState.tables.event_rsvps = [
+      { id: 100, event_id: 10, member_id: 3, status: 'going' },
+      { id: 101, event_id: 11, member_id: 3, status: 'going' },
+    ];
+  }
+
+  async function validate(operation: string, input: JsonObject) {
+    const res = await json(await apiRequest({ apiVersion: KYCHON_API_VERSION, operation, phase: 'validate', input }));
+    expect(res.status).toBe(200);
+    return res.body.data as { accepted: boolean; warnings: JsonObject[] };
+  }
+
+  async function execute(operation: string, input: JsonObject, key: string) {
+    return json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation,
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: key,
+        input,
+      }),
+    );
+  }
+
+  it.each([
+    ['rsvps.setStatus', { id: 100, status: 'maybe' }, 'permission.denied', 403],
+    ['rsvps.cancel', { id: 100 }, 'permission.denied', 403],
+    ['rsvps.setStatus', { eventId: 999, status: 'going' }, 'notFound.object', 404],
+    ['rsvps.cancel', { eventId: 999 }, 'notFound.object', 404],
+    ['rsvps.setStatus', { id: 999, status: 'going' }, 'notFound.object', 404],
+    ['rsvps.setStatus', { eventId: 11, status: 'going' }, 'conflict.state', 409],
+  ] as const)('%s %j is refused at validate with %s, as execute refuses it', async (operation, input, code, status) => {
+    seedMemberWithEvents();
+    const plan = await validate(operation, input);
+    expect(plan.accepted).toBe(false);
+    expect(plan.warnings.map((warning) => warning.code)).toContain(code);
+
+    const executed = await execute(operation, input, `rsvp-${operation}-${JSON.stringify(input)}`);
+    expect(executed.status).toBe(status);
+    expect(executed.body.error.code).toBe(code);
+    expect(mockState.tables.event_rsvps.map((row) => row.status)).toEqual(['going', 'going']);
+  });
+
+  it('accepts and applies the member own RSVP', async () => {
+    seedMemberWithEvents();
+    expect((await validate('rsvps.setStatus', { eventId: 10, status: 'going' })).accepted).toBe(true);
+    const created = await execute('rsvps.setStatus', { eventId: 10, status: 'going' }, 'rsvp-own-create');
+    expect(created.status).toBe(200);
+    const own = mockState.tables.event_rsvps.find((row) => String(row.member_id) === '2');
+    expect(own).toMatchObject({ event_id: 10, status: 'going' });
+
+    expect((await validate('rsvps.cancel', { eventId: 10 })).accepted).toBe(true);
+    const cancelled = await execute('rsvps.cancel', { id: own?.id ?? 0 }, 'rsvp-own-cancel');
+    expect(cancelled.status).toBe(200);
+    expect(mockState.tables.event_rsvps.find((row) => String(row.member_id) === '2')?.status).toBe('cancelled');
+  });
+});
+
+describe('deployable kychon-api stores only allowlisted rich HTML', () => {
+  let publishCount = 0;
+
+  async function publishBody(body: string): Promise<string> {
+    mockState.user = { id: 'admin-user', email: 'admin@example.com' };
+    mockState.tables.members = [
+      {
+        id: 1,
+        user_id: 'admin-user',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'admin',
+        status: 'active',
+      },
+    ];
+    mockState.tables.announcements = [];
+    publishCount += 1;
+    const created = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'announcements.publish',
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: `rich-html-${publishCount}`,
+        input: { title: 'News', body },
+      }),
+    );
+    expect(created.status).toBe(200);
+    return String(mockState.tables.announcements[0]?.body ?? '');
+  }
+
+  it.each(HOSTILE_RICH_HTML.map((input) => [input]))('neutralizes %j on publish', async (input) => {
+    expect(richHtmlViolations(await publishBody(input))).toEqual([]);
+  });
+
+  it('neutralizes hostile markup on announcements.update', async () => {
+    await publishBody('<p>first</p>');
+    const id = mockState.tables.announcements[0]?.id;
+    const updated = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation: 'announcements.update',
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: 'rich-html-update',
+        input: { id, body: HOSTILE_RICH_HTML.join('') },
+      }),
+    );
+    expect(updated.status).toBe(200);
+    expect(richHtmlViolations(String(mockState.tables.announcements[0]?.body ?? ''))).toEqual([]);
+  });
+
+  it.each(BENIGN_RICH_HTML.map((input) => [input]))(
+    'keeps editor markup %j and agrees with the read side',
+    async (input) => {
+      const stored = await publishBody(input);
+      expect(stored).toBe(input);
+      expect(sanitizeRichHtml(stored)).toBe(input);
+    },
+  );
+
+  it('keeps text and entities readable', async () => {
+    expect(await publishBody('Fish & chips < 5 > 3 &copy; "quoted"')).toBe(
+      'Fish &amp; chips &lt; 5 &gt; 3 &copy; "quoted"',
+    );
+  });
+
+  it('adds noopener to links that open a new window', async () => {
+    expect(await publishBody('<a href="https://example.com" target="_blank">x</a>')).toBe(
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">x</a>',
+    );
+  });
+
+  it('never stores markup a browser would parse into anything outside the allowlist', async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.oneof(richHtmlSoup, richHtmlTags), async (input) => {
+        const stored = await publishBody(input);
+        expect(richHtmlViolations(stored)).toEqual([]);
+        // Sanitizing stored output again changes nothing.
+        expect(await publishBody(stored)).toBe(stored);
+      }),
+      { numRuns: 300 },
+    );
   });
 });

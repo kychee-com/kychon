@@ -165,6 +165,8 @@ async function validateMutationSemantics(
       await validateForumReplyInput(input, ctx);
     } else if (operation === 'pollVotes.cast') {
       await validatePollVoteInput(input, ctx);
+    } else if (operation === 'rsvps.setStatus' || operation === 'rsvps.cancel') {
+      await rsvpPreflight(operation, input, ctx);
     } else if (operation === 'members.changeRole') {
       const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
       if (!VALID_MEMBER_ROLES.has(role)) {
@@ -563,30 +565,69 @@ function assertRsvpCapacity(eventRow: JsonObject, status: string, member: JsonVa
   }
 }
 
-async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  // member_id is bound to the actor (admins act-as via dedicated admin paths,
-  // not this capability) and an `id` from input must belong to that member —
-  // otherwise an active member could update arbitrary RSVP rows.
+// The reads and checks rsvps.setStatus and rsvps.cancel make before writing.
+// validate runs the same preflight, so a plan it accepts is one execute can
+// apply. member_id is bound to the actor (admins act-as via dedicated admin
+// paths, not this capability) and an `id` from input must belong to that
+// member — otherwise an active member could update arbitrary RSVP rows. An
+// eventId is checked against events first, so a missing event surfaces as
+// `notFound.object` rather than a failed insert or a silent no-op.
+async function rsvpPreflight(
+  operation: 'rsvps.setStatus' | 'rsvps.cancel',
+  input: JsonObject,
+  ctx: CapabilityMutationContext,
+): Promise<{ member: string | null; status: string; target: JsonObject | undefined; eventId: JsonValue | undefined }> {
+  const cancel = operation === 'rsvps.cancel';
   const member = memberId(ctx);
-  const status = normalizeRsvpStatus(input.status);
+  const status = cancel ? 'cancelled' : normalizeRsvpStatus(input.status);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
 
-  if (id != null) {
-    const rsvps = await ctx.db.select('event_rsvps');
-    const target = rsvps.find((row) => String(row.id) === String(id));
-    if (!target) {
-      throw new CapabilityMutationError('notFound.object', 'RSVP not found.', {
-        object: { type: 'event.rsvp', id: String(id) },
-      });
+  let eventRow: JsonObject | undefined;
+  if (id == null) {
+    const event = cancel ? eventId : requiredAny(eventId, 'rsvps.setStatus requires eventId.');
+    if (event != null) {
+      eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(event));
+      if (!eventRow) {
+        throw new CapabilityMutationError('notFound.object', 'Event not found.', {
+          object: { type: 'event', id: String(event) },
+        });
+      }
     }
-    if (String(target.member_id) !== String(member) && !isAdminLike(ctx) && !isModeratorLike(ctx)) {
-      throw new CapabilityMutationError('permission.denied', 'rsvps.setStatus can only update the active member RSVP.', {
-        object: { type: 'event.rsvp', id: String(id) },
-      });
-    }
-    const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(target.event_id));
-    if (eventRow) assertRsvpCapacity(eventRow, status, target.member_id, rsvps);
+  }
+
+  const rsvps = await ctx.db.select('event_rsvps');
+  const target =
+    id != null
+      ? rsvps.find((row) => String(row.id) === String(id))
+      : rsvps.find((row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member));
+  if (id != null && !target && !cancel) {
+    throw new CapabilityMutationError('notFound.object', 'RSVP not found.', {
+      object: { type: 'event.rsvp', id: String(id) },
+    });
+  }
+  if (target && String(target.member_id) !== String(member) && !isAdminLike(ctx) && !isModeratorLike(ctx)) {
+    const verb = cancel ? 'cancel' : 'update';
+    throw new CapabilityMutationError('permission.denied', `${operation} can only ${verb} the active member RSVP.`, {
+      object: { type: 'event.rsvp', id: String(target.id) },
+    });
+  }
+
+  if (!cancel) {
+    const capacityEvent =
+      id != null && target
+        ? (await ctx.db.select('events')).find((row) => String(row.id) === String(target.event_id))
+        : eventRow;
+    if (capacityEvent) assertRsvpCapacity(capacityEvent, status, target && id != null ? target.member_id : member, rsvps);
+  }
+  return { member, status, target, eventId };
+}
+
+async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
+  const { member, status, target, eventId } = await rsvpPreflight('rsvps.setStatus', input, ctx);
+  const id = input.id;
+
+  if (id != null && target) {
     const row =
       (await ctx.db.update('event_rsvps', String(id), {
         status,
@@ -596,31 +637,17 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
     return actionResult(
       row,
       [object],
-      verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: row.event_id ?? eventId }, object),
+      verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: row.event_id ?? eventId ?? null }, object),
     );
   }
 
-  const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
-  // Pre-validate the event so a missing FK surfaces as `notFound.object`,
-  // not a generic insert failure when the DB-side FK rejects the row.
-  const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(event));
-  if (!eventRow) {
-    throw new CapabilityMutationError('notFound.object', 'Event not found.', {
-      object: { type: 'event', id: String(event) },
-    });
-  }
-  const rsvps = await ctx.db.select('event_rsvps');
-  assertRsvpCapacity(eventRow, status, member, rsvps);
-  const existing = rsvps.find(
-    (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
-  );
-  const row = existing
-    ? (await ctx.db.update('event_rsvps', String(existing.id), {
+  const row = target
+    ? (await ctx.db.update('event_rsvps', String(target.id), {
         status,
         member_id: member,
-      })) || existing
+      })) || target
     : await ctx.db.insert('event_rsvps', {
-        event_id: event,
+        event_id: eventId ?? null,
         member_id: member,
         status,
       });
@@ -628,42 +655,19 @@ async function setRsvpStatus(input: JsonObject, ctx: CapabilityMutationContext):
   return actionResult(
     row,
     [object],
-    verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: event }, object),
+    verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: eventId ?? null }, object),
   );
 }
 
 async function cancelRsvp(input: JsonObject, ctx: CapabilityMutationContext): Promise<ActionResult<JsonValue>> {
-  const member = memberId(ctx);
-  const id = input.id;
-  const eventId = input.eventId ?? input.event_id;
-  // When the caller addresses by eventId, validate the event before scanning
-  // rsvps — otherwise a typo collapses to a silent `cancelled: false`.
-  if (id == null && eventId != null) {
-    const eventRow = (await ctx.db.select('events')).find((row) => String(row.id) === String(eventId));
-    if (!eventRow) {
-      throw new CapabilityMutationError('notFound.object', 'Event not found.', {
-        object: { type: 'event', id: String(eventId) },
-      });
-    }
-  }
-  const existing =
-    id != null
-      ? (await ctx.db.select('event_rsvps')).find((row) => String(row.id) === String(id))
-      : (await ctx.db.select('event_rsvps')).find(
-          (row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member),
-        );
-  if (!existing) return actionResult({ cancelled: false }, [], null);
-  if (String(existing.member_id) !== String(member) && !isAdminLike(ctx) && !isModeratorLike(ctx)) {
-    throw new CapabilityMutationError('permission.denied', 'rsvps.cancel can only cancel the active member RSVP.', {
-      object: { type: 'event.rsvp', id: String(existing.id) },
-    });
-  }
-  const row = (await ctx.db.update('event_rsvps', String(existing.id), { status: 'cancelled' })) || existing;
+  const { target, eventId } = await rsvpPreflight('rsvps.cancel', input, ctx);
+  if (!target) return actionResult({ cancelled: false }, [], null);
+  const row = (await ctx.db.update('event_rsvps', String(target.id), { status: 'cancelled' })) || target;
   const object = changedObject('event.rsvp', String(row.id));
   return actionResult(
     row,
     [object],
-    verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: row.event_id ?? eventId }, object),
+    verificationQuery(getOperation('rsvps.listForEvent')!.name, { eventId: row.event_id ?? eventId ?? null }, object),
   );
 }
 

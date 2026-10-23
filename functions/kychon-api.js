@@ -3205,6 +3205,8 @@ async function validateMutationSemantics(operation, input, actor) {
       await validateForumReplyInput(input);
     } else if (operation === 'pollVotes.cast') {
       await validatePollVoteInput(input);
+    } else if (operation === 'rsvps.setStatus' || operation === 'rsvps.cancel') {
+      await rsvpPreflight(operation, input, actor);
     } else if (operation === 'members.changeRole') {
       const role = typeof input.role === 'string' ? input.role.toLowerCase() : '';
       if (!VALID_MEMBER_ROLES.has(role)) {
@@ -3651,27 +3653,61 @@ function assertRsvpCapacity(eventRow, status, member, rsvps) {
   }
 }
 
-async function setRsvpStatus(input, actor) {
-  // member_id is bound to the actor (admins act-as via dedicated admin paths,
-  // not this capability) and an `id` from input must belong to that member —
-  // otherwise an active member could update arbitrary RSVP rows.
+// The reads and checks rsvps.setStatus and rsvps.cancel make before writing.
+// validate runs the same preflight, so a plan it accepts is one execute can
+// apply. member_id is bound to the actor (admins act-as via dedicated admin
+// paths, not this capability) and an `id` from input must belong to that
+// member — otherwise an active member could update arbitrary RSVP rows. An
+// eventId is checked against events first, so a missing event surfaces as
+// `notFound.object` rather than a failed insert or a silent no-op.
+async function rsvpPreflight(operation, input, actor) {
+  const cancel = operation === 'rsvps.cancel';
   const member = memberId(actor);
-  const status = normalizeRsvpStatus(input.status);
+  const status = cancel ? 'cancelled' : normalizeRsvpStatus(input.status);
   const id = input.id;
   const eventId = input.eventId ?? input.event_id;
 
-  if (id != null) {
-    const rsvps = await selectRows('event_rsvps');
-    const target = rsvps.find((row) => String(row.id) === String(id));
-    if (!target)
-      throw capabilityError('notFound.object', 'RSVP not found.', { object: { type: 'event.rsvp', id: String(id) } });
-    if (String(target.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
-      throw capabilityError('permission.denied', 'rsvps.setStatus can only update the active member RSVP.', {
-        object: { type: 'event.rsvp', id: String(id) },
-      });
+  let eventRow = null;
+  if (id == null) {
+    const event = cancel ? eventId : requiredAny(eventId, 'rsvps.setStatus requires eventId.');
+    if (event != null) {
+      eventRow = (await selectRows('events')).find((row) => String(row.id) === String(event));
+      if (!eventRow) {
+        throw capabilityError('notFound.object', 'Event not found.', {
+          object: { type: 'event', id: String(event) },
+        });
+      }
     }
-    const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(target.event_id));
-    if (eventRow) assertRsvpCapacity(eventRow, status, target.member_id, rsvps);
+  }
+
+  const rsvps = await selectRows('event_rsvps');
+  const target =
+    id != null
+      ? rsvps.find((row) => String(row.id) === String(id))
+      : rsvps.find((row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member));
+  if (id != null && !target && !cancel) {
+    throw capabilityError('notFound.object', 'RSVP not found.', { object: { type: 'event.rsvp', id: String(id) } });
+  }
+  if (target && String(target.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
+    const verb = cancel ? 'cancel' : 'update';
+    throw capabilityError('permission.denied', `${operation} can only ${verb} the active member RSVP.`, {
+      object: { type: 'event.rsvp', id: String(target.id) },
+    });
+  }
+
+  if (!cancel) {
+    const capacityEvent =
+      id != null ? (await selectRows('events')).find((row) => String(row.id) === String(target.event_id)) : eventRow;
+    if (capacityEvent) assertRsvpCapacity(capacityEvent, status, id != null ? target.member_id : member, rsvps);
+  }
+  return { member, status, target, eventId };
+}
+
+async function setRsvpStatus(input, actor) {
+  const { member, status, target, eventId } = await rsvpPreflight('rsvps.setStatus', input, actor);
+  const id = input.id;
+
+  if (id != null) {
     const row = await updateRow('event_rsvps', id, { status, member_id: target.member_id });
     const object = changedObject('event.rsvp', row.id ?? id);
     return actionResult(
@@ -3681,57 +3717,17 @@ async function setRsvpStatus(input, actor) {
     );
   }
 
-  const event = requiredAny(eventId, 'rsvps.setStatus requires eventId.');
-  // Pre-validate the event so a missing FK surfaces as `notFound.object`,
-  // not the generic `internal.error` we'd get when the DB-side FK rejects
-  // the insert.
-  const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(event));
-  if (!eventRow) {
-    throw capabilityError('notFound.object', 'Event not found.', {
-      object: { type: 'event', id: String(event) },
-    });
-  }
-  const rsvps = await selectRows('event_rsvps');
-  assertRsvpCapacity(eventRow, status, member, rsvps);
-  const existing = rsvps.find(
-    (row) => String(row.event_id) === String(event) && String(row.member_id) === String(member),
-  );
-  const row = existing
-    ? await updateRow('event_rsvps', existing.id, { status, member_id: member })
-    : await insertRow('event_rsvps', { event_id: event, member_id: member, status });
+  const row = target
+    ? await updateRow('event_rsvps', target.id, { status, member_id: member })
+    : await insertRow('event_rsvps', { event_id: eventId, member_id: member, status });
   const object = changedObject('event.rsvp', row.id);
-  return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: event }, object));
+  return actionResult(row, [object], verification('rsvps.listForEvent', { eventId }, object));
 }
 
 async function cancelRsvp(input, actor) {
-  // Same ownership rule as setRsvpStatus.
-  const member = memberId(actor);
-  const id = input.id;
-  const eventId = input.eventId ?? input.event_id;
-  // When the caller addresses by eventId, validate it points at a real event
-  // before scanning rsvps — otherwise a typo collapses to a silent no-op
-  // with `cancelled: false` and the client can't tell why.
-  if (id == null && eventId != null) {
-    const eventRow = (await selectRows('events')).find((row) => String(row.id) === String(eventId));
-    if (!eventRow) {
-      throw capabilityError('notFound.object', 'Event not found.', {
-        object: { type: 'event', id: String(eventId) },
-      });
-    }
-  }
-  const existing =
-    id != null
-      ? (await selectRows('event_rsvps')).find((row) => String(row.id) === String(id))
-      : (await selectRows('event_rsvps')).find(
-          (row) => String(row.event_id) === String(eventId) && String(row.member_id) === String(member),
-        );
-  if (!existing) return actionResult({ cancelled: false }, [], null);
-  if (String(existing.member_id) !== String(member) && !isAdminLike(actor) && !isModeratorLike(actor)) {
-    throw capabilityError('permission.denied', 'rsvps.cancel can only cancel the active member RSVP.', {
-      object: { type: 'event.rsvp', id: String(existing.id) },
-    });
-  }
-  const row = await updateRow('event_rsvps', existing.id, { status: 'cancelled' });
+  const { target, eventId } = await rsvpPreflight('rsvps.cancel', input, actor);
+  if (!target) return actionResult({ cancelled: false }, [], null);
+  const row = await updateRow('event_rsvps', target.id, { status: 'cancelled' });
   const object = changedObject('event.rsvp', row.id);
   return actionResult(row, [object], verification('rsvps.listForEvent', { eventId: row.event_id ?? eventId }, object));
 }
@@ -5969,43 +5965,335 @@ const PRIVILEGED_INPUT_FIELDS = new Set([
   'tierId',
 ]);
 
-// Server-side rich-HTML sanitizer mirroring the read-side allowlist in
-// `src/lib/sanitize-html.ts`. Run402 functions run in a Node-like runtime
-// without DOMParser, so we strip the obvious attack vectors with regex as
-// belt-and-braces for the read-side sanitizer.
+// Write-side rich-HTML sanitizer, applied before announcement bodies are
+// stored so every consumer of the table (feeds, email, exports, translation)
+// reads clean HTML. It enforces the read side's allowlist
+// (`src/lib/sanitize-html.ts`). Functions deploy as one file with no DOM, so
+// this is a small HTML tokenizer instead of a DOM walk, and its safety never
+// rests on the tokenizer agreeing with a browser: the output is re-serialized
+// from the tokens, with text escaped, only allowlisted tags and attributes
+// emitted, attribute values decoded once and re-escaped in full, URLs checked
+// on that decoded value, and every open tag closed. Tags outside the
+// allowlist are unwrapped (their text stays); executable and raw-text
+// containers are dropped with their content.
+const RICH_HTML_ALLOWED_TAGS = new Set([
+  'p',
+  'br',
+  'hr',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'u',
+  's',
+  'strike',
+  'del',
+  'ins',
+  'sub',
+  'sup',
+  'mark',
+  'small',
+  'span',
+  'div',
+  'a',
+  'ul',
+  'ol',
+  'li',
+  'blockquote',
+  'pre',
+  'code',
+  'img',
+  'figure',
+  'figcaption',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'th',
+  'td',
+]);
+const RICH_HTML_VOID_TAGS = new Set(['br', 'hr', 'img']);
+const RICH_HTML_DROP_WITH_CONTENT_TAGS = new Set([
+  'script',
+  'style',
+  'iframe',
+  'object',
+  'embed',
+  'template',
+  'textarea',
+  'title',
+  'xmp',
+  'noembed',
+  'noframes',
+  'noscript',
+  'plaintext',
+  'select',
+  'option',
+  'svg',
+  'math',
+]);
+const RICH_HTML_ALLOWED_ATTRS = {
+  a: new Set(['href', 'title', 'target', 'rel']),
+  img: new Set(['src', 'alt', 'title', 'width', 'height']),
+};
+const RICH_HTML_GLOBAL_ATTRS = new Set(['id', 'lang', 'dir']);
+const RICH_HTML_SAFE_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+// Named references decoded inside attribute values. Anything else stays
+// literal text (its `&` is escaped on output), so a browser never decodes a
+// reference this check did not see.
+const RICH_HTML_NAMED_REFERENCES = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  Tab: '\t',
+  NewLine: '\n',
+  colon: ':',
+  semi: ';',
+  comma: ',',
+  period: '.',
+  sol: '/',
+  bsol: '\\',
+  num: '#',
+  quest: '?',
+  excl: '!',
+  equals: '=',
+  commat: '@',
+  percnt: '%',
+  plus: '+',
+  lowbar: '_',
+  lpar: '(',
+  rpar: ')',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  hellip: '…',
+  ndash: '–',
+  mdash: '—',
+  lsquo: '‘',
+  rsquo: '’',
+  ldquo: '“',
+  rdquo: '”',
+  euro: '€',
+};
+// References a browser also decodes without the trailing semicolon.
+const RICH_HTML_LEGACY_REFERENCES = new Set(['amp', 'lt', 'gt', 'quot', 'nbsp', 'copy', 'reg']);
+const RICH_HTML_REFERENCE_RE = /&(#[0-9]+;?|#[xX][0-9a-fA-F]+;?|[A-Za-z][A-Za-z0-9]*;?)/g;
+const RICH_HTML_RAW_AMPERSAND_RE = /&(?!(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]+);)/gi;
+const RICH_HTML_SPACE_RE = /[\t\n\f\r ]/;
+const RICH_HTML_TAG_NAME_END_RE = /[\t\n\f\r />]/;
+const RICH_HTML_ATTR_NAME_END_RE = /[\t\n\f\r />=]/;
+const RICH_HTML_UNQUOTED_VALUE_END_RE = /[\t\n\f\r >]/;
+
 function sanitizeRichHtmlServer(input) {
   if (input == null) return '';
-  let html = String(input);
-  // Strip executable / sandbox-escape tags and their content.
-  html = html.replace(/<(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
-  // Strip risky tags, including slash-separated unclosed forms like <svg/onload=...>.
-  html = html.replace(/<\/?\s*(script|style|iframe|object|embed|svg|math|details|link|meta)(?:\s|\/|>)[^>]*>/gi, '');
-  // Strip event handlers and inline style payloads, including slash-separated attributes.
-  html = html.replace(/[\s/]+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  html = html.replace(/\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  // Neutralize javascript:/vbscript: URLs after decoding common HTML entities.
-  html = html.replace(/\s(href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (_match, attr, rawValue) => {
-    const value = rawValue.replace(/^["']|["']$/g, '');
-    const decoded = decodeHtmlEntities(value).trim();
-    return /^(?:javascript|vbscript):/i.test(decoded) ? '' : ` ${attr}=${rawValue}`;
-  });
-  html = html.replace(/(\s\w+\s*=\s*["'])\s*(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
-  html = html.replace(/(\s\w+\s*=\s*)(?:javascript|vbscript)\s*:/gi, '$1about:blank#blocked-');
-  return html;
+  const html = String(input).replaceAll('\0', '');
+  const out = [];
+  const open = [];
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf('<', i);
+    if (lt < 0) {
+      out.push(escapeRichHtmlText(html.slice(i)));
+      break;
+    }
+    if (lt > i) out.push(escapeRichHtmlText(html.slice(i, lt)));
+    i = readRichHtmlMarkup(html, lt, out, open);
+  }
+  while (open.length) out.push(`</${open.pop()}>`);
+  return out.join('');
 }
 
-function decodeHtmlEntities(value) {
-  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity) => {
-    const normalized = entity.toLowerCase();
-    if (normalized === 'amp') return '&';
-    if (normalized === 'lt') return '<';
-    if (normalized === 'gt') return '>';
-    if (normalized === 'quot') return '"';
-    if (normalized === 'apos') return "'";
-    if (normalized.startsWith('#x')) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
-    if (normalized.startsWith('#')) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+// Consumes the markup starting at `<` (html[at]) and returns the index after it.
+function readRichHtmlMarkup(html, at, out, open) {
+  if (html.startsWith('<!--', at)) return skipRichHtmlPast(html, '-->', at + 4);
+  const next = html[at + 1] ?? '';
+  if (next === '!' || next === '?') return skipRichHtmlPast(html, '>', at + 2);
+  const isEndTag = next === '/';
+  const nameStart = isEndTag ? at + 2 : at + 1;
+  if (!/[A-Za-z]/.test(html[nameStart] ?? '')) {
+    if (!isEndTag) {
+      out.push('&lt;');
+      return at + 1;
+    }
+    // `</>` is ignored; `</` + anything else is a bogus comment up to `>`.
+    return skipRichHtmlPast(html, '>', nameStart);
+  }
+  const tag = readRichHtmlTag(html, nameStart);
+  // A tag cut off by the end of the input is dropped, as browsers do.
+  if (!tag) return html.length;
+  if (isEndTag) {
+    closeRichHtmlTag(tag.name, open, out);
+    return tag.end;
+  }
+  if (RICH_HTML_DROP_WITH_CONTENT_TAGS.has(tag.name)) {
+    const selfClosingForeign = tag.selfClosing && (tag.name === 'svg' || tag.name === 'math');
+    return selfClosingForeign ? tag.end : skipRichHtmlContainer(html, tag.name, tag.end);
+  }
+  if (RICH_HTML_ALLOWED_TAGS.has(tag.name)) {
+    out.push(`<${tag.name}${renderRichHtmlAttributes(tag.name, tag.attributes)}>`);
+    if (!RICH_HTML_VOID_TAGS.has(tag.name)) open.push(tag.name);
+  }
+  return tag.end;
+}
+
+// Reads a tag's name and attributes the way the HTML tokenizer does: `/` and
+// whitespace separate attributes, quoted values may hold `>`, and the first
+// of a repeated attribute wins. Returns null when the input ends mid-tag.
+function readRichHtmlTag(html, nameStart) {
+  let i = nameStart;
+  while (i < html.length && !RICH_HTML_TAG_NAME_END_RE.test(html[i])) i += 1;
+  const name = html.slice(nameStart, i).toLowerCase();
+  const attributes = new Map();
+  let selfClosing = false;
+  while (i < html.length) {
+    const ch = html[i];
+    if (ch === '>') return { name, attributes, selfClosing, end: i + 1 };
+    if (ch === '/') {
+      selfClosing = html[i + 1] === '>';
+      i += 1;
+      continue;
+    }
+    if (RICH_HTML_SPACE_RE.test(ch)) {
+      i += 1;
+      continue;
+    }
+    const attr = readRichHtmlAttribute(html, i);
+    if (!attr) return null;
+    if (!attributes.has(attr.name)) attributes.set(attr.name, attr.value);
+    i = attr.end;
+  }
+  return null;
+}
+
+function readRichHtmlAttribute(html, nameStart) {
+  // The first character is part of the name even when it is `=`.
+  let i = nameStart + 1;
+  while (i < html.length && !RICH_HTML_ATTR_NAME_END_RE.test(html[i])) i += 1;
+  const name = html.slice(nameStart, i).toLowerCase();
+  let j = skipRichHtmlSpaces(html, i);
+  if (html[j] !== '=') return { name, value: '', end: i };
+  j = skipRichHtmlSpaces(html, j + 1);
+  const quote = html[j];
+  if (quote === '"' || quote === "'") {
+    const close = html.indexOf(quote, j + 1);
+    if (close < 0) return null;
+    return { name, value: html.slice(j + 1, close), end: close + 1 };
+  }
+  const valueStart = j;
+  while (j < html.length && !RICH_HTML_UNQUOTED_VALUE_END_RE.test(html[j])) j += 1;
+  return { name, value: html.slice(valueStart, j), end: j };
+}
+
+function skipRichHtmlSpaces(html, from) {
+  let i = from;
+  while (i < html.length && RICH_HTML_SPACE_RE.test(html[i])) i += 1;
+  return i;
+}
+
+function skipRichHtmlPast(html, marker, from) {
+  const found = html.indexOf(marker, from);
+  return found < 0 ? html.length : found + marker.length;
+}
+
+// Skips a dropped container's content through its matching end tag (or to
+// the end of the input when it never closes).
+function skipRichHtmlContainer(html, name, from) {
+  const closeRe = new RegExp(`</${name}(?=[\\t\\n\\f\\r />]|$)`, 'gi');
+  closeRe.lastIndex = from;
+  const match = closeRe.exec(html);
+  if (!match) return html.length;
+  return skipRichHtmlPast(html, '>', match.index + match[0].length);
+}
+
+function closeRichHtmlTag(name, open, out) {
+  const index = open.lastIndexOf(name);
+  if (index < 0) return;
+  while (open.length > index) out.push(`</${open.pop()}>`);
+}
+
+function renderRichHtmlAttributes(tag, attributes) {
+  const allowed = RICH_HTML_ALLOWED_ATTRS[tag];
+  const kept = new Map();
+  for (const [name, raw] of attributes) {
+    if (name.startsWith('on')) continue;
+    if (!allowed?.has(name) && !RICH_HTML_GLOBAL_ATTRS.has(name)) continue;
+    const value = decodeRichHtmlAttribute(raw);
+    if (name === 'href' && !isSafeRichHtmlUrl(value, false)) continue;
+    if (name === 'src' && !isSafeRichHtmlUrl(value, true)) continue;
+    kept.set(name, value);
+  }
+  if (String(kept.get('target') ?? '').toLowerCase() === '_blank') {
+    kept.set('rel', relWithNoopener(kept.get('rel') ?? ''));
+  }
+  let rendered = '';
+  for (const [name, value] of kept) rendered += ` ${name}="${escapeRichHtmlAttribute(value)}"`;
+  return rendered;
+}
+
+function relWithNoopener(rel) {
+  const tokens = String(rel).split(/\s+/).filter(Boolean);
+  const lower = new Set(tokens.map((token) => token.toLowerCase()));
+  if (!lower.has('noopener')) tokens.push('noopener');
+  if (!lower.has('noreferrer')) tokens.push('noreferrer');
+  return tokens.join(' ');
+}
+
+function decodeRichHtmlAttribute(value) {
+  return value.replace(RICH_HTML_REFERENCE_RE, (match, ref, offset) => {
+    if (ref[0] === '#') {
+      const hex = ref[1] === 'x' || ref[1] === 'X';
+      const digits = ref.slice(hex ? 2 : 1).replace(/;$/, '');
+      return richHtmlCodePoint(Number.parseInt(digits, hex ? 16 : 10));
+    }
+    if (ref.endsWith(';')) {
+      const name = ref.slice(0, -1);
+      return Object.hasOwn(RICH_HTML_NAMED_REFERENCES, name) ? RICH_HTML_NAMED_REFERENCES[name] : match;
+    }
+    // Inside an attribute a browser decodes a legacy reference without its
+    // semicolon unless `=` follows it.
+    if (RICH_HTML_LEGACY_REFERENCES.has(ref) && value[offset + match.length] !== '=') {
+      return RICH_HTML_NAMED_REFERENCES[ref];
+    }
     return match;
   });
+}
+
+function richHtmlCodePoint(codePoint) {
+  if (!Number.isFinite(codePoint) || codePoint === 0 || codePoint > 0x10ffff) return '�';
+  if (codePoint >= 0xd800 && codePoint <= 0xdfff) return '�';
+  return String.fromCodePoint(codePoint);
+}
+
+function isSafeRichHtmlUrl(value, allowDataImage) {
+  // Browsers drop tab and newline anywhere in a URL and controls or spaces
+  // at its ends; removing them all reads the URL the most permissive way.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: C0 controls are what URL parsing strips.
+  const compact = value.replace(/[\u0000-\u0020\u007f]+/g, '');
+  if (!compact) return false;
+  const colon = compact.indexOf(':');
+  if (colon < 0) return true;
+  const delimiter = compact.search(/[/?#]/);
+  if (delimiter >= 0 && delimiter < colon) return true;
+  if (RICH_HTML_SAFE_URL_SCHEMES.has(compact.slice(0, colon + 1).toLowerCase())) return true;
+  return allowDataImage && /^data:image\/(png|jpe?g|gif|webp|svg\+xml)/i.test(compact);
+}
+
+function escapeRichHtmlText(value) {
+  return value.replace(RICH_HTML_RAW_AMPERSAND_RE, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeRichHtmlAttribute(value) {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function stripControlFields(input) {

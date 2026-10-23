@@ -722,7 +722,9 @@ function renderForegroundHero(section: Section, ctx: BlockRenderContext): string
   const logoPosition: HeroLogoPosition = (['left', 'center', 'right'] as HeroLogoPosition[]).includes(cfg.logo_position as HeroLogoPosition)
     ? (cfg.logo_position as HeroLogoPosition)
     : 'left';
-  const logoMaxHeight = cfg.logo_max_height || '120px';
+  // Interpolated into a style attribute, so only a plain CSS value (no `;`,
+  // `:` or braces that could start another declaration) is honored.
+  const logoMaxHeight = safeCssValue(cfg.logo_max_height) || '120px';
 
   // Image alt — required in foreground mode. Empty alt is allowed at runtime
   // (still emits valid HTML, decorative semantics) but warn.

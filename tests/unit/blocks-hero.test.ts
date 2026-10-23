@@ -157,6 +157,27 @@ describe('hero renderer — foreground mode', () => {
     expect(html).toContain('max-height:80px');
   });
 
+  it.each([
+    '80px;position:fixed;inset:0',
+    '80px; background-image: url(https://tracker.example/p)',
+    'calc(1px)}body{display:none',
+  ])('falls back to the default logo height when logo_max_height %j is not a plain CSS value', (logoMaxHeight) => {
+    const html = renderBlock(
+      heroSection({
+        mode: 'foreground',
+        image_url: '/x.png',
+        image_alt: 'x',
+        logo_overlay_url: '/logo.svg',
+        logo_max_height: logoMaxHeight,
+      }),
+      baseCtx,
+    );
+    expect(html).toContain('style="max-height:120px"');
+    expect(html).not.toContain('position:fixed');
+    expect(html).not.toContain('tracker.example');
+    expect(html).not.toContain('display:none');
+  });
+
   it('omits the logo overlay when logo_overlay_url is unset', () => {
     const html = renderBlock(heroSection({ mode: 'foreground', image_url: '/x.png', image_alt: 'x' }), baseCtx);
     expect(html).not.toContain('data-hero-logo-overlay');
