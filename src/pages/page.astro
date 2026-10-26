@@ -2,10 +2,38 @@
 import CustomPageApp from '../components/kychon/CustomPageApp';
 import AdminZoneAddButton from '../components/kychon/AdminZoneAddButton';
 import Portal from '../layouts/Portal.astro';
+import { rewriteAssetUrlsInHtml } from '../lib/kychon-image';
+import { ssrAssetManifest, ssrPageGet, ssrRequestOrigin } from '../lib/ssr-api';
+import type { Page } from '../schemas/content';
+
+// /page?slug=X is per-request: the page comes from the query string, which a
+// static build can't see. The requested page is read server-side with the
+// anonymous `pages.get`, so a slug with no published public page answers
+// 404 + noindex instead of a 200 shell with an empty body (which search
+// engines report as a soft 404). Members-only pages read as missing too; the
+// shell still renders and a signed-in member's island loads the page. A
+// failed read (`error`) is not a 404: the shell renders and the island
+// retries.
+export const prerender = false;
+
+const url = new URL(Astro.request.url);
+const host = Astro.request.headers.get('host') ?? Astro.url.host;
+const origin = ssrRequestOrigin(Astro.url, host);
+
+const siteManifestRead = ssrAssetManifest(origin);
+const lookup = await ssrPageGet<Page>({ slug: url.searchParams.get('slug') ?? '', host });
+if (lookup.status === 'missing') Astro.response.status = 404;
+
+// Resolve `/assets/<name>` in the body here: the island's own resolver reads
+// the browser-side manifest, which does not exist during SSR.
+const page =
+  lookup.status === 'found'
+    ? { ...lookup.page, content: rewriteAssetUrlsInHtml(lookup.page.content ?? '', await siteManifestRead) }
+    : null;
 ---
-<Portal title="Page">
+<Portal title={page?.title || 'Page'} robots={lookup.status === 'missing' ? 'noindex' : undefined}>
   <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <CustomPageApp client:load />
+    <CustomPageApp client:load initialPage={page} />
   </div>
   <div id="sections" class="mt-8" data-sortable-group="page-sections" data-zone="main"></div>
   <AdminZoneAddButton zone="main" />

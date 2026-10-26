@@ -211,6 +211,42 @@ export async function ssrEventGet<T = unknown>(params: SsrEventParams): Promise<
   }
 }
 
+export interface SsrPageParams {
+  /** Raw `?slug=` value from the request URL. */
+  slug: string;
+  /** Request host (`Astro.request.headers.get('host')`). */
+  host: string;
+}
+
+/**
+ * Outcome of a per-request page read, with the same meaning as
+ * `SsrEventResult`: `missing` covers nonexistent, unpublished and
+ * members-only pages, and `error` means the read itself failed.
+ */
+export type SsrPageResult<T> =
+  | { status: 'found'; page: T }
+  | { status: 'missing' }
+  | { status: 'error' };
+
+/**
+ * Server-side `pages.get` for `/page?slug=X`. Anonymous, so unpublished and
+ * members-only pages come back null and only surface through the island's
+ * post-hydrate refetch with the visitor's session. An absent slug is
+ * `missing` without a call (the capability would reject it as a validation
+ * error).
+ */
+export async function ssrPageGet<T = unknown>(params: SsrPageParams): Promise<SsrPageResult<T>> {
+  const slug = params.slug.trim();
+  if (!slug) return { status: 'missing' };
+  try {
+    const page = await client(params.host).request<T | null>('pages.get', 'query', { slug });
+    return page ? { status: 'found', page } : { status: 'missing' };
+  } catch (error) {
+    console.warn('[ssr-api] pages.get failed:', error instanceof Error ? error.message : error);
+    return { status: 'error' };
+  }
+}
+
 
 export interface SsrPageHeaderSectionsParams {
   /** Page slug the route hydrates as (`currentPageSlugFromLocation`). */

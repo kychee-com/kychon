@@ -18,16 +18,15 @@ const CLIENT_DIR = join(ROOT, 'dist', 'run402', 'client');
 const SERVER_ENTRY = join(ROOT, 'dist', 'run402', 'server', 'entry.mjs');
 // Request-time routes: the SSR Lambda has no KYCHON_CHROME_SNAPSHOT env var or
 // file, so these must bake the copy built into the bundle (kychon#228).
-const SSR_PATHS = ['/calendar', '/search?q=boat', '/event?id=1'];
+const SSR_PATHS = ['/calendar', '/search?q=boat', '/event?id=1', '/page?slug=about'];
 
 // Representative prerendered pages. admin*, profile, and join are SSR
 // (prerender = false): they read auth.user() server-side for redirect
 // guards / hosted <SignIn> returnTo, so they never appear as static HTML
 // and are covered by the SSR entry's render path. calendar / search /
-// event / ssr-probe are likewise SSR-only.
+// event / page / ssr-probe are likewise SSR-only.
 const REPRESENTATIVE_PAGES = [
   'index.html',
-  'page.html',
   'events.html',
   'directory.html',
   'committees.html',
@@ -80,6 +79,7 @@ const ALL_SSR_PATHS = [
   '/calendar',
   '/search?q=boat',
   '/event?id=1',
+  '/page?slug=about',
   '/.well-known/kychon.json',
   '/robots.txt',
   '/llms.txt',

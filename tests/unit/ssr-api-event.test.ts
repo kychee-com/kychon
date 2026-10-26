@@ -7,7 +7,7 @@ vi.mock('@kychon/sdk', () => ({
   KYCHON_CAPABILITY_FUNCTION_PATH: '/functions/v1/kychon-api',
 }));
 
-const { ssrAssetManifest, ssrEventGet, resetSsrAssetManifestCache } = await import('../../src/lib/ssr-api');
+const { ssrAssetManifest, ssrEventGet, ssrPageGet, resetSsrAssetManifestCache } = await import('../../src/lib/ssr-api');
 
 describe('ssrEventGet', () => {
   beforeEach(() => {
@@ -43,6 +43,43 @@ describe('ssrEventGet', () => {
   it('reports a failed read as an error, not a 404', async () => {
     request.mockRejectedValue(new Error('gateway timeout'));
     await expect(ssrEventGet({ id: '7', host: 'club.kychon.com' })).resolves.toEqual({ status: 'error' });
+  });
+});
+
+describe('ssrPageGet', () => {
+  beforeEach(() => {
+    request.mockReset();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reads the page through the anonymous pages.get capability', async () => {
+    request.mockResolvedValue({ id: 3, slug: 'about', title: 'About' });
+    await expect(ssrPageGet({ slug: ' about ', host: 'club.kychon.com' })).resolves.toEqual({
+      status: 'found',
+      page: { id: 3, slug: 'about', title: 'About' },
+    });
+    expect(request).toHaveBeenCalledWith('pages.get', 'query', { slug: 'about' });
+  });
+
+  it('reports a null row (nonexistent, unpublished or members-only) as missing', async () => {
+    request.mockResolvedValue(null);
+    await expect(ssrPageGet({ slug: 'delegates', host: 'club.kychon.com' })).resolves.toEqual({ status: 'missing' });
+  });
+
+  it('treats an absent slug as missing without calling the API', async () => {
+    for (const slug of ['', '   ']) {
+      await expect(ssrPageGet({ slug, host: 'club.kychon.com' })).resolves.toEqual({ status: 'missing' });
+    }
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed read as an error, not a 404', async () => {
+    request.mockRejectedValue(new Error('gateway timeout'));
+    await expect(ssrPageGet({ slug: 'about', host: 'club.kychon.com' })).resolves.toEqual({ status: 'error' });
   });
 });
 

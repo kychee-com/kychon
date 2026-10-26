@@ -10,7 +10,7 @@ const app = readFileSync(join(root, 'src/components/kychon/CustomPageApp.tsx'), 
 describe('custom page source', () => {
   it('uses a shared React island instead of inline DOM scripting', () => {
     for (const source of [pageRoute, customPageRoute]) {
-      expect(source).toMatch(/<CustomPageApp client:load(?: initialPage=\{buildPage\})? \/>/);
+      expect(source).toMatch(/<CustomPageApp client:load initialPage=\{(?:buildPage|page)\} \/>/);
       expect(source).not.toContain('<script>');
       expect(source).not.toContain('ky-container');
       expect(source).not.toContain('id="page-title"');
@@ -24,6 +24,13 @@ describe('custom page source', () => {
     expect(app).toContain('initialPage');
     // The island must not flash a skeleton over baked content.
     expect(app).toContain('setLoading(!initialPage)');
+  });
+
+  it('renders /page?slug= per request and answers a missing slug with a noindex 404', () => {
+    expect(pageRoute).toContain('export const prerender = false');
+    expect(pageRoute).toContain('ssrPageGet');
+    expect(pageRoute).toMatch(/lookup\.status === 'missing'\) Astro\.response\.status = 404/);
+    expect(pageRoute).toContain("robots={lookup.status === 'missing' ? 'noindex' : undefined}");
   });
 
   it('never downgrades baked content to not-found or error on refresh misses', () => {
