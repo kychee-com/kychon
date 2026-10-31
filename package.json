@@ -48,7 +48,7 @@
     "astro": "^7.3.8",
     "css-select": "^7.0.0",
     "fast-check": "^4.10.2",
-    "happy-dom": "^20.14.5",
+    "happy-dom": "^21.0.4",
     "htmlparser2": "^12.0.0",
     "run402": "4.123.0",
     "tailwindcss": "4.3.3",
