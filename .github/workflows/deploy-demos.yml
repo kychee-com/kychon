@@ -25,10 +25,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# id-token:write is required for GitHub's OIDC token endpoint.
-# contents:read is required for actions/checkout.
 permissions:
-  id-token: write
   contents: read
 
 # Cancel any in-progress deploy for the same branch so a rapid push
@@ -72,6 +69,11 @@ jobs:
   deploy:
     name: Deploy ${{ matrix.demo }}
     runs-on: ubuntu-latest
+    # id-token: write lets the job mint the GitHub OIDC token the deploy
+    # exchanges for a Run402 session; contents: read is for actions/checkout.
+    permissions:
+      contents: read
+      id-token: write
 
     # Run all three demos in parallel; don't let one failure block the others.
     strategy:
@@ -80,11 +82,11 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           lfs: true
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: npm
