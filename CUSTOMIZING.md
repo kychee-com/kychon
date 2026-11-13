@@ -245,7 +245,9 @@ Members select their language in profile settings. The picker only shows when >1
    };
    // authorizeRun, isActiveAdmin, isProjectAdmin, findMember: copied from functions/prune-history.js
    ```
-2. The `// schedule:` comment is parsed by `scripts/deploy.ts` to set the cron schedule.
+2. The `// schedule:` comment is parsed by `scripts/deploy.ts` into the function's schedule
+   trigger, `{ id: "schedule", type: "schedule", cron }`; Run402 reads the cron in UTC and
+   starts a run with event type `my-job.schedule` on each tick.
    Run402 caps scheduled functions by tier (prototype 1, hobby 3, team 10) and refuses
    a deploy over the cap; Kychon already uses two (`check-expirations`, `prune-history`).
    Work that follows an action needs no schedule slot: queue a one-off run with

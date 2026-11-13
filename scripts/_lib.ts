@@ -106,7 +106,7 @@ export async function collectFunctionsMap(
     for (const f of entries.filter((e) => e.endsWith(".js"))) {
       const code = injectFunctionBuildConstants(await readFile(join(dir, f), "utf-8"), opts);
       const name = f.replace(/\.js$/, "");
-      out[name] = makeFunctionSpec(name, code);
+      out[name] = makeFunctionSpec(code);
     }
   }
 
@@ -121,7 +121,7 @@ export async function collectFunctionsMap(
     // and ~150 demo rows); the 10s default leaves no headroom. 15s also
     // changes the function digest, which is what makes the gateway's noop
     // short-circuit activate the function instead of skipping it.
-    out[name] = makeFunctionSpec(name, code, { timeoutSeconds: 15 });
+    out[name] = makeFunctionSpec(code, { timeoutSeconds: 15 });
   }
 
   return out;
@@ -139,7 +139,6 @@ function resolveKychonEngineVersion(): string {
 }
 
 function makeFunctionSpec(
-  name: string,
   code: string,
   config?: { timeoutSeconds?: number; memoryMb?: number },
 ): FunctionSpec {
@@ -147,18 +146,10 @@ function makeFunctionSpec(
   if (config) spec.config = config;
   const scheduleMatch = code.match(/\/\/\s*schedule:\s*"([^"]+)"/);
   if (scheduleMatch && scheduleMatch[1]) {
-    spec.triggers = [{
-      id: "schedule",
-      type: "schedule",
-      cron: scheduleMatch[1],
-      timezone: "UTC",
-      misfire_policy: "skip",
-      overlap_policy: "allow",
-      run: {
-        event_type: `${name}.schedule`,
-        payload: {},
-      },
-    }];
+    // The minimal schedule trigger: the gateway fills the timezone (UTC), both
+    // policies and the run (`<function>.schedule`, empty payload). The id stays
+    // "schedule" so a portal deployed before keeps its trigger and run history.
+    spec.triggers = [{ id: "schedule", type: "schedule", cron: scheduleMatch[1] }];
   }
   return spec;
 }
