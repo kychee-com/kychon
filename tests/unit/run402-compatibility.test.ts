@@ -238,6 +238,22 @@ const deprecatedSurfaces = [
     pattern: /"rls"\s*:/,
     hint: 'use database.expose in unified deploy artifacts.',
   },
+  {
+    label: 'project tier on provision',
+    pattern: /projects\.provision\(\{[^}]*\btier\b|--tier\b/s,
+    hint: "a project runs on its organization's tier; POST /projects/v1 takes no tier.",
+  },
+  {
+    label: 'removed Run402 client surface',
+    pattern:
+      /\bsendMessage\(|\bgetProject\(|\/message\/v1|\/projects\/v1\/quote|PROJECT_ORG(ANIZATION)?_REQUIRED|cf-ipcountry/,
+    hint: 'use getProjectCredentials, POST /feedback/v1, GET /tiers/v1, PROJECT_HAS_NO_ORGANIZATION and x-run402-country.',
+  },
+  {
+    label: 'renamed run402 CLI command',
+    pattern: /run402 deploy (diagnose|release )|run402 blob\b/,
+    hint: 'use run402 deploy resolve <url>, run402 deploy releases active and run402 assets.',
+  },
 ];
 
 function currentScanFiles(): string[] {

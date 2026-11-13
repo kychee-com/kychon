@@ -797,9 +797,10 @@ export async function writeAdapterAwareArtifacts(opts: {
 // the gateway's `release-error-rollup` baselines the freshly-activated release
 // against the previously-active one, so a NEW fingerprint is an error identity
 // that this deploy introduced (rollback-safe — recurring/pre-existing errors do
-// not count). We hand-roll the poll with fetch against the documented wire
-// contract rather than bumping the SDK — the deploy scripts pin their own SDK
-// version and the `/projects/v1/:project_id/errors` wire is stable/documented.
+// not count). The poll reads the documented wire directly rather than
+// `r.errors.watch` from @run402/sdk: the SDK watch runs a fixed window, and
+// this gate passes early once enough traffic has been served (adaptive clean
+// exit below), authenticated with the key the deploy already holds.
 //
 // Wire: GET {apiBase}/projects/v1/{projectId}/errors?new_in={releaseId}
 //   header  apikey: <project anon or service key>
@@ -1166,7 +1167,7 @@ export async function runDeploy(
   const firstPublicUrl = Object.values(result.urls)[0]?.replace(/\/+$/, "");
   const diagnoseBase = firstPublicUrl || `https://${opts.subdomain}.kychon.com`;
   console.log(
-    `  Diagnose clean route: run402 deploy diagnose --project ${opts.projectId} ${diagnoseBase}/search?q=hello&type=all --method GET`,
+    `  Diagnose clean route: run402 deploy resolve ${diagnoseBase}/search --project ${opts.projectId} --method GET`,
   );
   return reportAppliedRelease(project, opts, release, result, elapsedMs);
 }
@@ -1502,7 +1503,7 @@ async function assembleDeployRelease(
     console.log(`  Public paths: ${preview}${suffix}`);
     console.log("  Hidden implementation paths: /events.html, /search.html, /page.html?slug=...");
     console.log(
-      `  Diagnose after deploy: run402 deploy diagnose --project ${opts.projectId} https://${opts.subdomain}.kychon.com/search?q=hello&type=all --method GET`,
+      `  Diagnose after deploy: run402 deploy resolve https://${opts.subdomain}.kychon.com/search --project ${opts.projectId} --method GET`,
     );
   }
 

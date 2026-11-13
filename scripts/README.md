@@ -142,8 +142,8 @@ Static files use `site.public_paths` in explicit mode. Release assets such as `e
 Deploy logs and dry-runs print representative public path mappings. For deployed checks, inspect `static_public_paths` in the active release inventory and confirm `reachability_authority: "explicit_public_path"` for page routes:
 
 ```bash
-run402 deploy release active --project <project_id>
-run402 deploy diagnose --project <project_id> https://example.kychon.com/events --method GET
+run402 deploy releases active --project <project_id>
+run402 deploy resolve https://example.kychon.com/events --project <project_id> --method GET
 npx tsx scripts/verify-first-byte-chrome.ts --base https://example.kychon.com --brand "Example Club"
 ```
 
