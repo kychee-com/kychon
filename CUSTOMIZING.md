@@ -395,6 +395,29 @@ SET tags = ARRAY(SELECT jsonb_array_elements_text(source_metadata->'source_activ
 WHERE tags = '{}' AND jsonb_typeof(source_metadata->'source_activity_tags') = 'array';
 ```
 
+### Events Calendar Block
+
+`/calendar` is the full-page month calendar. To put a calendar on any other
+page, place an `events_calendar` block in a `main` zone (spans `1`, `2/3` or
+`1/2`); it hides itself when `feature_events` is off. Its config:
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `heading` | `"Calendar"` | Block heading |
+| `view` | `"month"` | `month`, `week` or `agenda` |
+| `density` | `"light"` | `glance` (dots), `light` (one-line chips) or `rich` (cards with avatars and capacity badges) |
+| `filter` | `"all"` | Initial chip: `all`, `members`, `open`, `my_rsvps` or `past` |
+| `first_day_of_week` | `0` | `0` is Sunday, `1` is Monday |
+| `show_filter_chips` | `true` | Show the filter chip row |
+| `density_lock` | `false` | Keep the configured `view` in a narrow container instead of falling through to agenda below 600px |
+| `agenda_show_empty_days` | `false` | List days with no events in agenda view |
+
+```sql
+INSERT INTO sections (page_slug, zone, scope, section_type, position, config)
+VALUES ('home', 'main', 'page', 'events_calendar', 4,
+  '{"heading":"Club calendar","view":"month","density":"rich"}');
+```
+
 ### Structured Registration Options
 
 Ported Wild Apricot-style registration classes live in
