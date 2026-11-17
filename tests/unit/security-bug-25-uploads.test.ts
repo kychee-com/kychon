@@ -1,17 +1,13 @@
 // Regression coverage for #25: upload edge-function vulnerabilities.
 //
-// 1. functions/upload-resource.js requires only "any signed-in Run402 user" —
-//    not a Kychon admin and not even a Kychon member. uploaded_by is taken
-//    from caller-supplied metadata. Result: anyone who can authenticate to
-//    Run402 can write a file and a row into the project.
-// 2. functions/upload-asset.js interpolates `body.path` straight into the
+// 1. functions/upload-asset.js interpolates `body.path` straight into the
 //    Run402 storage delete URL with the service key, allowing path traversal
 //    out of the assets/ bucket.
-// 3. functions/upload-asset.js builds a SQL query via string concatenation on
+// 2. functions/upload-asset.js builds a SQL query via string concatenation on
 //    `user.id`. Safe today because user.id is a UUID, but this is a
 //    defense-in-depth issue — should use parameterized SQL.
-// 4. Both functions accepted any member with role admin, so a pending or
-//    suspended admin could still upload and delete assets. They now require an
+// 3. upload-asset accepted any member with role admin, so a pending or
+//    suspended admin could still upload and delete assets. It now requires an
 //    active admin (matched by user id, then email) or a project admin.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,7 +19,6 @@ type MockUser = { id: string; email?: string; app_metadata?: Record<string, unkn
 const mockState = vi.hoisted(() => ({
   user: null as null | MockUser,
   members: [] as JsonObject[],
-  resources: [] as JsonObject[],
   fetchCalls: [] as Array<{ url: string; method: string }>,
   assetPutCalls: [] as Array<{
     key: string;
@@ -61,11 +56,6 @@ vi.mock(
             };
           },
           insert(row: JsonObject) {
-            if (table === 'resources') {
-              const created = { id: mockState.resources.length + 1, ...row };
-              mockState.resources.push(created);
-              return Promise.resolve([created]);
-            }
             return Promise.resolve([row]);
           },
         };
@@ -132,7 +122,6 @@ vi.mock(
 beforeEach(() => {
   mockState.user = null;
   mockState.members = [];
-  mockState.resources = [];
   mockState.fetchCalls = [];
   mockState.assetPutCalls = [];
   mockState.sqlCalls = [];
@@ -156,63 +145,6 @@ function jsonReq(path: string, body: unknown) {
     body: JSON.stringify(body),
   });
 }
-
-describe('bug #25 — upload-resource.js role check + uploaded_by spoof', () => {
-  it('rejects non-admin Kychon members with 403', async () => {
-    mockState.user = { id: 'plain-user', email: 'plain@example.com' };
-    mockState.members = [
-      { id: 1, user_id: 'plain-user', email: 'plain@example.com', role: 'member', status: 'active' },
-    ];
-    const handler = (await import('../../functions/upload-resource.js')).default;
-    const res = await handler(
-      jsonReq('upload-resource', {
-        file: { name: 'guide.pdf', type: 'application/pdf', data: btoa('hello') },
-        metadata: { title: 'Guide' },
-      }),
-    );
-    expect(res.status).toBe(403);
-    expect(mockState.resources).toHaveLength(0);
-  });
-
-  it('rejects unauthenticated callers with 401', async () => {
-    mockState.user = null;
-    const handler = (await import('../../functions/upload-resource.js')).default;
-    const res = await handler(
-      jsonReq('upload-resource', {
-        file: { name: 'guide.pdf', type: 'application/pdf', data: btoa('hello') },
-      }),
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it('overwrites caller-supplied uploaded_by with the actor member id', async () => {
-    mockState.user = { id: 'admin-user' };
-    mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
-    const handler = (await import('../../functions/upload-resource.js')).default;
-    const res = await handler(
-      jsonReq('upload-resource', {
-        file: { name: 'guide.pdf', type: 'application/pdf', data: btoa('hi') },
-        metadata: { title: 'Guide', uploaded_by: 999 },
-      }),
-    );
-    expect(res.status).toBe(200);
-    expect(mockState.resources).toHaveLength(1);
-    expect(String(mockState.resources[0].uploaded_by)).toBe('7');
-  });
-
-  it('rejects unsafe file names (path traversal in storage path)', async () => {
-    mockState.user = { id: 'admin-user' };
-    mockState.members = [{ id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' }];
-    const handler = (await import('../../functions/upload-resource.js')).default;
-    const res = await handler(
-      jsonReq('upload-resource', {
-        file: { name: '../../etc/passwd', type: 'text/plain', data: btoa('pwn') },
-      }),
-    );
-    expect(res.status).toBe(400);
-    expect(mockState.resources).toHaveLength(0);
-  });
-});
 
 describe('bug #25 — upload-asset.js path traversal in upload', () => {
   const ADMIN = { id: 7, user_id: 'admin-user', email: 'admin@example.com', role: 'admin', status: 'active' };
@@ -257,72 +189,35 @@ describe('bug #25 — upload-asset.js never builds SQL from user.id', () => {
   });
 });
 
-describe('uploads require an active admin or a project admin', () => {
-  const upload = {
-    'upload-asset': () =>
-      jsonReq('upload-asset', { file: { name: 'logo.png', type: 'image/png', data: btoa('png') }, path: 'logo.png' }),
-    'upload-resource': () =>
-      jsonReq('upload-resource', {
-        file: { name: 'guide.pdf', type: 'application/pdf', data: btoa('pdf') },
-        metadata: { title: 'Guide' },
-      }),
-  };
-  const handlers = {
-    'upload-asset': () => import('../../functions/upload-asset.js'),
-    'upload-resource': () => import('../../functions/upload-resource.js'),
-  };
+describe('upload-asset requires an active admin or a project admin', () => {
+  const upload = () =>
+    jsonReq('upload-asset', { file: { name: 'logo.png', type: 'image/png', data: btoa('png') }, path: 'logo.png' });
+  const handler = async () => (await import('../../functions/upload-asset.js')).default;
   const MEMBERS: JsonObject[] = [
     { id: 1, user_id: 'pending-admin', email: 'linus@example.com', role: 'admin', status: 'pending' },
     { id: 2, user_id: 'suspended-admin', email: 'sus@example.com', role: 'Admin', status: 'suspended' },
     { id: 3, user_id: null, email: 'email-admin@example.com', role: 'admin', status: 'active' },
   ];
 
-  for (const name of ['upload-asset', 'upload-resource'] as const) {
-    it.each([
-      ['a pending admin', { id: 'pending-admin', email: 'linus@example.com' }],
-      ['a suspended admin', { id: 'suspended-admin', email: 'sus@example.com' }],
-    ])(`${name}: rejects %s with 403 and stores nothing`, async (_label, user) => {
-      mockState.user = user;
-      mockState.members = MEMBERS;
-      const res = await (await handlers[name]()).default(upload[name]());
-      expect(res.status).toBe(403);
-      expect(mockState.assetPutCalls).toHaveLength(0);
-      expect(mockState.resources).toHaveLength(0);
-    });
-
-    it.each([
-      ['an active admin matched by email', { id: 'unlinked-user', email: 'Email-Admin@example.com' }],
-      ['a project admin', { id: 'owner-user', email: 'owner@example.com', app_metadata: { role: 'project_admin' } }],
-    ])(`${name}: lets %s upload`, async (_label, user) => {
-      mockState.user = user;
-      mockState.members = MEMBERS;
-      const res = await (await handlers[name]()).default(upload[name]());
-      expect(res.status).toBe(200);
-      expect(mockState.assetPutCalls).toHaveLength(1);
-    });
-  }
-
-  it('upload-asset: rejects an upload from a pending admin', async () => {
-    mockState.user = { id: 'pending-admin', email: 'linus@example.com' };
+  it.each([
+    ['a pending admin', { id: 'pending-admin', email: 'linus@example.com' }],
+    ['a suspended admin', { id: 'suspended-admin', email: 'sus@example.com' }],
+  ])('rejects %s with 403 and stores nothing', async (_label, user) => {
+    mockState.user = user;
     mockState.members = MEMBERS;
-    const res = await (await handlers['upload-asset']()).default(upload['upload-asset']());
+    const res = await (await handler())(upload());
     expect(res.status).toBe(403);
     expect(mockState.assetPutCalls).toHaveLength(0);
   });
 
-  it('upload-resource credits an admin matched by email with their own member row', async () => {
-    mockState.user = { id: 'unlinked-user', email: 'Email-Admin@example.com' };
+  it.each([
+    ['an active admin matched by email', { id: 'unlinked-user', email: 'Email-Admin@example.com' }],
+    ['a project admin', { id: 'owner-user', email: 'owner@example.com', app_metadata: { role: 'project_admin' } }],
+  ])('lets %s upload', async (_label, user) => {
+    mockState.user = user;
     mockState.members = MEMBERS;
-    const res = await (await handlers['upload-resource']()).default(upload['upload-resource']());
+    const res = await (await handler())(upload());
     expect(res.status).toBe(200);
-    expect(mockState.resources[0].uploaded_by).toBe(3);
-  });
-
-  it('upload-resource records no uploader for a project admin without a member row', async () => {
-    mockState.user = { id: 'owner-user', email: 'owner@example.com', app_metadata: { role: 'project_admin' } };
-    mockState.members = MEMBERS;
-    const res = await (await handlers['upload-resource']()).default(upload['upload-resource']());
-    expect(res.status).toBe(200);
-    expect(mockState.resources[0].uploaded_by).toBeNull();
+    expect(mockState.assetPutCalls).toHaveLength(1);
   });
 });

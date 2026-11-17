@@ -82,7 +82,6 @@ kychon/
 │   ├── moderate-content.js     # One-off run kychon-api queues per new forum post
 │   ├── kychon-api.js           # Capability API gateway, also the portal's one MCP tool for AI assistants (also the forum "Translate" button)
 │   ├── translate-content.js    # Admin-triggered content translation
-│   ├── upload-resource.js      # Resource file uploads
 │   ├── prune-history.js        # schedule: "23 3 * * *" — trims content history
 │   └── ai-content.js           # Newsletter/recaps (dormant; an admin runs it)
 └── tests/

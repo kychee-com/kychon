@@ -33,7 +33,6 @@ export const CORE_INCLUDED_FUNCTIONS = [
   "kychon-api",
   "site-search",
   "upload-asset",
-  "upload-resource",
 ] as const;
 
 type CoreFunctionSpec = FunctionSpec & {
