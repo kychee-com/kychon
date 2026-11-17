@@ -1856,7 +1856,7 @@ const FEATURE_PANELS: BlockType = {
           ctx.admin && section.id != null ? `sections.${section.id}.config.panels.${index}.image_url` : undefined;
         const image =
           imageUrl || ctx.admin
-            ? `<img data-feature-panel-image src="${escAttr(resolveAssetUrl(imageUrl, ctx.manifest))}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" class="aspect-[4/3] w-full bg-muted" style="object-fit:${fit};object-position:${position}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
+            ? `<img data-feature-panel-image src="${escAttr(resolveAssetUrl(imageUrl, ctx.manifest))}" alt="${escAttr(p.image_alt || '')}" loading="lazy" decoding="async" class="aspect-[4/3] w-full bg-muted" style="object-fit:${fit};object-position:${escAttr(position)}"${imageEdit ? ` data-editable-image="${escAttr(imageEdit)}"` : ''}>`
             : '';
         const headingField =
           p.heading || ctx.admin

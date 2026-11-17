@@ -755,7 +755,7 @@ async function generateNewsletterDraft(input: JsonObject, ctx: CapabilityMutatio
   const generated = (await ctx.ai?.generateNewsletter(input)) || { subject: input.subject || 'Newsletter', body: input.body || '' };
   const draft = await ctx.db.insert('newsletter_drafts', {
     subject: generated.subject || 'Newsletter',
-    body: generated.body || '',
+    body: sanitizeRichHtmlServer(generated.body || ''),
     status: 'draft',
     period_start: input.periodStart || null,
     period_end: input.periodEnd || null,
@@ -858,7 +858,7 @@ function rowForUpdate(operation: string, input: JsonObject, ctx: CapabilityMutat
   if (operation === 'moderation.markReviewed') return { action: 'reviewed', reviewed_by: memberId(ctx) };
   if (operation === 'insights.updateStatus') return { status: input.status || 'reviewed' };
   if (operation === 'insights.dismiss') return { status: 'dismissed' };
-  if (operation === 'announcements.update') {
+  if (operation === 'announcements.update' || operation === 'newsletters.drafts.update') {
     const patch = stripControlFields(input);
     if (patch.body != null) patch.body = sanitizeRichHtmlServer(patch.body);
     return patch;

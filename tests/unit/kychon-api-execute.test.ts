@@ -717,6 +717,39 @@ describe('deployable kychon-api stores only allowlisted rich HTML', () => {
     );
   });
 
+  async function writeNewsletterDraft(operation: string, input: JsonObject): Promise<string> {
+    publishCount += 1;
+    const res = await json(
+      await apiRequest({
+        apiVersion: KYCHON_API_VERSION,
+        operation,
+        phase: 'execute',
+        confirmed: true,
+        idempotencyKey: `newsletter-${publishCount}`,
+        input,
+      }),
+    );
+    expect(res.status, JSON.stringify(res)).toBe(200);
+    return String(mockState.tables.newsletter_drafts[0]?.body ?? '');
+  }
+
+  it('neutralizes hostile markup on newsletters.drafts.generate and newsletters.drafts.update', async () => {
+    await publishBody('<p>admin signed in</p>');
+    mockState.tables.newsletter_drafts = [];
+    const generated = await writeNewsletterDraft('newsletters.drafts.generate', {
+      subject: 'Weekly',
+      body: HOSTILE_RICH_HTML.join(''),
+    });
+    expect(richHtmlViolations(generated)).toEqual([]);
+
+    const id = mockState.tables.newsletter_drafts[0]?.id;
+    const updated = await writeNewsletterDraft('newsletters.drafts.update', { id, body: HOSTILE_RICH_HTML.join('') });
+    expect(richHtmlViolations(updated)).toEqual([]);
+
+    const benign = BENIGN_RICH_HTML.join('');
+    expect(await writeNewsletterDraft('newsletters.drafts.update', { id, body: benign })).toBe(benign);
+  });
+
   it('never stores markup a browser would parse into anything outside the allowlist', async () => {
     await fc.assert(
       fc.asyncProperty(fc.oneof(richHtmlSoup, richHtmlTags), async (input) => {

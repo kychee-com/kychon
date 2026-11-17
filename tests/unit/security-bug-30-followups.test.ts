@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
@@ -132,6 +135,43 @@ describe('bug #30 — server rich-HTML sanitizer closes known regex bypasses', (
     expect(sanitizeRichHtmlServer('<p>Hello <strong>world</strong> <a href="https://example.com">link</a></p>')).toBe(
       '<p>Hello <strong>world</strong> <a href="https://example.com">link</a></p>',
     );
+  });
+
+  it('sanitizes newsletter draft bodies on generate and update', async () => {
+    const db = new MemoryMutationDb({ newsletter_drafts: [] });
+    const hostile = HOSTILE_RICH_HTML.join('');
+
+    await executeCapabilityMutation(
+      'newsletters.drafts.generate',
+      { subject: 'Weekly', body: hostile },
+      { actor: adminActor, db },
+    );
+    expect(richHtmlViolations(String(db.tables.newsletter_drafts[0]?.body))).toEqual([]);
+
+    await executeCapabilityMutation('newsletters.drafts.update', { id: 1, body: hostile }, { actor: adminActor, db });
+    expect(richHtmlViolations(String(db.tables.newsletter_drafts[0]?.body))).toEqual([]);
+  });
+});
+
+// Each function deploys as one self-contained file, so the write-side
+// sanitizer is copied into every function that stores rich HTML. The copies
+// must stay identical to the one in kychon-api.js.
+describe('the write-side rich-HTML sanitizer is the same in every function that stores rich HTML', () => {
+  const functionsDir = join(import.meta.dirname, '../../functions');
+  const START = 'const RICH_HTML_ALLOWED_TAGS = new Set([';
+  const END_FUNCTION = 'function escapeRichHtmlAttribute(value) {';
+
+  function sanitizerSource(file: string): string {
+    const source = readFileSync(join(functionsDir, file), 'utf8');
+    const start = source.indexOf(START);
+    const endFn = source.indexOf(END_FUNCTION, start);
+    expect(start, `${file} has no write-side sanitizer`).toBeGreaterThanOrEqual(0);
+    expect(endFn, `${file} has no escapeRichHtmlAttribute`).toBeGreaterThan(start);
+    return source.slice(start, source.indexOf('\n}\n', endFn) + 3);
+  }
+
+  it.each(['ai-content.js'])('%s carries the kychon-api.js copy verbatim', (file) => {
+    expect(sanitizerSource(file)).toBe(sanitizerSource('kychon-api.js'));
   });
 });
 describe('bug #30 — validate phase runs the same semantic checks as execute', () => {

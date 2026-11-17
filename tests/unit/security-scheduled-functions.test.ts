@@ -21,6 +21,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pgliteAdminDb } from '../helpers/pglite-admin-db';
 import { freshKychonDb, rows } from '../helpers/pglite-db';
+import { BENIGN_RICH_HTML, HOSTILE_RICH_HTML, richHtmlViolations } from '../helpers/rich-html-safety';
 
 type MockUser = { id: string; email?: string; app_metadata?: Record<string, unknown> };
 type AdminDb = ReturnType<typeof pgliteAdminDb>;
@@ -379,6 +380,41 @@ describe('ai-content: event recaps', () => {
       { title: 'Annual meeting' },
       { title: 'Recap' },
     ]);
+  });
+
+  it('stores only allowlisted HTML from the AI in recap announcements and newsletter drafts', async () => {
+    process.env.AI_API_KEY = 'sk-test';
+    state.user = ADMIN;
+    const hostile = HOSTILE_RICH_HTML.join('');
+    globalThis.fetch = vi.fn(async () =>
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ title: 'Recap', subject: 'News', body: hostile }) } }],
+      }),
+    ) as unknown as typeof fetch;
+
+    expect((await invoke('ai-content', {}, { event_id: 2 })).status).toBe(200);
+    expect((await invoke('ai-content', {}, {})).status).toBe(200);
+
+    const [recap] = await rows<{ body: string }>(db, `SELECT body FROM announcements WHERE title = 'Recap'`);
+    const [draft] = await rows<{ body: string }>(db, 'SELECT body FROM newsletter_drafts');
+    expect(richHtmlViolations(recap.body)).toEqual([]);
+    expect(richHtmlViolations(draft.body)).toEqual([]);
+  });
+
+  it('keeps the AI-written editor markup it is asked for', async () => {
+    process.env.AI_API_KEY = 'sk-test';
+    state.user = ADMIN;
+    const benign = BENIGN_RICH_HTML.join('');
+    globalThis.fetch = vi.fn(async () =>
+      Response.json({
+        choices: [{ message: { content: JSON.stringify({ title: 'Recap', subject: 'News', body: benign }) } }],
+      }),
+    ) as unknown as typeof fetch;
+
+    await invoke('ai-content', {}, { event_id: 2 });
+    await invoke('ai-content', {}, {});
+    expect(await rows(db, `SELECT body FROM announcements WHERE title = 'Recap'`)).toEqual([{ body: benign }]);
+    expect(await rows(db, 'SELECT body FROM newsletter_drafts')).toEqual([{ body: benign }]);
   });
 
   it('refuses an anonymous recap request before reading the event or calling the AI', async () => {

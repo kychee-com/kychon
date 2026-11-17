@@ -4013,7 +4013,7 @@ function enabledLanguages(config) {
 async function generateNewsletterDraft(input) {
   const draft = await insertRow('newsletter_drafts', {
     subject: input.subject || 'Newsletter',
-    body: input.body || '',
+    body: sanitizeRichHtmlServer(input.body || ''),
     status: 'draft',
     period_start: input.periodStart || input.period_start || null,
     period_end: input.periodEnd || input.period_end || null,
@@ -5490,7 +5490,7 @@ function rowForUpdate(operation, input, actor) {
     return { action: input.action || 'reviewed', reviewed_by: input.reviewed_by ?? memberId(actor) };
   if (operation === 'insights.updateStatus') return { status: input.status || 'reviewed' };
   if (operation === 'insights.dismiss') return { status: 'dismissed' };
-  if (operation === 'announcements.update') {
+  if (operation === 'announcements.update' || operation === 'newsletters.drafts.update') {
     const patch = stripControlFields(input);
     if (patch.body != null) patch.body = sanitizeRichHtmlServer(patch.body);
     return patch;
@@ -5965,9 +5965,10 @@ const PRIVILEGED_INPUT_FIELDS = new Set([
   'tierId',
 ]);
 
-// Write-side rich-HTML sanitizer, applied before announcement bodies are
-// stored so every consumer of the table (feeds, email, exports, translation)
-// reads clean HTML. It enforces the read side's allowlist
+// Write-side rich-HTML sanitizer, applied before announcement and newsletter
+// draft bodies are stored so every consumer of those tables (feeds, email,
+// exports, translation) reads clean HTML. ai-content.js, which writes the
+// same tables, carries a verbatim copy (a unit test keeps them identical). It enforces the read side's allowlist
 // (`src/lib/sanitize-html.ts`). Functions deploy as one file with no DOM, so
 // this is a small HTML tokenizer instead of a DOM walk, and its safety never
 // rests on the tokenizer agreeing with a browser: the output is re-serialized

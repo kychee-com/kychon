@@ -1,3 +1,4 @@
+import { Window } from 'happy-dom';
 import { describe, expect, it } from 'vitest';
 import {
   BLOCK_TYPES,
@@ -177,6 +178,21 @@ describe('feature_panels block (#124)', () => {
       ctx,
     );
     expect(html).not.toContain('<script>x</script>');
+  });
+
+  it('keeps a quote in object_position inside the image style attribute', () => {
+    const html = renderBlock(
+      section('feature_panels', {
+        panels: [{ heading: 'X', image_url: '/p.png', object_position: 'center" hidden' }],
+      }),
+      ctx,
+    );
+    const img = new new Window().DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector('img[data-feature-panel-image]');
+    expect(img).not.toBeNull();
+    expect(img?.hasAttribute('hidden')).toBe(false);
+    expect(img?.getAttribute('style')).toBe('object-fit:cover;object-position:center" hidden');
   });
 
   it('exposes inline-edit hooks for admins', () => {

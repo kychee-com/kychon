@@ -48,13 +48,15 @@ async function handleNewsletter() {
   try {
     const newsletter = await generateNewsletter(provider, siteName, activity);
 
-    await adminDb().from('newsletter_drafts').insert({
-      subject: newsletter.subject,
-      body: newsletter.body,
-      status: 'draft',
-      period_start: weekAgoISO,
-      period_end: now.toISOString(),
-    });
+    await adminDb()
+      .from('newsletter_drafts')
+      .insert({
+        subject: newsletter.subject,
+        body: sanitizeRichHtmlServer(newsletter.body),
+        status: 'draft',
+        period_start: weekAgoISO,
+        period_end: now.toISOString(),
+      });
 
     return new Response(JSON.stringify({ status: 'ok', subject: newsletter.subject }));
   } catch (e) {
@@ -198,11 +200,13 @@ Description: ${(event.description || '').substring(0, 500)}`;
       body: parsed.body || `<p>Thanks to everyone who attended ${event.title}!</p>`,
     };
 
-    await adminDb().from('announcements').insert({
-      title: recap.title,
-      body: recap.body,
-      is_pinned: false,
-    });
+    await adminDb()
+      .from('announcements')
+      .insert({
+        title: recap.title,
+        body: sanitizeRichHtmlServer(recap.body),
+        is_pinned: false,
+      });
 
     return new Response(JSON.stringify({ status: 'ok', title: recap.title }));
   } catch (e) {
@@ -299,4 +303,332 @@ async function callAI(provider, prompt, maxTokens) {
     const data = await res.json();
     return data.choices?.[0]?.message?.content || '{}';
   }
+}
+
+// --- Rich-HTML sanitizer ---
+
+// The AI's HTML is untrusted: it echoes member-written titles and posts, and a
+// recap is published as a public announcement. Both bodies pass the same
+// write-side allowlist sanitizer as kychon-api.js before they are stored.
+// Functions deploy as single files, so this is a verbatim copy of the one in
+// kychon-api.js (see the comment there for how it works); a unit test keeps
+// the two identical.
+const RICH_HTML_ALLOWED_TAGS = new Set([
+  'p',
+  'br',
+  'hr',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'u',
+  's',
+  'strike',
+  'del',
+  'ins',
+  'sub',
+  'sup',
+  'mark',
+  'small',
+  'span',
+  'div',
+  'a',
+  'ul',
+  'ol',
+  'li',
+  'blockquote',
+  'pre',
+  'code',
+  'img',
+  'figure',
+  'figcaption',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'th',
+  'td',
+]);
+const RICH_HTML_VOID_TAGS = new Set(['br', 'hr', 'img']);
+const RICH_HTML_DROP_WITH_CONTENT_TAGS = new Set([
+  'script',
+  'style',
+  'iframe',
+  'object',
+  'embed',
+  'template',
+  'textarea',
+  'title',
+  'xmp',
+  'noembed',
+  'noframes',
+  'noscript',
+  'plaintext',
+  'select',
+  'option',
+  'svg',
+  'math',
+]);
+const RICH_HTML_ALLOWED_ATTRS = {
+  a: new Set(['href', 'title', 'target', 'rel']),
+  img: new Set(['src', 'alt', 'title', 'width', 'height']),
+};
+const RICH_HTML_GLOBAL_ATTRS = new Set(['id', 'lang', 'dir']);
+const RICH_HTML_SAFE_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+// Named references decoded inside attribute values. Anything else stays
+// literal text (its `&` is escaped on output), so a browser never decodes a
+// reference this check did not see.
+const RICH_HTML_NAMED_REFERENCES = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  Tab: '\t',
+  NewLine: '\n',
+  colon: ':',
+  semi: ';',
+  comma: ',',
+  period: '.',
+  sol: '/',
+  bsol: '\\',
+  num: '#',
+  quest: '?',
+  excl: '!',
+  equals: '=',
+  commat: '@',
+  percnt: '%',
+  plus: '+',
+  lowbar: '_',
+  lpar: '(',
+  rpar: ')',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  hellip: '…',
+  ndash: '–',
+  mdash: '—',
+  lsquo: '‘',
+  rsquo: '’',
+  ldquo: '“',
+  rdquo: '”',
+  euro: '€',
+};
+// References a browser also decodes without the trailing semicolon.
+const RICH_HTML_LEGACY_REFERENCES = new Set(['amp', 'lt', 'gt', 'quot', 'nbsp', 'copy', 'reg']);
+const RICH_HTML_REFERENCE_RE = /&(#[0-9]+;?|#[xX][0-9a-fA-F]+;?|[A-Za-z][A-Za-z0-9]*;?)/g;
+const RICH_HTML_RAW_AMPERSAND_RE = /&(?!(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]+);)/gi;
+const RICH_HTML_SPACE_RE = /[\t\n\f\r ]/;
+const RICH_HTML_TAG_NAME_END_RE = /[\t\n\f\r />]/;
+const RICH_HTML_ATTR_NAME_END_RE = /[\t\n\f\r />=]/;
+const RICH_HTML_UNQUOTED_VALUE_END_RE = /[\t\n\f\r >]/;
+
+function sanitizeRichHtmlServer(input) {
+  if (input == null) return '';
+  const html = String(input).replaceAll('\0', '');
+  const out = [];
+  const open = [];
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf('<', i);
+    if (lt < 0) {
+      out.push(escapeRichHtmlText(html.slice(i)));
+      break;
+    }
+    if (lt > i) out.push(escapeRichHtmlText(html.slice(i, lt)));
+    i = readRichHtmlMarkup(html, lt, out, open);
+  }
+  while (open.length) out.push(`</${open.pop()}>`);
+  return out.join('');
+}
+
+// Consumes the markup starting at `<` (html[at]) and returns the index after it.
+function readRichHtmlMarkup(html, at, out, open) {
+  if (html.startsWith('<!--', at)) return skipRichHtmlPast(html, '-->', at + 4);
+  const next = html[at + 1] ?? '';
+  if (next === '!' || next === '?') return skipRichHtmlPast(html, '>', at + 2);
+  const isEndTag = next === '/';
+  const nameStart = isEndTag ? at + 2 : at + 1;
+  if (!/[A-Za-z]/.test(html[nameStart] ?? '')) {
+    if (!isEndTag) {
+      out.push('&lt;');
+      return at + 1;
+    }
+    // `</>` is ignored; `</` + anything else is a bogus comment up to `>`.
+    return skipRichHtmlPast(html, '>', nameStart);
+  }
+  const tag = readRichHtmlTag(html, nameStart);
+  // A tag cut off by the end of the input is dropped, as browsers do.
+  if (!tag) return html.length;
+  if (isEndTag) {
+    closeRichHtmlTag(tag.name, open, out);
+    return tag.end;
+  }
+  if (RICH_HTML_DROP_WITH_CONTENT_TAGS.has(tag.name)) {
+    const selfClosingForeign = tag.selfClosing && (tag.name === 'svg' || tag.name === 'math');
+    return selfClosingForeign ? tag.end : skipRichHtmlContainer(html, tag.name, tag.end);
+  }
+  if (RICH_HTML_ALLOWED_TAGS.has(tag.name)) {
+    out.push(`<${tag.name}${renderRichHtmlAttributes(tag.name, tag.attributes)}>`);
+    if (!RICH_HTML_VOID_TAGS.has(tag.name)) open.push(tag.name);
+  }
+  return tag.end;
+}
+
+// Reads a tag's name and attributes the way the HTML tokenizer does: `/` and
+// whitespace separate attributes, quoted values may hold `>`, and the first
+// of a repeated attribute wins. Returns null when the input ends mid-tag.
+function readRichHtmlTag(html, nameStart) {
+  let i = nameStart;
+  while (i < html.length && !RICH_HTML_TAG_NAME_END_RE.test(html[i])) i += 1;
+  const name = html.slice(nameStart, i).toLowerCase();
+  const attributes = new Map();
+  let selfClosing = false;
+  while (i < html.length) {
+    const ch = html[i];
+    if (ch === '>') return { name, attributes, selfClosing, end: i + 1 };
+    if (ch === '/') {
+      selfClosing = html[i + 1] === '>';
+      i += 1;
+      continue;
+    }
+    if (RICH_HTML_SPACE_RE.test(ch)) {
+      i += 1;
+      continue;
+    }
+    const attr = readRichHtmlAttribute(html, i);
+    if (!attr) return null;
+    if (!attributes.has(attr.name)) attributes.set(attr.name, attr.value);
+    i = attr.end;
+  }
+  return null;
+}
+
+function readRichHtmlAttribute(html, nameStart) {
+  // The first character is part of the name even when it is `=`.
+  let i = nameStart + 1;
+  while (i < html.length && !RICH_HTML_ATTR_NAME_END_RE.test(html[i])) i += 1;
+  const name = html.slice(nameStart, i).toLowerCase();
+  let j = skipRichHtmlSpaces(html, i);
+  if (html[j] !== '=') return { name, value: '', end: i };
+  j = skipRichHtmlSpaces(html, j + 1);
+  const quote = html[j];
+  if (quote === '"' || quote === "'") {
+    const close = html.indexOf(quote, j + 1);
+    if (close < 0) return null;
+    return { name, value: html.slice(j + 1, close), end: close + 1 };
+  }
+  const valueStart = j;
+  while (j < html.length && !RICH_HTML_UNQUOTED_VALUE_END_RE.test(html[j])) j += 1;
+  return { name, value: html.slice(valueStart, j), end: j };
+}
+
+function skipRichHtmlSpaces(html, from) {
+  let i = from;
+  while (i < html.length && RICH_HTML_SPACE_RE.test(html[i])) i += 1;
+  return i;
+}
+
+function skipRichHtmlPast(html, marker, from) {
+  const found = html.indexOf(marker, from);
+  return found < 0 ? html.length : found + marker.length;
+}
+
+// Skips a dropped container's content through its matching end tag (or to
+// the end of the input when it never closes).
+function skipRichHtmlContainer(html, name, from) {
+  const closeRe = new RegExp(`</${name}(?=[\\t\\n\\f\\r />]|$)`, 'gi');
+  closeRe.lastIndex = from;
+  const match = closeRe.exec(html);
+  if (!match) return html.length;
+  return skipRichHtmlPast(html, '>', match.index + match[0].length);
+}
+
+function closeRichHtmlTag(name, open, out) {
+  const index = open.lastIndexOf(name);
+  if (index < 0) return;
+  while (open.length > index) out.push(`</${open.pop()}>`);
+}
+
+function renderRichHtmlAttributes(tag, attributes) {
+  const allowed = RICH_HTML_ALLOWED_ATTRS[tag];
+  const kept = new Map();
+  for (const [name, raw] of attributes) {
+    if (name.startsWith('on')) continue;
+    if (!allowed?.has(name) && !RICH_HTML_GLOBAL_ATTRS.has(name)) continue;
+    const value = decodeRichHtmlAttribute(raw);
+    if (name === 'href' && !isSafeRichHtmlUrl(value, false)) continue;
+    if (name === 'src' && !isSafeRichHtmlUrl(value, true)) continue;
+    kept.set(name, value);
+  }
+  if (String(kept.get('target') ?? '').toLowerCase() === '_blank') {
+    kept.set('rel', relWithNoopener(kept.get('rel') ?? ''));
+  }
+  let rendered = '';
+  for (const [name, value] of kept) rendered += ` ${name}="${escapeRichHtmlAttribute(value)}"`;
+  return rendered;
+}
+
+function relWithNoopener(rel) {
+  const tokens = String(rel).split(/\s+/).filter(Boolean);
+  const lower = new Set(tokens.map((token) => token.toLowerCase()));
+  if (!lower.has('noopener')) tokens.push('noopener');
+  if (!lower.has('noreferrer')) tokens.push('noreferrer');
+  return tokens.join(' ');
+}
+
+function decodeRichHtmlAttribute(value) {
+  return value.replace(RICH_HTML_REFERENCE_RE, (match, ref, offset) => {
+    if (ref[0] === '#') {
+      const hex = ref[1] === 'x' || ref[1] === 'X';
+      const digits = ref.slice(hex ? 2 : 1).replace(/;$/, '');
+      return richHtmlCodePoint(Number.parseInt(digits, hex ? 16 : 10));
+    }
+    if (ref.endsWith(';')) {
+      const name = ref.slice(0, -1);
+      return Object.hasOwn(RICH_HTML_NAMED_REFERENCES, name) ? RICH_HTML_NAMED_REFERENCES[name] : match;
+    }
+    // Inside an attribute a browser decodes a legacy reference without its
+    // semicolon unless `=` follows it.
+    if (RICH_HTML_LEGACY_REFERENCES.has(ref) && value[offset + match.length] !== '=') {
+      return RICH_HTML_NAMED_REFERENCES[ref];
+    }
+    return match;
+  });
+}
+
+function richHtmlCodePoint(codePoint) {
+  if (!Number.isFinite(codePoint) || codePoint === 0 || codePoint > 0x10ffff) return '�';
+  if (codePoint >= 0xd800 && codePoint <= 0xdfff) return '�';
+  return String.fromCodePoint(codePoint);
+}
+
+function isSafeRichHtmlUrl(value, allowDataImage) {
+  // Browsers drop tab and newline anywhere in a URL and controls or spaces
+  // at its ends; removing them all reads the URL the most permissive way.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: C0 controls are what URL parsing strips.
+  const compact = value.replace(/[\u0000-\u0020\u007f]+/g, '');
+  if (!compact) return false;
+  const colon = compact.indexOf(':');
+  if (colon < 0) return true;
+  const delimiter = compact.search(/[/?#]/);
+  if (delimiter >= 0 && delimiter < colon) return true;
+  if (RICH_HTML_SAFE_URL_SCHEMES.has(compact.slice(0, colon + 1).toLowerCase())) return true;
+  return allowDataImage && /^data:image\/(png|jpe?g|gif|webp|svg\+xml)/i.test(compact);
+}
+
+function escapeRichHtmlText(value) {
+  return value.replace(RICH_HTML_RAW_AMPERSAND_RE, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeRichHtmlAttribute(value) {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
