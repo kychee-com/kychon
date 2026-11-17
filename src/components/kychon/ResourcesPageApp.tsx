@@ -33,7 +33,7 @@ import { del, getResources, post } from '@/lib/api';
 import { getSession, isAdmin, isAuthenticated } from '@/lib/auth';
 import { openAuthModal } from '@/lib/auth-modal-events';
 import { refreshMemberRecord, translateItems } from '@/lib/config';
-import { uploadFileContentAddressed } from '@/lib/storage-upload';
+import { uploadResourceFile } from '@/lib/resource-upload';
 import { showToast } from '@/lib/toast-events';
 import type { Resource } from '@/schemas/content';
 
@@ -75,14 +75,6 @@ function resourceIcon(type: string | null | undefined) {
 
 function categoryLabel(value: string | null | undefined): string {
   return String(value || '').trim();
-}
-
-async function uploadResourceFile(file: File): Promise<string> {
-  const { url } = await uploadFileContentAddressed(file, {
-    keyPrefix: 'resources',
-    authToken: getSession()?.access_token,
-  });
-  return url;
 }
 
 export default function ResourcesPageApp() {
@@ -167,7 +159,7 @@ export default function ResourcesPageApp() {
       let fileUrl = uploadForm.fileUrl.trim();
       if (uploadForm.fileType !== 'link') {
         if (!uploadFile) throw new Error('Choose a file to upload.');
-        fileUrl = await uploadResourceFile(uploadFile);
+        fileUrl = await uploadResourceFile(uploadFile, getSession()?.access_token);
       }
 
       await post('resources', {

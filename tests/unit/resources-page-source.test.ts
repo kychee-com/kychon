@@ -20,7 +20,7 @@ describe('resources page source', () => {
     expect(app).toContain('resource_category_filter');
     expect(app).toContain('Sign in to view resources');
     expect(app).toContain('Upload Resource');
-    expect(app).toContain('uploadFileContentAddressed');
+    expect(app).toContain('uploadResourceFile');
     expect(app).toContain('Delete resource?');
     expect(app).toContain('resources?id=eq.');
   });
